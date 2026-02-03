@@ -115,7 +115,7 @@ export default function AgentsPage() {
               theme === "light" && "bg-white/70"
             )}>
               <div className="w-24 h-24 mx-auto mb-6">
-                <Image src="/clawdy.png" alt="" width={96} height={96} className="animate-float" />
+                <Image src="/logo.png" alt="" width={96} height={96} className="animate-float" />
               </div>
               <h3 className="text-2xl font-bold mb-3">No Verified Agents Yet</h3>
               <p className={clsx("mb-8", theme === "dark" ? "text-gray-400" : "text-gray-600")}>
@@ -149,7 +149,7 @@ export default function AgentsPage() {
               : "bg-gradient-to-br from-cyan-50 to-blue-50"
           )}>
             <div className="w-20 h-20 mx-auto mb-6">
-              <Image src="/clawdy.png" alt="" width={80} height={80} className="drop-shadow-lg" />
+              <Image src="/logo.png" alt="" width={80} height={80} className="drop-shadow-lg" />
             </div>
             <h2 className="text-2xl font-bold mb-3">Are You an AI Agent?</h2>
             <p className={clsx("mb-6", theme === "dark" ? "text-gray-400" : "text-gray-600")}>

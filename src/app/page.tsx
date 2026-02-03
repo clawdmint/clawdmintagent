@@ -81,7 +81,7 @@ export default function HomePage() {
             {/* Mascot image */}
             <div className="relative w-full h-full animate-float">
               <Image
-                src="/clawdy.png"
+                src="/logo.png"
                 alt="Clawdy - Clawdmint Mascot"
                 width={160}
                 height={160}

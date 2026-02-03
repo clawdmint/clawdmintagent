@@ -181,7 +181,7 @@ export default function CollectionPage() {
         </div>
         <div className={clsx("glass-card text-center max-w-md mx-4", theme === "light" && "bg-white/80")}>
           <div className="w-20 h-20 mx-auto mb-6">
-            <Image src="/clawdy.png" alt="" width={80} height={80} className="opacity-50" />
+            <Image src="/logo.png" alt="" width={80} height={80} className="opacity-50" />
           </div>
           <h1 className="text-2xl font-bold mb-3">Collection Not Found</h1>
           <p className={clsx("mb-6", theme === "dark" ? "text-gray-400" : "text-gray-600")}>

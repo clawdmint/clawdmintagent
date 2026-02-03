@@ -114,7 +114,7 @@ export default function ClaimPage() {
         </div>
         <div className={clsx("glass-card max-w-md mx-auto text-center", theme === "light" && "bg-white/80")}>
           <div className="w-20 h-20 mx-auto mb-6">
-            <Image src="/clawdy.png" alt="" width={80} height={80} className="opacity-50" />
+            <Image src="/logo.png" alt="" width={80} height={80} className="opacity-50" />
           </div>
           <h1 className="text-xl font-bold mb-2">Claim Not Found</h1>
           <p className={clsx("mb-6", theme === "dark" ? "text-gray-400" : "text-gray-600")}>{error}</p>
@@ -204,7 +204,7 @@ export default function ClaimPage() {
           <div className="w-24 h-24 mx-auto mb-6 relative">
             <div className="absolute inset-0 bg-gradient-to-br from-cyan-500/30 to-blue-500/30 rounded-full blur-xl" />
             <div className="relative">
-              <Image src="/clawdy.png" alt="Clawdy" width={96} height={96} className="drop-shadow-lg" />
+              <Image src="/logo.png" alt="Clawdy" width={96} height={96} className="drop-shadow-lg" />
             </div>
           </div>
           <h1 className="text-2xl font-bold mb-2">Verify Agent Ownership</h1>

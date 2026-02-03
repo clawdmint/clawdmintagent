@@ -30,7 +30,7 @@ export function Header() {
           <Link href="/" className="flex items-center gap-2 group">
             <div className="relative w-10 h-10 group-hover:scale-110 transition-transform">
               <Image
-                src="/clawdy.png"
+                src="/logo.png"
                 alt="Clawdmint"
                 width={40}
                 height={40}

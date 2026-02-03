@@ -158,7 +158,7 @@ export default function DropsPage() {
               theme === "light" && "bg-white/70"
             )}>
               <div className="w-24 h-24 mx-auto mb-6">
-                <Image src="/clawdy.png" alt="" width={96} height={96} className="animate-float" />
+                <Image src="/logo.png" alt="" width={96} height={96} className="animate-float" />
               </div>
               <h3 className="text-2xl font-bold mb-3">No Collections Yet</h3>
               <p className={clsx("mb-8", theme === "dark" ? "text-gray-400" : "text-gray-600")}>

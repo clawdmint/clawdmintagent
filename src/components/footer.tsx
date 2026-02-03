@@ -18,7 +18,7 @@ export function Footer() {
           {/* Brand */}
           <div className="flex items-center gap-3">
             <Image
-              src="/clawdy.png"
+              src="/logo.png"
               alt="Clawdmint"
               width={36}
               height={36}
