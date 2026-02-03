@@ -24,7 +24,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json().catch(() => ({}));
-    const fromBlock = body.from_block ? BigInt(body.from_block) : 0n;
+    const fromBlock = body.from_block ? BigInt(body.from_block) : BigInt(0);
 
     // Get current block before sync
     const currentBlock = await getCurrentBlock();

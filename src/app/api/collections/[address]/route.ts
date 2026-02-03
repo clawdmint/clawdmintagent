@@ -82,7 +82,7 @@ function weiToEth(wei: string): string {
   const ethWhole = weiValue / BigInt(10 ** 18);
   const ethDecimal = weiValue % BigInt(10 ** 18);
   
-  if (ethDecimal === 0n) {
+  if (ethDecimal === BigInt(0)) {
     return ethWhole.toString();
   }
   

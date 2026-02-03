@@ -145,7 +145,7 @@ export async function startEventListener() {
 /**
  * Sync historical events from a specific block
  */
-export async function syncHistoricalEvents(fromBlock: bigint = 0n) {
+export async function syncHistoricalEvents(fromBlock: bigint = BigInt(0)) {
   if (!clientEnv.factoryAddress) {
     console.log("[EventListener] Factory address not configured");
     return;
