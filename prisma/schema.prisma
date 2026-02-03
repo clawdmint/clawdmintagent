@@ -1,0 +1,171 @@
+// Clawdmint Database Schema
+// Platform for AI agent NFT deployments
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// AGENT MANAGEMENT
+// ═══════════════════════════════════════════════════════════════════════
+
+// AgentStatus values: PENDING, CLAIMED, VERIFIED, SUSPENDED, BANNED
+
+model Agent {
+  id            String        @id @default(cuid())
+  name          String
+  eoa           String        @unique // Ethereum address (checksummed)
+  description   String?
+  avatarUrl     String?
+  xHandle       String?       // Twitter/X handle (optional)
+  
+  // Authentication
+  hmacKeyHash   String?       // Hashed HMAC key for API authentication
+  
+  // Verification status (PENDING, CLAIMED, VERIFIED, SUSPENDED, BANNED)
+  status        String        @default("PENDING")
+  deployEnabled Boolean       @default(false)
+  
+  // Timestamps
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+  verifiedAt    DateTime?
+  
+  // Relations
+  claims        AgentClaim[]
+  collections   Collection[]
+  
+  @@index([eoa])
+  @@index([status])
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// VERIFICATION CLAIMS
+// ═══════════════════════════════════════════════════════════════════════
+
+// ClaimStatus values: PENDING, VERIFIED, EXPIRED, FAILED
+
+model AgentClaim {
+  id          String      @id @default(cuid())
+  agentId     String
+  agent       Agent       @relation(fields: [agentId], references: [id], onDelete: Cascade)
+  
+  // Claim details
+  claimCode   String      @unique // e.g., CLAWDMINT-AGENT-9K2F
+  
+  // Verification data
+  signature   String?     // EIP-191 signature of claim code
+  tweetUrl    String?     // Optional Twitter verification
+  tweetId     String?     // Tweet ID for API lookup
+  
+  // Status (PENDING, VERIFIED, EXPIRED, FAILED)
+  status      String      @default("PENDING")
+  expiresAt   DateTime
+  verifiedAt  DateTime?
+  
+  // Timestamps
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+  
+  @@index([claimCode])
+  @@index([agentId])
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// NFT COLLECTIONS
+// ═══════════════════════════════════════════════════════════════════════
+
+// CollectionStatus values: DEPLOYING, ACTIVE, PAUSED, SOLD_OUT, FAILED
+
+model Collection {
+  id              String    @id @default(cuid())
+  
+  // On-chain data
+  address         String    @unique // Contract address on Base
+  deployTxHash    String    // Deployment transaction hash
+  
+  // Agent relation
+  agentId         String
+  agent           Agent     @relation(fields: [agentId], references: [id])
+  agentEoa        String    // Denormalized for quick access
+  
+  // Collection metadata
+  name            String
+  symbol          String
+  description     String?
+  imageUrl        String?   // Collection cover image
+  baseUri         String    // IPFS base URI
+  
+  // Mint parameters
+  maxSupply       Int
+  mintPrice       String    // Wei amount as string (bigint)
+  royaltyBps      Int       // Royalty in basis points
+  payoutAddress   String
+  
+  // Mint tracking
+  totalMinted     Int       @default(0)
+  
+  // Status (DEPLOYING, ACTIVE, PAUSED, SOLD_OUT, FAILED)
+  status          String    @default("DEPLOYING")
+  
+  // Timestamps
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  deployedAt      DateTime?
+  
+  // Relations
+  mints           Mint[]
+  
+  @@index([agentId])
+  @@index([address])
+  @@index([status])
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// MINT TRACKING
+// ═══════════════════════════════════════════════════════════════════════
+
+model Mint {
+  id            String     @id @default(cuid())
+  
+  // Collection relation
+  collectionId  String
+  collection    Collection @relation(fields: [collectionId], references: [id])
+  
+  // Mint details
+  minterAddress String
+  quantity      Int
+  totalPaid     String     // Wei amount as string
+  txHash        String     @unique
+  
+  // Token IDs
+  startTokenId  Int
+  endTokenId    Int
+  
+  // Timestamps
+  createdAt     DateTime   @default(now())
+  mintedAt      DateTime   // Block timestamp
+  
+  @@index([collectionId])
+  @@index([minterAddress])
+  @@index([txHash])
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// REPLAY PROTECTION
+// ═══════════════════════════════════════════════════════════════════════
+
+model UsedNonce {
+  id        String   @id @default(cuid())
+  agentId   String
+  nonce     String
+  usedAt    DateTime @default(now())
+  
+  @@unique([agentId, nonce])
+  @@index([agentId])
+}
