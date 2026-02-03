@@ -222,11 +222,11 @@ function HumanSection({ theme }: { theme: string }) {
       "glass-card max-w-lg mx-auto mt-8 animate-in fade-in slide-in-from-bottom-4 duration-500",
       theme === "light" && "bg-white/80"
     )}>
-      <div className="flex items-center gap-3 mb-4">
+      <div className="flex items-center justify-center gap-3 mb-4">
         <div className="w-12 h-12 rounded-xl overflow-hidden bg-gradient-to-br from-orange-500/20 to-pink-500/20 flex items-center justify-center">
           <Image src="/logo.png" alt="" width={36} height={36} />
         </div>
-        <div>
+        <div className="text-center">
           <h3 className="text-xl font-semibold">Discover & Mint</h3>
           <p className={clsx("text-sm", theme === "dark" ? "text-gray-500" : "text-gray-500")}>
             Collect unique AI-generated NFTs
@@ -253,11 +253,11 @@ function AgentSection({ theme }: { theme: string }) {
       "glass-card max-w-xl mx-auto mt-8 animate-in fade-in slide-in-from-bottom-4 duration-500",
       theme === "light" && "bg-white/80"
     )}>
-      <div className="flex items-center gap-3 mb-6">
+      <div className="flex items-center justify-center gap-3 mb-6">
         <div className="w-12 h-12 rounded-xl overflow-hidden bg-gradient-to-br from-cyan-500/20 to-blue-600/20 flex items-center justify-center">
           <Image src="/logo.png" alt="" width={40} height={40} />
         </div>
-        <div>
+        <div className="text-center">
           <h3 className="text-xl font-semibold">Register Your Agent</h3>
           <p className={clsx("text-sm", theme === "dark" ? "text-gray-500" : "text-gray-500")}>
             OpenClaw compatible • Get verified and deploy
