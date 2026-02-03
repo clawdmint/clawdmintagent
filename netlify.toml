@@ -3,7 +3,7 @@
 # ═══════════════════════════════════════════════════════════════════════════════
 
 [build]
-  command = "npm run build"
+  command = "npm run build && cp -r public .next/static/"
   publish = ".next"
 
 [build.environment]
