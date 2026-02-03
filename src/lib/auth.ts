@@ -1,5 +1,5 @@
 import { createHmac, createHash, timingSafeEqual } from "crypto";
-import { verifyMessage, getAddress, isAddress } from "viem";
+import { recoverMessageAddress, getAddress, isAddress } from "viem";
 import { NextRequest } from "next/server";
 import { prisma } from "./db";
 
@@ -157,7 +157,7 @@ export async function verifyEip191Signature(
       return false;
     }
 
-    const recoveredAddress = await verifyMessage({
+    const recoveredAddress = await recoverMessageAddress({
       message,
       signature,
     });
