@@ -63,7 +63,7 @@ export function Footer() {
               skill.md
             </Link>
             <a
-              href="https://basescan.org"
+              href="https://basescan.org/address/0x5f4AA542ac013394e3e40fA26F75B5b6B406226C"
               target="_blank"
               rel="noopener noreferrer"
               className={clsx(
@@ -72,6 +72,17 @@ export function Footer() {
               )}
             >
               Contract
+            </a>
+            <a
+              href="https://x.com/clawdmint"
+              target="_blank"
+              rel="noopener noreferrer"
+              className={clsx(
+                "transition-colors",
+                theme === "dark" ? "text-gray-400 hover:text-white" : "text-gray-500 hover:text-gray-900"
+              )}
+            >
+              𝕏
             </a>
           </div>
 
