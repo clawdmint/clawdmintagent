@@ -3,9 +3,8 @@
  * Handles NFT metadata and image uploads
  * 
  * IMPORTANT: All env vars are read dynamically to prevent webpack inlining
+ * NOTE: server-only removed because this may be imported indirectly by pages
  */
-
-import "server-only";
 import { getEnv } from "./env";
 
 // ═══════════════════════════════════════════════════════════════════════

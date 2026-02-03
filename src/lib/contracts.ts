@@ -2,9 +2,8 @@
  * Smart contract interactions
  * 
  * IMPORTANT: All env vars are read dynamically to prevent webpack inlining
+ * NOTE: server-only removed because this is imported by pages
  */
-
-import "server-only";
 import { createPublicClient, createWalletClient, http, parseEther, formatEther } from "viem";
 import { base, baseSepolia } from "viem/chains";
 import { privateKeyToAccount } from "viem/accounts";

@@ -1,4 +1,4 @@
-import "server-only";
+// NOTE: server-only removed - this file uses crypto which is server-only by nature
 import { createHmac, createHash, timingSafeEqual } from "crypto";
 import { recoverMessageAddress, getAddress, isAddress } from "viem";
 import { NextRequest } from "next/server";
