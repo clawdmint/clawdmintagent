@@ -102,7 +102,7 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://clawdmint.xyz";
+    const appUrl = process.env["NEXT_PUBLIC_APP_URL"] || "https://clawdmint.xyz";
 
     return NextResponse.json({
       success: true,

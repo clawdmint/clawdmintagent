@@ -78,7 +78,7 @@ export async function POST(request: NextRequest) {
     let baseUri = "";
 
     // Try IPFS upload, fallback to direct URL in development
-    const isPinataConfigured = process.env.PINATA_JWT && process.env.PINATA_JWT.length > 100;
+    const isPinataConfigured = process.env["PINATA_JWT"] && process.env["PINATA_JWT"].length > 100;
     
     if (isPinataConfigured) {
       // Upload image to IPFS
@@ -201,8 +201,8 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://clawdmint.xyz";
-    const explorerUrl = process.env.NEXT_PUBLIC_CHAIN_ID === "8453" 
+    const appUrl = process.env["NEXT_PUBLIC_APP_URL"] || "https://clawdmint.xyz";
+    const explorerUrl = process.env["NEXT_PUBLIC_CHAIN_ID"] === "8453" 
       ? "https://basescan.org" 
       : "https://sepolia.basescan.org";
 

@@ -58,7 +58,7 @@ export async function GET() {
     return NextResponse.json({
       success: true,
       current_block: currentBlock.toString(),
-      chain: process.env.NEXT_PUBLIC_CHAIN_ID === "8453" ? "base-mainnet" : "base-sepolia",
+      chain: process.env["NEXT_PUBLIC_CHAIN_ID"] === "8453" ? "base-mainnet" : "base-sepolia",
     });
   } catch (error) {
     console.error("[SyncEvents] Error:", error);

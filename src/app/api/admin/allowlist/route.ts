@@ -45,7 +45,7 @@ export async function POST(request: NextRequest) {
   try {
     // Simple auth check
     const authHeader = request.headers.get("authorization");
-    const adminSecret = process.env.AGENT_HMAC_SECRET;
+    const adminSecret = process.env["AGENT_HMAC_SECRET"];
     
     if (adminSecret && adminSecret !== "your-secure-hmac-secret-min-32-chars") {
       if (authHeader !== `Bearer ${adminSecret}`) {

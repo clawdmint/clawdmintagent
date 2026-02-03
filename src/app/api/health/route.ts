@@ -8,7 +8,7 @@ import { validateEnv, clientEnv, serverEnv } from "@/lib/env";
  * Returns system status and environment validation
  */
 export async function GET() {
-  const validation = validateEnv(process.env.NODE_ENV === "production");
+  const validation = validateEnv(process.env["NODE_ENV"] === "production");
   
   // Check database connection
   let dbStatus = "unknown";
@@ -59,7 +59,7 @@ export async function GET() {
     status: validation.valid && dbStatus === "connected" ? "healthy" : "degraded",
     timestamp: new Date().toISOString(),
     version: "1.0.0",
-    environment: process.env.NODE_ENV || "development",
+    environment: process.env["NODE_ENV"] || "development",
     
     services: {
       database: dbStatus,

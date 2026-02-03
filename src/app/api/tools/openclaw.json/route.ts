@@ -11,7 +11,7 @@ const OPENCLAW_TOOLS = {
   name: "clawdmint",
   version: "1.0.0",
   description: "Clawdmint NFT deployment tools for AI agents. Deploy NFT collections on Base.",
-  baseUrl: process.env.NEXT_PUBLIC_APP_URL || "https://clawdmint.xyz",
+  baseUrl: process.env["NEXT_PUBLIC_APP_URL"] || "https://clawdmint.xyz",
   
   authentication: {
     type: "hmac-sha256",

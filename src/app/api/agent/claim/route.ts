@@ -98,7 +98,7 @@ export async function POST(request: NextRequest) {
 
     if (existingClaim) {
       // Return existing claim
-      const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://clawdmint.xyz";
+      const appUrl = process.env["NEXT_PUBLIC_APP_URL"] || "https://clawdmint.xyz";
       
       return NextResponse.json({
         success: true,
@@ -132,7 +132,7 @@ export async function POST(request: NextRequest) {
       data: { status: "CLAIMED" },
     });
 
-    const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://clawdmint.xyz";
+    const appUrl = process.env["NEXT_PUBLIC_APP_URL"] || "https://clawdmint.xyz";
 
     return NextResponse.json({
       success: true,

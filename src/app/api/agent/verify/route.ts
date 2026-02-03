@@ -201,7 +201,7 @@ async function verifyTweet(
   claimCode: string,
   address: string
 ): Promise<boolean> {
-  const bearerToken = process.env.TWITTER_BEARER_TOKEN;
+  const bearerToken = process.env["TWITTER_BEARER_TOKEN"];
   if (!bearerToken) {
     console.log("Twitter verification skipped: no bearer token configured");
     return false;

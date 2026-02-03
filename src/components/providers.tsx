@@ -9,19 +9,22 @@ import { useState, useEffect } from "react";
 import { ThemeProvider } from "./theme-provider";
 
 // Determine which chain to use based on environment
-const chainId = parseInt(process.env.NEXT_PUBLIC_CHAIN_ID || "8453");
+// Note: NEXT_PUBLIC_ vars are intentionally client-side exposed
+const chainId = parseInt(process.env["NEXT_PUBLIC_CHAIN_ID"] || "8453");
 const targetChain = chainId === 8453 ? base : baseSepolia;
+const alchemyId = process.env["NEXT_PUBLIC_ALCHEMY_ID"] || "";
+const walletConnectId = process.env["NEXT_PUBLIC_WALLET_CONNECT_ID"] || "demo";
 
 const config = getDefaultConfig({
   appName: "Clawdmint",
-  projectId: process.env.NEXT_PUBLIC_WALLET_CONNECT_ID || "demo",
+  projectId: walletConnectId,
   chains: [targetChain],
   transports: {
     [base.id]: http(
-      `https://base-mainnet.g.alchemy.com/v2/${process.env.NEXT_PUBLIC_ALCHEMY_ID}`
+      alchemyId ? `https://base-mainnet.g.alchemy.com/v2/${alchemyId}` : "https://mainnet.base.org"
     ),
     [baseSepolia.id]: http(
-      `https://base-sepolia.g.alchemy.com/v2/${process.env.NEXT_PUBLIC_ALCHEMY_ID}`
+      alchemyId ? `https://base-sepolia.g.alchemy.com/v2/${alchemyId}` : "https://sepolia.base.org"
     ),
   },
   ssr: true,

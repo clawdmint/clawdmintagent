@@ -118,7 +118,7 @@ async function verifyTweet(tweetUrl: string, verificationCode: string, agentName
   // For now, we'll do basic URL validation and trust the user
   // In production, use Twitter API to fetch and verify tweet content
   
-  const bearerToken = process.env.TWITTER_BEARER_TOKEN;
+  const bearerToken = process.env["TWITTER_BEARER_TOKEN"];
   
   if (!bearerToken) {
     // If no Twitter API configured, do basic validation

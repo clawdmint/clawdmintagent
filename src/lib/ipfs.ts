@@ -1,7 +1,12 @@
 /**
  * IPFS upload utilities using Pinata
  * Handles NFT metadata and image uploads
+ * 
+ * IMPORTANT: All env vars are read dynamically to prevent webpack inlining
  */
+
+import "server-only";
+import { getEnv } from "./env";
 
 // ═══════════════════════════════════════════════════════════════════════
 // TYPES
@@ -35,13 +40,17 @@ export interface CollectionMetadata {
 }
 
 // ═══════════════════════════════════════════════════════════════════════
-// CONFIGURATION
+// CONFIGURATION (lazy loaded)
 // ═══════════════════════════════════════════════════════════════════════
 
-const PINATA_API_KEY = process.env.PINATA_API_KEY || "";
-const PINATA_SECRET_KEY = process.env.PINATA_SECRET_KEY || "";
-const PINATA_JWT = process.env.PINATA_JWT || "";
-const PINATA_GATEWAY = "https://gateway.pinata.cloud/ipfs";
+function getPinataConfig() {
+  return {
+    apiKey: getEnv("PINATA_API_KEY"),
+    secretKey: getEnv("PINATA_SECRET_KEY"),
+    jwt: getEnv("PINATA_JWT"),
+    gateway: "https://gateway.pinata.cloud/ipfs",
+  };
+}
 
 // ═══════════════════════════════════════════════════════════════════════
 // UPLOAD FUNCTIONS
@@ -56,6 +65,7 @@ export async function uploadFile(
   contentType: string
 ): Promise<UploadResult> {
   try {
+    const config = getPinataConfig();
     const formData = new FormData();
     
     const blob = Buffer.isBuffer(file)
@@ -66,7 +76,7 @@ export async function uploadFile(
     const response = await fetch("https://api.pinata.cloud/pinning/pinFileToIPFS", {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${PINATA_JWT}`,
+        Authorization: `Bearer ${config.jwt}`,
       },
       body: formData,
     });
@@ -82,7 +92,7 @@ export async function uploadFile(
     return {
       success: true,
       cid,
-      url: `${PINATA_GATEWAY}/${cid}`,
+      url: `${config.gateway}/${cid}`,
     };
   } catch (error) {
     console.error("IPFS upload error:", error);
@@ -101,11 +111,13 @@ export async function uploadJson(
   name: string
 ): Promise<UploadResult> {
   try {
+    const config = getPinataConfig();
+    
     const response = await fetch("https://api.pinata.cloud/pinning/pinJSONToIPFS", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        Authorization: `Bearer ${PINATA_JWT}`,
+        Authorization: `Bearer ${config.jwt}`,
       },
       body: JSON.stringify({
         pinataContent: data,
@@ -124,7 +136,7 @@ export async function uploadJson(
     return {
       success: true,
       cid,
-      url: `${PINATA_GATEWAY}/${cid}`,
+      url: `${config.gateway}/${cid}`,
     };
   } catch (error) {
     console.error("IPFS JSON upload error:", error);
@@ -145,6 +157,8 @@ export async function uploadCollectionMetadata(
   collectionName: string
 ): Promise<UploadResult> {
   try {
+    const config = getPinataConfig();
+    
     // Create metadata objects for the folder
     const files: Array<{ path: string; content: string }> = [];
 
@@ -167,7 +181,7 @@ export async function uploadCollectionMetadata(
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        Authorization: `Bearer ${PINATA_JWT}`,
+        Authorization: `Bearer ${config.jwt}`,
       },
       body: JSON.stringify({
         pinataContent: {
@@ -254,8 +268,9 @@ export async function uploadImage(
  * Convert IPFS CID to gateway URL
  */
 export function ipfsToHttp(ipfsUrl: string): string {
+  const config = getPinataConfig();
   if (ipfsUrl.startsWith("ipfs://")) {
-    return `${PINATA_GATEWAY}/${ipfsUrl.replace("ipfs://", "")}`;
+    return `${config.gateway}/${ipfsUrl.replace("ipfs://", "")}`;
   }
   return ipfsUrl;
 }

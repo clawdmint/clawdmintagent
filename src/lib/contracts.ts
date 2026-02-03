@@ -1,45 +1,92 @@
+/**
+ * Smart contract interactions
+ * 
+ * IMPORTANT: All env vars are read dynamically to prevent webpack inlining
+ */
+
+import "server-only";
 import { createPublicClient, createWalletClient, http, parseEther, formatEther } from "viem";
 import { base, baseSepolia } from "viem/chains";
 import { privateKeyToAccount } from "viem/accounts";
+import { getEnv } from "./env";
 
 // ═══════════════════════════════════════════════════════════════════════
-// CONFIGURATION
+// CONFIGURATION (lazy loaded functions)
 // ═══════════════════════════════════════════════════════════════════════
 
-const CHAIN_ID = parseInt(process.env.NEXT_PUBLIC_CHAIN_ID || "8453");
-const FACTORY_ADDRESS = process.env.NEXT_PUBLIC_FACTORY_ADDRESS as `0x${string}`;
-const ALCHEMY_ID = process.env.NEXT_PUBLIC_ALCHEMY_ID || "";
+function getChainId(): number {
+  return parseInt(getEnv("NEXT_PUBLIC_CHAIN_ID", "8453"));
+}
 
-// Determine chain based on ID
-export const chain = CHAIN_ID === 8453 ? base : baseSepolia;
+function getFactoryAddress(): `0x${string}` {
+  return getEnv("NEXT_PUBLIC_FACTORY_ADDRESS") as `0x${string}`;
+}
 
-// RPC URL with Alchemy
-const rpcUrl = CHAIN_ID === 8453
-  ? `https://base-mainnet.g.alchemy.com/v2/${ALCHEMY_ID}`
-  : `https://base-sepolia.g.alchemy.com/v2/${ALCHEMY_ID}`;
+function getAlchemyId(): string {
+  return getEnv("NEXT_PUBLIC_ALCHEMY_ID", "");
+}
+
+function getRpcUrl(): string {
+  const chainId = getChainId();
+  const alchemyId = getAlchemyId();
+  
+  if (chainId === 8453) {
+    return alchemyId 
+      ? `https://base-mainnet.g.alchemy.com/v2/${alchemyId}`
+      : "https://mainnet.base.org";
+  }
+  
+  return alchemyId
+    ? `https://base-sepolia.g.alchemy.com/v2/${alchemyId}`
+    : "https://sepolia.base.org";
+}
+
+function getChain() {
+  return getChainId() === 8453 ? base : baseSepolia;
+}
 
 // ═══════════════════════════════════════════════════════════════════════
-// CLIENTS
+// CLIENTS (lazy created)
 // ═══════════════════════════════════════════════════════════════════════
 
-export const publicClient = createPublicClient({
-  chain,
-  transport: http(rpcUrl),
-});
+let _publicClient: ReturnType<typeof createPublicClient> | null = null;
+
+export function getPublicClient() {
+  if (!_publicClient) {
+    _publicClient = createPublicClient({
+      chain: getChain(),
+      transport: http(getRpcUrl()),
+    });
+  }
+  return _publicClient;
+}
+
+// Alias for backward compatibility
+export const publicClient = {
+  get readContract() {
+    return getPublicClient().readContract.bind(getPublicClient());
+  },
+  get getBalance() {
+    return getPublicClient().getBalance.bind(getPublicClient());
+  },
+  get waitForTransactionReceipt() {
+    return getPublicClient().waitForTransactionReceipt.bind(getPublicClient());
+  },
+};
 
 /**
  * Create a wallet client for server-side transactions
  * Used by platform deployer for collection deployment
  */
 export function createDeployerWalletClient() {
-  const privateKey = process.env.DEPLOYER_PRIVATE_KEY as `0x${string}`;
+  const privateKey = getEnv("DEPLOYER_PRIVATE_KEY");
   if (!privateKey) {
     throw new Error("DEPLOYER_PRIVATE_KEY not configured");
   }
 
   // Add 0x prefix if not present
   const formattedKey = privateKey.startsWith("0x") 
-    ? privateKey 
+    ? privateKey as `0x${string}`
     : `0x${privateKey}` as `0x${string}`;
 
   const account = privateKeyToAccount(formattedKey);
@@ -47,8 +94,8 @@ export function createDeployerWalletClient() {
   return {
     client: createWalletClient({
       account,
-      chain,
-      transport: http(rpcUrl),
+      chain: getChain(),
+      transport: http(getRpcUrl()),
     }),
     account,
     address: account.address,
@@ -281,8 +328,11 @@ export const COLLECTION_ABI = [
  */
 export async function isAgentAllowedOnChain(agentAddress: `0x${string}`): Promise<boolean> {
   try {
-    const result = await publicClient.readContract({
-      address: FACTORY_ADDRESS,
+    const client = getPublicClient();
+    const factoryAddress = getFactoryAddress();
+    
+    const result = await client.readContract({
+      address: factoryAddress,
       abi: FACTORY_ABI,
       functionName: "isAgentAllowed",
       args: [agentAddress],
@@ -299,16 +349,18 @@ export async function isAgentAllowedOnChain(agentAddress: `0x${string}`): Promis
  */
 export async function addAgentToAllowlist(agentAddress: `0x${string}`): Promise<string> {
   const { client } = createDeployerWalletClient();
+  const factoryAddress = getFactoryAddress();
+  const publicClientInstance = getPublicClient();
   
   const hash = await client.writeContract({
-    address: FACTORY_ADDRESS,
+    address: factoryAddress,
     abi: FACTORY_ABI,
     functionName: "setAgentAllowed",
     args: [agentAddress, true],
   });
 
   // Wait for confirmation
-  await publicClient.waitForTransactionReceipt({ hash });
+  await publicClientInstance.waitForTransactionReceipt({ hash });
   
   return hash;
 }
@@ -339,10 +391,12 @@ export async function deployCollectionOnChain(
 ): Promise<DeployCollectionResult> {
   try {
     const { client, address: deployerAddress } = createDeployerWalletClient();
+    const factoryAddress = getFactoryAddress();
+    const publicClientInstance = getPublicClient();
     
     console.log("[Deploy] Starting on-chain deployment...");
     console.log("[Deploy] Deployer address:", deployerAddress);
-    console.log("[Deploy] Factory address:", FACTORY_ADDRESS);
+    console.log("[Deploy] Factory address:", factoryAddress);
 
     // Check if deployer is on allowlist
     const isAllowed = await isAgentAllowedOnChain(deployerAddress);
@@ -364,7 +418,7 @@ export async function deployCollectionOnChain(
     });
 
     const hash = await client.writeContract({
-      address: FACTORY_ADDRESS,
+      address: factoryAddress,
       abi: FACTORY_ABI,
       functionName: "deployCollection",
       args: [{
@@ -381,7 +435,7 @@ export async function deployCollectionOnChain(
     console.log("[Deploy] Transaction submitted:", hash);
 
     // Wait for confirmation
-    const receipt = await publicClient.waitForTransactionReceipt({ 
+    const receipt = await publicClientInstance.waitForTransactionReceipt({ 
       hash,
       confirmations: 1,
     });
@@ -411,8 +465,8 @@ export async function deployCollectionOnChain(
     // Alternative: Try to decode the logs properly
     if (!collectionAddress) {
       // Get the address from the return value or events
-      const collections = await publicClient.readContract({
-        address: FACTORY_ADDRESS,
+      const collections = await publicClientInstance.readContract({
+        address: factoryAddress,
         abi: FACTORY_ABI,
         functionName: "getCollections",
       });
@@ -452,7 +506,8 @@ export async function deployCollectionOnChain(
  */
 export async function getDeployerBalance(): Promise<string> {
   const { address } = createDeployerWalletClient();
-  const balance = await publicClient.getBalance({ address });
+  const client = getPublicClient();
+  const balance = await client.getBalance({ address });
   return formatEther(balance);
 }
 
@@ -460,38 +515,40 @@ export async function getDeployerBalance(): Promise<string> {
  * Get collection data from on-chain
  */
 export async function getCollectionData(collectionAddress: `0x${string}`) {
+  const client = getPublicClient();
+  
   const [name, symbol, maxSupply, mintPrice, totalMinted, agent, isSoldOut] = await Promise.all([
-    publicClient.readContract({
+    client.readContract({
       address: collectionAddress,
       abi: COLLECTION_ABI,
       functionName: "name",
     }),
-    publicClient.readContract({
+    client.readContract({
       address: collectionAddress,
       abi: COLLECTION_ABI,
       functionName: "symbol",
     }),
-    publicClient.readContract({
+    client.readContract({
       address: collectionAddress,
       abi: COLLECTION_ABI,
       functionName: "maxSupply",
     }),
-    publicClient.readContract({
+    client.readContract({
       address: collectionAddress,
       abi: COLLECTION_ABI,
       functionName: "mintPrice",
     }),
-    publicClient.readContract({
+    client.readContract({
       address: collectionAddress,
       abi: COLLECTION_ABI,
       functionName: "totalMinted",
     }),
-    publicClient.readContract({
+    client.readContract({
       address: collectionAddress,
       abi: COLLECTION_ABI,
       functionName: "agent",
     }),
-    publicClient.readContract({
+    client.readContract({
       address: collectionAddress,
       abi: COLLECTION_ABI,
       functionName: "isSoldOut",
@@ -514,8 +571,11 @@ export async function getCollectionData(collectionAddress: `0x${string}`) {
  * Get all collections from factory
  */
 export async function getAllCollections(): Promise<string[]> {
-  const collections = await publicClient.readContract({
-    address: FACTORY_ADDRESS,
+  const client = getPublicClient();
+  const factoryAddress = getFactoryAddress();
+  
+  const collections = await client.readContract({
+    address: factoryAddress,
     abi: FACTORY_ABI,
     functionName: "getCollections",
   });
@@ -527,5 +587,8 @@ export async function getAllCollections(): Promise<string[]> {
  */
 export { parseEther, formatEther };
 
-// Export factory address
-export { FACTORY_ADDRESS };
+// Export chain for external use
+export { getChain as chain };
+
+// Export factory address getter
+export { getFactoryAddress as FACTORY_ADDRESS };

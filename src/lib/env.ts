@@ -1,33 +1,66 @@
 /**
  * Type-safe environment variable access
- * Validates required variables at build/runtime
+ * Uses bracket notation to prevent webpack inlining
+ * All secrets are read dynamically at runtime
  */
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// CLIENT-SIDE VARIABLES (NEXT_PUBLIC_*)
+// DYNAMIC ENV READER (prevents webpack inlining)
 // ═══════════════════════════════════════════════════════════════════════════════
 
-export const clientEnv = {
-  // Blockchain
-  chainId: parseInt(process.env.NEXT_PUBLIC_CHAIN_ID || "84532"),
-  factoryAddress: process.env.NEXT_PUBLIC_FACTORY_ADDRESS || "",
-  alchemyId: process.env.NEXT_PUBLIC_ALCHEMY_ID || "",
-  walletConnectId: process.env.NEXT_PUBLIC_WALLET_CONNECT_ID || "",
-  
-  // App
-  appUrl: process.env.NEXT_PUBLIC_APP_URL || "https://clawdmint.xyz",
-  appName: process.env.NEXT_PUBLIC_APP_NAME || "Clawdmint",
-  
-  // Derived
-  isMainnet: parseInt(process.env.NEXT_PUBLIC_CHAIN_ID || "84532") === 8453,
-  isTestnet: parseInt(process.env.NEXT_PUBLIC_CHAIN_ID || "84532") === 84532,
-} as const;
+/**
+ * Read environment variable using bracket notation
+ * This prevents webpack from inlining the value at build time
+ */
+export function getEnv(key: string, defaultValue = ""): string {
+  return process.env[key] ?? defaultValue;
+}
+
+/**
+ * Require an environment variable - throws if missing
+ */
+export function requireEnv(key: string): string {
+  const value = process.env[key];
+  if (!value) {
+    throw new Error(`Missing required env var: ${key}`);
+  }
+  return value;
+}
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// SERVER-SIDE VARIABLES (Never exposed to client)
+// CLIENT-SIDE VARIABLES (NEXT_PUBLIC_* - safe to inline)
+// These are PUBLIC and intentionally exposed to the client
 // ═══════════════════════════════════════════════════════════════════════════════
 
-function getServerEnv() {
+export function getClientEnv() {
+  return {
+    chainId: parseInt(getEnv("NEXT_PUBLIC_CHAIN_ID", "8453")),
+    factoryAddress: getEnv("NEXT_PUBLIC_FACTORY_ADDRESS", ""),
+    alchemyId: getEnv("NEXT_PUBLIC_ALCHEMY_ID", ""),
+    walletConnectId: getEnv("NEXT_PUBLIC_WALLET_CONNECT_ID", ""),
+    appUrl: getEnv("NEXT_PUBLIC_APP_URL", "https://clawdmint.xyz"),
+    appName: getEnv("NEXT_PUBLIC_APP_NAME", "Clawdmint"),
+  };
+}
+
+// Derived values
+export function isMainnet(): boolean {
+  return parseInt(getEnv("NEXT_PUBLIC_CHAIN_ID", "8453")) === 8453;
+}
+
+export function isTestnet(): boolean {
+  return parseInt(getEnv("NEXT_PUBLIC_CHAIN_ID", "8453")) === 84532;
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// SERVER-SIDE VARIABLES (Never exposed to client - lazy loaded)
+// ═══════════════════════════════════════════════════════════════════════════════
+
+/**
+ * Get server environment variables
+ * Call this function ONLY in server-side code (API routes, server components)
+ */
+export function getServerEnv() {
   // Only access server vars on server-side
   if (typeof window !== "undefined") {
     throw new Error("Server environment variables cannot be accessed on client");
@@ -35,44 +68,32 @@ function getServerEnv() {
   
   return {
     // Database
-    databaseUrl: process.env.DATABASE_URL || "file:./dev.db",
+    databaseUrl: getEnv("DATABASE_URL", "file:./dev.db"),
     
     // Deployer (sensitive)
-    deployerPrivateKey: process.env.DEPLOYER_PRIVATE_KEY || "",
-    treasuryAddress: process.env.TREASURY_ADDRESS || "",
-    platformFeeBps: parseInt(process.env.PLATFORM_FEE_BPS || "250"),
+    deployerPrivateKey: getEnv("DEPLOYER_PRIVATE_KEY", ""),
+    treasuryAddress: getEnv("TREASURY_ADDRESS", ""),
+    platformFeeBps: parseInt(getEnv("PLATFORM_FEE_BPS", "250")),
     
-    // IPFS
-    pinataApiKey: process.env.PINATA_API_KEY || "",
-    pinataSecretKey: process.env.PINATA_SECRET_KEY || "",
-    pinataJwt: process.env.PINATA_JWT || "",
+    // IPFS (sensitive)
+    pinataApiKey: getEnv("PINATA_API_KEY", ""),
+    pinataSecretKey: getEnv("PINATA_SECRET_KEY", ""),
+    pinataJwt: getEnv("PINATA_JWT", ""),
     
-    // Auth secrets
-    agentHmacSecret: process.env.AGENT_HMAC_SECRET || "",
-    agentJwtSecret: process.env.AGENT_JWT_SECRET || "",
+    // Auth secrets (sensitive)
+    agentHmacSecret: getEnv("AGENT_HMAC_SECRET", ""),
+    agentJwtSecret: getEnv("AGENT_JWT_SECRET", ""),
     
     // External APIs
-    twitterBearerToken: process.env.TWITTER_BEARER_TOKEN || "",
-    basescanApiKey: process.env.BASESCAN_API_KEY || "",
+    twitterBearerToken: getEnv("TWITTER_BEARER_TOKEN", ""),
+    basescanApiKey: getEnv("BASESCAN_API_KEY", ""),
     
     // Environment
-    nodeEnv: process.env.NODE_ENV || "development",
-    isDev: process.env.NODE_ENV === "development",
-    isProd: process.env.NODE_ENV === "production",
-  } as const;
+    nodeEnv: getEnv("NODE_ENV", "development"),
+    isDev: getEnv("NODE_ENV") === "development",
+    isProd: getEnv("NODE_ENV") === "production",
+  };
 }
-
-// Lazy-load server env to avoid client-side errors
-let _serverEnv: ReturnType<typeof getServerEnv> | null = null;
-
-export const serverEnv = new Proxy({} as ReturnType<typeof getServerEnv>, {
-  get(_, prop: string) {
-    if (_serverEnv === null) {
-      _serverEnv = getServerEnv();
-    }
-    return _serverEnv[prop as keyof ReturnType<typeof getServerEnv>];
-  },
-});
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // VALIDATION
@@ -106,7 +127,7 @@ export function validateEnv(forProduction = false): EnvValidationResult {
     "AGENT_JWT_SECRET",
   ];
   
-  // Check required
+  // Check required using bracket notation
   for (const key of requiredClient) {
     if (!process.env[key]) {
       missing.push(key);
@@ -121,16 +142,17 @@ export function validateEnv(forProduction = false): EnvValidationResult {
     }
   }
   
-  // Warnings
-  if (!process.env.NEXT_PUBLIC_WALLET_CONNECT_ID) {
+  // Warnings using bracket notation
+  if (!process.env["NEXT_PUBLIC_WALLET_CONNECT_ID"]) {
     warnings.push("NEXT_PUBLIC_WALLET_CONNECT_ID not set - wallet connection may not work");
   }
   
-  if (!process.env.PINATA_JWT && !process.env.PINATA_API_KEY) {
+  if (!process.env["PINATA_JWT"] && !process.env["PINATA_API_KEY"]) {
     warnings.push("Pinata not configured - IPFS uploads will fail");
   }
   
-  if (process.env.AGENT_HMAC_SECRET && process.env.AGENT_HMAC_SECRET.length < 32) {
+  const hmacSecret = process.env["AGENT_HMAC_SECRET"];
+  if (hmacSecret && hmacSecret.length < 32) {
     warnings.push("AGENT_HMAC_SECRET should be at least 32 characters");
   }
   
@@ -149,9 +171,10 @@ export function validateEnv(forProduction = false): EnvValidationResult {
  * Get RPC URL for the configured chain
  */
 export function getRpcUrl(): string {
-  const alchemyId = clientEnv.alchemyId;
+  const alchemyId = getEnv("NEXT_PUBLIC_ALCHEMY_ID", "");
+  const chainId = parseInt(getEnv("NEXT_PUBLIC_CHAIN_ID", "8453"));
   
-  if (clientEnv.isMainnet) {
+  if (chainId === 8453) {
     return alchemyId 
       ? `https://base-mainnet.g.alchemy.com/v2/${alchemyId}`
       : "https://mainnet.base.org";
@@ -166,7 +189,7 @@ export function getRpcUrl(): string {
  * Get block explorer URL
  */
 export function getExplorerUrl(): string {
-  return clientEnv.isMainnet 
+  return isMainnet() 
     ? "https://basescan.org"
     : "https://sepolia.basescan.org";
 }

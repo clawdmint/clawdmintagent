@@ -1,7 +1,9 @@
+import "server-only";
 import { createHmac, createHash, timingSafeEqual } from "crypto";
 import { recoverMessageAddress, getAddress, isAddress } from "viem";
 import { NextRequest } from "next/server";
 import { prisma } from "./db";
+import { getEnv } from "./env";
 
 // ═══════════════════════════════════════════════════════════════════════
 // TYPES
@@ -26,7 +28,11 @@ interface HmacHeaders {
 // ═══════════════════════════════════════════════════════════════════════
 
 const MAX_TIMESTAMP_SKEW_SECONDS = 60;
-const HMAC_SECRET = process.env.AGENT_HMAC_SECRET || "";
+
+// HMAC secret is read dynamically to prevent webpack inlining
+function getHmacSecret(): string {
+  return getEnv("AGENT_HMAC_SECRET", "");
+}
 
 // ═══════════════════════════════════════════════════════════════════════
 // HMAC AUTHENTICATION (PRIMARY)
@@ -100,7 +106,7 @@ export async function verifyHmacAuth(
     const signingString = `${timestamp}\n${method}\n${path}\n${bodyHash}\n${nonce}`;
     
     // Use agent-specific key if set, otherwise use global secret
-    const hmacKey = agent.hmacKeyHash || HMAC_SECRET;
+    const hmacKey = agent.hmacKeyHash || getHmacSecret();
     const expectedSignature = createHmac("sha256", hmacKey)
       .update(signingString)
       .digest("hex");
