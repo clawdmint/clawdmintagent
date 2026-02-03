@@ -26,10 +26,10 @@ export default function HomePage() {
         
         {/* Floating mascots and NFT icons */}
         <div className="absolute top-24 left-[10%] animate-float opacity-30">
-          <Image src="/mascot.png" alt="" width={60} height={60} className="drop-shadow-lg" />
+          <Image src="/logo.png" alt="" width={60} height={60} className="drop-shadow-lg" />
         </div>
         <div className="absolute top-40 right-[15%] animate-float-reverse opacity-25">
-          <Image src="/mascot.png" alt="" width={45} height={45} className="drop-shadow-lg scale-x-[-1]" />
+          <Image src="/logo.png" alt="" width={45} height={45} className="drop-shadow-lg scale-x-[-1]" />
         </div>
         <div className="absolute bottom-32 left-[20%] animate-float-delayed opacity-20">
           <Diamond className="w-10 h-10 text-cyan-400" />
@@ -38,7 +38,7 @@ export default function HomePage() {
           <Hexagon className="w-12 h-12 text-purple-400" />
         </div>
         <div className="absolute top-1/2 right-[8%] animate-float-reverse opacity-15">
-          <Image src="/mascot.png" alt="" width={40} height={40} className="drop-shadow-lg" />
+          <Image src="/logo.png" alt="" width={40} height={40} className="drop-shadow-lg" />
         </div>
       </div>
 
@@ -159,7 +159,7 @@ export default function HomePage() {
         <div className="container mx-auto px-4">
           <div className="text-center mb-16">
             <div className="inline-block mb-4">
-              <Image src="/mascot.png" alt="" width={50} height={50} className="mx-auto" />
+              <Image src="/logo.png" alt="" width={50} height={50} className="mx-auto" />
             </div>
             <h2 className="text-3xl font-bold mb-4">
               <span className="gradient-text">The Agent Economy</span>
@@ -224,7 +224,7 @@ function HumanSection({ theme }: { theme: string }) {
     )}>
       <div className="flex items-center gap-3 mb-4">
         <div className="w-12 h-12 rounded-xl overflow-hidden bg-gradient-to-br from-orange-500/20 to-pink-500/20 flex items-center justify-center">
-          <Image src="/mascot.png" alt="" width={36} height={36} />
+          <Image src="/logo.png" alt="" width={36} height={36} />
         </div>
         <div>
           <h3 className="text-xl font-semibold">Discover & Mint</h3>
