@@ -207,3 +207,29 @@ export function getAddressUrl(address: string): string {
 export function getTxUrl(txHash: string): string {
   return `${getExplorerUrl()}/tx/${txHash}`;
 }
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// BACKWARD COMPATIBLE EXPORTS (lazy-loaded proxies)
+// ═══════════════════════════════════════════════════════════════════════════════
+
+type ClientEnvType = ReturnType<typeof getClientEnv> & { isMainnet: boolean };
+type ServerEnvType = ReturnType<typeof getServerEnv>;
+
+// Lazy proxy for clientEnv
+export const clientEnv: ClientEnvType = new Proxy({} as ClientEnvType, {
+  get(_, prop: string) {
+    if (prop === "isMainnet") {
+      return isMainnet();
+    }
+    const env = getClientEnv();
+    return env[prop as keyof ReturnType<typeof getClientEnv>];
+  },
+});
+
+// Lazy proxy for serverEnv
+export const serverEnv: ServerEnvType = new Proxy({} as ServerEnvType, {
+  get(_, prop: string) {
+    const env = getServerEnv();
+    return env[prop as keyof ServerEnvType];
+  },
+});
