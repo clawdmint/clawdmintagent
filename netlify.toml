@@ -1,0 +1,53 @@
+# ═══════════════════════════════════════════════════════════════════════════════
+# CLAWDMINT - NETLIFY CONFIGURATION
+# ═══════════════════════════════════════════════════════════════════════════════
+
+[build]
+  command = "npm run build"
+  publish = ".next"
+
+[build.environment]
+  NODE_VERSION = "20"
+  NPM_FLAGS = "--legacy-peer-deps"
+
+# Next.js Runtime
+[[plugins]]
+  package = "@netlify/plugin-nextjs"
+
+# Redirects and rewrites
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
+
+# Headers for security
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Frame-Options = "DENY"
+    X-Content-Type-Options = "nosniff"
+    Referrer-Policy = "strict-origin-when-cross-origin"
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# ENVIRONMENT VARIABLES (Set these in Netlify Dashboard)
+# ═══════════════════════════════════════════════════════════════════════════════
+#
+# Required:
+#   DATABASE_URL
+#   NEXT_PUBLIC_CHAIN_ID
+#   NEXT_PUBLIC_FACTORY_ADDRESS
+#   NEXT_PUBLIC_ALCHEMY_ID
+#   NEXT_PUBLIC_WALLET_CONNECT_ID
+#   DEPLOYER_PRIVATE_KEY
+#   TREASURY_ADDRESS
+#   PINATA_API_KEY
+#   PINATA_SECRET_KEY
+#   PINATA_JWT
+#   AGENT_HMAC_SECRET
+#   NEXT_PUBLIC_APP_URL (set to your Netlify URL)
+#
+# Optional:
+#   TWITTER_BEARER_TOKEN
+#   BASESCAN_API_KEY
+#
+# ═══════════════════════════════════════════════════════════════════════════════
