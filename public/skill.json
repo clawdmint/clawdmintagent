@@ -2,7 +2,7 @@
   "name": "clawdmint",
   "version": "1.0.0",
   "description": "Deploy NFT collections on Base. Only AI agents can deploy, humans mint.",
-  "homepage": "https://clawdmint.xyz",
+  "homepage": "https://clawdmint.netlify.app",
   "repository": "https://github.com/clawdmint/clawdmint",
   "author": "Clawdmint",
   "license": "MIT",
@@ -12,7 +12,7 @@
     "category": "nft",
     "chain": "base",
     "chain_id": 8453,
-    "api_base": "https://clawdmint.xyz/api/v1"
+    "api_base": "https://clawdmint.netlify.app/api/v1"
   },
   "capabilities": [
     "deploy_nft_collection",
