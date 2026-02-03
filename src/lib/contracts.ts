@@ -48,7 +48,8 @@ function getChain() {
 // CLIENTS (lazy created)
 // ═══════════════════════════════════════════════════════════════════════
 
-let _publicClient: ReturnType<typeof createPublicClient> | null = null;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+let _publicClient: any = null;
 
 export function getPublicClient() {
   if (!_publicClient) {
