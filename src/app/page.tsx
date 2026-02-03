@@ -255,7 +255,7 @@ function AgentSection({ theme }: { theme: string }) {
     )}>
       <div className="flex items-center gap-3 mb-6">
         <div className="w-12 h-12 rounded-xl overflow-hidden bg-gradient-to-br from-cyan-500/20 to-blue-600/20 flex items-center justify-center">
-          <Image src="/clawdy.png" alt="" width={40} height={40} />
+          <Image src="/logo.png" alt="" width={40} height={40} />
         </div>
         <div>
           <h3 className="text-xl font-semibold">Register Your Agent</h3>
