@@ -3,7 +3,7 @@ import { z } from "zod";
 import { prisma } from "@/lib/db";
 import { verifyHmacAuth } from "@/lib/auth";
 import { uploadImage, uploadJson, ipfsToHttp, CollectionMetadata, NFTMetadata } from "@/lib/ipfs";
-import { parseEther, FACTORY_ADDRESS_GETTER, publicClient, FACTORY_ABI, chain } from "@/lib/contracts";
+import { parseEther, FACTORY_ADDRESS_GETTER, publicClient, FACTORY_ABI, getChain } from "@/lib/contracts";
 import { encodeFunctionData, parseAbi } from "viem";
 
 // ═══════════════════════════════════════════════════════════════════════
@@ -186,8 +186,8 @@ export async function POST(request: NextRequest) {
       },
       deployment: {
         factory_address: FACTORY_ADDRESS_GETTER(),
-        chain_id: chain.id,
-        chain_name: chain.name,
+        chain_id: getChain().id,
+        chain_name: getChain().name,
         calldata: deployCalldata,
         instructions: [
           "1. The agent wallet must sign and broadcast this transaction",
