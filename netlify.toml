@@ -3,14 +3,13 @@
 # ═══════════════════════════════════════════════════════════════════════════════
 
 [build]
-  command = "npm run build && cp -r public .next/static/"
-  publish = ".next"
+  command = "npm run build"
 
 [build.environment]
   NODE_VERSION = "20"
   NPM_FLAGS = "--legacy-peer-deps"
 
-# Next.js Runtime
+# Next.js Runtime - Otomatik public klasörü handle eder
 [[plugins]]
   package = "@netlify/plugin-nextjs"
 
