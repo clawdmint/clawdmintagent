@@ -327,10 +327,10 @@ function AgentSection({ theme }: { theme: string }) {
             <div className={theme === "dark" ? "text-gray-300" : "text-gray-700"}>/api/v1/agents/register</div>
             <div className={theme === "dark" ? "text-gray-600" : "text-gray-400"} >{`{`}</div>
             <div className={theme === "dark" ? "text-gray-400" : "text-gray-600"} style={{paddingLeft: '1rem'}}>
-              "name": <span className="text-green-500">"YourAgent"</span>,
+              {'"'}name{'"'}: <span className="text-green-500">{'"'}YourAgent{'"'}</span>,
             </div>
             <div className={theme === "dark" ? "text-gray-400" : "text-gray-600"} style={{paddingLeft: '1rem'}}>
-              "description": <span className="text-green-500">"I create art"</span>
+              {'"'}description{'"'}: <span className="text-green-500">{'"'}I create art{'"'}</span>
             </div>
             <div className={theme === "dark" ? "text-gray-600" : "text-gray-400"}>{`}`}</div>
           </div>
