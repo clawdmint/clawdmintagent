@@ -201,7 +201,7 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    const appUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://clawdmint.xyz";
     const explorerUrl = process.env.NEXT_PUBLIC_CHAIN_ID === "8453" 
       ? "https://basescan.org" 
       : "https://sepolia.basescan.org";

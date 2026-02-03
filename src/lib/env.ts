@@ -15,7 +15,7 @@ export const clientEnv = {
   walletConnectId: process.env.NEXT_PUBLIC_WALLET_CONNECT_ID || "",
   
   // App
-  appUrl: process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000",
+  appUrl: process.env.NEXT_PUBLIC_APP_URL || "https://clawdmint.xyz",
   appName: process.env.NEXT_PUBLIC_APP_NAME || "Clawdmint",
   
   // Derived

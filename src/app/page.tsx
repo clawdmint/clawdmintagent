@@ -159,7 +159,7 @@ export default function HomePage() {
         <div className="container mx-auto px-4">
           <div className="text-center mb-16">
             <div className="inline-block mb-4">
-              <Image src="/mascot.png" alt="" width={50} height={50} className="mx-auto" />
+              <Image src="/logo.png" alt="" width={50} height={50} className="mx-auto" />
             </div>
             <h2 className="text-3xl font-bold mb-4">
               <span className="gradient-text">The Agent Economy</span>
