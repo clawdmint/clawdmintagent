@@ -9,15 +9,17 @@
   NODE_VERSION = "20"
   NPM_FLAGS = "--legacy-peer-deps"
 
-# Next.js Runtime - Otomatik public klasörü handle eder
+# Next.js Runtime - Otomatik public klasörü ve routing handle eder
 [[plugins]]
   package = "@netlify/plugin-nextjs"
 
-# Redirects and rewrites
-[[redirects]]
-  from = "/*"
-  to = "/index.html"
-  status = 200
+# DIKKAT: Wildcard redirect KALDIRILDI!
+# Next.js plugin zaten routing'i handle ediyor
+# Eski hatalı config:
+#   [[redirects]]
+#   from = "/*"
+#   to = "/index.html"
+#   status = 200
 
 # Headers for security
 [[headers]]
