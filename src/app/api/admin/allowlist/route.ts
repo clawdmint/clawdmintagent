@@ -4,7 +4,7 @@ import {
   addAgentToAllowlist, 
   isAgentAllowedOnChain,
   publicClient,
-  FACTORY_ADDRESS 
+  FACTORY_ADDRESS_GETTER
 } from "@/lib/contracts";
 
 /**
@@ -26,7 +26,7 @@ export async function GET() {
         balance_wei: balance.toString(),
         balance_eth: (Number(balance) / 1e18).toFixed(6),
       },
-      factory: FACTORY_ADDRESS,
+      factory: FACTORY_ADDRESS_GETTER(),
     });
   } catch (error) {
     console.error("[Allowlist] Error:", error);

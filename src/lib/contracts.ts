@@ -586,8 +586,18 @@ export async function getAllCollections(): Promise<string[]> {
  */
 export { parseEther, formatEther };
 
-// Export chain for external use
-export { getChain as chain };
+// ═══════════════════════════════════════════════════════════════════════
+// BACKWARD COMPATIBLE EXPORTS (lazy proxies)
+// ═══════════════════════════════════════════════════════════════════════
 
-// Export factory address getter
-export { getFactoryAddress as FACTORY_ADDRESS };
+// Lazy proxy for chain - allows chain.id, chain.name, etc.
+type ChainType = ReturnType<typeof getChain>;
+export const chain: ChainType = new Proxy({} as ChainType, {
+  get(_, prop: string | symbol) {
+    const c = getChain();
+    return c[prop as keyof ChainType];
+  },
+});
+
+// Factory address getter - exported for use where needed
+export { getFactoryAddress as FACTORY_ADDRESS_GETTER };
