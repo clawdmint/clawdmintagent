@@ -10,7 +10,7 @@ import Image from "next/image";
 import { COLLECTION_ABI } from "@/lib/contracts";
 import { useTheme } from "@/components/theme-provider";
 import { clsx } from "clsx";
-import { Bot, ExternalLink, ArrowLeft, Minus, Plus, Sparkles, CheckCircle } from "lucide-react";
+import { Bot, ExternalLink, ArrowLeft, Minus, Plus, Sparkles, CheckCircle, ShoppingBag } from "lucide-react";
 
 // Get chain info from environment
 const chainId = parseInt(process.env["NEXT_PUBLIC_CHAIN_ID"] || "8453");
@@ -525,6 +525,95 @@ export default function CollectionPage() {
                     </svg>
                     {chainName}
                   </span>
+                </div>
+              </div>
+
+              {/* NFT Marketplaces */}
+              <div className={clsx("glass-card", theme === "light" && "bg-white/80")}>
+                <div className="flex items-center gap-2 mb-4">
+                  <ShoppingBag className="w-5 h-5 text-cyan-500" />
+                  <h3 className="font-semibold">View on Marketplaces</h3>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  {/* OpenSea */}
+                  <a
+                    href={
+                      isMainnet
+                        ? `https://opensea.io/assets/base/${collection.address}`
+                        : `https://testnets.opensea.io/assets/base-sepolia/${collection.address}`
+                    }
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className={clsx(
+                      "flex items-center justify-center gap-2 px-4 py-3 rounded-xl border transition-all hover:scale-105",
+                      theme === "dark"
+                        ? "bg-blue-500/10 border-blue-500/30 hover:bg-blue-500/20 text-blue-400"
+                        : "bg-blue-50 border-blue-200 hover:bg-blue-100 text-blue-600"
+                    )}
+                  >
+                    <svg className="w-5 h-5" viewBox="0 0 90 90" fill="none" xmlns="http://www.w3.org/2000/svg">
+                      <path d="M45 0C20.1 0 0 20.1 0 45C0 69.9 20.1 90 45 90C69.9 90 90 69.9 90 45C90 20.1 69.9 0 45 0ZM22.2 46.8L22.5 46.4L34.5 29.4C34.7 29.1 35.1 29.1 35.3 29.3C37.3 32.2 39 36 38.6 39.3C38.4 41.2 37.6 43.3 36.6 45.3C36.4 45.7 36.2 46.1 36 46.5C35.9 46.6 35.8 46.7 35.7 46.7H22.6C22.3 46.7 22.1 46.4 22.2 46.8ZM70.4 55.1C70.4 55.4 70.2 55.6 69.9 55.7C68.7 56 65.8 57 64.1 59.1C60.5 63.9 57.7 71.2 50.5 71.2H33.9C26 71.2 19.6 64.8 19.6 56.9V56.5C19.6 56.2 19.8 56 20.1 56H34.5C34.9 56 35.1 56.3 35.1 56.7C35 57.4 35.2 58.1 35.6 58.7C36.3 59.7 37.5 60.3 38.8 60.3H47.6V56.8H38.9C38.6 56.8 38.4 56.4 38.6 56.2C38.8 56 39.1 55.7 39.3 55.4C40.2 54.2 41.4 52.5 42.6 50.6C43.4 49.4 44.1 48.2 44.7 47C44.8 46.8 44.9 46.6 45 46.4C45.2 46 45.3 45.6 45.5 45.3C45.7 44.7 45.9 44.1 46.1 43.6C46.2 43.1 46.4 42.5 46.5 42C46.7 41 46.8 39.9 46.8 38.9C46.8 38.4 46.8 37.8 46.7 37.3C46.7 36.8 46.6 36.2 46.5 35.7C46.4 35.2 46.3 34.6 46.1 34.1C46 33.6 45.8 33 45.6 32.5L45.4 31.9C45.3 31.6 45.1 31.3 45 31C44.4 29.6 43.8 28.3 43.1 27C42.8 26.4 42.5 25.9 42.1 25.4C41.7 24.8 41.3 24.3 40.9 23.8L40.5 23.3C40.3 23.1 40.2 22.9 40 22.7L39.3 21.9C39.2 21.8 39.3 21.6 39.4 21.6H45.4V21.6H45.9C46 21.6 46.1 21.6 46.1 21.7C46.4 21.9 46.7 22.1 47 22.4C47.3 22.7 47.7 23 48 23.4C48.8 24.3 49.6 25.3 50.3 26.4C50.6 26.9 50.9 27.4 51.2 28C51.6 28.7 51.9 29.4 52.3 30.1C52.5 30.6 52.8 31.1 53 31.7C53.5 32.9 53.9 34.1 54.2 35.4C54.3 35.7 54.4 36.1 54.5 36.4V36.5C54.6 36.9 54.6 37.4 54.7 37.8C54.9 39.1 54.9 40.3 54.7 41.6C54.6 42.5 54.4 43.4 54.1 44.3C53.9 45 53.6 45.7 53.3 46.4C52.7 47.9 51.9 49.3 50.9 50.6C50.4 51.3 49.8 52 49.2 52.6C48.8 53.1 48.4 53.5 48 54L47.3 54.6C47.1 54.8 46.9 55 46.7 55.1L46.4 55.4C46.3 55.5 46.1 55.6 46 55.7C45.9 55.8 45.8 55.8 45.7 55.9H45.4V60.3H50.7C52 60.3 53.2 59.8 54.1 58.9C54.4 58.6 55.2 57.8 56.3 56.5C56.4 56.4 56.5 56.3 56.7 56.2L70.2 54.8C70.3 54.8 70.4 54.9 70.4 55.1Z" fill="currentColor"/>
+                    </svg>
+                    <span className="font-medium">OpenSea</span>
+                  </a>
+
+                  {/* Zora (Base optimized) */}
+                  {isMainnet && (
+                    <a
+                      href={`https://zora.co/collect/base:${collection.address}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className={clsx(
+                        "flex items-center justify-center gap-2 px-4 py-3 rounded-xl border transition-all hover:scale-105",
+                        theme === "dark"
+                          ? "bg-purple-500/10 border-purple-500/30 hover:bg-purple-500/20 text-purple-400"
+                          : "bg-purple-50 border-purple-200 hover:bg-purple-100 text-purple-600"
+                      )}
+                    >
+                      <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M12 0C5.4 0 0 5.4 0 12s5.4 12 12 12 12-5.4 12-12S18.6 0 12 0zm0 2c5.5 0 10 4.5 10 10s-4.5 10-10 10S2 17.5 2 12 6.5 2 12 2zm0 3c-3.9 0-7 3.1-7 7s3.1 7 7 7 7-3.1 7-7-3.1-7-7-7z"/>
+                      </svg>
+                      <span className="font-medium">Zora</span>
+                    </a>
+                  )}
+
+                  {/* Rarible */}
+                  <a
+                    href={`https://rarible.com/collection/base/${collection.address}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className={clsx(
+                      "flex items-center justify-center gap-2 px-4 py-3 rounded-xl border transition-all hover:scale-105",
+                      theme === "dark"
+                        ? "bg-yellow-500/10 border-yellow-500/30 hover:bg-yellow-500/20 text-yellow-400"
+                        : "bg-yellow-50 border-yellow-200 hover:bg-yellow-100 text-yellow-600"
+                    )}
+                  >
+                    <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
+                      <path d="M0 12C0 5.4 5.4 0 12 0s12 5.4 12 12-5.4 12-12 12S0 18.6 0 12zm12-8c-4.4 0-8 3.6-8 8s3.6 8 8 8 8-3.6 8-8-3.6-8-8-8zm0 14c-3.3 0-6-2.7-6-6s2.7-6 6-6 6 2.7 6 6-2.7 6-6 6z"/>
+                    </svg>
+                    <span className="font-medium">Rarible</span>
+                  </a>
+
+                  {/* Element */}
+                  {isMainnet && (
+                    <a
+                      href={`https://element.market/collections/base-${collection.address}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className={clsx(
+                        "flex items-center justify-center gap-2 px-4 py-3 rounded-xl border transition-all hover:scale-105",
+                        theme === "dark"
+                          ? "bg-pink-500/10 border-pink-500/30 hover:bg-pink-500/20 text-pink-400"
+                          : "bg-pink-50 border-pink-200 hover:bg-pink-100 text-pink-600"
+                      )}
+                    >
+                      <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M12 2L2 7v10c0 5.5 4.5 10 10 10s10-4.5 10-10V7l-10-5zm0 2.2L19.8 8 12 11.8 4.2 8 12 4.2zM4 9.5l7 3.5v7.8c-3.9-.4-7-3.7-7-7.8V9.5zm9 11.3V13l7-3.5v3.5c0 4.1-3.1 7.4-7 7.8z"/>
+                      </svg>
+                      <span className="font-medium">Element</span>
+                    </a>
+                  )}
                 </div>
               </div>
             </div>
