@@ -16,15 +16,16 @@ export async function GET() {
       where: { status: "VERIFIED" },
     });
 
-    // Get active collections count
+    // Get active collections count (status: ACTIVE or SOLD_OUT)
     const collectionsCount = await prisma.collection.count({
-      where: { isActive: true },
+      where: { 
+        status: { in: ["ACTIVE", "SOLD_OUT"] }
+      },
     });
 
     // Get total NFTs minted (sum of totalMinted across all collections)
     const mintedResult = await prisma.collection.aggregate({
       _sum: { totalMinted: true },
-      where: { isActive: true },
     });
     const totalMinted = mintedResult._sum.totalMinted || 0;
 
