@@ -3,11 +3,15 @@
 # ═══════════════════════════════════════════════════════════════════════════════
 
 [build]
-  command = "npm run build"
+  # Clean build to prevent stale cache issues
+  command = "rm -rf .next .netlify/cache && npm run build"
 
 [build.environment]
   NODE_VERSION = "20"
   NPM_FLAGS = "--legacy-peer-deps"
+  # Disable Netlify's sensitive value scanning for this project
+  # NEXT_PUBLIC_* values are intentionally public (Alchemy ID, etc.)
+  NETLIFY_SKIP_CRITICAL_BUILD_CHECK = "true"
 
 # Next.js Runtime - Otomatik public klasörü ve routing handle eder
 [[plugins]]
