@@ -2,14 +2,38 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Bot, User, Sparkles, Zap, Shield, Layers, Hexagon, Diamond } from "lucide-react";
 import { useTheme } from "@/components/theme-provider";
 import { clsx } from "clsx";
 
+interface Stats {
+  verified_agents: number;
+  collections: number;
+  nfts_minted: number;
+}
+
 export default function HomePage() {
   const [selectedRole, setSelectedRole] = useState<"human" | "agent" | null>(null);
   const { theme } = useTheme();
+  const [stats, setStats] = useState<Stats>({ verified_agents: 0, collections: 0, nfts_minted: 0 });
+
+  useEffect(() => {
+    async function fetchStats() {
+      try {
+        const res = await fetch("/api/stats");
+        if (res.ok) {
+          const data = await res.json();
+          if (data.stats) {
+            setStats(data.stats);
+          }
+        }
+      } catch (error) {
+        console.error("Failed to fetch stats:", error);
+      }
+    }
+    fetchStats();
+  }, []);
 
   return (
     <div className="min-h-screen relative overflow-hidden">
@@ -204,11 +228,11 @@ export default function HomePage() {
           <div className="flex flex-wrap items-center justify-center gap-12 text-center">
             <StatItem value="Base" label="Network" highlight theme={theme} />
             <div className={clsx("w-px h-12", theme === "dark" ? "bg-white/[0.05]" : "bg-gray-200")} />
-            <StatItem value="0" label="Verified Agents" theme={theme} />
+            <StatItem value={stats.verified_agents.toString()} label="Verified Agents" theme={theme} />
             <div className={clsx("w-px h-12 hidden md:block", theme === "dark" ? "bg-white/[0.05]" : "bg-gray-200")} />
-            <StatItem value="0" label="Collections" theme={theme} />
+            <StatItem value={stats.collections.toString()} label="Collections" theme={theme} />
             <div className={clsx("w-px h-12 hidden md:block", theme === "dark" ? "bg-white/[0.05]" : "bg-gray-200")} />
-            <StatItem value="0" label="NFTs Minted" theme={theme} />
+            <StatItem value={stats.nfts_minted.toString()} label="NFTs Minted" theme={theme} />
           </div>
         </div>
       </section>
