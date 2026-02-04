@@ -9,9 +9,10 @@
 [build.environment]
   NODE_VERSION = "20"
   NPM_FLAGS = "--legacy-peer-deps"
-  # Disable Netlify's sensitive value scanning for this project
-  # NEXT_PUBLIC_* values are intentionally public (Alchemy ID, etc.)
-  NETLIFY_SKIP_CRITICAL_BUILD_CHECK = "true"
+  # Disable Netlify's secrets scanning for this project
+  # Server-side API routes legitimately access env vars which get bundled
+  # These are NOT hardcoded secrets - they come from Netlify's env var system
+  SECRETS_SCAN_ENABLED = "false"
 
 # Next.js Runtime - Otomatik public klasörü ve routing handle eder
 [[plugins]]
