@@ -10,7 +10,13 @@ import Image from "next/image";
 import { COLLECTION_ABI } from "@/lib/contracts";
 import { useTheme } from "@/components/theme-provider";
 import { clsx } from "clsx";
-import { Bot, ExternalLink, ArrowLeft, Minus, Plus, Sparkles } from "lucide-react";
+import { Bot, ExternalLink, ArrowLeft, Minus, Plus, Sparkles, CheckCircle } from "lucide-react";
+
+// Get chain info from environment
+const chainId = parseInt(process.env["NEXT_PUBLIC_CHAIN_ID"] || "8453");
+const isMainnet = chainId === 8453;
+const explorerUrl = isMainnet ? "https://basescan.org" : "https://sepolia.basescan.org";
+const chainName = isMainnet ? "Base" : "Base Sepolia";
 
 interface Collection {
   id: string;
@@ -202,7 +208,6 @@ export default function CollectionPage() {
   const remaining = collection.onchain?.remaining || (collection.max_supply - collection.total_minted).toString();
   const totalMinted = collection.onchain?.total_minted || collection.total_minted.toString();
   const progress = (parseInt(totalMinted) / collection.max_supply) * 100;
-  const explorerUrl = "https://sepolia.basescan.org";
 
   return (
     <div className="min-h-screen relative">
@@ -417,36 +422,77 @@ export default function CollectionPage() {
                   </button>
                 )}
 
-                {/* Success message */}
+                {/* Success message with enhanced animation */}
                 {isSuccess && txHash && (
-                  <div className="p-6 bg-gradient-to-r from-emerald-500/20 to-green-500/20 border border-emerald-500/30 rounded-xl relative overflow-hidden">
-                    {/* Celebration background */}
-                    <div className="absolute inset-0 opacity-20">
-                      <div className="absolute top-2 left-4 text-2xl animate-bounce">🎉</div>
-                      <div className="absolute top-4 right-6 text-xl animate-bounce delay-100">✨</div>
-                      <div className="absolute bottom-2 left-8 text-lg animate-bounce delay-200">🦞</div>
+                  <div className="relative">
+                    {/* Confetti particles */}
+                    <div className="absolute -inset-4 pointer-events-none overflow-hidden">
+                      {[...Array(20)].map((_, i) => (
+                        <div
+                          key={i}
+                          className="absolute animate-confetti"
+                          style={{
+                            left: `${Math.random() * 100}%`,
+                            top: `-10px`,
+                            animationDelay: `${Math.random() * 0.5}s`,
+                            animationDuration: `${1.5 + Math.random() * 1}s`,
+                          }}
+                        >
+                          <div 
+                            className={`w-2 h-2 rounded-full ${
+                              ['bg-emerald-400', 'bg-cyan-400', 'bg-yellow-400', 'bg-pink-400', 'bg-purple-400'][i % 5]
+                            }`}
+                            style={{
+                              transform: `rotate(${Math.random() * 360}deg)`,
+                            }}
+                          />
+                        </div>
+                      ))}
                     </div>
                     
-                    <div className="relative">
-                      <div className="flex items-center gap-3 mb-3">
-                        <div className="w-12 h-12 rounded-full bg-emerald-500 flex items-center justify-center">
-                          <Sparkles className="w-6 h-6 text-white" />
-                        </div>
-                        <div>
-                          <p className="text-emerald-400 font-bold text-lg">Mint Successful!</p>
-                          <p className="text-emerald-300/70 text-sm">You minted {quantity} NFT{quantity > 1 ? "s" : ""}</p>
-                        </div>
+                    <div className="p-6 bg-gradient-to-br from-emerald-500/20 via-green-500/15 to-cyan-500/20 border border-emerald-500/40 rounded-2xl relative overflow-hidden animate-in zoom-in-95 fade-in duration-500">
+                      {/* Shimmer effect */}
+                      <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent animate-shimmer" />
+                      
+                      {/* Glow rings */}
+                      <div className="absolute -top-20 -right-20 w-40 h-40 bg-emerald-500/20 rounded-full blur-3xl animate-pulse" />
+                      <div className="absolute -bottom-10 -left-10 w-32 h-32 bg-cyan-500/20 rounded-full blur-2xl animate-pulse" style={{ animationDelay: '0.5s' }} />
+                      
+                      {/* Floating emojis */}
+                      <div className="absolute inset-0 pointer-events-none">
+                        <span className="absolute top-3 left-4 text-2xl animate-float-up opacity-80">🎉</span>
+                        <span className="absolute top-2 right-8 text-xl animate-float-up opacity-70" style={{ animationDelay: '0.2s' }}>✨</span>
+                        <span className="absolute bottom-4 left-12 text-lg animate-float-up opacity-60" style={{ animationDelay: '0.4s' }}>🦞</span>
+                        <span className="absolute top-6 right-4 text-lg animate-float-up opacity-70" style={{ animationDelay: '0.3s' }}>💎</span>
+                        <span className="absolute bottom-2 right-12 text-xl animate-float-up opacity-80" style={{ animationDelay: '0.1s' }}>🚀</span>
                       </div>
                       
-                      <a
-                        href={`${explorerUrl}/tx/${txHash}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="inline-flex items-center gap-2 px-4 py-2 bg-emerald-500/30 hover:bg-emerald-500/40 rounded-lg text-emerald-300 text-sm transition-colors"
-                      >
-                        View on Explorer
-                        <ExternalLink className="w-4 h-4" />
-                      </a>
+                      <div className="relative">
+                        <div className="flex items-center gap-4 mb-4">
+                          {/* Animated checkmark */}
+                          <div className="relative">
+                            <div className="w-14 h-14 rounded-full bg-gradient-to-br from-emerald-400 to-green-500 flex items-center justify-center shadow-lg shadow-emerald-500/30 animate-success-pop">
+                              <CheckCircle className="w-8 h-8 text-white animate-success-check" />
+                            </div>
+                            {/* Ripple effect */}
+                            <div className="absolute inset-0 rounded-full border-2 border-emerald-400/50 animate-ping" />
+                          </div>
+                          <div>
+                            <p className="text-emerald-300 font-bold text-xl">Mint Successful!</p>
+                            <p className="text-emerald-400/70 text-sm">You minted {quantity} NFT{quantity > 1 ? "s" : ""}</p>
+                          </div>
+                        </div>
+                        
+                        <a
+                          href={`${explorerUrl}/tx/${txHash}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-2 px-5 py-2.5 bg-emerald-500/30 hover:bg-emerald-500/40 border border-emerald-500/30 rounded-xl text-emerald-200 text-sm font-medium transition-all hover:scale-105 hover:shadow-lg hover:shadow-emerald-500/20"
+                        >
+                          View on Explorer
+                          <ExternalLink className="w-4 h-4" />
+                        </a>
+                      </div>
                     </div>
                   </div>
                 )}
@@ -477,7 +523,7 @@ export default function CollectionPage() {
                     <svg className="w-3.5 h-3.5" viewBox="0 0 111 111" fill="none">
                       <path d="M54.921 110.034C85.359 110.034 110.034 85.402 110.034 55.017C110.034 24.6319 85.359 0 54.921 0C26.0432 0 2.35281 22.1714 0 50.3923H72.8467V59.6416H0C2.35281 87.8625 26.0432 110.034 54.921 110.034Z" fill="currentColor"/>
                     </svg>
-                    Base Sepolia
+                    {chainName}
                   </span>
                 </div>
               </div>
