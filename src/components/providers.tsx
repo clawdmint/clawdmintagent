@@ -5,38 +5,28 @@ import { WagmiProvider, http, createConfig } from "wagmi";
 import { base, baseSepolia } from "wagmi/chains";
 import { RainbowKitProvider, darkTheme, lightTheme, getDefaultConfig } from "@rainbow-me/rainbowkit";
 import "@rainbow-me/rainbowkit/styles.css";
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect } from "react";
 import { ThemeProvider } from "./theme-provider";
 
-// Helper to get chain config (called only on client)
-function getChainConfig() {
-  const chainId = parseInt(process.env["NEXT_PUBLIC_CHAIN_ID"] || "8453");
-  const targetChain = chainId === 8453 ? base : baseSepolia;
-  const alchemyId = process.env["NEXT_PUBLIC_ALCHEMY_ID"] || "";
-  const walletConnectId = process.env["NEXT_PUBLIC_WALLET_CONNECT_ID"] || "";
-  
-  return { targetChain, alchemyId, walletConnectId };
-}
+// Get chain based on environment
+const chainId = parseInt(process.env["NEXT_PUBLIC_CHAIN_ID"] || "8453");
+const targetChain = chainId === 8453 ? base : baseSepolia;
+const alchemyId = process.env["NEXT_PUBLIC_ALCHEMY_ID"] || "";
 
-// Create config lazily on client-side only to avoid SSR/build issues with WalletConnect
-function createWagmiConfig() {
-  const { targetChain, alchemyId, walletConnectId } = getChainConfig();
-  
-  return getDefaultConfig({
-    appName: "Clawdmint",
-    projectId: walletConnectId || "placeholder", // Will be replaced on client
-    chains: [targetChain],
-    transports: {
-      [base.id]: http(
-        alchemyId ? `https://base-mainnet.g.alchemy.com/v2/${alchemyId}` : "https://mainnet.base.org"
-      ),
-      [baseSepolia.id]: http(
-        alchemyId ? `https://base-sepolia.g.alchemy.com/v2/${alchemyId}` : "https://sepolia.base.org"
-      ),
-    },
-    ssr: false, // Disable SSR to prevent build-time WalletConnect API calls
-  });
-}
+// SSR-safe fallback config (no WalletConnect, just basic wagmi)
+// This prevents WalletConnect API calls during build
+const ssrFallbackConfig = createConfig({
+  chains: [targetChain],
+  transports: {
+    [base.id]: http(
+      alchemyId ? `https://base-mainnet.g.alchemy.com/v2/${alchemyId}` : "https://mainnet.base.org"
+    ),
+    [baseSepolia.id]: http(
+      alchemyId ? `https://base-sepolia.g.alchemy.com/v2/${alchemyId}` : "https://sepolia.base.org"
+    ),
+  },
+  ssr: true,
+});
 
 // Separate component that uses its own theme state synced with localStorage
 function RainbowKitWrapper({ children }: { children: React.ReactNode }) {
@@ -97,6 +87,7 @@ function RainbowKitWrapper({ children }: { children: React.ReactNode }) {
 
 export function Providers({ children }: { children: React.ReactNode }) {
   const [mounted, setMounted] = useState(false);
+  const [clientConfig, setClientConfig] = useState<ReturnType<typeof getDefaultConfig> | null>(null);
   
   const [queryClient] = useState(
     () =>
@@ -109,25 +100,48 @@ export function Providers({ children }: { children: React.ReactNode }) {
       })
   );
 
-  // Create config only on client-side
-  const config = useMemo(() => {
-    if (typeof window === "undefined") return null;
-    return createWagmiConfig();
-  }, []);
-
   useEffect(() => {
+    // Create full config with WalletConnect only on client-side
+    const walletConnectId = process.env["NEXT_PUBLIC_WALLET_CONNECT_ID"] || "";
+    
+    if (walletConnectId) {
+      const fullConfig = getDefaultConfig({
+        appName: "Clawdmint",
+        projectId: walletConnectId,
+        chains: [targetChain],
+        transports: {
+          [base.id]: http(
+            alchemyId ? `https://base-mainnet.g.alchemy.com/v2/${alchemyId}` : "https://mainnet.base.org"
+          ),
+          [baseSepolia.id]: http(
+            alchemyId ? `https://base-sepolia.g.alchemy.com/v2/${alchemyId}` : "https://sepolia.base.org"
+          ),
+        },
+        ssr: false,
+      });
+      setClientConfig(fullConfig);
+    }
+    
     setMounted(true);
   }, []);
 
-  // Don't render wallet providers during SSR/build
-  if (!mounted || !config) {
+  // Use SSR fallback config during build/SSR, full config on client
+  const config = clientConfig || ssrFallbackConfig;
+
+  // During SSR/build: render with fallback config (no RainbowKit)
+  if (!mounted) {
     return (
       <ThemeProvider>
-        <div className="min-h-screen">{children}</div>
+        <WagmiProvider config={ssrFallbackConfig}>
+          <QueryClientProvider client={queryClient}>
+            {children}
+          </QueryClientProvider>
+        </WagmiProvider>
       </ThemeProvider>
     );
   }
 
+  // On client: render with full config and RainbowKit
   return (
     <ThemeProvider>
       <WagmiProvider config={config}>
