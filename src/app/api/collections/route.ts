@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 
+// Force dynamic rendering (prevents static generation errors on Netlify)
+export const dynamic = 'force-dynamic';
+
 // ═══════════════════════════════════════════════════════════════════════
 // GET /api/collections
 // Public endpoint - Get all active collections

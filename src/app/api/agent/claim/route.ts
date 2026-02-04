@@ -3,6 +3,9 @@ import { z } from "zod";
 import { prisma } from "@/lib/db";
 import { generateClaimCode, validateAndChecksumAddress } from "@/lib/auth";
 
+// Force dynamic rendering (prevents static generation errors on Netlify)
+export const dynamic = 'force-dynamic';
+
 // ═══════════════════════════════════════════════════════════════════════
 // SCHEMA
 // ═══════════════════════════════════════════════════════════════════════

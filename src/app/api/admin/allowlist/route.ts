@@ -7,6 +7,9 @@ import {
   FACTORY_ADDRESS_GETTER
 } from "@/lib/contracts";
 
+// Force dynamic rendering (prevents static generation errors on Netlify)
+export const dynamic = 'force-dynamic';
+
 /**
  * GET /api/admin/allowlist
  * Check deployer allowlist status

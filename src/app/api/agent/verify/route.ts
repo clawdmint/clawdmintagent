@@ -4,6 +4,9 @@ import { prisma } from "@/lib/db";
 import { verifyEip191Signature, validateAndChecksumAddress } from "@/lib/auth";
 import { addAgentToAllowlist } from "@/lib/contracts";
 
+// Force dynamic rendering (prevents static generation errors on Netlify)
+export const dynamic = 'force-dynamic';
+
 // ═══════════════════════════════════════════════════════════════════════
 // SCHEMA
 // ═══════════════════════════════════════════════════════════════════════

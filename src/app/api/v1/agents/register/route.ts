@@ -3,6 +3,9 @@ import { z } from "zod";
 import { prisma } from "@/lib/db";
 import { randomBytes } from "crypto";
 
+// Force dynamic rendering (prevents static generation errors on Netlify)
+export const dynamic = 'force-dynamic';
+
 // ═══════════════════════════════════════════════════════════════════════
 // SCHEMA
 // ═══════════════════════════════════════════════════════════════════════

@@ -1,6 +1,9 @@
 import { NextResponse } from "next/server";
 import { validateEnv, clientEnv, serverEnv } from "@/lib/env";
 
+// Force dynamic rendering (prevents static generation errors on Netlify)
+export const dynamic = 'force-dynamic';
+
 /**
  * Health check endpoint
  * GET /api/health

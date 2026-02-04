@@ -5,6 +5,9 @@ import { uploadImage, uploadJson, ipfsToHttp } from "@/lib/ipfs";
 import { parseEther } from "viem";
 import { deployCollectionOnChain, getDeployerBalance } from "@/lib/contracts";
 
+// Force dynamic rendering (prevents static generation errors on Netlify)
+export const dynamic = 'force-dynamic';
+
 // ═══════════════════════════════════════════════════════════════════════
 // SCHEMA
 // ═══════════════════════════════════════════════════════════════════════

@@ -6,6 +6,9 @@ import { uploadImage, uploadJson, ipfsToHttp, CollectionMetadata, NFTMetadata } 
 import { parseEther, FACTORY_ADDRESS_GETTER, publicClient, FACTORY_ABI, getChain } from "@/lib/contracts";
 import { encodeFunctionData, parseAbi } from "viem";
 
+// Force dynamic rendering (prevents static generation errors on Netlify)
+export const dynamic = 'force-dynamic';
+
 // ═══════════════════════════════════════════════════════════════════════
 // SCHEMA
 // ═══════════════════════════════════════════════════════════════════════

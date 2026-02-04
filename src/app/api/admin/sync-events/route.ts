@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { syncHistoricalEvents, getCurrentBlock } from "@/lib/event-listener";
 import { serverEnv } from "@/lib/env";
 
+// Force dynamic rendering (prevents static generation errors on Netlify)
+export const dynamic = 'force-dynamic';
+
 /**
  * Admin endpoint to sync blockchain events
  * POST /api/admin/sync-events
