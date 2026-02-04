@@ -108,28 +108,38 @@ export async function POST(request: NextRequest) {
       fee_recipient: data.payout_address,
     };
 
-    // Token metadata (for reveal - simplified version)
-    // In production, you'd generate unique metadata per token
-    const tokenMeta: NFTMetadata = {
-      name: `${data.name} #TOKEN_ID`,
-      description: collectionMeta.description,
-      image: imageUrl,
-      attributes: data.metadata?.attributes || [],
-      external_url: data.metadata?.external_url,
-    };
+    // Generate unique metadata for each token
+    console.log(`Generating metadata for ${data.max_supply} tokens...`);
+    const tokenMetadataArray: NFTMetadata[] = [];
+    
+    for (let i = 1; i <= data.max_supply; i++) {
+      tokenMetadataArray.push({
+        name: `${data.name} #${i}`,
+        description: collectionMeta.description,
+        image: imageUrl,
+        attributes: data.metadata?.attributes || [],
+        external_url: data.metadata?.external_url,
+      });
+    }
 
-    // Upload collection.json
-    const collectionJsonUpload = await uploadJson(collectionMeta, `${data.symbol}-collection`);
-    if (!collectionJsonUpload.success) {
+    // Upload as folder structure (collection.json + 1.json, 2.json, ...)
+    console.log("Uploading metadata folder to IPFS...");
+    const { uploadCollectionMetadata } = await import("@/lib/ipfs");
+    const folderUpload = await uploadCollectionMetadata(
+      collectionMeta,
+      tokenMetadataArray,
+      data.name
+    );
+    
+    if (!folderUpload.success) {
       return NextResponse.json(
-        { error: `Metadata upload failed: ${collectionJsonUpload.error}` },
+        { error: `Metadata upload failed: ${folderUpload.error}` },
         { status: 500 }
       );
     }
 
-    // For simplicity, use a placeholder base URI
-    // In production, you'd upload a folder with all token JSONs
-    const baseUri = `ipfs://${collectionJsonUpload.cid}/`;
+    // Base URI points to the folder (with trailing slash)
+    const baseUri = folderUpload.url || `ipfs://${folderUpload.cid}/`;
 
     // Step 3: Prepare deployment transaction data
     // Note: The actual on-chain deployment is done by the agent's wallet
@@ -199,8 +209,12 @@ export async function POST(request: NextRequest) {
         ],
       },
       metadata: {
-        collection_json: ipfsToHttp(`ipfs://${collectionJsonUpload.cid}`),
+        base_uri: baseUri,
+        folder_cid: folderUpload.cid,
+        collection_json: `${baseUri}collection.json`,
+        token_metadata_example: `${baseUri}1.json`,
         image: ipfsToHttp(imageUrl),
+        total_tokens: data.max_supply,
       },
     });
   } catch (error) {

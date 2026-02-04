@@ -149,6 +149,7 @@ export async function uploadJson(
 /**
  * Upload an entire collection's metadata to IPFS
  * Creates a folder with individual token JSONs + collection.json
+ * Uses Pinata's file-based upload for folder structure
  */
 export async function uploadCollectionMetadata(
   collectionMeta: CollectionMetadata,
@@ -158,39 +159,44 @@ export async function uploadCollectionMetadata(
   try {
     const config = getPinataConfig();
     
-    // Create metadata objects for the folder
-    const files: Array<{ path: string; content: string }> = [];
-
+    // Create FormData for folder upload
+    const formData = new FormData();
+    
     // Add collection.json
-    files.push({
-      path: "collection.json",
-      content: JSON.stringify(collectionMeta, null, 2),
-    });
+    const collectionBlob = new Blob(
+      [JSON.stringify(collectionMeta, null, 2)],
+      { type: "application/json" }
+    );
+    formData.append("file", collectionBlob, "collection.json");
 
     // Add individual token metadata (1.json, 2.json, etc.)
     tokenMetadata.forEach((meta, index) => {
-      files.push({
-        path: `${index + 1}.json`,
-        content: JSON.stringify(meta, null, 2),
-      });
+      const tokenBlob = new Blob(
+        [JSON.stringify(meta, null, 2)],
+        { type: "application/json" }
+      );
+      formData.append("file", tokenBlob, `${index + 1}.json`);
     });
 
-    // Upload as a folder
-    const response = await fetch("https://api.pinata.cloud/pinning/pinJSONToIPFS", {
+    // Add metadata
+    const metadata = JSON.stringify({
+      name: `${collectionName}-metadata`,
+    });
+    formData.append("pinataMetadata", metadata);
+
+    // Add options for folder structure
+    const options = JSON.stringify({
+      wrapWithDirectory: true,
+    });
+    formData.append("pinataOptions", options);
+
+    // Upload folder to Pinata
+    const response = await fetch("https://api.pinata.cloud/pinning/pinFileToIPFS", {
       method: "POST",
       headers: {
-        "Content-Type": "application/json",
         Authorization: `Bearer ${config.jwt}`,
       },
-      body: JSON.stringify({
-        pinataContent: {
-          files: files.reduce((acc, file) => {
-            acc[file.path] = JSON.parse(file.content);
-            return acc;
-          }, {} as Record<string, object>),
-        },
-        pinataMetadata: { name: `${collectionName}-metadata` },
-      }),
+      body: formData,
     });
 
     if (!response.ok) {
