@@ -22,6 +22,11 @@ dist/
 .env.development.local
 .env.test.local
 .env.production.local
+
+# CRITICAL: .env.production must NOT exist in repo!
+# Next.js auto-loads it, which conflicts with Netlify's env system.
+# Use NETLIFY_ENV_SETUP.md for documentation instead.
+.env.production
 *.pem
 *.key
 *.p12
