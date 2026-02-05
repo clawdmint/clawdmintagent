@@ -3,7 +3,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import { useState, useEffect } from "react";
-import { Bot, User, Sparkles, Zap, Shield, Layers, Hexagon, Diamond } from "lucide-react";
+import { Bot, User, Sparkles, Zap, Shield, Layers, Hexagon, Diamond, ArrowRight, ExternalLink } from "lucide-react";
 import { useTheme } from "@/components/theme-provider";
 import { clsx } from "clsx";
 
@@ -13,19 +13,36 @@ interface Stats {
   nfts_minted: number;
 }
 
+interface ActivityItem {
+  type: "mint" | "deploy";
+  time: string;
+  minter?: string;
+  quantity?: number;
+  collection_name: string;
+  collection_symbol: string;
+  collection_address: string;
+  collection_image?: string;
+  agent_name: string;
+  tx_hash?: string;
+}
+
 export default function HomePage() {
   const [selectedRole, setSelectedRole] = useState<"human" | "agent" | null>(null);
   const { theme } = useTheme();
   const [stats, setStats] = useState<Stats>({ verified_agents: 0, collections: 0, nfts_minted: 0 });
+  const [activity, setActivity] = useState<ActivityItem[]>([]);
 
   useEffect(() => {
     async function fetchStats() {
       try {
-        const res = await fetch("/api/stats");
+        const res = await fetch("/api/stats?activity=true");
         if (res.ok) {
           const data = await res.json();
           if (data.stats) {
             setStats(data.stats);
+          }
+          if (data.recent_activity) {
+            setActivity(data.recent_activity);
           }
         }
       } catch (error) {
@@ -236,6 +253,44 @@ export default function HomePage() {
           </div>
         </div>
       </section>
+
+      {/* Recent Activity */}
+      {activity.length > 0 && (
+        <section className={clsx(
+          "relative py-16 border-t",
+          theme === "dark" ? "border-white/[0.05]" : "border-gray-200"
+        )}>
+          <div className="container mx-auto px-4">
+            <div className="max-w-3xl mx-auto">
+              <div className="flex items-center justify-between mb-8">
+                <div className="flex items-center gap-3">
+                  <div className="relative flex h-3 w-3">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+                    <span className="relative inline-flex rounded-full h-3 w-3 bg-emerald-500" />
+                  </div>
+                  <h2 className="text-2xl font-bold">Recent Activity</h2>
+                </div>
+                <Link 
+                  href="/drops" 
+                  className={clsx(
+                    "text-sm flex items-center gap-1 transition-colors",
+                    theme === "dark" ? "text-gray-400 hover:text-cyan-400" : "text-gray-500 hover:text-cyan-600"
+                  )}
+                >
+                  View all drops
+                  <ArrowRight className="w-3.5 h-3.5" />
+                </Link>
+              </div>
+
+              <div className="space-y-2">
+                {activity.map((item, i) => (
+                  <ActivityRow key={`${item.type}-${item.time}-${i}`} item={item} theme={theme} />
+                ))}
+              </div>
+            </div>
+          </div>
+        </section>
+      )}
     </div>
   );
 }
@@ -418,6 +473,94 @@ function FeatureCard({ icon, title, description, gradient, theme }: {
       </div>
       <h3 className="text-lg font-semibold mb-2">{title}</h3>
       <p className={clsx("text-sm", theme === "dark" ? "text-gray-500" : "text-gray-600")}>{description}</p>
+    </div>
+  );
+}
+
+function timeAgo(dateStr: string): string {
+  const seconds = Math.floor((Date.now() - new Date(dateStr).getTime()) / 1000);
+  if (seconds < 60) return "just now";
+  const minutes = Math.floor(seconds / 60);
+  if (minutes < 60) return `${minutes}m ago`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours}h ago`;
+  const days = Math.floor(hours / 24);
+  return `${days}d ago`;
+}
+
+function ActivityRow({ item, theme }: { item: ActivityItem; theme: string }) {
+  const chainId = parseInt(process.env["NEXT_PUBLIC_CHAIN_ID"] || "8453");
+  const explorerUrl = chainId === 8453 ? "https://basescan.org" : "https://sepolia.basescan.org";
+
+  return (
+    <div className={clsx(
+      "flex items-center gap-4 px-4 py-3 rounded-xl transition-colors",
+      theme === "dark"
+        ? "hover:bg-white/[0.03]"
+        : "hover:bg-gray-50"
+    )}>
+      {/* Icon */}
+      <div className={clsx(
+        "flex-shrink-0 w-10 h-10 rounded-xl flex items-center justify-center",
+        item.type === "mint"
+          ? "bg-emerald-500/15 text-emerald-500"
+          : "bg-cyan-500/15 text-cyan-500"
+      )}>
+        {item.type === "mint" ? (
+          <Sparkles className="w-5 h-5" />
+        ) : (
+          <Layers className="w-5 h-5" />
+        )}
+      </div>
+
+      {/* Content */}
+      <div className="flex-1 min-w-0">
+        {item.type === "mint" ? (
+          <p className="text-sm">
+            <span className="font-mono font-medium">{item.minter}</span>
+            <span className={theme === "dark" ? " text-gray-500" : " text-gray-400"}> minted </span>
+            <span className="font-medium">{item.quantity}</span>
+            <span className={theme === "dark" ? " text-gray-500" : " text-gray-400"}> from </span>
+            <Link 
+              href={`/collection/${item.collection_address}`}
+              className="font-medium text-cyan-500 hover:underline"
+            >
+              {item.collection_name}
+            </Link>
+          </p>
+        ) : (
+          <p className="text-sm">
+            <span className="font-medium text-cyan-500">{item.agent_name}</span>
+            <span className={theme === "dark" ? " text-gray-500" : " text-gray-400"}> deployed </span>
+            <Link 
+              href={`/collection/${item.collection_address}`}
+              className="font-medium text-cyan-500 hover:underline"
+            >
+              {item.collection_name}
+            </Link>
+          </p>
+        )}
+      </div>
+
+      {/* Time + Link */}
+      <div className="flex-shrink-0 flex items-center gap-2">
+        <span className={clsx("text-xs", theme === "dark" ? "text-gray-600" : "text-gray-400")}>
+          {timeAgo(item.time)}
+        </span>
+        {item.tx_hash && (
+          <a
+            href={`${explorerUrl}/tx/${item.tx_hash}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className={clsx(
+              "p-1 rounded transition-colors",
+              theme === "dark" ? "hover:bg-white/[0.05] text-gray-600 hover:text-gray-400" : "hover:bg-gray-100 text-gray-400 hover:text-gray-600"
+            )}
+          >
+            <ExternalLink className="w-3.5 h-3.5" />
+          </a>
+        )}
+      </div>
     </div>
   );
 }
