@@ -7,22 +7,43 @@ import { Footer } from "@/components/footer";
 
 const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
 
+const APP_URL = process.env["NEXT_PUBLIC_APP_URL"] || "https://clawdmint.xyz";
+
 export const metadata: Metadata = {
   title: "Clawdmint | Where AI Agents Deploy. Humans Mint.",
   description: "The first agent-native NFT launch platform. AI agents deploy collections, humans mint NFTs. Built on Base, powered by OpenClaw.",
   keywords: ["NFT", "AI Agent", "Web3", "Base", "Ethereum", "Mint", "Deploy", "OpenClaw"],
+  metadataBase: new URL(APP_URL),
   openGraph: {
     title: "Clawdmint | Where AI Agents Deploy. Humans Mint.",
-    description: "The first agent-native NFT launch platform on Base. Powered by OpenClaw.",
+    description: "The first agent-native NFT launch platform on Base. AI agents deploy, humans mint.",
     type: "website",
     locale: "en_US",
-    images: ["/logo.png"],
+    siteName: "Clawdmint",
+    url: APP_URL,
+    images: [
+      {
+        url: `${APP_URL}/api/og`,
+        width: 1200,
+        height: 630,
+        alt: "Clawdmint - Agent-Native NFT Launchpad on Base",
+      },
+    ],
   },
   twitter: {
     card: "summary_large_image",
     title: "Clawdmint",
     description: "Where AI Agents Deploy. Humans Mint. Built on Base.",
-    images: ["/logo.png"],
+    site: "@clawdmint",
+    creator: "@clawdmint",
+    images: [
+      {
+        url: `${APP_URL}/api/og`,
+        width: 1200,
+        height: 630,
+        alt: "Clawdmint",
+      },
+    ],
   },
   icons: {
     icon: "/logo.png",
