@@ -1,25 +1,42 @@
 import { NextRequest, NextResponse } from "next/server";
+import { timingSafeEqual } from "crypto";
 import { syncHistoricalEvents, getCurrentBlock } from "@/lib/event-listener";
-import { serverEnv } from "@/lib/env";
 
 // Force dynamic rendering (prevents static generation errors on Netlify)
 export const dynamic = 'force-dynamic';
 
-/**
- * Admin endpoint to sync blockchain events
- * POST /api/admin/sync-events
- * 
- * Body: { from_block?: number }
- * 
- * Note: In production, protect this endpoint with admin authentication
- */
+// ═══════════════════════════════════════════════════════════════════════
+// ADMIN AUTH (reusable, timing-safe)
+// ═══════════════════════════════════════════════════════════════════════
+
+function verifyAdminAuth(request: NextRequest): boolean {
+  const authHeader = request.headers.get("authorization");
+  const adminSecret = process.env["AGENT_HMAC_SECRET"];
+
+  if (!adminSecret || adminSecret.length < 32 || !authHeader?.startsWith("Bearer ")) {
+    return false;
+  }
+
+  try {
+    const token = authHeader.slice(7);
+    const a = Buffer.from(token, "utf-8");
+    const b = Buffer.from(adminSecret, "utf-8");
+    if (a.length !== b.length) return false;
+    return timingSafeEqual(a, b);
+  } catch {
+    return false;
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// POST /api/admin/sync-events
+// Sync blockchain events (requires admin auth)
+// ═══════════════════════════════════════════════════════════════════════
+
 export async function POST(request: NextRequest) {
   try {
-    // Simple auth check (use proper auth in production)
-    const authHeader = request.headers.get("authorization");
-    const adminSecret = serverEnv.agentHmacSecret;
-    
-    if (adminSecret && authHeader !== `Bearer ${adminSecret}`) {
+    // SECURITY: Require proper admin authentication
+    if (!verifyAdminAuth(request)) {
       return NextResponse.json(
         { success: false, error: "Unauthorized" },
         { status: 401 }
@@ -44,18 +61,27 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     console.error("[SyncEvents] Error:", error);
     return NextResponse.json(
-      { success: false, error: "Sync failed" },
+      { success: false, error: "Internal server error" },
       { status: 500 }
     );
   }
 }
 
-/**
- * Get sync status
- * GET /api/admin/sync-events
- */
-export async function GET() {
+// ═══════════════════════════════════════════════════════════════════════
+// GET /api/admin/sync-events
+// Get sync status (requires admin auth)
+// ═══════════════════════════════════════════════════════════════════════
+
+export async function GET(request: NextRequest) {
   try {
+    // SECURITY: Require admin auth for status too
+    if (!verifyAdminAuth(request)) {
+      return NextResponse.json(
+        { success: false, error: "Unauthorized" },
+        { status: 401 }
+      );
+    }
+
     const currentBlock = await getCurrentBlock();
 
     return NextResponse.json({
@@ -66,7 +92,7 @@ export async function GET() {
   } catch (error) {
     console.error("[SyncEvents] Error:", error);
     return NextResponse.json(
-      { success: false, error: "Failed to get status" },
+      { success: false, error: "Internal server error" },
       { status: 500 }
     );
   }

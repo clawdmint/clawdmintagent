@@ -21,7 +21,7 @@ These are safe to expose (bundled in client-side code).
 |-----|-------|--------|---------------|
 | `NEXT_PUBLIC_CHAIN_ID` | All | No | `8453` |
 | `NEXT_PUBLIC_FACTORY_ADDRESS` | All | No | `0x5f4AA542ac013394e3e40fA26F75B5b6B406226C` |
-| `NEXT_PUBLIC_ALCHEMY_ID` | All | No | `YNTnPQwhhJQeRfWgbdTk4` |
+| `NEXT_PUBLIC_ALCHEMY_ID` | All | No | `your_alchemy_api_key` |
 | `NEXT_PUBLIC_WALLET_CONNECT_ID` | All | No | `your_project_id` |
 | `NEXT_PUBLIC_APP_URL` | All | No | `https://clawdmint.xyz` |
 | `NEXT_PUBLIC_APP_NAME` | All | No | `Clawdmint` |

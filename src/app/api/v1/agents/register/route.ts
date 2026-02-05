@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/db";
-import { randomBytes } from "crypto";
+import { randomBytes, createHash, randomInt } from "crypto";
+import { checkRateLimit, getClientIp, RATE_LIMIT_REGISTER } from "@/lib/rate-limit";
 
 // Force dynamic rendering (prevents static generation errors on Netlify)
 export const dynamic = 'force-dynamic';
@@ -23,6 +24,11 @@ function generateApiKey(): string {
   return `clawdmint_${randomBytes(24).toString("hex")}`;
 }
 
+// SECURITY: Hash API key before storing in database
+function hashApiKey(apiKey: string): string {
+  return createHash("sha256").update(apiKey).digest("hex");
+}
+
 function generateClaimToken(): string {
   return `clawdmint_claim_${randomBytes(16).toString("hex")}`;
 }
@@ -31,7 +37,8 @@ function generateVerificationCode(): string {
   const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
   let code = "";
   for (let i = 0; i < 4; i++) {
-    code += chars.charAt(Math.floor(Math.random() * chars.length));
+    // SECURITY: Use crypto.randomInt instead of Math.random
+    code += chars.charAt(randomInt(chars.length));
   }
   return `MINT-${code}`;
 }
@@ -43,6 +50,26 @@ function generateVerificationCode(): string {
 
 export async function POST(request: NextRequest) {
   try {
+    // SECURITY: Rate limit registration (5 per hour per IP)
+    const clientIp = getClientIp(request);
+    const rateLimit = checkRateLimit(`register:${clientIp}`, RATE_LIMIT_REGISTER);
+    if (!rateLimit.allowed) {
+      return NextResponse.json(
+        { 
+          success: false, 
+          error: "Too many registration attempts. Please try again later.",
+          retry_after_seconds: rateLimit.retryAfterSeconds,
+        },
+        { 
+          status: 429,
+          headers: {
+            "Retry-After": String(rateLimit.retryAfterSeconds || 60),
+            "X-RateLimit-Remaining": "0",
+          }
+        }
+      );
+    }
+
     const body = await request.json();
     
     // Validate input
@@ -88,7 +115,7 @@ export async function POST(request: NextRequest) {
         name,
         description,
         eoa: `pending_${randomBytes(8).toString("hex")}`, // Placeholder until claimed
-        hmacKeyHash: apiKey, // Store API key (in production, hash this)
+        hmacKeyHash: hashApiKey(apiKey), // SECURITY: Store hashed API key
         status: "PENDING",
         deployEnabled: false,
       },

@@ -1,5 +1,5 @@
 // NOTE: server-only removed - this file uses crypto which is server-only by nature
-import { createHmac, createHash, timingSafeEqual } from "crypto";
+import { createHmac, createHash, timingSafeEqual, randomInt } from "crypto";
 import { recoverMessageAddress, getAddress, isAddress } from "viem";
 import { NextRequest } from "next/server";
 import { prisma } from "./db";
@@ -105,8 +105,13 @@ export async function verifyHmacAuth(
     
     const signingString = `${timestamp}\n${method}\n${path}\n${bodyHash}\n${nonce}`;
     
-    // Use agent-specific key if set, otherwise use global secret
-    const hmacKey = agent.hmacKeyHash || getHmacSecret();
+    // SECURITY: Agent MUST have their own key - never fall back to global secret
+    const hmacKey = agent.hmacKeyHash;
+    if (!hmacKey) {
+      console.error("[Auth] Agent has no HMAC key:", agentId);
+      return { success: false, error: "Agent authentication not configured" };
+    }
+
     const expectedSignature = createHmac("sha256", hmacKey)
       .update(signingString)
       .digest("hex");
@@ -187,8 +192,9 @@ export async function verifyEip191Signature(
 export function generateClaimCode(): string {
   const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"; // Exclude confusing chars
   let code = "";
-  for (let i = 0; i < 4; i++) {
-    code += chars.charAt(Math.floor(Math.random() * chars.length));
+  for (let i = 0; i < 6; i++) {
+    // SECURITY: Use crypto.randomInt instead of Math.random for unpredictable codes
+    code += chars.charAt(randomInt(chars.length));
   }
   return `CLAWDMINT-AGENT-${code}`;
 }

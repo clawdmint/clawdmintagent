@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { timingSafeEqual } from "crypto";
 import { 
   createDeployerWalletClient, 
   addAgentToAllowlist, 
@@ -10,12 +11,64 @@ import {
 // Force dynamic rendering (prevents static generation errors on Netlify)
 export const dynamic = 'force-dynamic';
 
-/**
- * GET /api/admin/allowlist
- * Check deployer allowlist status
- */
-export async function GET() {
+// ═══════════════════════════════════════════════════════════════════════
+// ADMIN AUTH HELPER
+// ═══════════════════════════════════════════════════════════════════════
+
+function verifyAdminAuth(request: NextRequest): boolean {
+  const authHeader = request.headers.get("authorization");
+  const adminSecret = process.env["AGENT_HMAC_SECRET"];
+
+  // SECURITY: Reject if secret is not configured or is a placeholder
+  if (!adminSecret || adminSecret.length < 32) {
+    console.error("[Allowlist] AGENT_HMAC_SECRET not configured or too short");
+    return false;
+  }
+
+  // SECURITY: Reject known placeholder values
+  const PLACEHOLDER_VALUES = [
+    "your-secure-hmac-secret-min-32-chars",
+    "change-me",
+    "placeholder",
+    "test",
+  ];
+  if (PLACEHOLDER_VALUES.some((p) => adminSecret.toLowerCase().includes(p))) {
+    console.error("[Allowlist] AGENT_HMAC_SECRET contains placeholder value");
+    return false;
+  }
+
+  if (!authHeader || !authHeader.startsWith("Bearer ")) {
+    return false;
+  }
+
+  const providedToken = authHeader.slice(7); // Remove "Bearer "
+
+  // SECURITY: Timing-safe comparison to prevent timing attacks
   try {
+    const a = Buffer.from(providedToken, "utf-8");
+    const b = Buffer.from(adminSecret, "utf-8");
+    if (a.length !== b.length) return false;
+    return timingSafeEqual(a, b);
+  } catch {
+    return false;
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// GET /api/admin/allowlist
+// Check deployer allowlist status (requires admin auth)
+// ═══════════════════════════════════════════════════════════════════════
+
+export async function GET(request: NextRequest) {
+  try {
+    // SECURITY: Require authentication for admin endpoints
+    if (!verifyAdminAuth(request)) {
+      return NextResponse.json(
+        { success: false, error: "Unauthorized" },
+        { status: 401 }
+      );
+    }
+
     const { address: deployerAddress } = createDeployerWalletClient();
     
     const isAllowed = await isAgentAllowedOnChain(deployerAddress);
@@ -34,29 +87,25 @@ export async function GET() {
   } catch (error) {
     console.error("[Allowlist] Error:", error);
     return NextResponse.json(
-      { success: false, error: error instanceof Error ? error.message : "Failed to check allowlist" },
+      { success: false, error: "Internal server error" },
       { status: 500 }
     );
   }
 }
 
-/**
- * POST /api/admin/allowlist
- * Add deployer to Factory allowlist
- */
+// ═══════════════════════════════════════════════════════════════════════
+// POST /api/admin/allowlist
+// Add deployer to Factory allowlist (requires admin auth)
+// ═══════════════════════════════════════════════════════════════════════
+
 export async function POST(request: NextRequest) {
   try {
-    // Simple auth check
-    const authHeader = request.headers.get("authorization");
-    const adminSecret = process.env["AGENT_HMAC_SECRET"];
-    
-    if (adminSecret && adminSecret !== "your-secure-hmac-secret-min-32-chars") {
-      if (authHeader !== `Bearer ${adminSecret}`) {
-        return NextResponse.json(
-          { success: false, error: "Unauthorized" },
-          { status: 401 }
-        );
-      }
+    // SECURITY: Require authentication - no bypass possible
+    if (!verifyAdminAuth(request)) {
+      return NextResponse.json(
+        { success: false, error: "Unauthorized" },
+        { status: 401 }
+      );
     }
 
     const { address: deployerAddress } = createDeployerWalletClient();
@@ -84,7 +133,7 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     console.error("[Allowlist] Error:", error);
     return NextResponse.json(
-      { success: false, error: error instanceof Error ? error.message : "Failed to add to allowlist" },
+      { success: false, error: "Internal server error" },
       { status: 500 }
     );
   }

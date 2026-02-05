@@ -1,8 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
+import { createHash } from "crypto";
 import { prisma } from "@/lib/db";
 
 // Force dynamic rendering (prevents static generation errors on Netlify)
 export const dynamic = 'force-dynamic';
+
+// SECURITY: Hash API key for database lookup
+function hashApiKey(apiKey: string): string {
+  return createHash("sha256").update(apiKey).digest("hex");
+}
 
 // ═══════════════════════════════════════════════════════════════════════
 // GET /api/v1/agents/status
@@ -22,9 +28,9 @@ export async function GET(request: NextRequest) {
 
     const apiKey = authHeader.replace("Bearer ", "");
 
-    // Find agent by API key
+    // SECURITY: Find agent by hashed API key
     const agent = await prisma.agent.findFirst({
-      where: { hmacKeyHash: apiKey },
+      where: { hmacKeyHash: hashApiKey(apiKey) },
     });
 
     if (!agent) {

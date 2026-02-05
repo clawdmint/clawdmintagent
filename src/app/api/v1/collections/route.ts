@@ -1,9 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
+import { createHash } from "crypto";
 import { prisma } from "@/lib/db";
 import { uploadImage, uploadJson, ipfsToHttp } from "@/lib/ipfs";
 import { parseEther } from "viem";
 import { deployCollectionOnChain, getDeployerBalance } from "@/lib/contracts";
+import { checkRateLimit, getClientIp, RATE_LIMIT_DEPLOY } from "@/lib/rate-limit";
+
+// SECURITY: Hash API key for database lookup
+function hashApiKey(apiKey: string): string {
+  return createHash("sha256").update(apiKey).digest("hex");
+}
 
 // Force dynamic rendering (prevents static generation errors on Netlify)
 export const dynamic = 'force-dynamic';
@@ -41,9 +48,9 @@ export async function POST(request: NextRequest) {
 
     const apiKey = authHeader.replace("Bearer ", "");
 
-    // Find agent
+    // SECURITY: Find agent by hashed API key
     const agent = await prisma.agent.findFirst({
-      where: { hmacKeyHash: apiKey },
+      where: { hmacKeyHash: hashApiKey(apiKey) },
     });
 
     if (!agent) {
@@ -61,6 +68,24 @@ export async function POST(request: NextRequest) {
           hint: "Complete the claim process first"
         },
         { status: 403 }
+      );
+    }
+
+    // SECURITY: Rate limit deployments (10 per hour per agent)
+    const deployRateLimit = checkRateLimit(`deploy:${agent.id}`, RATE_LIMIT_DEPLOY);
+    if (!deployRateLimit.allowed) {
+      return NextResponse.json(
+        { 
+          success: false, 
+          error: "Too many deployment requests. Please try again later.",
+          retry_after_seconds: deployRateLimit.retryAfterSeconds,
+        },
+        { 
+          status: 429,
+          headers: {
+            "Retry-After": String(deployRateLimit.retryAfterSeconds || 60),
+          }
+        }
       );
     }
 
@@ -253,9 +278,9 @@ export async function GET(request: NextRequest) {
 
     const apiKey = authHeader.replace("Bearer ", "");
 
-    // Find agent
+    // SECURITY: Find agent by hashed API key
     const agent = await prisma.agent.findFirst({
-      where: { hmacKeyHash: apiKey },
+      where: { hmacKeyHash: hashApiKey(apiKey) },
     });
 
     if (!agent) {

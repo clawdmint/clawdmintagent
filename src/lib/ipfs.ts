@@ -221,8 +221,93 @@ export async function uploadCollectionMetadata(
   }
 }
 
+// ═══════════════════════════════════════════════════════════════════════
+// SECURITY: URL validation to prevent SSRF attacks
+// ═══════════════════════════════════════════════════════════════════════
+
+const ALLOWED_IMAGE_DOMAINS = [
+  // Public image hosting
+  "i.imgur.com",
+  "imgur.com",
+  "pbs.twimg.com",
+  "abs.twimg.com",
+  // IPFS gateways
+  "gateway.pinata.cloud",
+  "ipfs.io",
+  "cloudflare-ipfs.com",
+  "dweb.link",
+  "nftstorage.link",
+  "w3s.link",
+  // AI image generators
+  "oaidalleapiprodscus.blob.core.windows.net", // DALL-E
+  "replicate.delivery",
+  "cdn.midjourney.com",
+  // Cloud storage
+  "storage.googleapis.com",
+  "s3.amazonaws.com",
+  // General CDNs
+  "res.cloudinary.com",
+  "images.unsplash.com",
+];
+
+const BLOCKED_IP_RANGES = [
+  /^127\./,          // Loopback
+  /^10\./,           // Private Class A
+  /^172\.(1[6-9]|2\d|3[01])\./, // Private Class B
+  /^192\.168\./,     // Private Class C
+  /^169\.254\./,     // Link-local
+  /^0\./,            // Current network
+  /^::1$/,           // IPv6 loopback
+  /^fc00:/,          // IPv6 unique local
+  /^fe80:/,          // IPv6 link-local
+];
+
+function isUrlSafe(urlString: string): { safe: boolean; reason?: string } {
+  try {
+    const url = new URL(urlString);
+    
+    // SECURITY: Only allow HTTPS
+    if (url.protocol !== "https:") {
+      return { safe: false, reason: "Only HTTPS URLs are allowed" };
+    }
+
+    // SECURITY: Block IP addresses (prevent SSRF to internal networks)
+    const hostname = url.hostname;
+    if (/^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(hostname)) {
+      // It's an IP address - check against blocked ranges
+      if (BLOCKED_IP_RANGES.some((pattern) => pattern.test(hostname))) {
+        return { safe: false, reason: "Internal IP addresses are not allowed" };
+      }
+      // Even public IPs are suspicious for image URLs
+      return { safe: false, reason: "IP-based URLs are not allowed" };
+    }
+
+    // SECURITY: Block localhost variants
+    if (hostname === "localhost" || hostname.endsWith(".local") || hostname.endsWith(".internal")) {
+      return { safe: false, reason: "Local/internal hostnames are not allowed" };
+    }
+
+    // SECURITY: Check against allowlist
+    const isDomainAllowed = ALLOWED_IMAGE_DOMAINS.some(
+      (domain) => hostname === domain || hostname.endsWith(`.${domain}`)
+    );
+
+    if (!isDomainAllowed) {
+      return { safe: false, reason: `Domain '${hostname}' is not in the allowed list` };
+    }
+
+    return { safe: true };
+  } catch {
+    return { safe: false, reason: "Invalid URL format" };
+  }
+}
+
+// Maximum image size: 10MB
+const MAX_IMAGE_SIZE = 10 * 1024 * 1024;
+
 /**
  * Upload an image from data URL or fetch from URL
+ * SECURITY: URL sources are validated against an allowlist to prevent SSRF
  */
 export async function uploadImage(
   imageSource: string,
@@ -239,15 +324,61 @@ export async function uploadImage(
         throw new Error("Invalid data URL format");
       }
       contentType = matches[1];
-      buffer = Buffer.from(matches[2], "base64");
-    } else if (imageSource.startsWith("http://") || imageSource.startsWith("https://")) {
-      // Fetch from URL
-      const response = await fetch(imageSource);
-      if (!response.ok) {
-        throw new Error(`Failed to fetch image: ${response.statusText}`);
+
+      // SECURITY: Validate content type
+      if (!contentType.startsWith("image/")) {
+        throw new Error("Only image content types are allowed");
       }
-      contentType = response.headers.get("content-type") || "image/png";
-      buffer = Buffer.from(await response.arrayBuffer());
+
+      buffer = Buffer.from(matches[2], "base64");
+
+      // SECURITY: Check file size
+      if (buffer.length > MAX_IMAGE_SIZE) {
+        throw new Error(`Image too large (max ${MAX_IMAGE_SIZE / 1024 / 1024}MB)`);
+      }
+    } else if (imageSource.startsWith("https://")) {
+      // SECURITY: Validate URL before fetching
+      const validation = isUrlSafe(imageSource);
+      if (!validation.safe) {
+        throw new Error(`URL not allowed: ${validation.reason}`);
+      }
+
+      // Fetch from validated URL
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 15000); // 15s timeout
+
+      try {
+        const response = await fetch(imageSource, { 
+          signal: controller.signal,
+          redirect: "error", // SECURITY: Don't follow redirects (prevent SSRF via redirect)
+        });
+
+        if (!response.ok) {
+          throw new Error(`Failed to fetch image: ${response.statusText}`);
+        }
+
+        contentType = response.headers.get("content-type") || "image/png";
+
+        // SECURITY: Validate content type from response
+        if (!contentType.startsWith("image/")) {
+          throw new Error("Response is not an image");
+        }
+
+        // SECURITY: Check content-length header
+        const contentLength = parseInt(response.headers.get("content-length") || "0", 10);
+        if (contentLength > MAX_IMAGE_SIZE) {
+          throw new Error(`Image too large (max ${MAX_IMAGE_SIZE / 1024 / 1024}MB)`);
+        }
+
+        buffer = Buffer.from(await response.arrayBuffer());
+
+        // SECURITY: Double-check actual size
+        if (buffer.length > MAX_IMAGE_SIZE) {
+          throw new Error(`Image too large (max ${MAX_IMAGE_SIZE / 1024 / 1024}MB)`);
+        }
+      } finally {
+        clearTimeout(timeout);
+      }
     } else if (imageSource.startsWith("ipfs://")) {
       // Already on IPFS
       return {
@@ -256,7 +387,8 @@ export async function uploadImage(
         url: imageSource,
       };
     } else {
-      throw new Error("Unsupported image source format");
+      // SECURITY: Reject http:// and any other protocols
+      throw new Error("Unsupported image source. Use HTTPS URLs, data URIs, or IPFS URIs.");
     }
 
     return uploadFile(buffer, filename, contentType);
