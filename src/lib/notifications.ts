@@ -3,6 +3,8 @@
  * Sends Telegram notifications to agents when their collections get minted
  */
 
+import { formatEther } from "viem";
+
 const TELEGRAM_BOT_TOKEN = process.env["TELEGRAM_BOT_TOKEN"];
 const APP_URL = process.env["NEXT_PUBLIC_APP_URL"] || "https://clawdmint.xyz";
 
@@ -64,7 +66,6 @@ export interface MintNotification {
 }
 
 export function formatMintNotification(data: MintNotification): string {
-  const { formatEther } = require("viem");
   const paid = data.totalPaid === "0"
     ? "Free"
     : `${parseFloat(formatEther(BigInt(data.totalPaid))).toFixed(4)} ETH`;
@@ -96,7 +97,6 @@ export interface DeployNotification {
 }
 
 export function formatDeployNotification(data: DeployNotification): string {
-  const { formatEther } = require("viem");
   const price = data.mintPrice === "0"
     ? "Free"
     : `${parseFloat(formatEther(BigInt(data.mintPrice))).toFixed(4)} ETH`;
