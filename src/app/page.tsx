@@ -3,7 +3,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import { useState, useEffect } from "react";
-import { Bot, User, Sparkles, Zap, Shield, Layers, Hexagon, Diamond, ArrowRight, ExternalLink, TrendingUp, Flame } from "lucide-react";
+import { Bot, User, Sparkles, Zap, Shield, Layers, Hexagon, Diamond, ArrowRight, ExternalLink, TrendingUp, Flame, Boxes, Gem } from "lucide-react";
 import { formatEther } from "viem";
 import { useTheme } from "@/components/theme-provider";
 import { clsx } from "clsx";
@@ -211,6 +211,137 @@ export default function HomePage() {
         </div>
       </section>
 
+      {/* ═══ Stats Bar (Enhanced) ═══ */}
+      <section className="relative py-6 -mt-20 z-10">
+        <div className="container mx-auto px-4">
+          <div className={clsx(
+            "relative rounded-2xl overflow-hidden",
+            theme === "dark"
+              ? "bg-gray-900/60 backdrop-blur-xl border border-white/[0.08] shadow-2xl shadow-black/30"
+              : "bg-white/70 backdrop-blur-xl border border-gray-200/80 shadow-xl shadow-gray-200/50"
+          )}>
+            {/* Top accent line */}
+            <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-cyan-500/50 to-transparent" />
+
+            <div className="grid grid-cols-2 md:grid-cols-4">
+              {/* Network */}
+              <div className={clsx(
+                "relative group p-6 md:p-8 flex flex-col items-center text-center transition-colors",
+                theme === "dark" ? "hover:bg-white/[0.03]" : "hover:bg-gray-50/50"
+              )}>
+                <div className={clsx(
+                  "w-12 h-12 rounded-2xl flex items-center justify-center mb-3 transition-transform group-hover:scale-110 group-hover:rotate-3",
+                  theme === "dark"
+                    ? "bg-blue-500/10 ring-1 ring-blue-500/20"
+                    : "bg-blue-50 ring-1 ring-blue-100"
+                )}>
+                  <svg className="w-6 h-6 text-blue-500" viewBox="0 0 111 111" fill="none">
+                    <path d="M54.921 110.034C85.359 110.034 110.034 85.402 110.034 55.017C110.034 24.6319 85.359 0 54.921 0C26.0432 0 2.35281 22.1714 0 50.3923H72.8467V59.6416H0C2.35281 87.8625 26.0432 110.034 54.921 110.034Z" fill="currentColor"/>
+                  </svg>
+                </div>
+                <p className={clsx(
+                  "text-2xl md:text-3xl font-bold tracking-tight",
+                  "text-blue-500"
+                )}>
+                  Base
+                </p>
+                <p className={clsx("text-xs mt-1 font-medium uppercase tracking-wider", theme === "dark" ? "text-gray-500" : "text-gray-400")}>
+                  Network
+                </p>
+                {/* Right border */}
+                <div className={clsx(
+                  "absolute right-0 top-1/4 bottom-1/4 w-px hidden md:block",
+                  theme === "dark" ? "bg-white/[0.06]" : "bg-gray-200"
+                )} />
+                {/* Bottom border for mobile */}
+                <div className={clsx(
+                  "absolute bottom-0 left-1/4 right-1/4 h-px md:hidden",
+                  theme === "dark" ? "bg-white/[0.06]" : "bg-gray-200"
+                )} />
+              </div>
+
+              {/* Verified Agents */}
+              <div className={clsx(
+                "relative group p-6 md:p-8 flex flex-col items-center text-center transition-colors",
+                theme === "dark" ? "hover:bg-white/[0.03]" : "hover:bg-gray-50/50"
+              )}>
+                <div className={clsx(
+                  "w-12 h-12 rounded-2xl flex items-center justify-center mb-3 transition-transform group-hover:scale-110 group-hover:-rotate-3",
+                  theme === "dark"
+                    ? "bg-cyan-500/10 ring-1 ring-cyan-500/20"
+                    : "bg-cyan-50 ring-1 ring-cyan-100"
+                )}>
+                  <Bot className="w-6 h-6 text-cyan-500" />
+                </div>
+                <p className="text-2xl md:text-3xl font-bold tracking-tight">
+                  <span className="gradient-text">{stats.verified_agents}</span>
+                </p>
+                <p className={clsx("text-xs mt-1 font-medium uppercase tracking-wider", theme === "dark" ? "text-gray-500" : "text-gray-400")}>
+                  Verified Agents
+                </p>
+                <div className={clsx(
+                  "absolute right-0 top-1/4 bottom-1/4 w-px hidden md:block",
+                  theme === "dark" ? "bg-white/[0.06]" : "bg-gray-200"
+                )} />
+                <div className={clsx(
+                  "absolute bottom-0 left-1/4 right-1/4 h-px md:hidden",
+                  theme === "dark" ? "bg-white/[0.06]" : "bg-gray-200"
+                )} />
+              </div>
+
+              {/* Collections */}
+              <div className={clsx(
+                "relative group p-6 md:p-8 flex flex-col items-center text-center transition-colors",
+                theme === "dark" ? "hover:bg-white/[0.03]" : "hover:bg-gray-50/50"
+              )}>
+                <div className={clsx(
+                  "w-12 h-12 rounded-2xl flex items-center justify-center mb-3 transition-transform group-hover:scale-110 group-hover:rotate-3",
+                  theme === "dark"
+                    ? "bg-purple-500/10 ring-1 ring-purple-500/20"
+                    : "bg-purple-50 ring-1 ring-purple-100"
+                )}>
+                  <Boxes className="w-6 h-6 text-purple-500" />
+                </div>
+                <p className="text-2xl md:text-3xl font-bold tracking-tight">
+                  <span className="gradient-text">{stats.collections}</span>
+                </p>
+                <p className={clsx("text-xs mt-1 font-medium uppercase tracking-wider", theme === "dark" ? "text-gray-500" : "text-gray-400")}>
+                  Collections
+                </p>
+                <div className={clsx(
+                  "absolute right-0 top-1/4 bottom-1/4 w-px hidden md:block",
+                  theme === "dark" ? "bg-white/[0.06]" : "bg-gray-200"
+                )} />
+              </div>
+
+              {/* NFTs Minted */}
+              <div className={clsx(
+                "relative group p-6 md:p-8 flex flex-col items-center text-center transition-colors",
+                theme === "dark" ? "hover:bg-white/[0.03]" : "hover:bg-gray-50/50"
+              )}>
+                <div className={clsx(
+                  "w-12 h-12 rounded-2xl flex items-center justify-center mb-3 transition-transform group-hover:scale-110 group-hover:-rotate-3",
+                  theme === "dark"
+                    ? "bg-emerald-500/10 ring-1 ring-emerald-500/20"
+                    : "bg-emerald-50 ring-1 ring-emerald-100"
+                )}>
+                  <Gem className="w-6 h-6 text-emerald-500" />
+                </div>
+                <p className="text-2xl md:text-3xl font-bold tracking-tight">
+                  <span className="gradient-text">{stats.nfts_minted}</span>
+                </p>
+                <p className={clsx("text-xs mt-1 font-medium uppercase tracking-wider", theme === "dark" ? "text-gray-500" : "text-gray-400")}>
+                  NFTs Minted
+                </p>
+              </div>
+            </div>
+
+            {/* Bottom accent line */}
+            <div className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-purple-500/30 to-transparent" />
+          </div>
+        </div>
+      </section>
+
       {/* Features Section */}
       <section className={clsx(
         "relative py-24 border-t",
@@ -251,24 +382,6 @@ export default function HomePage() {
               gradient="from-blue-500/20 to-indigo-500/20"
               theme={theme}
             />
-          </div>
-        </div>
-      </section>
-
-      {/* Stats Bar */}
-      <section className={clsx(
-        "relative py-12 border-t",
-        theme === "dark" ? "border-white/[0.05]" : "border-gray-200"
-      )}>
-        <div className="container mx-auto px-4">
-          <div className="flex flex-wrap items-center justify-center gap-12 text-center">
-            <StatItem value="Base" label="Network" highlight theme={theme} />
-            <div className={clsx("w-px h-12", theme === "dark" ? "bg-white/[0.05]" : "bg-gray-200")} />
-            <StatItem value={stats.verified_agents.toString()} label="Verified Agents" theme={theme} />
-            <div className={clsx("w-px h-12 hidden md:block", theme === "dark" ? "bg-white/[0.05]" : "bg-gray-200")} />
-            <StatItem value={stats.collections.toString()} label="Collections" theme={theme} />
-            <div className={clsx("w-px h-12 hidden md:block", theme === "dark" ? "bg-white/[0.05]" : "bg-gray-200")} />
-            <StatItem value={stats.nfts_minted.toString()} label="NFTs Minted" theme={theme} />
           </div>
         </div>
       </section>
@@ -622,20 +735,6 @@ function ActivityRow({ item, theme }: { item: ActivityItem; theme: string }) {
           </a>
         )}
       </div>
-    </div>
-  );
-}
-
-function StatItem({ value, label, highlight, theme }: { value: string; label: string; highlight?: boolean; theme: string }) {
-  return (
-    <div>
-      <p className={clsx(
-        "text-3xl font-bold",
-        highlight ? "text-blue-500" : "gradient-text"
-      )}>
-        {value}
-      </p>
-      <p className={clsx("text-sm mt-1", theme === "dark" ? "text-gray-500" : "text-gray-500")}>{label}</p>
     </div>
   );
 }
