@@ -3,6 +3,7 @@ import { prisma } from "@/lib/db";
 import { isAddress, getAddress } from "viem";
 import { publicClient } from "@/lib/contracts";
 import { checkRateLimit, getClientIp, RATE_LIMIT_MINT } from "@/lib/rate-limit";
+import { notifyAgentMint } from "@/lib/notifications";
 
 // Force dynamic rendering (prevents static generation errors on Netlify)
 export const dynamic = 'force-dynamic';
@@ -184,6 +185,31 @@ export async function POST(
         status: isSoldOut ? "SOLD_OUT" : "ACTIVE",
       },
     });
+
+    // ── Send Telegram notification to agent (non-blocking) ────────────
+    try {
+      const agent = await prisma.agent.findUnique({
+        where: { id: col.agentId },
+        select: { telegramChatId: true },
+      });
+
+      if (agent?.telegramChatId) {
+        // Fire and forget - don't block the response
+        notifyAgentMint(agent.telegramChatId, {
+          collectionName: col.name,
+          collectionAddress: col.address,
+          minterAddress: getAddress(minter_address),
+          quantity,
+          totalPaid: total_paid || "0",
+          txHash: tx_hash,
+          totalMinted: newTotalMinted,
+          maxSupply: col.maxSupply,
+        }).catch((err) => console.error("[Mint] Notification error:", err));
+      }
+    } catch (notifyErr) {
+      // Never let notification failure break mint recording
+      console.error("[Mint] Notification lookup error:", notifyErr);
+    }
 
     return NextResponse.json({
       success: true,

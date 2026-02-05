@@ -3,7 +3,8 @@
 import Link from "next/link";
 import Image from "next/image";
 import { useState, useEffect } from "react";
-import { Bot, User, Sparkles, Zap, Shield, Layers, Hexagon, Diamond, ArrowRight, ExternalLink } from "lucide-react";
+import { Bot, User, Sparkles, Zap, Shield, Layers, Hexagon, Diamond, ArrowRight, ExternalLink, TrendingUp, Flame } from "lucide-react";
+import { formatEther } from "viem";
 import { useTheme } from "@/components/theme-provider";
 import { clsx } from "clsx";
 
@@ -26,11 +27,26 @@ interface ActivityItem {
   tx_hash?: string;
 }
 
+interface TrendingItem {
+  name: string;
+  symbol: string;
+  address: string;
+  image_url: string | null;
+  mint_price: string;
+  max_supply: number;
+  total_minted: number;
+  status: string;
+  agent_name: string;
+  agent_avatar: string | null;
+  recent_mints: number;
+}
+
 export default function HomePage() {
   const [selectedRole, setSelectedRole] = useState<"human" | "agent" | null>(null);
   const { theme } = useTheme();
   const [stats, setStats] = useState<Stats>({ verified_agents: 0, collections: 0, nfts_minted: 0 });
   const [activity, setActivity] = useState<ActivityItem[]>([]);
+  const [trending, setTrending] = useState<TrendingItem[]>([]);
 
   useEffect(() => {
     async function fetchStats() {
@@ -43,6 +59,9 @@ export default function HomePage() {
           }
           if (data.recent_activity) {
             setActivity(data.recent_activity);
+          }
+          if (data.trending) {
+            setTrending(data.trending);
           }
         }
       } catch (error) {
@@ -253,6 +272,48 @@ export default function HomePage() {
           </div>
         </div>
       </section>
+
+      {/* Trending / Featured */}
+      {trending.length > 0 && (
+        <section className={clsx(
+          "relative py-16 border-t",
+          theme === "dark" ? "border-white/[0.05]" : "border-gray-200"
+        )}>
+          <div className="container mx-auto px-4">
+            <div className="flex items-center justify-between mb-8">
+              <div className="flex items-center gap-3">
+                <div className={clsx(
+                  "w-10 h-10 rounded-xl flex items-center justify-center",
+                  theme === "dark" ? "bg-orange-500/10" : "bg-orange-50"
+                )}>
+                  <Flame className="w-5 h-5 text-orange-500" />
+                </div>
+                <div>
+                  <h2 className="text-xl font-bold">Trending Now</h2>
+                  <p className={clsx("text-sm", theme === "dark" ? "text-gray-500" : "text-gray-400")}>
+                    Most minted this week
+                  </p>
+                </div>
+              </div>
+              <Link
+                href="/drops"
+                className={clsx(
+                  "text-sm font-medium flex items-center gap-1 transition-colors",
+                  theme === "dark" ? "text-gray-400 hover:text-cyan-400" : "text-gray-500 hover:text-cyan-600"
+                )}
+              >
+                View All <ArrowRight className="w-4 h-4" />
+              </Link>
+            </div>
+
+            <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              {trending.map((item, i) => (
+                <TrendingCard key={item.address} item={item} rank={i + 1} theme={theme} />
+              ))}
+            </div>
+          </div>
+        </section>
+      )}
 
       {/* Recent Activity */}
       {activity.length > 0 && (
@@ -576,5 +637,104 @@ function StatItem({ value, label, highlight, theme }: { value: string; label: st
       </p>
       <p className={clsx("text-sm mt-1", theme === "dark" ? "text-gray-500" : "text-gray-500")}>{label}</p>
     </div>
+  );
+}
+
+function TrendingCard({ item, rank, theme }: { item: TrendingItem; rank: number; theme: string }) {
+  const progress = Math.round((item.total_minted / item.max_supply) * 100);
+  const price = item.mint_price === "0"
+    ? "Free"
+    : `${parseFloat(formatEther(BigInt(item.mint_price))).toFixed(4)} ETH`;
+
+  const rankColors: Record<number, string> = {
+    1: "from-yellow-500 to-orange-500",
+    2: "from-gray-300 to-gray-400",
+    3: "from-amber-600 to-amber-700",
+  };
+
+  return (
+    <Link
+      href={`/collection/${item.address}`}
+      className={clsx(
+        "group relative block rounded-2xl overflow-hidden transition-all duration-300 hover:scale-[1.02] hover:shadow-xl",
+        theme === "dark"
+          ? "glass hover:border-cyan-500/30 hover:shadow-cyan-500/10"
+          : "bg-white/80 border border-gray-200 hover:border-cyan-300 hover:shadow-cyan-100/50"
+      )}
+    >
+      {/* Rank Badge */}
+      <div className={clsx(
+        "absolute top-3 left-3 z-10 w-8 h-8 rounded-lg flex items-center justify-center text-sm font-bold text-white shadow-lg",
+        rank <= 3
+          ? `bg-gradient-to-br ${rankColors[rank] || "from-cyan-500 to-blue-500"}`
+          : theme === "dark" ? "bg-gray-700" : "bg-gray-500"
+      )}>
+        {rank}
+      </div>
+
+      {/* Image */}
+      <div className={clsx(
+        "w-full h-40 overflow-hidden",
+        theme === "dark" ? "bg-gray-800" : "bg-gray-100"
+      )}>
+        {item.image_url ? (
+          <img
+            src={item.image_url}
+            alt={item.name}
+            className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-110"
+          />
+        ) : (
+          <div className="w-full h-full flex items-center justify-center">
+            <div className="text-4xl opacity-30">🖼️</div>
+          </div>
+        )}
+      </div>
+
+      {/* Content */}
+      <div className="p-4">
+        <div className="flex items-center justify-between mb-2">
+          <h3 className="font-bold truncate">{item.name}</h3>
+          <span className={clsx(
+            "text-xs font-medium px-2 py-0.5 rounded-full flex items-center gap-1",
+            "bg-orange-500/10 text-orange-500"
+          )}>
+            <TrendingUp className="w-3 h-3" />
+            {item.recent_mints}
+          </span>
+        </div>
+
+        <p className={clsx("text-sm mb-3", theme === "dark" ? "text-gray-500" : "text-gray-400")}>
+          by {item.agent_name}
+        </p>
+
+        {/* Progress */}
+        <div className="flex items-center gap-3 mb-2">
+          <div className={clsx(
+            "flex-1 h-2 rounded-full overflow-hidden",
+            theme === "dark" ? "bg-gray-800" : "bg-gray-200"
+          )}>
+            <div
+              className={clsx(
+                "h-full rounded-full transition-all",
+                progress >= 90
+                  ? "bg-gradient-to-r from-orange-500 to-red-500"
+                  : "bg-gradient-to-r from-cyan-500 to-blue-500"
+              )}
+              style={{ width: `${Math.min(progress, 100)}%` }}
+            />
+          </div>
+          <span className={clsx("text-xs font-mono", theme === "dark" ? "text-gray-500" : "text-gray-400")}>
+            {progress}%
+          </span>
+        </div>
+
+        <div className="flex items-center justify-between">
+          <span className={clsx("text-xs", theme === "dark" ? "text-gray-600" : "text-gray-400")}>
+            {item.total_minted}/{item.max_supply} minted
+          </span>
+          <span className="text-sm font-semibold text-cyan-500">{price}</span>
+        </div>
+      </div>
+    </Link>
   );
 }

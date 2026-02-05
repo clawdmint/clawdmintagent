@@ -6,13 +6,14 @@ import { ConnectButton } from "@rainbow-me/rainbowkit";
 import { usePathname } from "next/navigation";
 import { useState, useEffect } from "react";
 import { clsx } from "clsx";
-import { Menu, X, Sparkles, Bot } from "lucide-react";
+import { Menu, X, Sparkles, Bot, User } from "lucide-react";
 import { ThemeToggle } from "./theme-toggle";
 import { useTheme } from "./theme-provider";
 
 const navItems = [
   { href: "/drops", label: "Live Drops", icon: Sparkles },
   { href: "/agents", label: "Agents", icon: Bot },
+  { href: "/profile", label: "My Mints", icon: User },
 ];
 
 export function Header() {

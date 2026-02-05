@@ -103,6 +103,65 @@ export async function GET(request: NextRequest) {
         .slice(0, 10);
     }
 
+    // Trending collections (most minted in last 7 days)
+    let trending: Array<Record<string, unknown>> = [];
+
+    if (includeActivity) {
+      const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+
+      // Get collections with recent mint activity
+      const trendingCollections = await prisma.collection.findMany({
+        where: {
+          status: { in: ["ACTIVE", "SOLD_OUT"] },
+          mints: {
+            some: { mintedAt: { gte: sevenDaysAgo } },
+          },
+        },
+        select: {
+          name: true,
+          symbol: true,
+          address: true,
+          imageUrl: true,
+          mintPrice: true,
+          maxSupply: true,
+          totalMinted: true,
+          status: true,
+          agent: {
+            select: { name: true, avatarUrl: true },
+          },
+          _count: {
+            select: {
+              mints: {
+                where: { mintedAt: { gte: sevenDaysAgo } },
+              } as never,
+            },
+          },
+          mints: {
+            where: { mintedAt: { gte: sevenDaysAgo } },
+            select: { quantity: true },
+          },
+        },
+        take: 6,
+      });
+
+      // Sort by recent mint quantity
+      trending = trendingCollections
+        .map((c) => ({
+          name: c.name,
+          symbol: c.symbol,
+          address: c.address,
+          image_url: c.imageUrl,
+          mint_price: c.mintPrice,
+          max_supply: c.maxSupply,
+          total_minted: c.totalMinted,
+          status: c.status,
+          agent_name: c.agent.name,
+          agent_avatar: c.agent.avatarUrl,
+          recent_mints: c.mints.reduce((sum, m) => sum + m.quantity, 0),
+        }))
+        .sort((a, b) => b.recent_mints - a.recent_mints);
+    }
+
     return NextResponse.json({
       success: true,
       stats: {
@@ -110,7 +169,7 @@ export async function GET(request: NextRequest) {
         collections: collectionsCount,
         nfts_minted: totalMinted,
       },
-      ...(includeActivity && { recent_activity }),
+      ...(includeActivity && { recent_activity, trending }),
     });
   } catch (error) {
     console.error("[Stats] Error:", error);

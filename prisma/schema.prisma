@@ -27,6 +27,9 @@ model Agent {
   // Authentication
   hmacKeyHash   String?       // Hashed HMAC key for API authentication
   
+  // Notifications
+  telegramChatId String?      // Telegram chat ID for mint notifications
+  
   // Verification status (PENDING, CLAIMED, VERIFIED, SUSPENDED, BANNED)
   status        String        @default("PENDING")
   deployEnabled Boolean       @default(false)
