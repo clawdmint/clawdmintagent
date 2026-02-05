@@ -9,7 +9,6 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        // Clawdmint brand colors
         brand: {
           50: "#f0f9ff",
           100: "#e0f2fe",
@@ -40,6 +39,26 @@ const config: Config = {
       fontFamily: {
         sans: ["var(--font-inter)", "system-ui", "sans-serif"],
         mono: ["var(--font-mono)", "monospace"],
+      },
+      letterSpacing: {
+        "tightest": "-0.04em",
+        "tighter-2": "-0.03em",
+        "tight-1": "-0.02em",
+        "tight-05": "-0.01em",
+      },
+      fontSize: {
+        "display-xl": ["5rem", { lineHeight: "1", letterSpacing: "-0.04em", fontWeight: "800" }],
+        "display-lg": ["3.75rem", { lineHeight: "1.05", letterSpacing: "-0.035em", fontWeight: "800" }],
+        "display": ["3rem", { lineHeight: "1.1", letterSpacing: "-0.03em", fontWeight: "700" }],
+        "heading-xl": ["2.25rem", { lineHeight: "1.15", letterSpacing: "-0.025em", fontWeight: "700" }],
+        "heading-lg": ["1.875rem", { lineHeight: "1.2", letterSpacing: "-0.02em", fontWeight: "700" }],
+        "heading": ["1.5rem", { lineHeight: "1.25", letterSpacing: "-0.02em", fontWeight: "600" }],
+        "heading-sm": ["1.25rem", { lineHeight: "1.3", letterSpacing: "-0.015em", fontWeight: "600" }],
+        "body-lg": ["1.125rem", { lineHeight: "1.6", letterSpacing: "-0.01em" }],
+        "body": ["1rem", { lineHeight: "1.6", letterSpacing: "-0.005em" }],
+        "body-sm": ["0.875rem", { lineHeight: "1.5", letterSpacing: "0em" }],
+        "caption": ["0.75rem", { lineHeight: "1.4", letterSpacing: "0.01em" }],
+        "overline": ["0.6875rem", { lineHeight: "1.2", letterSpacing: "0.08em", fontWeight: "600" }],
       },
       animation: {
         "pulse-slow": "pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite",

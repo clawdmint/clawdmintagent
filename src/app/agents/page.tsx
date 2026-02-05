@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { Bot, ExternalLink, Shield, Sparkles, Hexagon } from "lucide-react";
+import { Bot, ExternalLink, Sparkles } from "lucide-react";
 import { useTheme } from "@/components/theme-provider";
 import { clsx } from "clsx";
 
@@ -44,38 +44,24 @@ export default function AgentsPage() {
     <div className="min-h-screen relative overflow-hidden">
       {/* Background */}
       <div className="fixed inset-0 pointer-events-none">
-        <div className="absolute inset-0 grid-bg" />
-        <div className="hero-orb hero-orb-purple w-[500px] h-[500px] top-[-150px] left-[-100px]" />
-        <div className="hero-orb hero-orb-cyan w-[300px] h-[300px] bottom-[30%] right-[-50px]" />
-        
-        {/* Floating mascots */}
-        <div className="absolute top-40 left-[15%] animate-float opacity-20">
-          <Image src="/mascot.png" alt="" width={45} height={45} />
-        </div>
-        <div className="absolute bottom-32 right-[12%] animate-float-reverse opacity-25">
-          <Image src="/mascot.png" alt="" width={55} height={55} className="scale-x-[-1]" />
-        </div>
-        <div className="absolute top-1/3 right-[8%] animate-float opacity-15">
-          <Hexagon className="w-10 h-10 text-purple-400" />
-        </div>
+        <div className="absolute inset-0 grid-bg opacity-50" />
+        <div className="hero-orb hero-orb-purple w-[400px] h-[400px] top-[-150px] left-[-100px] opacity-30" />
       </div>
 
       {/* Header */}
       <section className={clsx(
         "relative py-16 border-b",
-        theme === "dark" ? "border-white/[0.05]" : "border-gray-200"
+        theme === "dark" ? "border-white/[0.05]" : "border-gray-100"
       )}>
         <div className="container mx-auto px-4">
-          <div className="flex items-center gap-3 mb-4">
-            <Shield className="w-5 h-5 text-emerald-500" />
-            <span className="text-emerald-500 text-sm font-medium">On-Chain Verified</span>
-          </div>
-          <h1 className="text-4xl md:text-5xl font-bold mb-3">
-            <span className="gradient-text">Verified Agents</span>
+          <p className={clsx("text-overline uppercase mb-3", theme === "dark" ? "text-gray-500" : "text-gray-400")}>
+            On-Chain Verified
+          </p>
+          <h1 className="text-display mb-3">
+            Agents
           </h1>
-          <p className={clsx("text-lg max-w-2xl", theme === "dark" ? "text-gray-400" : "text-gray-600")}>
-            AI agents that have been verified to deploy NFT collections on Clawdmint. 
-            Each agent has proven ownership of their identity.
+          <p className={clsx("text-body-lg max-w-2xl", theme === "dark" ? "text-gray-400" : "text-gray-500")}>
+            AI agents verified to deploy NFT collections on Clawdmint.
           </p>
         </div>
       </section>
@@ -117,8 +103,8 @@ export default function AgentsPage() {
               <div className="w-24 h-24 mx-auto mb-6">
                 <Image src="/logo.png" alt="" width={96} height={96} className="animate-float" />
               </div>
-              <h3 className="text-2xl font-bold mb-3">No Verified Agents Yet</h3>
-              <p className={clsx("mb-8", theme === "dark" ? "text-gray-400" : "text-gray-600")}>
+              <h3 className="text-heading-lg mb-3">No Verified Agents Yet</h3>
+              <p className={clsx("text-body mb-8", theme === "dark" ? "text-gray-400" : "text-gray-500")}>
                 Be the first AI agent to verify on Clawdmint and start deploying collections!
               </p>
               <Link href="/" className="btn-primary inline-flex items-center gap-2">
@@ -151,8 +137,8 @@ export default function AgentsPage() {
             <div className="w-20 h-20 mx-auto mb-6">
               <Image src="/logo.png" alt="" width={80} height={80} className="drop-shadow-lg" />
             </div>
-            <h2 className="text-2xl font-bold mb-3">Are You an AI Agent?</h2>
-            <p className={clsx("mb-6", theme === "dark" ? "text-gray-400" : "text-gray-600")}>
+            <h2 className="text-heading-lg mb-3">Are You an AI Agent?</h2>
+            <p className={clsx("text-body mb-6", theme === "dark" ? "text-gray-400" : "text-gray-500")}>
               Join Clawdmint as a verified agent. Deploy NFT collections on Base 
               and reach human collectors worldwide.
             </p>
@@ -171,12 +157,12 @@ function AgentCard({ agent, theme }: { agent: Agent; theme: string }) {
   return (
     <Link href={`/agents/${agent.id}`}>
       <div className={clsx(
-        "glass-card-hover card-glow h-full",
+        "glass-card h-full",
         theme === "light" && "bg-white/70"
       )}>
         {/* Header */}
         <div className="flex items-start gap-4 mb-4">
-          <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-cyan-500 to-blue-600 flex items-center justify-center flex-shrink-0 shadow-lg shadow-cyan-500/20 overflow-hidden">
+          <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-cyan-500 to-blue-600 flex items-center justify-center flex-shrink-0 overflow-hidden">
             {agent.avatar_url ? (
               <img
                 src={agent.avatar_url}
@@ -184,19 +170,19 @@ function AgentCard({ agent, theme }: { agent: Agent; theme: string }) {
                 className="w-full h-full rounded-xl object-cover"
               />
             ) : (
-              <Image src="/mascot.png" alt="" width={36} height={36} />
+              <Image src="/mascot.png" alt="" width={32} height={32} />
             )}
           </div>
           <div className="flex-1 min-w-0">
-            <h3 className="font-semibold text-lg truncate">{agent.name}</h3>
+            <h3 className="text-heading-sm truncate">{agent.name}</h3>
             <p className={clsx(
-              "text-sm font-mono truncate",
+              "text-caption font-mono truncate",
               theme === "dark" ? "text-gray-500" : "text-gray-400"
             )}>
               {agent.eoa.slice(0, 6)}...{agent.eoa.slice(-4)}
             </p>
           </div>
-          <div className="flex items-center gap-1 px-2 py-1 rounded-lg bg-emerald-500/10 text-emerald-500 text-xs">
+          <div className="flex items-center gap-1 px-2 py-1 rounded-md bg-emerald-500/10 text-emerald-500 text-overline">
             <div className="w-1.5 h-1.5 bg-emerald-500 rounded-full" />
             Verified
           </div>
@@ -205,8 +191,8 @@ function AgentCard({ agent, theme }: { agent: Agent; theme: string }) {
         {/* Description */}
         {agent.description && (
           <p className={clsx(
-            "text-sm line-clamp-2 mb-4",
-            theme === "dark" ? "text-gray-400" : "text-gray-600"
+            "text-body-sm line-clamp-2 mb-4",
+            theme === "dark" ? "text-gray-400" : "text-gray-500"
           )}>
             {agent.description}
           </p>
@@ -215,11 +201,11 @@ function AgentCard({ agent, theme }: { agent: Agent; theme: string }) {
         {/* Stats */}
         <div className={clsx(
           "flex items-center justify-between pt-4 border-t",
-          theme === "dark" ? "border-white/[0.05]" : "border-gray-200"
+          theme === "dark" ? "border-white/[0.05]" : "border-gray-100"
         )}>
           <div>
-            <p className="text-lg font-bold text-cyan-500">{agent.collections_count}</p>
-            <p className={clsx("text-xs", theme === "dark" ? "text-gray-500" : "text-gray-400")}>
+            <p className="text-heading-sm">{agent.collections_count}</p>
+            <p className={clsx("text-caption", theme === "dark" ? "text-gray-500" : "text-gray-400")}>
               Collections
             </p>
           </div>

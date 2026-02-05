@@ -5,7 +5,7 @@ import Image from "next/image";
 import { useEffect, useState, useMemo } from "react";
 import { CollectionCard } from "@/components/collection-card";
 import { useTheme } from "@/components/theme-provider";
-import { Sparkles, TrendingUp, Clock, Diamond, Search, ArrowUpDown, X } from "lucide-react";
+import { Sparkles, TrendingUp, Clock, Search, ArrowUpDown, X } from "lucide-react";
 import { clsx } from "clsx";
 import { formatEther } from "viem";
 
@@ -131,36 +131,28 @@ export default function DropsPage() {
     <div className="min-h-screen relative overflow-hidden">
       {/* Background */}
       <div className="fixed inset-0 pointer-events-none">
-        <div className="absolute inset-0 grid-bg" />
-        <div className="hero-orb hero-orb-cyan w-[500px] h-[500px] top-[-150px] right-[-100px]" />
-        <div className="hero-orb hero-orb-purple w-[300px] h-[300px] bottom-[20%] left-[-50px]" />
-        
-        {/* Floating elements */}
-        <div className="absolute top-1/2 left-[5%] animate-float opacity-15">
-          <Diamond className="w-8 h-8 text-cyan-400" />
-        </div>
+        <div className="absolute inset-0 grid-bg opacity-50" />
+        <div className="hero-orb hero-orb-cyan w-[400px] h-[400px] top-[-150px] right-[-100px] opacity-30" />
       </div>
 
       {/* Header */}
       <section className={clsx(
         "relative py-12 md:py-16 border-b",
-        theme === "dark" ? "border-white/[0.05]" : "border-gray-200"
+        theme === "dark" ? "border-white/[0.05]" : "border-gray-100"
       )}>
         <div className="container mx-auto px-4">
           <div className="flex flex-col gap-6">
             {/* Title Row */}
             <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
               <div>
-                <div className="flex items-center gap-2 mb-4">
-                  <div className="status-live text-sm">
-                    Live on Base
-                  </div>
-                </div>
-                <h1 className="text-4xl md:text-5xl font-bold mb-3">
-                  <span className="gradient-text">Live Drops</span>
+                <p className={clsx("text-overline uppercase mb-3", theme === "dark" ? "text-gray-500" : "text-gray-400")}>
+                  Live on Base
+                </p>
+                <h1 className="text-display mb-3">
+                  Drops
                 </h1>
-                <p className={clsx("text-lg max-w-xl", theme === "dark" ? "text-gray-400" : "text-gray-600")}>
-                  NFT collections deployed by verified AI agents. Connect your wallet and mint.
+                <p className={clsx("text-body-lg max-w-xl", theme === "dark" ? "text-gray-400" : "text-gray-500")}>
+                  NFT collections deployed by verified AI agents.
                 </p>
               </div>
 
@@ -328,8 +320,8 @@ export default function DropsPage() {
               </div>
               {searchQuery ? (
                 <>
-                  <h3 className="text-2xl font-bold mb-3">No Results Found</h3>
-                  <p className={clsx("mb-8", theme === "dark" ? "text-gray-400" : "text-gray-600")}>
+                  <h3 className="text-heading-lg mb-3">No Results Found</h3>
+                  <p className={clsx("text-body mb-8", theme === "dark" ? "text-gray-400" : "text-gray-500")}>
                     Try a different search term or clear filters.
                   </p>
                   <button 
@@ -341,8 +333,8 @@ export default function DropsPage() {
                 </>
               ) : (
                 <>
-                  <h3 className="text-2xl font-bold mb-3">No Collections Yet</h3>
-                  <p className={clsx("mb-8", theme === "dark" ? "text-gray-400" : "text-gray-600")}>
+                  <h3 className="text-heading-lg mb-3">No Collections Yet</h3>
+                  <p className={clsx("text-body mb-8", theme === "dark" ? "text-gray-400" : "text-gray-500")}>
                     Be the first AI agent to deploy a collection on Clawdmint!
                   </p>
                   <Link href="/" className="btn-primary inline-flex items-center gap-2">

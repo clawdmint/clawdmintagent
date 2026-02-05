@@ -213,9 +213,8 @@ export default function CollectionPage() {
     <div className="min-h-screen relative">
       {/* Background */}
       <div className="fixed inset-0 pointer-events-none">
-        <div className="absolute inset-0 grid-bg" />
-        <div className="hero-orb hero-orb-cyan w-[500px] h-[500px] top-[-150px] right-[-150px]" />
-        <div className="hero-orb hero-orb-purple w-[300px] h-[300px] bottom-[-50px] left-[-100px]" />
+        <div className="absolute inset-0 grid-bg opacity-50" />
+        <div className="hero-orb hero-orb-cyan w-[400px] h-[400px] top-[-150px] right-[-150px] opacity-30" />
       </div>
 
       <div className="container mx-auto px-4 py-12 relative">
@@ -234,42 +233,38 @@ export default function CollectionPage() {
 
           {/* Collection Header */}
           <div className="mb-8">
-            <div className="flex flex-col sm:flex-row sm:items-center gap-4 mb-4">
-              <div>
-                <div className="flex items-center gap-3 mb-2">
-                  <span className={clsx(
-                    "text-xs font-mono font-bold px-2.5 py-1 rounded-lg",
-                    theme === "dark" ? "bg-cyan-500/10 text-cyan-400" : "bg-cyan-50 text-cyan-600"
-                  )}>
-                    ${collection.symbol}
-                  </span>
-                  {isSoldOut && (
-                    <span className="text-xs font-bold px-2.5 py-1 rounded-lg bg-red-500/10 text-red-400">
-                      SOLD OUT
-                    </span>
-                  )}
-                  {!isSoldOut && collection.status === "ACTIVE" && (
-                    <span className="text-xs font-bold px-2.5 py-1 rounded-lg bg-emerald-500/10 text-emerald-400 flex items-center gap-1">
-                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                      LIVE
-                    </span>
-                  )}
-                </div>
-                <h1 className="text-3xl md:text-4xl font-bold">{collection.name}</h1>
-              </div>
+            <div className="flex items-center gap-2 mb-3">
+              <span className={clsx(
+                "text-overline font-mono uppercase px-2 py-1 rounded-md",
+                theme === "dark" ? "bg-white/[0.04] text-gray-400" : "bg-gray-100 text-gray-500"
+              )}>
+                ${collection.symbol}
+              </span>
+              {isSoldOut && (
+                <span className="text-overline uppercase px-2 py-1 rounded-md bg-red-500/10 text-red-400">
+                  Sold Out
+                </span>
+              )}
+              {!isSoldOut && collection.status === "ACTIVE" && (
+                <span className="text-overline uppercase px-2 py-1 rounded-md bg-emerald-500/10 text-emerald-400 flex items-center gap-1">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                  Live
+                </span>
+              )}
             </div>
+            <h1 className="text-display mb-4">{collection.name}</h1>
 
             {/* Agent badge */}
             <Link 
               href={`/agents/${collection.agent.id}`}
               className={clsx(
-                "inline-flex items-center gap-3 px-4 py-2.5 rounded-xl border transition-all hover:scale-[1.02]",
+                "inline-flex items-center gap-3 px-3 py-2 rounded-xl transition-colors",
                 theme === "dark"
-                  ? "bg-white/[0.02] border-white/[0.06] hover:border-cyan-500/30 hover:bg-white/[0.04]"
-                  : "bg-white/60 border-gray-200 hover:border-cyan-300 hover:bg-white"
+                  ? "hover:bg-white/[0.04]"
+                  : "hover:bg-gray-50"
               )}
             >
-              <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-cyan-500 to-blue-600 flex items-center justify-center overflow-hidden">
+              <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-cyan-500 to-blue-600 flex items-center justify-center overflow-hidden">
                 {collection.agent.avatar_url ? (
                   <img 
                     src={collection.agent.avatar_url} 
@@ -281,16 +276,16 @@ export default function CollectionPage() {
                 )}
               </div>
               <div>
-                <p className={clsx("text-[11px] leading-none", theme === "dark" ? "text-gray-500" : "text-gray-400")}>
+                <p className={clsx("text-caption", theme === "dark" ? "text-gray-500" : "text-gray-400")}>
                   Deployed by
                 </p>
-                <p className="font-semibold text-sm">{collection.agent.name}</p>
+                <p className="text-body-sm font-semibold">{collection.agent.name}</p>
               </div>
             </Link>
 
             {/* Description */}
             {collection.description && (
-              <p className={clsx("mt-4 leading-relaxed max-w-3xl", theme === "dark" ? "text-gray-400" : "text-gray-600")}>
+              <p className={clsx("mt-4 text-body-lg max-w-3xl", theme === "dark" ? "text-gray-400" : "text-gray-600")}>
                 {collection.description}
               </p>
             )}
@@ -330,40 +325,40 @@ export default function CollectionPage() {
                   )}
                 </div>
 
-                {/* Image footer - mint stats inside the card */}
+                {/* Image footer - mint stats */}
                 <div className={clsx(
                   "p-5 border-t",
                   theme === "dark" ? "border-white/[0.06]" : "border-gray-200"
                 )}>
                   <div className="grid grid-cols-3 gap-4 mb-3">
                     <div>
-                      <p className={clsx("text-xs font-medium uppercase tracking-wider", theme === "dark" ? "text-gray-500" : "text-gray-400")}>Supply</p>
-                      <p className="text-lg font-bold">{collection.max_supply.toLocaleString()}</p>
+                      <p className={clsx("text-overline uppercase mb-1", theme === "dark" ? "text-gray-500" : "text-gray-400")}>Supply</p>
+                      <p className="text-heading-sm">{collection.max_supply.toLocaleString()}</p>
                     </div>
                     <div>
-                      <p className={clsx("text-xs font-medium uppercase tracking-wider", theme === "dark" ? "text-gray-500" : "text-gray-400")}>Minted</p>
-                      <p className="text-lg font-bold">{parseInt(totalMinted).toLocaleString()}</p>
+                      <p className={clsx("text-overline uppercase mb-1", theme === "dark" ? "text-gray-500" : "text-gray-400")}>Minted</p>
+                      <p className="text-heading-sm">{parseInt(totalMinted).toLocaleString()}</p>
                     </div>
                     <div>
-                      <p className={clsx("text-xs font-medium uppercase tracking-wider", theme === "dark" ? "text-gray-500" : "text-gray-400")}>Remaining</p>
-                      <p className="text-lg font-bold text-cyan-500">{parseInt(remaining).toLocaleString()}</p>
+                      <p className={clsx("text-overline uppercase mb-1", theme === "dark" ? "text-gray-500" : "text-gray-400")}>Left</p>
+                      <p className="text-heading-sm">{parseInt(remaining).toLocaleString()}</p>
                     </div>
                   </div>
                   
                   {/* Progress bar */}
-                  <div className={clsx("h-2 rounded-full overflow-hidden", theme === "dark" ? "bg-white/[0.05]" : "bg-gray-200")}>
+                  <div className={clsx("h-1.5 rounded-full overflow-hidden", theme === "dark" ? "bg-white/[0.05]" : "bg-gray-200")}>
                     <div 
                       className={clsx(
                         "h-full rounded-full transition-all duration-500",
                         progress >= 90
                           ? "bg-gradient-to-r from-orange-500 to-red-500"
-                          : "bg-gradient-to-r from-cyan-500 to-blue-500"
+                          : "bg-cyan-500"
                       )}
                       style={{ width: `${Math.min(progress, 100)}%` }}
                     />
                   </div>
-                  <p className={clsx("text-xs mt-2 text-right", theme === "dark" ? "text-gray-500" : "text-gray-400")}>
-                    {progress.toFixed(1)}% minted
+                  <p className={clsx("text-caption mt-2 text-right", theme === "dark" ? "text-gray-500" : "text-gray-400")}>
+                    {progress.toFixed(1)}%
                   </p>
                 </div>
               </div>
@@ -375,8 +370,8 @@ export default function CollectionPage() {
               {/* Mint Section */}
               <div className={clsx("glass-card space-y-4", theme === "light" && "bg-white/80")}>
                 <div className="flex items-center justify-between">
-                  <span className={theme === "dark" ? "text-gray-400" : "text-gray-500"}>Mint Price</span>
-                  <span className="text-2xl font-bold text-cyan-500">
+                  <span className={clsx("text-body-sm", theme === "dark" ? "text-gray-400" : "text-gray-500")}>Mint Price</span>
+                  <span className="text-heading-lg">
                     {parseFloat(mintPriceEth) === 0 ? "Free" : `${mintPriceEth} ETH`}
                   </span>
                 </div>
@@ -536,8 +531,8 @@ export default function CollectionPage() {
               </div>
 
               {/* Contract Info */}
-              <div className={clsx("glass-card space-y-3 text-sm", theme === "light" && "bg-white/80")}>
-                <h3 className="font-semibold mb-4">Contract Details</h3>
+              <div className={clsx("glass-card space-y-3", theme === "light" && "bg-white/80")}>
+                <h3 className="text-heading-sm mb-4">Details</h3>
                 <div className="flex justify-between">
                   <span className={theme === "dark" ? "text-gray-500" : "text-gray-400"}>Contract</span>
                   <a

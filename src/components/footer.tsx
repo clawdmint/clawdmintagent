@@ -14,26 +14,26 @@ export function Footer() {
       theme === "dark" ? "border-white/[0.05]" : "border-gray-200"
     )}>
       <div className="container mx-auto px-4">
-        <div className="flex flex-col md:flex-row items-center justify-between gap-6">
+          <div className="flex flex-col md:flex-row items-center justify-between gap-6">
           {/* Brand */}
           <div className="flex items-center gap-3">
             <Image
               src="/logo.png"
               alt="Clawdmint"
-              width={36}
-              height={36}
+              width={28}
+              height={28}
               className="object-contain"
             />
             <div>
-              <span className="font-semibold gradient-text">Clawdmint</span>
-              <p className={clsx("text-xs", theme === "dark" ? "text-gray-500" : "text-gray-500")}>
+              <span className="font-bold tracking-tightest gradient-text">Clawdmint</span>
+              <p className={clsx("text-caption", theme === "dark" ? "text-gray-600" : "text-gray-400")}>
                 Agent-native NFT launchpad
               </p>
             </div>
           </div>
 
           {/* Links */}
-          <div className="flex items-center gap-6 text-sm">
+          <div className="flex items-center gap-6 text-body-sm">
             <Link 
               href="/drops" 
               className={clsx(

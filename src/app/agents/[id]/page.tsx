@@ -76,8 +76,8 @@ export default function AgentPage() {
     return (
       <div className="container mx-auto px-4 py-20 text-center">
         <div className="text-5xl mb-4">🤖</div>
-        <h1 className="text-2xl font-bold mb-2">Agent Not Found</h1>
-        <p className="text-gray-400 mb-6">This agent doesn&apos;t exist or hasn&apos;t been verified yet.</p>
+        <h1 className="text-heading-lg mb-2">Agent Not Found</h1>
+        <p className="text-body text-gray-400 mb-6">This agent doesn&apos;t exist or hasn&apos;t been verified yet.</p>
         <Link href="/agents" className="btn-primary">
           View All Agents
         </Link>
@@ -113,7 +113,7 @@ export default function AgentPage() {
               <div className="flex-1">
                 <div className="flex items-start justify-between gap-4">
                   <div>
-                    <h1 className="text-3xl font-bold mb-2">{agent.name}</h1>
+                    <h1 className="text-display mb-2">{agent.name}</h1>
                     <p className="text-gray-400 font-mono text-sm mb-2">
                       {agent.eoa}
                     </p>

@@ -34,6 +34,25 @@
 @layer base {
   body {
     @apply bg-[rgb(var(--bg-primary))] text-[rgb(var(--text-primary))] transition-colors duration-300;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+  }
+
+  /* Tight typography for headings - the Apple/Airbnb trick */
+  h1, h2, h3, h4, h5, h6 {
+    letter-spacing: -0.025em;
+    font-feature-settings: "ss01", "ss02", "cv01", "cv11";
+  }
+
+  h1 { letter-spacing: -0.04em; }
+  h2 { letter-spacing: -0.03em; }
+  h3 { letter-spacing: -0.025em; }
+  h4, h5 { letter-spacing: -0.02em; }
+
+  /* Tighter body text */
+  p, span, a, li, label {
+    letter-spacing: -0.01em;
   }
 }
 
@@ -41,10 +60,12 @@
   /* Gradient text */
   .gradient-text {
     @apply bg-gradient-to-r from-cyan-400 via-blue-500 to-purple-500 bg-clip-text text-transparent;
+    letter-spacing: -0.03em;
   }
 
   .gradient-text-warm {
     @apply bg-gradient-to-r from-orange-400 via-pink-500 to-purple-500 bg-clip-text text-transparent;
+    letter-spacing: -0.03em;
   }
 
   /* Glass morphism */
@@ -54,7 +75,7 @@
   }
 
   .glass-card {
-    @apply glass rounded-2xl p-6 transition-all duration-300;
+    @apply glass rounded-2xl p-6 transition-all duration-200;
   }
 
   .glass-card-hover {
@@ -62,37 +83,39 @@
   }
 
   .dark .glass-card-hover:hover {
-    @apply bg-white/[0.06] border-white/[0.15] shadow-2xl shadow-cyan-500/10;
+    @apply bg-white/[0.05] border-white/[0.12] shadow-xl;
   }
 
   .light .glass-card-hover:hover {
-    @apply bg-white/90 border-gray-200 shadow-2xl shadow-cyan-500/20;
+    @apply bg-white/90 border-gray-200 shadow-lg;
   }
 
   /* Buttons */
   .btn-primary {
-    @apply relative px-6 py-3 bg-gradient-to-r from-cyan-500 to-blue-600 rounded-xl font-semibold text-white
-           overflow-hidden transition-all duration-300
-           hover:shadow-lg hover:shadow-cyan-500/30 hover:scale-[1.02]
-           disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100;
+    @apply relative px-6 py-3 bg-gradient-to-r from-cyan-500 to-blue-600 rounded-xl text-white
+           overflow-hidden transition-all duration-200 tracking-tight-05
+           font-semibold
+           hover:shadow-lg hover:shadow-cyan-500/25 hover:brightness-110
+           active:scale-[0.98]
+           disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:brightness-100;
   }
 
   .btn-secondary {
-    @apply px-6 py-3 glass rounded-xl font-semibold transition-all duration-300;
+    @apply px-6 py-3 glass rounded-xl font-medium transition-all duration-200 tracking-tight-05;
   }
 
   .dark .btn-secondary {
-    @apply hover:bg-white/[0.08] hover:border-cyan-500/30;
+    @apply hover:bg-white/[0.06] hover:border-white/[0.15];
   }
 
   .light .btn-secondary {
-    @apply hover:bg-gray-100 hover:border-cyan-500/50 text-gray-700;
+    @apply hover:bg-gray-50 hover:border-gray-300 text-gray-700;
   }
 
   /* Input fields */
   .input-field {
-    @apply w-full px-4 py-3 rounded-xl transition-all
-           focus:outline-none focus:ring-2 focus:ring-cyan-500/50;
+    @apply w-full px-4 py-3 rounded-xl transition-all text-body-sm
+           focus:outline-none focus:ring-2 focus:ring-cyan-500/40;
   }
 
   .dark .input-field {

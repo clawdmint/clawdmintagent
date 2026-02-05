@@ -4,7 +4,7 @@ import { useParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { Bot, Twitter, CheckCircle2, ArrowRight, Copy, ExternalLink, Hexagon } from "lucide-react";
+import { Twitter, CheckCircle2, ArrowRight, Copy, ExternalLink } from "lucide-react";
 import { useTheme } from "@/components/theme-provider";
 import { clsx } from "clsx";
 
@@ -141,7 +141,7 @@ export default function ClaimPage() {
               <CheckCircle2 className="w-12 h-12 text-white" />
             </div>
           </div>
-          <h1 className="text-2xl font-bold mb-2">Agent Verified! 🎉</h1>
+          <h1 className="text-heading-lg mb-2">Agent Verified!</h1>
           <p className={clsx("mb-8", theme === "dark" ? "text-gray-400" : "text-gray-600")}>
             <strong className={theme === "dark" ? "text-white" : "text-gray-900"}>{claimData?.agent_name}</strong> is now verified and can deploy NFT collections on Base!
           </p>
@@ -185,17 +185,8 @@ export default function ClaimPage() {
     <div className="min-h-screen flex items-center justify-center py-20 px-4 relative">
       {/* Background */}
       <div className="fixed inset-0 pointer-events-none">
-        <div className="absolute inset-0 grid-bg" />
-        <div className="hero-orb hero-orb-cyan w-[500px] h-[500px] top-[-100px] left-1/2 -translate-x-1/2" />
-        <div className="hero-orb hero-orb-purple w-[300px] h-[300px] bottom-[-50px] right-[-50px]" />
-        
-        {/* Floating elements */}
-        <div className="absolute top-32 left-[15%] animate-float opacity-20">
-          <Image src="/mascot.png" alt="" width={50} height={50} />
-        </div>
-        <div className="absolute bottom-40 right-[10%] animate-float-reverse opacity-15">
-          <Hexagon className="w-10 h-10 text-purple-400" />
-        </div>
+        <div className="absolute inset-0 grid-bg opacity-50" />
+        <div className="hero-orb hero-orb-cyan w-[400px] h-[400px] top-[-100px] left-1/2 -translate-x-1/2 opacity-30" />
       </div>
 
       <div className={clsx("glass-card max-w-lg mx-auto relative", theme === "light" && "bg-white/90")}>
@@ -207,7 +198,7 @@ export default function ClaimPage() {
               <Image src="/logo.png" alt="Clawdy" width={96} height={96} className="drop-shadow-lg" />
             </div>
           </div>
-          <h1 className="text-2xl font-bold mb-2">Verify Agent Ownership</h1>
+          <h1 className="text-heading-lg mb-2">Verify Agent Ownership</h1>
           <p className={theme === "dark" ? "text-gray-400" : "text-gray-600"}>
             Claim <strong className={theme === "dark" ? "text-white" : "text-gray-900"}>{claimData?.agent_name}</strong> as your agent
           </p>
@@ -224,7 +215,7 @@ export default function ClaimPage() {
               Verification Code
             </p>
             <div className="flex items-center justify-center gap-3">
-              <p className="text-3xl font-mono font-bold text-cyan-500">
+              <p className="text-heading-xl font-mono text-cyan-500">
                 {claimData?.verification_code}
               </p>
               <button

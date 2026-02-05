@@ -77,9 +77,8 @@ export default function ProfilePage() {
     <div className="min-h-screen relative">
       {/* Background */}
       <div className="fixed inset-0 pointer-events-none">
-        <div className="absolute inset-0 grid-bg" />
-        <div className="hero-orb hero-orb-cyan w-[400px] h-[400px] top-[-100px] right-[-100px]" />
-        <div className="hero-orb hero-orb-purple w-[300px] h-[300px] bottom-[-50px] left-[-50px]" />
+        <div className="absolute inset-0 grid-bg opacity-50" />
+        <div className="hero-orb hero-orb-cyan w-[350px] h-[350px] top-[-100px] right-[-100px] opacity-30" />
       </div>
 
       <div className="container mx-auto px-4 py-12 relative">
@@ -95,10 +94,8 @@ export default function ProfilePage() {
           Home
         </Link>
 
-        <h1 className="text-4xl font-bold mb-2">
-          <span className="gradient-text">My Collection</span>
-        </h1>
-        <p className={clsx("mb-8", theme === "dark" ? "text-gray-400" : "text-gray-600")}>
+        <h1 className="text-display mb-2">My Collection</h1>
+        <p className={clsx("text-body-lg mb-8", theme === "dark" ? "text-gray-400" : "text-gray-500")}>
           Your NFT minting history on Clawdmint
         </p>
 
@@ -109,8 +106,8 @@ export default function ProfilePage() {
             theme === "light" && "bg-white/80"
           )}>
             <Wallet className={clsx("w-16 h-16 mx-auto mb-6", theme === "dark" ? "text-gray-600" : "text-gray-300")} />
-            <h2 className="text-xl font-bold mb-3">Connect Your Wallet</h2>
-            <p className={clsx("mb-8", theme === "dark" ? "text-gray-400" : "text-gray-600")}>
+            <h2 className="text-heading-lg mb-3">Connect Your Wallet</h2>
+            <p className={clsx("text-body mb-8", theme === "dark" ? "text-gray-400" : "text-gray-500")}>
               Connect your wallet to see your mint history and NFTs.
             </p>
             <div className="flex justify-center">
@@ -175,8 +172,8 @@ export default function ProfilePage() {
                 <div className="w-20 h-20 mx-auto mb-6">
                   <Image src="/logo.png" alt="" width={80} height={80} className="opacity-50 animate-float" />
                 </div>
-                <h3 className="text-xl font-bold mb-3">No Mints Yet</h3>
-                <p className={clsx("mb-8", theme === "dark" ? "text-gray-400" : "text-gray-600")}>
+                <h3 className="text-heading-lg mb-3">No Mints Yet</h3>
+                <p className={clsx("text-body mb-8", theme === "dark" ? "text-gray-400" : "text-gray-500")}>
                   You haven&apos;t minted any NFTs yet. Check out the live drops!
                 </p>
                 <Link href="/drops" className="btn-primary inline-flex items-center gap-2">
@@ -186,7 +183,7 @@ export default function ProfilePage() {
               </div>
             ) : (
               <div className="space-y-4">
-                <h2 className="text-xl font-bold mb-4">Mint History</h2>
+                <h2 className="text-heading-lg mb-4">Mint History</h2>
                 {mints.map((mint) => (
                   <MintRow key={mint.id} mint={mint} theme={theme} />
                 ))}
@@ -224,8 +221,8 @@ function StatCard({
       <div className={clsx("w-10 h-10 rounded-xl flex items-center justify-center mb-3", colorClasses[color])}>
         {icon}
       </div>
-      <p className="text-2xl font-bold">{value}</p>
-      <p className={clsx("text-sm", theme === "dark" ? "text-gray-500" : "text-gray-400")}>{label}</p>
+      <p className="text-heading-lg">{value}</p>
+      <p className={clsx("text-caption mt-1", theme === "dark" ? "text-gray-500" : "text-gray-400")}>{label}</p>
     </div>
   );
 }

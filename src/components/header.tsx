@@ -57,7 +57,7 @@ export function Header() {
                   className="object-contain drop-shadow-lg"
                 />
               </div>
-              <span className="text-xl font-bold gradient-text hidden sm:block">Clawdmint</span>
+              <span className="text-xl font-extrabold tracking-tightest gradient-text hidden sm:block">Clawdmint</span>
             </Link>
 
             {/* Desktop Navigation */}
@@ -67,7 +67,7 @@ export function Header() {
                   key={item.href}
                   href={item.href}
                   className={clsx(
-                    "px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200",
+                    "px-4 py-2 rounded-lg text-body-sm font-medium transition-all duration-200",
                     pathname === item.href
                       ? theme === "dark"
                         ? "bg-white/[0.08] text-white"
