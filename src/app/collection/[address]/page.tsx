@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useParams } from "next/navigation";
 import { useAccount, useWriteContract, useWaitForTransactionReceipt } from "wagmi";
 import { formatEther } from "viem";
@@ -10,7 +10,7 @@ import Image from "next/image";
 import { COLLECTION_ABI } from "@/lib/contracts";
 import { useTheme } from "@/components/theme-provider";
 import { clsx } from "clsx";
-import { Bot, ExternalLink, ArrowLeft, Minus, Plus, Sparkles, CheckCircle, ShoppingBag, Share2, Link2, Check } from "lucide-react";
+import { Bot, ExternalLink, ArrowLeft, Minus, Plus, Sparkles, CheckCircle, ShoppingBag, Share2, Link2, Check, MessageSquare, Send, ChevronDown, ChevronUp } from "lucide-react";
 
 // Get chain info from environment
 const chainId = parseInt(process.env["NEXT_PUBLIC_CHAIN_ID"] || "8453");
@@ -621,10 +621,327 @@ export default function CollectionPage() {
               <ShareSection address={collection.address} name={collection.name} theme={theme} />
             </div>
           </div>
+
+          {/* Live Chat */}
+          <div className="mt-8">
+            <AgentChat
+              collectionAddress={collection.address}
+              agentName={collection.agent.name}
+              agentAvatar={collection.agent.avatar_url}
+              userAddress={userAddress}
+              isConnected={isConnected}
+              theme={theme}
+            />
+          </div>
         </div>
       </div>
     </div>
   );
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// AGENT LIVE CHAT
+// ═══════════════════════════════════════════════════════════════════════
+
+interface ChatMsg {
+  id: string;
+  sender_type: "agent" | "user";
+  sender_address: string | null;
+  sender_name: string;
+  content: string;
+  created_at: string;
+}
+
+function AgentChat({
+  collectionAddress,
+  agentName,
+  agentAvatar,
+  userAddress,
+  isConnected,
+  theme,
+}: {
+  collectionAddress: string;
+  agentName: string;
+  agentAvatar: string | null;
+  userAddress: string | undefined;
+  isConnected: boolean;
+  theme: string;
+}) {
+  const [isOpen, setIsOpen] = useState(true);
+  const [messages, setMessages] = useState<ChatMsg[]>([]);
+  const [input, setInput] = useState("");
+  const [sending, setSending] = useState(false);
+  const [loadingChat, setLoadingChat] = useState(false);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  // Load messages
+  useEffect(() => {
+    async function loadMessages() {
+      setLoadingChat(true);
+      try {
+        const res = await fetch(`/api/chat/${collectionAddress}`);
+        const data = await res.json();
+        if (data.success) {
+          setMessages(data.messages);
+        }
+      } catch (err) {
+        console.error("Failed to load chat:", err);
+      } finally {
+        setLoadingChat(false);
+      }
+    }
+    loadMessages();
+
+    // Poll every 10s
+    const interval = setInterval(async () => {
+      try {
+        const res = await fetch(`/api/chat/${collectionAddress}`);
+        const data = await res.json();
+        if (data.success) {
+          setMessages(data.messages);
+        }
+      } catch { /* silent */ }
+    }, 10000);
+
+    return () => clearInterval(interval);
+  }, [collectionAddress]);
+
+  // Auto-scroll
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages]);
+
+  const sendMessage = async () => {
+    if (!input.trim() || sending || !isConnected || !userAddress) return;
+
+    setSending(true);
+    try {
+      const res = await fetch(`/api/chat/${collectionAddress}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          content: input.trim(),
+          sender_address: userAddress,
+        }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setMessages((prev) => [...prev, data.message]);
+        setInput("");
+      }
+    } catch (err) {
+      console.error("Failed to send:", err);
+    } finally {
+      setSending(false);
+    }
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      sendMessage();
+    }
+  };
+
+  return (
+    <div className={clsx(
+      "rounded-2xl overflow-hidden border",
+      theme === "dark"
+        ? "bg-gray-900/50 border-white/[0.06]"
+        : "bg-white/80 border-gray-200"
+    )}>
+      {/* Header */}
+      <button
+        onClick={() => setIsOpen(!isOpen)}
+        className={clsx(
+          "w-full flex items-center justify-between p-4 transition-colors",
+          theme === "dark" ? "hover:bg-white/[0.03]" : "hover:bg-gray-50"
+        )}
+      >
+        <div className="flex items-center gap-3">
+          <div className={clsx(
+            "w-10 h-10 rounded-xl flex items-center justify-center",
+            theme === "dark" ? "bg-cyan-500/10" : "bg-cyan-50"
+          )}>
+            <MessageSquare className="w-5 h-5 text-cyan-500" />
+          </div>
+          <div className="text-left">
+            <h3 className="font-semibold text-sm">Chat with {agentName}</h3>
+            <p className={clsx("text-xs", theme === "dark" ? "text-gray-500" : "text-gray-400")}>
+              Ask the AI creator about this collection
+            </p>
+          </div>
+        </div>
+        <div className="flex items-center gap-2">
+          {messages.length > 0 && (
+            <span className={clsx(
+              "text-xs px-2 py-0.5 rounded-full",
+              theme === "dark" ? "bg-cyan-500/10 text-cyan-400" : "bg-cyan-50 text-cyan-600"
+            )}>
+              {messages.length}
+            </span>
+          )}
+          {isOpen ? <ChevronUp className="w-4 h-4 text-gray-500" /> : <ChevronDown className="w-4 h-4 text-gray-500" />}
+        </div>
+      </button>
+
+      {/* Chat Body */}
+      {isOpen && (
+        <div className={clsx(
+          "border-t",
+          theme === "dark" ? "border-white/[0.06]" : "border-gray-200"
+        )}>
+          {/* Messages */}
+          <div className={clsx(
+            "h-72 overflow-y-auto p-4 space-y-3",
+            theme === "dark" ? "scrollbar-dark" : "scrollbar-light"
+          )}>
+            {loadingChat ? (
+              <div className="flex items-center justify-center h-full">
+                <div className="w-6 h-6 border-2 border-cyan-500 border-t-transparent rounded-full animate-spin" />
+              </div>
+            ) : messages.length === 0 ? (
+              <div className="flex flex-col items-center justify-center h-full text-center">
+                <Bot className={clsx("w-10 h-10 mb-3", theme === "dark" ? "text-gray-700" : "text-gray-300")} />
+                <p className={clsx("text-sm", theme === "dark" ? "text-gray-600" : "text-gray-400")}>
+                  No messages yet. Be the first to chat!
+                </p>
+              </div>
+            ) : (
+              messages.map((msg) => (
+                <div
+                  key={msg.id}
+                  className={clsx(
+                    "flex gap-3",
+                    msg.sender_type === "agent" ? "flex-row" : "flex-row-reverse"
+                  )}
+                >
+                  {/* Avatar */}
+                  <div className={clsx(
+                    "flex-shrink-0 w-8 h-8 rounded-lg flex items-center justify-center text-xs font-bold",
+                    msg.sender_type === "agent"
+                      ? "bg-gradient-to-br from-cyan-500 to-blue-600 text-white"
+                      : theme === "dark"
+                        ? "bg-orange-500/20 text-orange-400"
+                        : "bg-orange-100 text-orange-600"
+                  )}>
+                    {msg.sender_type === "agent" ? (
+                      agentAvatar ? (
+                        <img src={agentAvatar} alt="" className="w-full h-full rounded-lg object-cover" />
+                      ) : (
+                        <Bot className="w-4 h-4" />
+                      )
+                    ) : (
+                      msg.sender_name.slice(0, 2)
+                    )}
+                  </div>
+
+                  {/* Bubble */}
+                  <div className={clsx(
+                    "max-w-[75%] rounded-2xl px-4 py-2.5",
+                    msg.sender_type === "agent"
+                      ? theme === "dark"
+                        ? "bg-white/[0.05] rounded-tl-md"
+                        : "bg-gray-100 rounded-tl-md"
+                      : "bg-gradient-to-r from-cyan-500 to-blue-600 text-white rounded-tr-md"
+                  )}>
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className={clsx(
+                        "text-xs font-medium",
+                        msg.sender_type === "agent"
+                          ? "text-cyan-500"
+                          : "text-white/80"
+                      )}>
+                        {msg.sender_type === "agent" ? agentName : msg.sender_name}
+                      </span>
+                      <span className={clsx(
+                        "text-xs",
+                        msg.sender_type === "agent"
+                          ? theme === "dark" ? "text-gray-600" : "text-gray-400"
+                          : "text-white/50"
+                      )}>
+                        {formatChatTime(msg.created_at)}
+                      </span>
+                    </div>
+                    <p className={clsx(
+                      "text-sm leading-relaxed break-words",
+                      msg.sender_type === "agent" && (theme === "dark" ? "text-gray-300" : "text-gray-700")
+                    )}>
+                      {msg.content}
+                    </p>
+                  </div>
+                </div>
+              ))
+            )}
+            <div ref={messagesEndRef} />
+          </div>
+
+          {/* Input */}
+          <div className={clsx(
+            "p-3 border-t",
+            theme === "dark" ? "border-white/[0.06]" : "border-gray-200"
+          )}>
+            {isConnected ? (
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={input}
+                  onChange={(e) => setInput(e.target.value)}
+                  onKeyDown={handleKeyDown}
+                  placeholder="Ask the creator..."
+                  maxLength={500}
+                  className={clsx(
+                    "flex-1 px-4 py-2.5 rounded-xl text-sm outline-none transition-all border",
+                    theme === "dark"
+                      ? "bg-white/[0.03] border-white/[0.06] focus:border-cyan-500/50 text-white placeholder-gray-600"
+                      : "bg-gray-50 border-gray-200 focus:border-cyan-300 text-gray-900 placeholder-gray-400"
+                  )}
+                />
+                <button
+                  onClick={sendMessage}
+                  disabled={!input.trim() || sending}
+                  className={clsx(
+                    "px-4 py-2.5 rounded-xl transition-all flex items-center gap-2 text-sm font-medium",
+                    input.trim() && !sending
+                      ? "bg-gradient-to-r from-cyan-500 to-blue-600 text-white hover:shadow-lg hover:shadow-cyan-500/20"
+                      : theme === "dark"
+                        ? "bg-white/[0.03] text-gray-600 cursor-not-allowed"
+                        : "bg-gray-100 text-gray-400 cursor-not-allowed"
+                  )}
+                >
+                  {sending ? (
+                    <div className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />
+                  ) : (
+                    <Send className="w-4 h-4" />
+                  )}
+                </button>
+              </div>
+            ) : (
+              <div className={clsx(
+                "text-center py-3 rounded-xl text-sm",
+                theme === "dark" ? "bg-white/[0.03] text-gray-500" : "bg-gray-50 text-gray-400"
+              )}>
+                Connect wallet to chat
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function formatChatTime(dateStr: string): string {
+  const date = new Date(dateStr);
+  const now = new Date();
+  const diffMs = now.getTime() - date.getTime();
+  const diffMin = Math.floor(diffMs / 60000);
+
+  if (diffMin < 1) return "now";
+  if (diffMin < 60) return `${diffMin}m`;
+  const diffHr = Math.floor(diffMin / 60);
+  if (diffHr < 24) return `${diffHr}h`;
+  return date.toLocaleDateString("en-US", { month: "short", day: "numeric" });
 }
 
 function ShareSection({ address, name, theme }: { address: string; name: string; theme: string }) {

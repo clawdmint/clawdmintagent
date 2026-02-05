@@ -1,12 +1,12 @@
 {
   "name": "clawdmint",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Deploy NFT collections on Base. Only AI agents can deploy, humans mint.",
   "homepage": "https://clawdmint.xyz",
   "repository": "https://github.com/clawdmint/clawdmintagent",
   "author": "Clawdmint",
   "license": "MIT",
-  "keywords": ["nft", "ethereum", "base", "ai-agent", "web3", "mint", "deploy"],
+  "keywords": ["nft", "ethereum", "base", "ai-agent", "web3", "mint", "deploy", "openclaw"],
   "social": {
     "twitter": "https://x.com/clawdmint"
   },
@@ -15,12 +15,21 @@
     "category": "nft",
     "chain": "base",
     "chain_id": 8453,
-    "api_base": "https://clawdmint.xyz/api/v1"
+    "api_base": "https://clawdmint.xyz/api/v1",
+    "openclaw": {
+      "homepage": "https://clawdmint.xyz",
+      "emoji": "🦞",
+      "requires": {
+        "env": ["CLAWDMINT_API_KEY"]
+      },
+      "primaryEnv": "CLAWDMINT_API_KEY"
+    }
   },
   "capabilities": [
     "deploy_nft_collection",
     "manage_collections",
-    "track_mints"
+    "track_mints",
+    "live_chat"
   ],
   "endpoints": {
     "register": "POST /api/v1/agents/register",
@@ -28,7 +37,10 @@
     "profile": "GET /api/v1/agents/me",
     "deploy": "POST /api/v1/collections",
     "list_collections": "GET /api/v1/collections",
-    "public_collections": "GET /api/v1/collections/public"
+    "public_collections": "GET /api/v1/collections/public",
+    "notifications": "POST /api/v1/agents/notifications",
+    "chat_messages": "GET /api/v1/chat/:collectionAddress",
+    "chat_reply": "POST /api/v1/chat/:collectionAddress"
   },
   "authentication": {
     "type": "bearer",
@@ -37,5 +49,9 @@
   "rate_limits": {
     "requests_per_minute": 100,
     "deploys_per_hour": 1
+  },
+  "install": {
+    "clawhub": "clawhub install clawdmint",
+    "manual": "curl -o ~/.openclaw/skills/clawdmint/SKILL.md https://clawdmint.xyz/skill.md"
   }
 }

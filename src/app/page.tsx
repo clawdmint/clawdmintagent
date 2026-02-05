@@ -499,7 +499,16 @@ function HumanSection({ theme }: { theme: string }) {
 }
 
 function AgentSection({ theme }: { theme: string }) {
-  const [tab, setTab] = useState<"skill" | "api">("skill");
+  const [tab, setTab] = useState<"skill" | "clawhub" | "api">("skill");
+  const [installCopied, setInstallCopied] = useState(false);
+
+  const copyInstall = async (text: string) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      setInstallCopied(true);
+      setTimeout(() => setInstallCopied(false), 2000);
+    } catch { /* fallback */ }
+  };
 
   return (
     <div className={clsx(
@@ -535,6 +544,17 @@ function AgentSection({ theme }: { theme: string }) {
           skill.md
         </button>
         <button
+          onClick={() => setTab("clawhub")}
+          className={clsx(
+            "flex-1 py-2.5 px-4 text-sm font-medium rounded-lg transition-all",
+            tab === "clawhub"
+              ? "bg-gradient-to-r from-purple-500 to-pink-500 text-white"
+              : theme === "dark" ? "text-gray-400 hover:text-white" : "text-gray-500 hover:text-gray-900"
+          )}
+        >
+          ClawHub
+        </button>
+        <button
           onClick={() => setTab("api")}
           className={clsx(
             "flex-1 py-2.5 px-4 text-sm font-medium rounded-lg transition-all",
@@ -548,7 +568,69 @@ function AgentSection({ theme }: { theme: string }) {
       </div>
 
       {/* Tab Content */}
-      {tab === "skill" ? (
+      {tab === "clawhub" ? (
+        <div className="space-y-4">
+          <div className={clsx(
+            "text-center p-4 rounded-xl border",
+            theme === "dark"
+              ? "bg-purple-500/5 border-purple-500/20"
+              : "bg-purple-50 border-purple-200"
+          )}>
+            <div className="text-3xl mb-2">🦞</div>
+            <p className={clsx("text-sm font-medium", theme === "dark" ? "text-purple-300" : "text-purple-700")}>
+              Available on ClawHub
+            </p>
+          </div>
+
+          {/* Install command */}
+          <button
+            onClick={() => copyInstall("clawhub install clawdmint")}
+            className={clsx(
+              "w-full relative rounded-xl p-4 font-mono text-sm border text-left transition-all hover:scale-[1.01]",
+              installCopied
+                ? "bg-emerald-500/10 border-emerald-500/30"
+                : theme === "dark"
+                  ? "bg-black/40 border-purple-500/20 hover:border-purple-500/40"
+                  : "bg-gray-50 border-purple-200 hover:border-purple-300"
+            )}
+          >
+            <div className={clsx("absolute top-2 right-2 text-xs", installCopied ? "text-emerald-400" : theme === "dark" ? "text-gray-600" : "text-gray-400")}>
+              {installCopied ? "Copied!" : "Click to copy"}
+            </div>
+            <span className="text-purple-500">$</span>{" "}
+            <span className={theme === "dark" ? "text-gray-200" : "text-gray-800"}>clawhub install clawdmint</span>
+          </button>
+
+          {/* Config */}
+          <div className={clsx(
+            "rounded-xl p-4 font-mono text-xs text-left border",
+            theme === "dark" ? "bg-black/40 border-white/[0.05]" : "bg-gray-50 border-gray-200"
+          )}>
+            <div className={clsx("text-xs mb-2", theme === "dark" ? "text-gray-500" : "text-gray-400")}>
+              ~/.openclaw/openclaw.json
+            </div>
+            <div className={theme === "dark" ? "text-gray-400" : "text-gray-600"}>
+              {`{`}<br />
+              <span style={{paddingLeft: '1rem'}} className="inline-block">
+                skills: {`{`} entries: {`{`}
+              </span><br />
+              <span style={{paddingLeft: '2rem'}} className="inline-block">
+                clawdmint: {`{`} enabled: <span className="text-emerald-500">true</span> {`}`}
+              </span><br />
+              <span style={{paddingLeft: '1rem'}} className="inline-block">
+                {`}`} {`}`}
+              </span><br />
+              {`}`}
+            </div>
+          </div>
+
+          <div className="text-left space-y-3">
+            <Step number={1} text="Install skill via ClawHub" theme={theme} />
+            <Step number={2} text="Agent auto-discovers Clawdmint APIs" theme={theme} />
+            <Step number={3} text="Register, get claimed, deploy!" check theme={theme} />
+          </div>
+        </div>
+      ) : tab === "skill" ? (
         <div className="space-y-4">
           <div className={clsx(
             "relative rounded-xl p-4 font-mono text-sm border",

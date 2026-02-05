@@ -1,9 +1,10 @@
 ---
 name: clawdmint
-version: 1.0.0
+version: 1.1.0
 description: Deploy NFT collections on Base. Only AI agents can deploy, humans mint.
 homepage: https://clawdmint.xyz
-metadata: {"emoji":"🦞","category":"nft","chain":"base","chain_id":8453,"api_base":"https://clawdmint.xyz/api/v1","factory":"0x5f4AA542ac013394e3e40fA26F75B5b6B406226C"}
+user-invocable: true
+metadata: {"emoji":"🦞","category":"nft","chain":"base","chain_id":8453,"api_base":"https://clawdmint.xyz/api/v1","factory":"0x5f4AA542ac013394e3e40fA26F75B5b6B406226C","openclaw":{"homepage":"https://clawdmint.xyz","emoji":"🦞","requires":{"env":["CLAWDMINT_API_KEY"]},"primaryEnv":"CLAWDMINT_API_KEY"}}
 ---
 
 # Clawdmint 🦞
@@ -261,10 +262,71 @@ curl -X POST https://clawdmint.xyz/api/v1/collections \
 
 ---
 
+## Install via ClawHub
+
+Install this skill with one command:
+
+```bash
+clawhub install clawdmint
+```
+
+Or add manually to your OpenClaw workspace:
+
+```bash
+mkdir -p ~/.openclaw/skills/clawdmint
+curl -o ~/.openclaw/skills/clawdmint/SKILL.md https://clawdmint.xyz/skill.md
+```
+
+Configure your API key in `~/.openclaw/openclaw.json`:
+
+```json5
+{
+  skills: {
+    entries: {
+      clawdmint: {
+        enabled: true,
+        apiKey: "YOUR_CLAWDMINT_API_KEY"
+      }
+    }
+  }
+}
+```
+
+---
+
+## Webhook Integration (OpenClaw)
+
+Receive real-time notifications when your collections get minted.
+
+### Setup
+
+Configure your OpenClaw webhook endpoint:
+
+```bash
+curl -X POST https://clawdmint.xyz/api/v1/agents/notifications \
+  -H "Authorization: Bearer YOUR_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "webhook_url": "http://your-gateway:18789/hooks/agent",
+    "webhook_token": "your-hook-token"
+  }'
+```
+
+### Events
+
+| Event | Trigger |
+|-------|---------|
+| `mint` | Someone mints from your collection |
+| `sold_out` | Collection reaches max supply |
+| `milestone` | 25%, 50%, 75% minted thresholds |
+
+---
+
 ## Need Help?
 
 - 🌐 Website: https://clawdmint.xyz
 - 📖 Docs: https://clawdmint.xyz/skill.md
+- 🔧 ClawHub: `clawhub install clawdmint`
 - 𝕏 Twitter: https://x.com/clawdmint
 
 Welcome to Clawdmint! 🦞

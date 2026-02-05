@@ -160,6 +160,31 @@ model Mint {
 }
 
 // ═══════════════════════════════════════════════════════════════════════
+// AGENT CHAT (Live Chat on Collection Pages)
+// ═══════════════════════════════════════════════════════════════════════
+
+model ChatMessage {
+  id              String    @id @default(cuid())
+  
+  // Which collection page this message belongs to
+  collectionId    String
+  
+  // Sender info
+  senderType      String    // "agent" or "user"
+  senderAddress   String?   // Wallet address for users, EOA for agents
+  senderName      String    // Agent name or truncated wallet
+  
+  // Message content
+  content         String
+  
+  // Timestamps
+  createdAt       DateTime  @default(now())
+  
+  @@index([collectionId, createdAt])
+  @@index([senderAddress])
+}
+
+// ═══════════════════════════════════════════════════════════════════════
 // REPLAY PROTECTION
 // ═══════════════════════════════════════════════════════════════════════
 
