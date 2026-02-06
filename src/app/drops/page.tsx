@@ -131,6 +131,7 @@ export default function DropsPage() {
     <div className="min-h-screen relative overflow-hidden noise">
       {/* Background */}
       <div className="fixed inset-0 pointer-events-none">
+        <div className="absolute inset-0 tech-grid opacity-40" />
         <div className="absolute inset-0 gradient-mesh" />
       </div>
 

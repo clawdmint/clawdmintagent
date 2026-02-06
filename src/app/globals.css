@@ -217,6 +217,12 @@
   to { transform: rotate(360deg) translateX(150px) rotate(-360deg); }
 }
 
+/* Agent orbit in Clawdverse */
+@keyframes orbit-agent {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
 @keyframes gradient-shift {
   0%, 100% { background-position: 0% 50%; }
   50% { background-position: 100% 50%; }
@@ -225,6 +231,22 @@
 .animate-float { animation: float 6s ease-in-out infinite; }
 .animate-float-reverse { animation: float-reverse 7s ease-in-out infinite; }
 .animate-float-delayed { animation: float 6s ease-in-out infinite; animation-delay: -3s; }
+
+/* Floating icons drift animation */
+@keyframes floating-icon {
+  0%, 100% {
+    transform: translateY(0px) translateX(0px) rotate(0deg);
+  }
+  25% {
+    transform: translateY(-20px) translateX(10px) rotate(5deg);
+  }
+  50% {
+    transform: translateY(-8px) translateX(-8px) rotate(-3deg);
+  }
+  75% {
+    transform: translateY(-25px) translateX(5px) rotate(4deg);
+  }
+}
 .animate-pulse-glow { animation: pulse-glow 3s ease-in-out infinite; }
 .animate-orbit { animation: orbit 20s linear infinite; }
 .animate-gradient { background-size: 200% 200%; animation: gradient-shift 8s ease infinite; }
@@ -306,22 +328,22 @@
   opacity: 0.03;
 }
 
-/* Animated gradient mesh */
+/* Animated gradient mesh - tech/NFT themed */
 .gradient-mesh {
   background:
-    radial-gradient(at 20% 30%, rgba(6, 182, 212, 0.15) 0px, transparent 50%),
-    radial-gradient(at 80% 20%, rgba(168, 85, 247, 0.12) 0px, transparent 50%),
-    radial-gradient(at 50% 80%, rgba(59, 130, 246, 0.1) 0px, transparent 50%),
-    radial-gradient(at 90% 70%, rgba(236, 72, 153, 0.08) 0px, transparent 50%);
-  animation: mesh-shift 20s ease-in-out infinite;
+    radial-gradient(ellipse 80% 50% at 20% 30%, rgba(6, 182, 212, 0.12) 0px, transparent 50%),
+    radial-gradient(ellipse 60% 80% at 80% 20%, rgba(99, 102, 241, 0.10) 0px, transparent 50%),
+    radial-gradient(ellipse 70% 60% at 50% 80%, rgba(59, 130, 246, 0.08) 0px, transparent 50%),
+    radial-gradient(ellipse 50% 50% at 90% 70%, rgba(168, 85, 247, 0.06) 0px, transparent 50%);
+  animation: mesh-shift 25s ease-in-out infinite;
 }
 
 .light .gradient-mesh {
   background:
-    radial-gradient(at 20% 30%, rgba(6, 182, 212, 0.08) 0px, transparent 50%),
-    radial-gradient(at 80% 20%, rgba(168, 85, 247, 0.06) 0px, transparent 50%),
-    radial-gradient(at 50% 80%, rgba(59, 130, 246, 0.05) 0px, transparent 50%),
-    radial-gradient(at 90% 70%, rgba(236, 72, 153, 0.04) 0px, transparent 50%);
+    radial-gradient(ellipse 80% 50% at 20% 30%, rgba(6, 182, 212, 0.06) 0px, transparent 50%),
+    radial-gradient(ellipse 60% 80% at 80% 20%, rgba(99, 102, 241, 0.05) 0px, transparent 50%),
+    radial-gradient(ellipse 70% 60% at 50% 80%, rgba(59, 130, 246, 0.04) 0px, transparent 50%),
+    radial-gradient(ellipse 50% 50% at 90% 70%, rgba(168, 85, 247, 0.03) 0px, transparent 50%);
 }
 
 @keyframes mesh-shift {
@@ -337,6 +359,25 @@
   75% {
     background-position: 80% 20%, 10% 50%, 60% 70%, 50% 40%;
   }
+}
+
+/* Tech circuit grid pattern */
+.tech-grid {
+  background-image:
+    linear-gradient(rgba(6, 182, 212, 0.04) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(6, 182, 212, 0.04) 1px, transparent 1px),
+    linear-gradient(rgba(6, 182, 212, 0.02) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(6, 182, 212, 0.02) 1px, transparent 1px);
+  background-size: 100px 100px, 100px 100px, 20px 20px, 20px 20px;
+}
+
+.light .tech-grid {
+  background-image:
+    linear-gradient(rgba(99, 102, 241, 0.06) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(99, 102, 241, 0.06) 1px, transparent 1px),
+    linear-gradient(rgba(99, 102, 241, 0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(99, 102, 241, 0.03) 1px, transparent 1px);
+  background-size: 100px 100px, 100px 100px, 20px 20px, 20px 20px;
 }
 
 /* ═══════════════════════════════════════════════════════════════════════

@@ -6,13 +6,15 @@ import { ConnectButton } from "@rainbow-me/rainbowkit";
 import { usePathname } from "next/navigation";
 import { useState, useEffect } from "react";
 import { clsx } from "clsx";
-import { Menu, X, Sparkles, Bot, User } from "lucide-react";
+import { Menu, X, Sparkles, Bot, User, Activity, Globe } from "lucide-react";
 import { ThemeToggle } from "./theme-toggle";
 import { useTheme } from "./theme-provider";
 
 const navItems = [
-  { href: "/drops", label: "Live Drops", icon: Sparkles },
+  { href: "/drops", label: "Drops", icon: Sparkles },
+  { href: "/clawdverse", label: "Clawdverse", icon: Globe },
   { href: "/agents", label: "Agents", icon: Bot },
+  { href: "/activity", label: "Activity", icon: Activity },
   { href: "/profile", label: "My Mints", icon: User },
 ];
 
@@ -47,17 +49,36 @@ export function Header() {
         <div className="container mx-auto px-4">
           <div className="flex items-center justify-between h-16">
             {/* Logo */}
-            <Link href="/" className="flex items-center gap-2 group">
-              <div className="relative w-10 h-10 group-hover:scale-110 transition-transform">
+            <Link href="/" className="flex items-center gap-2.5 group">
+              <div className="relative w-9 h-9 group-hover:scale-110 group-hover:rotate-6 transition-all duration-300">
                 <Image
                   src="/logo.png"
                   alt="Clawdmint"
-                  width={40}
-                  height={40}
+                  width={36}
+                  height={36}
                   className="object-contain drop-shadow-lg"
                 />
               </div>
-              <span className="text-xl font-extrabold tracking-tightest gradient-text hidden sm:block">Clawdmint</span>
+              <div className="hidden sm:flex items-baseline gap-0 relative">
+                <span className="text-[22px] font-black tracking-[-0.06em] bg-gradient-to-r from-cyan-400 via-blue-400 to-purple-400 bg-[length:200%_auto] animate-gradient bg-clip-text text-transparent drop-shadow-sm">
+                  Claw
+                </span>
+                <span className={clsx(
+                  "text-[22px] font-black tracking-[-0.06em]",
+                  theme === "dark" ? "text-white" : "text-gray-900"
+                )}>
+                  d
+                </span>
+                <span className={clsx(
+                  "text-[22px] font-black tracking-[-0.06em]",
+                  theme === "dark" ? "text-white/70" : "text-gray-600"
+                )}>
+                  mint
+                </span>
+                <span className="absolute -top-1 -right-3 text-[8px] font-bold tracking-wide text-cyan-400 opacity-60">
+                  ●
+                </span>
+              </div>
             </Link>
 
             {/* Desktop Navigation */}

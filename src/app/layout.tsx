@@ -4,6 +4,7 @@ import "./globals.css";
 import { Providers } from "@/components/providers";
 import { Header } from "@/components/header";
 import { Footer } from "@/components/footer";
+import { FloatingIcons } from "@/components/floating-icons";
 
 const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
 
@@ -60,7 +61,8 @@ export default function RootLayout({
     <html lang="en" className="dark" suppressHydrationWarning>
       <body className={`${inter.variable} font-sans antialiased min-h-screen transition-colors duration-300`}>
         <Providers>
-          <div className="flex flex-col min-h-screen">
+          <FloatingIcons />
+          <div className="flex flex-col min-h-screen relative z-10">
             <Header />
             <main className="flex-1">
               {children}

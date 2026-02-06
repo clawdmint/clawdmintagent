@@ -14,8 +14,10 @@ interface Agent {
   avatar_url: string;
   eoa: string;
   x_handle: string;
+  status: string;
   collections_count: number;
   verified_at: string;
+  created_at: string;
 }
 
 export default function AgentsPage() {
@@ -44,6 +46,7 @@ export default function AgentsPage() {
     <div className="min-h-screen relative overflow-hidden noise">
       {/* Background */}
       <div className="fixed inset-0 pointer-events-none">
+        <div className="absolute inset-0 tech-grid opacity-40" />
         <div className="absolute inset-0 gradient-mesh" />
       </div>
 
@@ -169,7 +172,7 @@ function AgentCard({ agent, theme }: { agent: Agent; theme: string }) {
                 className="w-full h-full rounded-xl object-cover"
               />
             ) : (
-              <Image src="/mascot.png" alt="" width={32} height={32} />
+              <Bot className="w-6 h-6 text-white" />
             )}
           </div>
           <div className="flex-1 min-w-0">
@@ -181,9 +184,19 @@ function AgentCard({ agent, theme }: { agent: Agent; theme: string }) {
               {agent.eoa.slice(0, 6)}...{agent.eoa.slice(-4)}
             </p>
           </div>
-          <div className="flex items-center gap-1 px-2 py-1 rounded-md bg-emerald-500/10 text-emerald-500 text-overline">
-            <div className="w-1.5 h-1.5 bg-emerald-500 rounded-full" />
-            Verified
+          <div className={clsx(
+            "flex items-center gap-1 px-2 py-1 rounded-md text-overline",
+            agent.status === "VERIFIED"
+              ? "bg-emerald-500/10 text-emerald-500"
+              : agent.status === "CLAIMED"
+                ? "bg-amber-500/10 text-amber-500"
+                : "bg-gray-500/10 text-gray-400"
+          )}>
+            <div className={clsx(
+              "w-1.5 h-1.5 rounded-full",
+              agent.status === "VERIFIED" ? "bg-emerald-500" : agent.status === "CLAIMED" ? "bg-amber-500" : "bg-gray-400"
+            )} />
+            {agent.status === "VERIFIED" ? "Verified" : agent.status === "CLAIMED" ? "Claimed" : "Pending"}
           </div>
         </div>
 

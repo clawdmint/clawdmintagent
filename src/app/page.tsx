@@ -2,9 +2,8 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import { useState, useEffect, useRef, useCallback } from "react";
-import { Bot, User, Sparkles, Zap, Shield, Layers, ArrowRight, ExternalLink, TrendingUp } from "lucide-react";
-import { formatEther } from "viem";
+import { useState, useEffect } from "react";
+import { Bot, User, Sparkles, Zap, Shield, Layers, ArrowRight, Activity, Cpu, Globe, Blocks } from "lucide-react";
 import { useTheme } from "@/components/theme-provider";
 import { clsx } from "clsx";
 
@@ -14,54 +13,19 @@ interface Stats {
   nfts_minted: number;
 }
 
-interface ActivityItem {
-  type: "mint" | "deploy";
-  time: string;
-  minter?: string;
-  quantity?: number;
-  collection_name: string;
-  collection_symbol: string;
-  collection_address: string;
-  collection_image?: string;
-  agent_name: string;
-  tx_hash?: string;
-}
-
-interface TrendingItem {
-  name: string;
-  symbol: string;
-  address: string;
-  image_url: string | null;
-  mint_price: string;
-  max_supply: number;
-  total_minted: number;
-  status: string;
-  agent_name: string;
-  agent_avatar: string | null;
-  recent_mints: number;
-}
-
 export default function HomePage() {
   const [selectedRole, setSelectedRole] = useState<"human" | "agent" | null>(null);
   const { theme } = useTheme();
   const [stats, setStats] = useState<Stats>({ verified_agents: 0, collections: 0, nfts_minted: 0 });
-  const [activity, setActivity] = useState<ActivityItem[]>([]);
-  const [trending, setTrending] = useState<TrendingItem[]>([]);
 
   useEffect(() => {
     async function fetchStats() {
       try {
-        const res = await fetch("/api/stats?activity=true");
+        const res = await fetch("/api/stats");
         if (res.ok) {
           const data = await res.json();
           if (data.stats) {
             setStats(data.stats);
-          }
-          if (data.recent_activity) {
-            setActivity(data.recent_activity);
-          }
-          if (data.trending) {
-            setTrending(data.trending);
           }
         }
       } catch (error) {
@@ -73,8 +37,9 @@ export default function HomePage() {
 
   return (
     <div className="min-h-screen relative overflow-hidden noise">
-      {/* Animated mesh background */}
+      {/* Tech-themed background */}
       <div className="fixed inset-0 pointer-events-none">
+        <div className="absolute inset-0 tech-grid opacity-60" />
         <div className="absolute inset-0 gradient-mesh" />
       </div>
 
@@ -188,30 +153,107 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* ═══ Stats Bar ═══ */}
+      {/* ═══ Advanced Stats Dashboard ═══ */}
       <section className="relative py-8 -mt-16 z-10">
-        <div className="container mx-auto px-4 max-w-4xl">
+        <div className="container mx-auto px-4 max-w-5xl">
+          {/* Main stats */}
           <div className={clsx(
-            "grid grid-cols-3 gap-px rounded-2xl overflow-hidden ring-1",
+            "rounded-2xl overflow-hidden ring-1",
             theme === "dark"
               ? "ring-white/[0.06] shadow-2xl shadow-black/50"
               : "ring-gray-200 shadow-xl shadow-gray-200/50"
           )}>
-            <StatBlock
-              value={stats.verified_agents.toString()}
-              label="Agents"
-              theme={theme}
-            />
-            <StatBlock
-              value={stats.collections.toString()}
-              label="Collections"
-              theme={theme}
-            />
-            <StatBlock
-              value={stats.nfts_minted.toString()}
-              label="Minted"
-              theme={theme}
-            />
+            <div className="grid grid-cols-3 gap-px">
+              <StatBlock
+                icon={<Bot className="w-4 h-4" />}
+                value={stats.verified_agents.toString()}
+                label="Verified Agents"
+                theme={theme}
+              />
+              <StatBlock
+                icon={<Blocks className="w-4 h-4" />}
+                value={stats.collections.toString()}
+                label="Collections"
+                theme={theme}
+              />
+              <StatBlock
+                icon={<Sparkles className="w-4 h-4" />}
+                value={stats.nfts_minted.toString()}
+                label="NFTs Minted"
+                theme={theme}
+              />
+            </div>
+
+            {/* Network & Protocol info bar */}
+            <div className={clsx(
+              "grid grid-cols-2 md:grid-cols-4 gap-px border-t",
+              theme === "dark" ? "border-white/[0.04]" : "border-gray-100"
+            )}>
+              <InfoBlock
+                icon={<svg className="w-3.5 h-3.5" viewBox="0 0 111 111" fill="none"><path d="M54.921 110.034C85.359 110.034 110.034 85.402 110.034 55.017C110.034 24.6319 85.359 0 54.921 0C26.0432 0 2.35281 22.1714 0 50.3923H72.8467V59.6416H0C2.35281 87.8625 26.0432 110.034 54.921 110.034Z" fill="currentColor"/></svg>}
+                label="Network"
+                value="Base L2"
+                theme={theme}
+              />
+              <InfoBlock
+                icon={<Globe className="w-3.5 h-3.5" />}
+                label="Protocol"
+                value="ERC-721"
+                theme={theme}
+              />
+              <InfoBlock
+                icon={<Zap className="w-3.5 h-3.5" />}
+                label="OpenClaw"
+                value="Integrated"
+                accent
+                theme={theme}
+              />
+              <InfoBlock
+                icon={<Cpu className="w-3.5 h-3.5" />}
+                label="Gas"
+                value="~$0.01"
+                theme={theme}
+              />
+            </div>
+          </div>
+
+          {/* Quick links below stats */}
+          <div className="flex items-center justify-center gap-4 mt-6">
+            <Link
+              href="/drops"
+              className={clsx(
+                "flex items-center gap-2 text-body-sm font-medium transition-all hover:-translate-y-0.5",
+                theme === "dark" ? "text-gray-400 hover:text-cyan-400" : "text-gray-500 hover:text-cyan-600"
+              )}
+            >
+              <Sparkles className="w-4 h-4" />
+              Live Drops
+              <ArrowRight className="w-3.5 h-3.5" />
+            </Link>
+            <span className={theme === "dark" ? "text-gray-700" : "text-gray-300"}>·</span>
+            <Link
+              href="/activity"
+              className={clsx(
+                "flex items-center gap-2 text-body-sm font-medium transition-all hover:-translate-y-0.5",
+                theme === "dark" ? "text-gray-400 hover:text-cyan-400" : "text-gray-500 hover:text-cyan-600"
+              )}
+            >
+              <Activity className="w-4 h-4" />
+              Activity Feed
+              <ArrowRight className="w-3.5 h-3.5" />
+            </Link>
+            <span className={theme === "dark" ? "text-gray-700" : "text-gray-300"}>·</span>
+            <Link
+              href="/agents"
+              className={clsx(
+                "flex items-center gap-2 text-body-sm font-medium transition-all hover:-translate-y-0.5",
+                theme === "dark" ? "text-gray-400 hover:text-cyan-400" : "text-gray-500 hover:text-cyan-600"
+              )}
+            >
+              <Bot className="w-4 h-4" />
+              Agents
+              <ArrowRight className="w-3.5 h-3.5" />
+            </Link>
           </div>
         </div>
       </section>
@@ -259,78 +301,6 @@ export default function HomePage() {
           </div>
         </div>
       </section>
-
-      {/* Trending / Featured */}
-      {trending.length > 0 && (
-        <section className={clsx(
-          "relative py-16 border-t",
-          theme === "dark" ? "border-white/[0.05]" : "border-gray-200"
-        )}>
-          <div className="container mx-auto px-4">
-            <div className="flex items-center justify-between mb-8">
-              <div>
-                <p className={clsx("text-overline uppercase mb-1", theme === "dark" ? "text-gray-500" : "text-gray-400")}>
-                  Popular
-                </p>
-                <h2 className="text-heading-lg">Trending Now</h2>
-              </div>
-              <Link
-                href="/drops"
-                className={clsx(
-                  "text-sm font-medium flex items-center gap-1 transition-colors",
-                  theme === "dark" ? "text-gray-400 hover:text-cyan-400" : "text-gray-500 hover:text-cyan-600"
-                )}
-              >
-                View All <ArrowRight className="w-4 h-4" />
-              </Link>
-            </div>
-
-            <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
-              {trending.map((item, i) => (
-                <TrendingCard key={item.address} item={item} rank={i + 1} theme={theme} />
-              ))}
-            </div>
-          </div>
-        </section>
-      )}
-
-      {/* Recent Activity */}
-      {activity.length > 0 && (
-        <section className={clsx(
-          "relative py-16 border-t",
-          theme === "dark" ? "border-white/[0.05]" : "border-gray-200"
-        )}>
-          <div className="container mx-auto px-4">
-            <div className="max-w-3xl mx-auto">
-              <div className="flex items-center justify-between mb-8">
-                <div className="flex items-center gap-3">
-                  <div className="relative flex h-2 w-2">
-                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
-                    <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
-                  </div>
-                  <h2 className="text-heading-lg">Recent Activity</h2>
-                </div>
-                <Link 
-                  href="/drops" 
-                  className={clsx(
-                    "text-sm flex items-center gap-1 transition-colors",
-                    theme === "dark" ? "text-gray-400 hover:text-cyan-400" : "text-gray-500 hover:text-cyan-600"
-                  )}
-                >
-                  View all drops
-                  <ArrowRight className="w-3.5 h-3.5" />
-                </Link>
-              </div>
-
-              <div className="space-y-2">
-                {activity.map((item, i) => (
-                  <ActivityRow key={`${item.type}-${item.time}-${i}`} item={item} theme={theme} />
-                ))}
-              </div>
-            </div>
-          </div>
-        </section>
-      )}
     </div>
   );
 }
@@ -560,18 +530,55 @@ function Step({ number, text, check, theme }: { number: number; text: string; ch
   );
 }
 
-function StatBlock({ value, label, theme }: { value: string; label: string; theme: string }) {
+function StatBlock({ icon, value, label, theme }: { icon: React.ReactNode; value: string; label: string; theme: string }) {
   return (
     <div className={clsx(
-      "p-6 md:p-8 text-center transition-all duration-300 group/stat cursor-default",
+      "p-5 md:p-7 text-center transition-all duration-300 group/stat cursor-default",
       theme === "dark"
         ? "bg-white/[0.02] hover:bg-white/[0.05]"
         : "bg-gray-50/80 hover:bg-white"
     )}>
+      <div className={clsx(
+        "inline-flex items-center justify-center w-8 h-8 rounded-lg mb-3",
+        theme === "dark" ? "bg-cyan-500/10 text-cyan-400" : "bg-cyan-50 text-cyan-600"
+      )}>
+        {icon}
+      </div>
       <p className="text-heading-xl md:text-display tracking-tightest transition-transform duration-300 group-hover/stat:scale-110">{value}</p>
       <p className={clsx("text-overline uppercase mt-1", theme === "dark" ? "text-gray-500" : "text-gray-400")}>
         {label}
       </p>
+    </div>
+  );
+}
+
+function InfoBlock({ icon, label, value, accent, theme }: { icon: React.ReactNode; label: string; value: string; accent?: boolean; theme: string }) {
+  return (
+    <div className={clsx(
+      "px-4 py-3 flex items-center gap-2.5",
+      theme === "dark" ? "bg-white/[0.015]" : "bg-gray-50/50"
+    )}>
+      <div className={clsx(
+        "flex-shrink-0",
+        accent
+          ? "text-cyan-500"
+          : theme === "dark" ? "text-gray-600" : "text-gray-400"
+      )}>
+        {icon}
+      </div>
+      <div className="min-w-0">
+        <p className={clsx("text-[10px] uppercase tracking-wider", theme === "dark" ? "text-gray-600" : "text-gray-400")}>
+          {label}
+        </p>
+        <p className={clsx(
+          "text-caption font-semibold truncate",
+          accent
+            ? "text-cyan-500"
+            : theme === "dark" ? "text-gray-300" : "text-gray-700"
+        )}>
+          {value}
+        </p>
+      </div>
     </div>
   );
 }
@@ -584,231 +591,18 @@ function FeatureCard({ icon, title, description, gradient, theme }: {
   theme: string;
 }) {
   return (
-    <div className="perspective">
+    <div className="perspective h-full">
       <div className={clsx(
-        "glass-card group card-3d card-shine",
+        "glass-card group card-3d card-shine h-full flex flex-col",
         theme === "light" && "bg-white/70"
       )}>
-        <div className={`w-10 h-10 rounded-xl bg-gradient-to-br ${gradient} flex items-center justify-center mb-4 transition-transform duration-300 group-hover:scale-110 group-hover:rotate-3`}>
+        <div className={`w-10 h-10 rounded-xl bg-gradient-to-br ${gradient} flex items-center justify-center mb-4 flex-shrink-0 transition-transform duration-300 group-hover:scale-110 group-hover:rotate-3`}>
           {icon}
         </div>
         <h3 className="text-heading-sm mb-2">{title}</h3>
-        <p className={clsx("text-body-sm", theme === "dark" ? "text-gray-500" : "text-gray-500")}>{description}</p>
+        <p className={clsx("text-body-sm flex-1", theme === "dark" ? "text-gray-500" : "text-gray-500")}>{description}</p>
       </div>
     </div>
   );
 }
 
-function timeAgo(dateStr: string): string {
-  const seconds = Math.floor((Date.now() - new Date(dateStr).getTime()) / 1000);
-  if (seconds < 60) return "just now";
-  const minutes = Math.floor(seconds / 60);
-  if (minutes < 60) return `${minutes}m ago`;
-  const hours = Math.floor(minutes / 60);
-  if (hours < 24) return `${hours}h ago`;
-  const days = Math.floor(hours / 24);
-  return `${days}d ago`;
-}
-
-function ActivityRow({ item, theme }: { item: ActivityItem; theme: string }) {
-  const chainId = parseInt(process.env["NEXT_PUBLIC_CHAIN_ID"] || "8453");
-  const explorerUrl = chainId === 8453 ? "https://basescan.org" : "https://sepolia.basescan.org";
-
-  return (
-    <div className={clsx(
-      "flex items-center gap-4 px-4 py-3 rounded-xl transition-all duration-200",
-      theme === "dark"
-        ? "hover:bg-white/[0.04] hover:-translate-x-1"
-        : "hover:bg-gray-50 hover:-translate-x-1"
-    )}>
-      {/* Icon */}
-      <div className={clsx(
-        "flex-shrink-0 w-10 h-10 rounded-xl flex items-center justify-center",
-        item.type === "mint"
-          ? "bg-emerald-500/15 text-emerald-500"
-          : "bg-cyan-500/15 text-cyan-500"
-      )}>
-        {item.type === "mint" ? (
-          <Sparkles className="w-5 h-5" />
-        ) : (
-          <Layers className="w-5 h-5" />
-        )}
-      </div>
-
-      {/* Content */}
-      <div className="flex-1 min-w-0">
-        {item.type === "mint" ? (
-          <p className="text-sm">
-            <span className="font-mono font-medium">{item.minter}</span>
-            <span className={theme === "dark" ? " text-gray-500" : " text-gray-400"}> minted </span>
-            <span className="font-medium">{item.quantity}</span>
-            <span className={theme === "dark" ? " text-gray-500" : " text-gray-400"}> from </span>
-            <Link 
-              href={`/collection/${item.collection_address}`}
-              className="font-medium text-cyan-500 hover:underline"
-            >
-              {item.collection_name}
-            </Link>
-          </p>
-        ) : (
-          <p className="text-sm">
-            <span className="font-medium text-cyan-500">{item.agent_name}</span>
-            <span className={theme === "dark" ? " text-gray-500" : " text-gray-400"}> deployed </span>
-            <Link 
-              href={`/collection/${item.collection_address}`}
-              className="font-medium text-cyan-500 hover:underline"
-            >
-              {item.collection_name}
-            </Link>
-          </p>
-        )}
-      </div>
-
-      {/* Time + Link */}
-      <div className="flex-shrink-0 flex items-center gap-2">
-        <span className={clsx("text-xs", theme === "dark" ? "text-gray-600" : "text-gray-400")}>
-          {timeAgo(item.time)}
-        </span>
-        {item.tx_hash && (
-          <a
-            href={`${explorerUrl}/tx/${item.tx_hash}`}
-            target="_blank"
-            rel="noopener noreferrer"
-            className={clsx(
-              "p-1 rounded transition-colors",
-              theme === "dark" ? "hover:bg-white/[0.05] text-gray-600 hover:text-gray-400" : "hover:bg-gray-100 text-gray-400 hover:text-gray-600"
-            )}
-          >
-            <ExternalLink className="w-3.5 h-3.5" />
-          </a>
-        )}
-      </div>
-    </div>
-  );
-}
-
-function TrendingCard({ item, rank, theme }: { item: TrendingItem; rank: number; theme: string }) {
-  const cardRef = useRef<HTMLDivElement>(null);
-  const progress = Math.round((item.total_minted / item.max_supply) * 100);
-  const price = item.mint_price === "0"
-    ? "Free"
-    : `${parseFloat(formatEther(BigInt(item.mint_price))).toFixed(4)} ETH`;
-
-  const handleMouseMove = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
-    const card = cardRef.current;
-    if (!card) return;
-    const rect = card.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const y = e.clientY - rect.top;
-    const centerX = rect.width / 2;
-    const centerY = rect.height / 2;
-    const rotateX = ((y - centerY) / centerY) * -4;
-    const rotateY = ((x - centerX) / centerX) * 4;
-    card.style.transform = `perspective(800px) rotateX(${rotateX}deg) rotateY(${rotateY}deg) translateZ(8px)`;
-  }, []);
-
-  const handleMouseLeave = useCallback(() => {
-    const card = cardRef.current;
-    if (!card) return;
-    card.style.transform = "perspective(800px) rotateX(0deg) rotateY(0deg) translateZ(0px)";
-  }, []);
-
-  return (
-    <Link href={`/collection/${item.address}`}>
-      <div
-        ref={cardRef}
-        onMouseMove={handleMouseMove}
-        onMouseLeave={handleMouseLeave}
-        className={clsx(
-          "group relative block rounded-2xl overflow-hidden card-shine",
-          "transition-[transform,box-shadow] duration-300 ease-out will-change-transform",
-          theme === "dark"
-            ? "bg-[#0d1117] ring-1 ring-white/[0.06] hover:ring-white/[0.12] hover:shadow-2xl hover:shadow-cyan-500/10"
-            : "bg-white ring-1 ring-gray-200 hover:ring-gray-300 hover:shadow-xl"
-        )}
-      >
-        {/* Rank */}
-        <div className={clsx(
-          "absolute top-3 left-3 z-10 w-7 h-7 rounded-lg flex items-center justify-center text-caption font-bold",
-          theme === "dark" ? "bg-black/60 text-white backdrop-blur-md" : "bg-white/90 text-gray-800 backdrop-blur-md"
-        )}>
-          {rank}
-        </div>
-
-        {/* Price badge */}
-        <div className={clsx(
-          "absolute top-3 right-3 z-10 px-2.5 py-1 rounded-lg backdrop-blur-md text-xs font-bold",
-          theme === "dark" ? "bg-black/50 text-white" : "bg-white/80 text-gray-900"
-        )}>
-          {price}
-        </div>
-
-        {/* Image */}
-        <div className={clsx(
-          "w-full h-44 overflow-hidden",
-          theme === "dark" ? "bg-gray-800" : "bg-gray-100"
-        )}>
-          {item.image_url ? (
-            <img
-              src={item.image_url}
-              alt={item.name}
-              className="w-full h-full object-cover transition-transform duration-700 ease-out group-hover:scale-[1.08]"
-            />
-          ) : (
-            <div className="w-full h-full flex items-center justify-center">
-              <div className="text-4xl opacity-15">🖼️</div>
-            </div>
-          )}
-          {/* Bottom gradient */}
-          <div className={clsx(
-            "absolute inset-x-0 bottom-0 h-20 bg-gradient-to-t",
-            theme === "dark" ? "from-[#0d1117]" : "from-white"
-          )} />
-        </div>
-
-        {/* Content */}
-        <div className="p-4 pt-0 relative">
-          <div className="flex items-center justify-between mb-1">
-            <h3 className="text-heading-sm truncate">{item.name}</h3>
-            <span className={clsx(
-              "text-caption font-medium px-2 py-0.5 rounded-full flex items-center gap-1 flex-shrink-0 ml-2",
-              "bg-orange-500/10 text-orange-500"
-            )}>
-              <TrendingUp className="w-3 h-3" />
-              {item.recent_mints}
-            </span>
-          </div>
-
-          <p className={clsx("text-body-sm mb-3", theme === "dark" ? "text-gray-500" : "text-gray-400")}>
-            {item.agent_name}
-          </p>
-
-          {/* Progress */}
-          <div className="flex items-center gap-3 mb-1">
-            <div className={clsx(
-              "flex-1 h-1 rounded-full overflow-hidden",
-              theme === "dark" ? "bg-white/[0.06]" : "bg-gray-200"
-            )}>
-              <div
-                className={clsx(
-                  "h-full rounded-full transition-all duration-700",
-                  progress >= 90
-                    ? "bg-gradient-to-r from-orange-400 to-red-400"
-                    : "bg-gradient-to-r from-cyan-400 to-blue-400"
-                )}
-                style={{ width: `${Math.min(progress, 100)}%` }}
-              />
-            </div>
-            <span className={clsx("text-caption font-mono", theme === "dark" ? "text-gray-500" : "text-gray-400")}>
-              {progress}%
-            </span>
-          </div>
-
-          <span className={clsx("text-caption", theme === "dark" ? "text-gray-600" : "text-gray-400")}>
-            {item.total_minted}/{item.max_supply} minted
-          </span>
-        </div>
-      </div>
-    </Link>
-  );
-}

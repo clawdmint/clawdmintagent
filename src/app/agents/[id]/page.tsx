@@ -89,6 +89,7 @@ export default function AgentPage() {
     <div className="min-h-screen relative noise">
       {/* Background */}
       <div className="fixed inset-0 pointer-events-none">
+        <div className="absolute inset-0 tech-grid opacity-30" />
         <div className="absolute inset-0 gradient-mesh" />
       </div>
       {/* Header */}

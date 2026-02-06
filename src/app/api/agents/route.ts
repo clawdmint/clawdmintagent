@@ -18,20 +18,21 @@ export async function GET(request: NextRequest) {
     const limit = Math.min(parseInt(searchParams.get("limit") || "20"), 100);
     const skip = (page - 1) * limit;
 
-    // Get verified agents with collection count
+    // Get all registered agents (excluding suspended/banned)
+    const statusFilter = { status: { notIn: ["SUSPENDED", "BANNED"] } };
     const [agents, total] = await Promise.all([
       prisma.agent.findMany({
-        where: { status: "VERIFIED" },
+        where: statusFilter,
         include: {
           _count: {
             select: { collections: true },
           },
         },
-        orderBy: { verifiedAt: "desc" },
+        orderBy: { createdAt: "desc" },
         skip,
         take: limit,
       }),
-      prisma.agent.count({ where: { status: "VERIFIED" } }),
+      prisma.agent.count({ where: statusFilter }),
     ]);
 
     return NextResponse.json({
@@ -43,8 +44,10 @@ export async function GET(request: NextRequest) {
         avatar_url: a.avatarUrl,
         eoa: a.eoa,
         x_handle: a.xHandle,
+        status: a.status,
         collections_count: a._count.collections,
         verified_at: a.verifiedAt?.toISOString(),
+        created_at: a.createdAt.toISOString(),
       })),
       pagination: {
         page,
