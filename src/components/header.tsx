@@ -2,13 +2,13 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import { ConnectButton } from "@rainbow-me/rainbowkit";
 import { usePathname } from "next/navigation";
 import { useState, useEffect } from "react";
 import { clsx } from "clsx";
 import { Menu, X, Sparkles, Bot, User, Activity, Globe } from "lucide-react";
 import { ThemeToggle } from "./theme-toggle";
 import { useTheme } from "./theme-provider";
+import { useWallet } from "./wallet-context";
 
 const navItems = [
   { href: "/drops", label: "Drops", icon: Sparkles },
@@ -22,6 +22,7 @@ export function Header() {
   const pathname = usePathname();
   const { theme } = useTheme();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const { ready, authenticated, displayAddress, login, logout } = useWallet();
 
   // Close mobile menu on route change
   useEffect(() => {
@@ -121,69 +122,26 @@ export function Header() {
               {/* Theme Toggle */}
               <ThemeToggle />
 
-              {/* Wallet Connect */}
-              <ConnectButton.Custom>
-                {({
-                  account,
-                  chain,
-                  openAccountModal,
-                  openChainModal,
-                  openConnectModal,
-                  mounted,
-                }) => {
-                  const ready = mounted;
-                  const connected = ready && account && chain;
-
-                  return (
-                    <div
-                      {...(!ready && {
-                        "aria-hidden": true,
-                        style: {
-                          opacity: 0,
-                          pointerEvents: "none",
-                          userSelect: "none",
-                        },
-                      })}
-                    >
-                      {(() => {
-                        if (!connected) {
-                          return (
-                            <button
-                              onClick={openConnectModal}
-                              className="px-3 sm:px-4 py-2 bg-gradient-to-r from-cyan-500 to-blue-600 rounded-xl text-sm font-semibold text-white hover:shadow-lg hover:shadow-cyan-500/20 transition-all"
-                            >
-                              Connect
-                            </button>
-                          );
-                        }
-
-                        if (chain.unsupported) {
-                          return (
-                            <button
-                              onClick={openChainModal}
-                              className="px-3 sm:px-4 py-2 bg-red-500/20 border border-red-500/50 rounded-xl text-red-400 text-sm font-medium"
-                            >
-                              Wrong Network
-                            </button>
-                          );
-                        }
-
-                        return (
-                          <button
-                            onClick={openAccountModal}
-                            className={clsx(
-                              "px-3 sm:px-4 py-2 glass rounded-xl text-sm font-medium transition-all",
-                              theme === "dark" ? "hover:bg-white/[0.08]" : "hover:bg-gray-100"
-                            )}
-                          >
-                            {account.displayName}
-                          </button>
-                        );
-                      })()}
-                    </div>
-                  );
-                }}
-              </ConnectButton.Custom>
+              {/* Wallet Connect (Privy) */}
+              {ready && !authenticated && (
+                <button
+                  onClick={login}
+                  className="px-3 sm:px-4 py-2 bg-gradient-to-r from-cyan-500 to-blue-600 rounded-xl text-sm font-semibold text-white hover:shadow-lg hover:shadow-cyan-500/20 transition-all"
+                >
+                  Connect
+                </button>
+              )}
+              {ready && authenticated && (
+                <button
+                  onClick={logout}
+                  className={clsx(
+                    "px-3 sm:px-4 py-2 glass rounded-xl text-sm font-medium transition-all",
+                    theme === "dark" ? "hover:bg-white/[0.08]" : "hover:bg-gray-100"
+                  )}
+                >
+                  {displayAddress || "Connected"}
+                </button>
+              )}
 
               {/* Mobile Menu Button */}
               <button

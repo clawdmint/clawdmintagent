@@ -1,9 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useAccount } from "wagmi";
 import { formatEther } from "viem";
-import { ConnectButton } from "@rainbow-me/rainbowkit";
+import { useWallet } from "@/components/wallet-context";
 import Link from "next/link";
 import Image from "next/image";
 import { useTheme } from "@/components/theme-provider";
@@ -40,9 +39,21 @@ interface MintRecord {
   };
 }
 
+function PrivyConnectBtn() {
+  const { login } = useWallet();
+  return (
+    <button
+      onClick={login}
+      className="px-6 py-3 bg-gradient-to-r from-cyan-500 to-blue-600 rounded-xl text-sm font-semibold text-white hover:shadow-lg hover:shadow-cyan-500/20 transition-all"
+    >
+      Connect Wallet
+    </button>
+  );
+}
+
 export default function ProfilePage() {
   const { theme } = useTheme();
-  const { address, isConnected } = useAccount();
+  const { address, isConnected } = useWallet();
   const [profile, setProfile] = useState<ProfileData | null>(null);
   const [mints, setMints] = useState<MintRecord[]>([]);
   const [loading, setLoading] = useState(false);
@@ -110,7 +121,7 @@ export default function ProfilePage() {
               Connect your wallet to see your mint history and NFTs.
             </p>
             <div className="flex justify-center">
-              <ConnectButton />
+              <PrivyConnectBtn />
             </div>
           </div>
         )}

@@ -4,6 +4,15 @@
 > Next.js auto-loads `.env.production` which conflicts with Netlify's environment system.  
 > All variables must be set in **Netlify Dashboard** only.
 
+## x402 Payment Protocol Variables
+
+| Key | Scope | Secret | Example Value |
+|-----|-------|--------|---------------|
+| `X402_PAY_TO_ADDRESS` | All | No | `0xYourTreasuryAddress` |
+| `X402_FACILITATOR_URL` | All | No | (leave empty for auto-detect) |
+| `CDP_API_KEY_ID` | All | Yes | `your_cdp_key_id` |
+| `CDP_API_KEY_SECRET` | All | Yes | `your_cdp_key_secret` |
+
 ## How to Configure
 
 1. Go to **Netlify Dashboard** → Your Site → **Site settings** → **Environment variables**
@@ -25,6 +34,7 @@ These are safe to expose (bundled in client-side code).
 | `NEXT_PUBLIC_WALLET_CONNECT_ID` | All | No | `your_project_id` |
 | `NEXT_PUBLIC_APP_URL` | All | No | `https://clawdmint.xyz` |
 | `NEXT_PUBLIC_APP_NAME` | All | No | `Clawdmint` |
+| `NEXT_PUBLIC_PRIVY_APP_ID` | All | No | `your_privy_app_id` |
 
 ---
 

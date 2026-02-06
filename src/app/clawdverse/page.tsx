@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useEffect, useState, useRef, useCallback } from "react";
 import { Bot, Globe, Zap, Send, MessageCircle } from "lucide-react";
 import { useTheme } from "@/components/theme-provider";
-import { useAccount } from "wagmi";
+import { useWallet } from "@/components/wallet-context";
 import { clsx } from "clsx";
 
 interface Agent {
@@ -28,7 +28,7 @@ interface ChatMsg {
 
 export default function ClawdversePage() {
   const { theme } = useTheme();
-  const { address, isConnected } = useAccount();
+  const { address, isConnected } = useWallet();
   const [agents, setAgents] = useState<Agent[]>([]);
   const [messages, setMessages] = useState<ChatMsg[]>([]);
   const [loading, setLoading] = useState(true);

@@ -4,7 +4,7 @@ import { useEffect, useState, useRef } from "react";
 import { useParams } from "next/navigation";
 import { useAccount, useWriteContract, useWaitForTransactionReceipt } from "wagmi";
 import { formatEther } from "viem";
-import { ConnectButton } from "@rainbow-me/rainbowkit";
+import { useWallet } from "@/components/wallet-context";
 import Link from "next/link";
 import Image from "next/image";
 import { COLLECTION_ABI } from "@/lib/contracts";
@@ -48,6 +48,18 @@ interface Collection {
     remaining: string;
     is_sold_out: boolean;
   };
+}
+
+function PrivyConnectButton() {
+  const { login } = useWallet();
+  return (
+    <button
+      onClick={login}
+      className="w-full btn-primary text-lg py-4 flex items-center justify-center gap-2"
+    >
+      <span className="relative z-10">Connect Wallet to Mint</span>
+    </button>
+  );
 }
 
 export default function CollectionPage() {
@@ -421,16 +433,7 @@ export default function CollectionPage() {
 
                 {/* Mint Button */}
                 {!isConnected ? (
-                  <ConnectButton.Custom>
-                    {({ openConnectModal }) => (
-                      <button
-                        onClick={openConnectModal}
-                        className="w-full btn-primary text-lg py-4 flex items-center justify-center gap-2"
-                      >
-                        <span className="relative z-10">Connect Wallet to Mint</span>
-                      </button>
-                    )}
-                  </ConnectButton.Custom>
+                  <PrivyConnectButton />
                 ) : isSoldOut ? (
                   <button disabled className="w-full btn-primary text-lg py-4 opacity-50 cursor-not-allowed">
                     Sold Out
