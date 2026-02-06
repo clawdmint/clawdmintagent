@@ -92,6 +92,12 @@ export function getServerEnv() {
     nodeEnv: getEnv("NODE_ENV", "development"),
     isDev: getEnv("NODE_ENV") === "development",
     isProd: getEnv("NODE_ENV") === "production",
+    
+    // x402 Payment Protocol
+    x402PayToAddress: getEnv("X402_PAY_TO_ADDRESS", ""),
+    x402FacilitatorUrl: getEnv("X402_FACILITATOR_URL", ""),
+    cdpApiKeyId: getEnv("CDP_API_KEY_ID", ""),
+    cdpApiKeySecret: getEnv("CDP_API_KEY_SECRET", ""),
   };
 }
 

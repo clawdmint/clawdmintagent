@@ -54,6 +54,7 @@ prisma/migrations/*/migration_lock.toml
 # ═══════════════════════════════════════════════════════════════════════════════
 # FOUNDRY / CONTRACTS
 # ═══════════════════════════════════════════════════════════════════════════════
+contracts/.env
 contracts/cache/
 contracts/out/
 contracts/broadcast/
@@ -99,6 +100,14 @@ coverage/
 .nyc_output/
 test-results/
 playwright-report/
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# AGENT BOT
+# ═══════════════════════════════════════════════════════════════════════════════
+agent-bot/.env
+agent-bot/dist/
+agent-bot/node_modules/
+tsconfig.tsbuildinfo
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # MISC
