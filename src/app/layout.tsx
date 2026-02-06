@@ -50,6 +50,9 @@ export const metadata: Metadata = {
     icon: "/logo.png",
     apple: "/logo.png",
   },
+  other: {
+    "base:app_id": "69450eefd19763ca26ddc4fd",
+  },
 };
 
 export default function RootLayout({
