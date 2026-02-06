@@ -210,11 +210,10 @@ export default function CollectionPage() {
   const progress = (parseInt(totalMinted) / collection.max_supply) * 100;
 
   return (
-    <div className="min-h-screen relative">
+    <div className="min-h-screen relative noise">
       {/* Background */}
       <div className="fixed inset-0 pointer-events-none">
-        <div className="absolute inset-0 grid-bg opacity-50" />
-        <div className="hero-orb hero-orb-cyan w-[400px] h-[400px] top-[-150px] right-[-150px] opacity-30" />
+        <div className="absolute inset-0 gradient-mesh" />
       </div>
 
       <div className="container mx-auto px-4 py-12 relative">
@@ -295,17 +294,17 @@ export default function CollectionPage() {
             {/* Image - 3 columns */}
             <div className="lg:col-span-3">
               <div className={clsx(
-                "rounded-2xl overflow-hidden border",
+                "rounded-2xl overflow-hidden card-shine",
                 theme === "dark"
-                  ? "bg-gray-900/50 border-white/[0.06]"
-                  : "bg-white/60 border-gray-200"
+                  ? "bg-[#0d1117] ring-1 ring-white/[0.06]"
+                  : "bg-white ring-1 ring-gray-200"
               )}>
-                <div className="relative aspect-[4/3]">
+                <div className="relative aspect-[4/3] overflow-hidden group/img">
                   {collection.image_url ? (
                     <img
                       src={collection.image_url}
                       alt={collection.name}
-                      className="w-full h-full object-cover"
+                      className="w-full h-full object-cover transition-transform duration-700 group-hover/img:scale-105"
                     />
                   ) : (
                     <div className={clsx(

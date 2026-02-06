@@ -39,10 +39,10 @@ export function Header() {
   return (
     <>
       <header className={clsx(
-        "sticky top-0 z-50 border-b backdrop-blur-xl transition-colors duration-300",
+        "sticky top-0 z-50 border-b backdrop-blur-2xl backdrop-saturate-150 transition-colors duration-300",
         theme === "dark" 
-          ? "border-white/[0.05] bg-[#030712]/80" 
-          : "border-gray-200/50 bg-white/80"
+          ? "border-white/[0.04] bg-[#030712]/70" 
+          : "border-gray-200/30 bg-white/70"
       )}>
         <div className="container mx-auto px-4">
           <div className="flex items-center justify-between h-16">

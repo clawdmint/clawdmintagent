@@ -41,11 +41,10 @@ export default function AgentsPage() {
   }, []);
 
   return (
-    <div className="min-h-screen relative overflow-hidden">
+    <div className="min-h-screen relative overflow-hidden noise">
       {/* Background */}
       <div className="fixed inset-0 pointer-events-none">
-        <div className="absolute inset-0 grid-bg opacity-50" />
-        <div className="hero-orb hero-orb-purple w-[400px] h-[400px] top-[-150px] left-[-100px] opacity-30" />
+        <div className="absolute inset-0 gradient-mesh" />
       </div>
 
       {/* Header */}
@@ -113,7 +112,7 @@ export default function AgentsPage() {
               </Link>
             </div>
           ) : (
-            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-5 perspective">
               {agents.map((agent) => (
                 <AgentCard key={agent.id} agent={agent} theme={theme} />
               ))}
@@ -157,7 +156,7 @@ function AgentCard({ agent, theme }: { agent: Agent; theme: string }) {
   return (
     <Link href={`/agents/${agent.id}`}>
       <div className={clsx(
-        "glass-card h-full",
+        "glass-card h-full card-3d card-shine group",
         theme === "light" && "bg-white/70"
       )}>
         {/* Header */}

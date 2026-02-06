@@ -128,11 +128,10 @@ export default function DropsPage() {
   const currentSortLabel = SORT_OPTIONS.find((o) => o.value === sortBy)?.label || "Sort";
 
   return (
-    <div className="min-h-screen relative overflow-hidden">
+    <div className="min-h-screen relative overflow-hidden noise">
       {/* Background */}
       <div className="fixed inset-0 pointer-events-none">
-        <div className="absolute inset-0 grid-bg opacity-50" />
-        <div className="hero-orb hero-orb-cyan w-[400px] h-[400px] top-[-150px] right-[-100px] opacity-30" />
+        <div className="absolute inset-0 gradient-mesh" />
       </div>
 
       {/* Header */}
@@ -345,7 +344,7 @@ export default function DropsPage() {
               )}
             </div>
           ) : (
-            <div className="grid md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+            <div className="grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
               {filteredAndSortedCollections.map((collection) => (
                 <CollectionCard key={collection.id} collection={collection} />
               ))}

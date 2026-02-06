@@ -74,11 +74,10 @@ export default function ProfilePage() {
   }, [address]);
 
   return (
-    <div className="min-h-screen relative">
+    <div className="min-h-screen relative noise">
       {/* Background */}
       <div className="fixed inset-0 pointer-events-none">
-        <div className="absolute inset-0 grid-bg opacity-50" />
-        <div className="hero-orb hero-orb-cyan w-[350px] h-[350px] top-[-100px] right-[-100px] opacity-30" />
+        <div className="absolute inset-0 gradient-mesh" />
       </div>
 
       <div className="container mx-auto px-4 py-12 relative">

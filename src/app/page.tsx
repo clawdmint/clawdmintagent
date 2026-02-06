@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { Bot, User, Sparkles, Zap, Shield, Layers, ArrowRight, ExternalLink, TrendingUp } from "lucide-react";
 import { formatEther } from "viem";
 import { useTheme } from "@/components/theme-provider";
@@ -72,12 +72,10 @@ export default function HomePage() {
   }, []);
 
   return (
-    <div className="min-h-screen relative overflow-hidden">
-      {/* Subtle Background */}
+    <div className="min-h-screen relative overflow-hidden noise">
+      {/* Animated mesh background */}
       <div className="fixed inset-0 pointer-events-none">
-        <div className="absolute inset-0 grid-bg opacity-50" />
-        <div className="hero-orb hero-orb-cyan w-[500px] h-[500px] top-[-200px] left-1/2 -translate-x-1/2 opacity-40" />
-        <div className="hero-orb hero-orb-purple w-[350px] h-[350px] bottom-[-100px] right-[-100px] opacity-30" />
+        <div className="absolute inset-0 gradient-mesh" />
       </div>
 
       {/* Hero Section */}
@@ -116,16 +114,18 @@ export default function HomePage() {
             </div>
           </div>
 
-          {/* Mascot */}
-          <div className="relative w-28 h-28 mx-auto mb-8">
-            <Image
-              src="/logo.png"
-              alt="Clawdy"
-              width={112}
-              height={112}
-              className="object-contain"
-              priority
-            />
+          {/* Mascot with 3D float */}
+          <div className="relative w-32 h-32 mx-auto mb-8 perspective">
+            <div className="relative w-full h-full animate-float preserve-3d">
+              <Image
+                src="/logo.png"
+                alt="Clawdy"
+                width={128}
+                height={128}
+                className="object-contain drop-shadow-[0_20px_40px_rgba(6,182,212,0.3)]"
+                priority
+              />
+            </div>
           </div>
 
           {/* Title - strong negative letter-spacing */}
@@ -154,12 +154,12 @@ export default function HomePage() {
             <button
               onClick={() => setSelectedRole("human")}
               className={clsx(
-                "group relative px-8 py-4 rounded-2xl text-heading-sm transition-all duration-200 flex items-center justify-center gap-3",
+                "group relative px-8 py-4 rounded-2xl text-heading-sm transition-all duration-300 flex items-center justify-center gap-3",
                 selectedRole === "human"
-                  ? "bg-gradient-to-r from-orange-500 to-pink-500 text-white shadow-lg shadow-orange-500/20"
+                  ? "bg-gradient-to-r from-orange-500 to-pink-500 text-white shadow-xl shadow-orange-500/25 scale-[1.02]"
                   : theme === "dark"
-                    ? "glass hover:bg-white/[0.05] hover:border-white/[0.12]"
-                    : "glass hover:bg-gray-50 hover:border-gray-300 text-gray-700"
+                    ? "glass hover:bg-white/[0.05] hover:border-white/[0.12] hover:shadow-lg hover:shadow-white/5 hover:-translate-y-0.5"
+                    : "glass hover:bg-gray-50 hover:border-gray-300 text-gray-700 hover:shadow-lg hover:-translate-y-0.5"
               )}
             >
               <User className="w-5 h-5" />
@@ -169,12 +169,12 @@ export default function HomePage() {
             <button
               onClick={() => setSelectedRole("agent")}
               className={clsx(
-                "group relative px-8 py-4 rounded-2xl text-heading-sm transition-all duration-200 flex items-center justify-center gap-3",
+                "group relative px-8 py-4 rounded-2xl text-heading-sm transition-all duration-300 flex items-center justify-center gap-3",
                 selectedRole === "agent"
-                  ? "bg-gradient-to-r from-cyan-500 to-blue-600 text-white shadow-lg shadow-cyan-500/20"
+                  ? "bg-gradient-to-r from-cyan-500 to-blue-600 text-white shadow-xl shadow-cyan-500/25 scale-[1.02]"
                   : theme === "dark"
-                    ? "glass hover:bg-white/[0.05] hover:border-white/[0.12]"
-                    : "glass hover:bg-gray-50 hover:border-gray-300 text-gray-700"
+                    ? "glass hover:bg-white/[0.05] hover:border-white/[0.12] hover:shadow-lg hover:shadow-white/5 hover:-translate-y-0.5"
+                    : "glass hover:bg-gray-50 hover:border-gray-300 text-gray-700 hover:shadow-lg hover:-translate-y-0.5"
               )}
             >
               <Bot className="w-5 h-5" />
@@ -191,7 +191,12 @@ export default function HomePage() {
       {/* ═══ Stats Bar ═══ */}
       <section className="relative py-8 -mt-16 z-10">
         <div className="container mx-auto px-4 max-w-4xl">
-          <div className="grid grid-cols-3 gap-px rounded-2xl overflow-hidden">
+          <div className={clsx(
+            "grid grid-cols-3 gap-px rounded-2xl overflow-hidden ring-1",
+            theme === "dark"
+              ? "ring-white/[0.06] shadow-2xl shadow-black/50"
+              : "ring-gray-200 shadow-xl shadow-gray-200/50"
+          )}>
             <StatBlock
               value={stats.verified_agents.toString()}
               label="Agents"
@@ -558,10 +563,12 @@ function Step({ number, text, check, theme }: { number: number; text: string; ch
 function StatBlock({ value, label, theme }: { value: string; label: string; theme: string }) {
   return (
     <div className={clsx(
-      "p-6 md:p-8 text-center",
-      theme === "dark" ? "bg-white/[0.02]" : "bg-gray-50/80"
+      "p-6 md:p-8 text-center transition-all duration-300 group/stat cursor-default",
+      theme === "dark"
+        ? "bg-white/[0.02] hover:bg-white/[0.05]"
+        : "bg-gray-50/80 hover:bg-white"
     )}>
-      <p className="text-heading-xl md:text-display tracking-tightest">{value}</p>
+      <p className="text-heading-xl md:text-display tracking-tightest transition-transform duration-300 group-hover/stat:scale-110">{value}</p>
       <p className={clsx("text-overline uppercase mt-1", theme === "dark" ? "text-gray-500" : "text-gray-400")}>
         {label}
       </p>
@@ -577,15 +584,17 @@ function FeatureCard({ icon, title, description, gradient, theme }: {
   theme: string;
 }) {
   return (
-    <div className={clsx(
-      "glass-card group",
-      theme === "light" && "bg-white/70"
-    )}>
-      <div className={`w-10 h-10 rounded-xl bg-gradient-to-br ${gradient} flex items-center justify-center mb-4`}>
-        {icon}
+    <div className="perspective">
+      <div className={clsx(
+        "glass-card group card-3d card-shine",
+        theme === "light" && "bg-white/70"
+      )}>
+        <div className={`w-10 h-10 rounded-xl bg-gradient-to-br ${gradient} flex items-center justify-center mb-4 transition-transform duration-300 group-hover:scale-110 group-hover:rotate-3`}>
+          {icon}
+        </div>
+        <h3 className="text-heading-sm mb-2">{title}</h3>
+        <p className={clsx("text-body-sm", theme === "dark" ? "text-gray-500" : "text-gray-500")}>{description}</p>
       </div>
-      <h3 className="text-heading-sm mb-2">{title}</h3>
-      <p className={clsx("text-body-sm", theme === "dark" ? "text-gray-500" : "text-gray-500")}>{description}</p>
     </div>
   );
 }
@@ -607,10 +616,10 @@ function ActivityRow({ item, theme }: { item: ActivityItem; theme: string }) {
 
   return (
     <div className={clsx(
-      "flex items-center gap-4 px-4 py-3 rounded-xl transition-colors",
+      "flex items-center gap-4 px-4 py-3 rounded-xl transition-all duration-200",
       theme === "dark"
-        ? "hover:bg-white/[0.03]"
-        : "hover:bg-gray-50"
+        ? "hover:bg-white/[0.04] hover:-translate-x-1"
+        : "hover:bg-gray-50 hover:-translate-x-1"
     )}>
       {/* Icon */}
       <div className={clsx(
@@ -679,90 +688,125 @@ function ActivityRow({ item, theme }: { item: ActivityItem; theme: string }) {
 }
 
 function TrendingCard({ item, rank, theme }: { item: TrendingItem; rank: number; theme: string }) {
+  const cardRef = useRef<HTMLDivElement>(null);
   const progress = Math.round((item.total_minted / item.max_supply) * 100);
   const price = item.mint_price === "0"
     ? "Free"
     : `${parseFloat(formatEther(BigInt(item.mint_price))).toFixed(4)} ETH`;
 
+  const handleMouseMove = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+    const card = cardRef.current;
+    if (!card) return;
+    const rect = card.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+    const centerX = rect.width / 2;
+    const centerY = rect.height / 2;
+    const rotateX = ((y - centerY) / centerY) * -4;
+    const rotateY = ((x - centerX) / centerX) * 4;
+    card.style.transform = `perspective(800px) rotateX(${rotateX}deg) rotateY(${rotateY}deg) translateZ(8px)`;
+  }, []);
+
+  const handleMouseLeave = useCallback(() => {
+    const card = cardRef.current;
+    if (!card) return;
+    card.style.transform = "perspective(800px) rotateX(0deg) rotateY(0deg) translateZ(0px)";
+  }, []);
+
   return (
-    <Link
-      href={`/collection/${item.address}`}
-      className={clsx(
-        "group relative block rounded-2xl overflow-hidden transition-all duration-200",
-        theme === "dark"
-          ? "glass hover:border-white/[0.12]"
-          : "bg-white border border-gray-200 hover:border-gray-300"
-      )}
-    >
-      {/* Rank */}
-      <div className={clsx(
-        "absolute top-3 left-3 z-10 w-7 h-7 rounded-lg flex items-center justify-center text-caption font-bold",
-        theme === "dark" ? "bg-black/60 text-white backdrop-blur" : "bg-white/90 text-gray-800 backdrop-blur"
-      )}>
-        {rank}
-      </div>
-
-      {/* Image */}
-      <div className={clsx(
-        "w-full h-40 overflow-hidden",
-        theme === "dark" ? "bg-gray-800" : "bg-gray-100"
-      )}>
-        {item.image_url ? (
-          <img
-            src={item.image_url}
-            alt={item.name}
-            className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
-          />
-        ) : (
-          <div className="w-full h-full flex items-center justify-center">
-            <div className="text-4xl opacity-20">🖼️</div>
-          </div>
+    <Link href={`/collection/${item.address}`}>
+      <div
+        ref={cardRef}
+        onMouseMove={handleMouseMove}
+        onMouseLeave={handleMouseLeave}
+        className={clsx(
+          "group relative block rounded-2xl overflow-hidden card-shine",
+          "transition-[transform,box-shadow] duration-300 ease-out will-change-transform",
+          theme === "dark"
+            ? "bg-[#0d1117] ring-1 ring-white/[0.06] hover:ring-white/[0.12] hover:shadow-2xl hover:shadow-cyan-500/10"
+            : "bg-white ring-1 ring-gray-200 hover:ring-gray-300 hover:shadow-xl"
         )}
-      </div>
-
-      {/* Content */}
-      <div className="p-4">
-        <div className="flex items-center justify-between mb-1">
-          <h3 className="text-heading-sm truncate">{item.name}</h3>
-          <span className={clsx(
-            "text-caption font-medium px-2 py-0.5 rounded-full flex items-center gap-1",
-            "bg-orange-500/10 text-orange-500"
-          )}>
-            <TrendingUp className="w-3 h-3" />
-            {item.recent_mints}
-          </span>
+      >
+        {/* Rank */}
+        <div className={clsx(
+          "absolute top-3 left-3 z-10 w-7 h-7 rounded-lg flex items-center justify-center text-caption font-bold",
+          theme === "dark" ? "bg-black/60 text-white backdrop-blur-md" : "bg-white/90 text-gray-800 backdrop-blur-md"
+        )}>
+          {rank}
         </div>
 
-        <p className={clsx("text-body-sm mb-3", theme === "dark" ? "text-gray-500" : "text-gray-400")}>
-          {item.agent_name}
-        </p>
+        {/* Price badge */}
+        <div className={clsx(
+          "absolute top-3 right-3 z-10 px-2.5 py-1 rounded-lg backdrop-blur-md text-xs font-bold",
+          theme === "dark" ? "bg-black/50 text-white" : "bg-white/80 text-gray-900"
+        )}>
+          {price}
+        </div>
 
-        {/* Progress */}
-        <div className="flex items-center gap-3 mb-2">
-          <div className={clsx(
-            "flex-1 h-1.5 rounded-full overflow-hidden",
-            theme === "dark" ? "bg-white/[0.06]" : "bg-gray-200"
-          )}>
-            <div
-              className={clsx(
-                "h-full rounded-full transition-all",
-                progress >= 90
-                  ? "bg-gradient-to-r from-orange-500 to-red-500"
-                  : "bg-cyan-500"
-              )}
-              style={{ width: `${Math.min(progress, 100)}%` }}
+        {/* Image */}
+        <div className={clsx(
+          "w-full h-44 overflow-hidden",
+          theme === "dark" ? "bg-gray-800" : "bg-gray-100"
+        )}>
+          {item.image_url ? (
+            <img
+              src={item.image_url}
+              alt={item.name}
+              className="w-full h-full object-cover transition-transform duration-700 ease-out group-hover:scale-[1.08]"
             />
-          </div>
-          <span className={clsx("text-caption font-mono", theme === "dark" ? "text-gray-500" : "text-gray-400")}>
-            {progress}%
-          </span>
+          ) : (
+            <div className="w-full h-full flex items-center justify-center">
+              <div className="text-4xl opacity-15">🖼️</div>
+            </div>
+          )}
+          {/* Bottom gradient */}
+          <div className={clsx(
+            "absolute inset-x-0 bottom-0 h-20 bg-gradient-to-t",
+            theme === "dark" ? "from-[#0d1117]" : "from-white"
+          )} />
         </div>
 
-        <div className="flex items-center justify-between">
+        {/* Content */}
+        <div className="p-4 pt-0 relative">
+          <div className="flex items-center justify-between mb-1">
+            <h3 className="text-heading-sm truncate">{item.name}</h3>
+            <span className={clsx(
+              "text-caption font-medium px-2 py-0.5 rounded-full flex items-center gap-1 flex-shrink-0 ml-2",
+              "bg-orange-500/10 text-orange-500"
+            )}>
+              <TrendingUp className="w-3 h-3" />
+              {item.recent_mints}
+            </span>
+          </div>
+
+          <p className={clsx("text-body-sm mb-3", theme === "dark" ? "text-gray-500" : "text-gray-400")}>
+            {item.agent_name}
+          </p>
+
+          {/* Progress */}
+          <div className="flex items-center gap-3 mb-1">
+            <div className={clsx(
+              "flex-1 h-1 rounded-full overflow-hidden",
+              theme === "dark" ? "bg-white/[0.06]" : "bg-gray-200"
+            )}>
+              <div
+                className={clsx(
+                  "h-full rounded-full transition-all duration-700",
+                  progress >= 90
+                    ? "bg-gradient-to-r from-orange-400 to-red-400"
+                    : "bg-gradient-to-r from-cyan-400 to-blue-400"
+                )}
+                style={{ width: `${Math.min(progress, 100)}%` }}
+              />
+            </div>
+            <span className={clsx("text-caption font-mono", theme === "dark" ? "text-gray-500" : "text-gray-400")}>
+              {progress}%
+            </span>
+          </div>
+
           <span className={clsx("text-caption", theme === "dark" ? "text-gray-600" : "text-gray-400")}>
-            {item.total_minted}/{item.max_supply}
+            {item.total_minted}/{item.max_supply} minted
           </span>
-          <span className="text-body-sm font-semibold tracking-tight-1">{price}</span>
         </div>
       </div>
     </Link>

@@ -63,16 +63,18 @@ const config: Config = {
       animation: {
         "pulse-slow": "pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite",
         "gradient": "gradient 8s ease infinite",
-        "float": "float 6s ease-in-out infinite",
+        "float": "float-3d 6s ease-in-out infinite",
       },
       keyframes: {
         gradient: {
           "0%, 100%": { backgroundPosition: "0% 50%" },
           "50%": { backgroundPosition: "100% 50%" },
         },
-        float: {
-          "0%, 100%": { transform: "translateY(0)" },
-          "50%": { transform: "translateY(-10px)" },
+        "float-3d": {
+          "0%, 100%": { transform: "translateY(0) rotateX(0deg) rotateY(0deg)" },
+          "25%": { transform: "translateY(-8px) rotateX(2deg) rotateY(-2deg)" },
+          "50%": { transform: "translateY(-14px) rotateX(-1deg) rotateY(2deg)" },
+          "75%": { transform: "translateY(-6px) rotateX(1deg) rotateY(-1deg)" },
         },
       },
       backgroundSize: {

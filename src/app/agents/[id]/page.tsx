@@ -86,7 +86,11 @@ export default function AgentPage() {
   }
 
   return (
-    <div className="min-h-screen">
+    <div className="min-h-screen relative noise">
+      {/* Background */}
+      <div className="fixed inset-0 pointer-events-none">
+        <div className="absolute inset-0 gradient-mesh" />
+      </div>
       {/* Header */}
       <section className="py-12 border-b border-white/5">
         <div className="container mx-auto px-4">

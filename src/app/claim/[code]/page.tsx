@@ -185,8 +185,7 @@ export default function ClaimPage() {
     <div className="min-h-screen flex items-center justify-center py-20 px-4 relative">
       {/* Background */}
       <div className="fixed inset-0 pointer-events-none">
-        <div className="absolute inset-0 grid-bg opacity-50" />
-        <div className="hero-orb hero-orb-cyan w-[400px] h-[400px] top-[-100px] left-1/2 -translate-x-1/2 opacity-30" />
+        <div className="absolute inset-0 gradient-mesh" />
       </div>
 
       <div className={clsx("glass-card max-w-lg mx-auto relative", theme === "light" && "bg-white/90")}>
