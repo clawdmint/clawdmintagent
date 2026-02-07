@@ -5,13 +5,15 @@ import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { useState, useEffect } from "react";
 import { clsx } from "clsx";
-import { Menu, X, Sparkles, Bot, User, Activity, Globe } from "lucide-react";
+import { Menu, X, Sparkles, Bot, User, Activity, Globe, AtSign } from "lucide-react";
 import { ThemeToggle } from "./theme-toggle";
 import { useTheme } from "./theme-provider";
 import { useWallet } from "./wallet-context";
+import { reverseResolveAddress } from "@/lib/clawd-names";
 
 const navItems = [
   { href: "/drops", label: "Drops", icon: Sparkles },
+  { href: "/names", label: ".clawd", icon: AtSign },
   { href: "/clawdverse", label: "Clawdverse", icon: Globe },
   { href: "/agents", label: "Agents", icon: Bot },
   { href: "/activity", label: "Activity", icon: Activity },
@@ -22,7 +24,17 @@ export function Header() {
   const pathname = usePathname();
   const { theme } = useTheme();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const { ready, authenticated, displayAddress, login, logout } = useWallet();
+  const { ready, authenticated, displayAddress, address, login, logout } = useWallet();
+  const [clawdName, setClawdName] = useState<string | null>(null);
+
+  // Resolve .clawd name for connected wallet
+  useEffect(() => {
+    if (address) {
+      reverseResolveAddress(address).then(setClawdName);
+    } else {
+      setClawdName(null);
+    }
+  }, [address]);
 
   // Close mobile menu on route change
   useEffect(() => {
@@ -139,7 +151,13 @@ export function Header() {
                     theme === "dark" ? "hover:bg-white/[0.08]" : "hover:bg-gray-100"
                   )}
                 >
-                  {displayAddress || "Connected"}
+                  {clawdName ? (
+                    <span className="bg-gradient-to-r from-cyan-400 to-blue-400 bg-clip-text text-transparent font-semibold">
+                      {clawdName}
+                    </span>
+                  ) : (
+                    displayAddress || "Connected"
+                  )}
                 </button>
               )}
 
