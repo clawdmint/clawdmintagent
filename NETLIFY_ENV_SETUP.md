@@ -35,6 +35,7 @@ These are safe to expose (bundled in client-side code).
 | `NEXT_PUBLIC_APP_URL` | All | No | `https://clawdmint.xyz` |
 | `NEXT_PUBLIC_APP_NAME` | All | No | `Clawdmint` |
 | `NEXT_PUBLIC_PRIVY_APP_ID` | All | No | `your_privy_app_id` |
+| `NEXT_PUBLIC_CLAWD_NAMES_ADDRESS` | All | No | `0xdc61D611Cb3D2700710E1eE3aeEBb2bF02C85Db7` |
 
 ---
 
