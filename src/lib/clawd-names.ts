@@ -6,30 +6,33 @@
  */
 import { createPublicClient, http, parseEther, formatEther } from "viem";
 import { base, baseSepolia } from "viem/chains";
-import { getEnv } from "./env";
 
 // ═══════════════════════════════════════════════════════════════════════
 // CONFIGURATION
+// IMPORTANT: NEXT_PUBLIC_ vars must use direct process.env access
+// (not dynamic bracket notation) for Next.js client-side bundling
 // ═══════════════════════════════════════════════════════════════════════
 
+const CHAIN_ID = parseInt(process.env.NEXT_PUBLIC_CHAIN_ID || "8453");
+const CLAWD_NAMES_ADDRESS = (process.env.NEXT_PUBLIC_CLAWD_NAMES_ADDRESS || "") as `0x${string}`;
+const ALCHEMY_ID = process.env.NEXT_PUBLIC_ALCHEMY_ID || "";
+
 function getChainId(): number {
-  return parseInt(getEnv("NEXT_PUBLIC_CHAIN_ID", "8453"));
+  return CHAIN_ID;
 }
 
 function getClawdNamesAddress(): `0x${string}` {
-  return getEnv("NEXT_PUBLIC_CLAWD_NAMES_ADDRESS", "") as `0x${string}`;
+  return CLAWD_NAMES_ADDRESS;
 }
 
 function getRpcUrl(): string {
-  const chainId = getChainId();
-  const alchemyId = getEnv("NEXT_PUBLIC_ALCHEMY_ID", "");
-  if (chainId === 8453) {
-    return alchemyId
-      ? `https://base-mainnet.g.alchemy.com/v2/${alchemyId}`
+  if (CHAIN_ID === 8453) {
+    return ALCHEMY_ID
+      ? `https://base-mainnet.g.alchemy.com/v2/${ALCHEMY_ID}`
       : "https://mainnet.base.org";
   }
-  return alchemyId
-    ? `https://base-sepolia.g.alchemy.com/v2/${alchemyId}`
+  return ALCHEMY_ID
+    ? `https://base-sepolia.g.alchemy.com/v2/${ALCHEMY_ID}`
     : "https://sepolia.base.org";
 }
 
@@ -219,9 +222,12 @@ export function normalizeName(name: string): string {
 // ON-CHAIN READ HELPERS
 // ═══════════════════════════════════════════════════════════════════════
 
-export async function checkNameAvailability(name: string): Promise<boolean> {
+export async function checkNameAvailability(name: string): Promise<boolean | null> {
   const address = getClawdNamesAddress();
-  if (!address) return false;
+  if (!address) {
+    console.warn("[ClawdNames] Contract address not set");
+    return null;
+  }
 
   const client = getPublicClient();
   try {
@@ -232,8 +238,9 @@ export async function checkNameAvailability(name: string): Promise<boolean> {
       args: [normalizeName(name)],
     });
     return available as boolean;
-  } catch {
-    return false;
+  } catch (err) {
+    console.error("[ClawdNames] checkNameAvailability error:", err);
+    return null;
   }
 }
 

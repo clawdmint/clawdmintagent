@@ -38,6 +38,7 @@ export default function NamesPage() {
   const [searchName, setSearchName] = useState("");
   const [checking, setChecking] = useState(false);
   const [available, setAvailable] = useState<boolean | null>(null);
+  const [contractError, setContractError] = useState(false);
   const [validationError, setValidationError] = useState<string | null>(null);
 
   const { writeContract, data: txHash, isPending: isWritePending } = useWriteContract();
@@ -79,11 +80,17 @@ export default function NamesPage() {
       setAvailable(null); setChecking(false); return;
     }
     setValidationError(null);
+    setContractError(false);
     setChecking(true);
     const timeout = setTimeout(async () => {
       if (!NAMES_ADDRESS) { setAvailable(true); setChecking(false); return; }
       const isAvail = await checkNameAvailability(searchName);
-      setAvailable(isAvail);
+      if (isAvail === null) {
+        setContractError(true);
+        setAvailable(null);
+      } else {
+        setAvailable(isAvail);
+      }
       setChecking(false);
     }, 400);
     return () => clearTimeout(timeout);
@@ -265,8 +272,19 @@ export default function NamesPage() {
               </div>
             )}
 
+            {/* Contract error */}
+            {!checking && !validationError && contractError && (
+              <div className={clsx(
+                "flex items-center gap-2 px-4 py-3 rounded-xl text-sm",
+                theme === "dark" ? "text-amber-400/80" : "text-amber-600"
+              )}>
+                <XCircle className="w-4 h-4 shrink-0" />
+                Unable to check availability. Please try again.
+              </div>
+            )}
+
             {/* Not available */}
-            {!checking && !validationError && available === false && (
+            {!checking && !validationError && !contractError && available === false && (
               <div className={clsx(
                 "flex items-center gap-3 px-4 py-3 rounded-xl",
                 theme === "dark" ? "text-red-400/70" : "text-red-400"
