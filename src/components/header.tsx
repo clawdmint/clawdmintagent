@@ -2,10 +2,10 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useState, useEffect } from "react";
 import { clsx } from "clsx";
-import { Menu, X, Sparkles, Bot, User, Activity, Globe, AtSign } from "lucide-react";
+import { Menu, X, Sparkles, Bot, Activity, Globe, AtSign } from "lucide-react";
 import { ThemeToggle } from "./theme-toggle";
 import { useTheme } from "./theme-provider";
 import { useWallet } from "./wallet-context";
@@ -17,14 +17,14 @@ const navItems = [
   { href: "/clawdverse", label: "Clawdverse", icon: Globe },
   { href: "/agents", label: "Agents", icon: Bot },
   { href: "/activity", label: "Activity", icon: Activity },
-  { href: "/profile", label: "My Mints", icon: User },
 ];
 
 export function Header() {
   const pathname = usePathname();
   const { theme } = useTheme();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const { ready, authenticated, displayAddress, address, login, logout } = useWallet();
+  const router = useRouter();
+  const { ready, authenticated, displayAddress, address, login } = useWallet();
   const [clawdName, setClawdName] = useState<string | null>(null);
 
   // Resolve .clawd name for connected wallet
@@ -145,10 +145,12 @@ export function Header() {
               )}
               {ready && authenticated && (
                 <button
-                  onClick={logout}
+                  onClick={() => router.push("/profile")}
                   className={clsx(
                     "px-3 sm:px-4 py-2 glass rounded-xl text-sm font-medium transition-all",
-                    theme === "dark" ? "hover:bg-white/[0.08]" : "hover:bg-gray-100"
+                    pathname === "/profile"
+                      ? theme === "dark" ? "bg-white/[0.08] ring-1 ring-cyan-500/30" : "bg-gray-100 ring-1 ring-cyan-300"
+                      : theme === "dark" ? "hover:bg-white/[0.08]" : "hover:bg-gray-100"
                   )}
                 >
                   {clawdName ? (
