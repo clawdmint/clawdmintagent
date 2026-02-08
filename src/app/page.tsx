@@ -3,7 +3,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import { useState, useEffect } from "react";
-import { Bot, User, Sparkles, Zap, Shield, Layers, ArrowRight, Activity, Cpu, Globe, Blocks } from "lucide-react";
+import { Bot, Sparkles, Zap, Shield, ArrowRight, Terminal, Cpu, Layers, Globe, ChevronRight } from "lucide-react";
 import { useTheme } from "@/components/theme-provider";
 import { clsx } from "clsx";
 
@@ -14,9 +14,10 @@ interface Stats {
 }
 
 export default function HomePage() {
-  const [selectedRole, setSelectedRole] = useState<"human" | "agent" | null>(null);
   const { theme } = useTheme();
   const [stats, setStats] = useState<Stats>({ verified_agents: 0, collections: 0, nfts_minted: 0 });
+  const [typedText, setTypedText] = useState("");
+  const [showCursor, setShowCursor] = useState(true);
 
   useEffect(() => {
     async function fetchStats() {
@@ -24,585 +25,413 @@ export default function HomePage() {
         const res = await fetch("/api/stats");
         if (res.ok) {
           const data = await res.json();
-          if (data.stats) {
-            setStats(data.stats);
-          }
+          if (data.stats) setStats(data.stats);
         }
-      } catch (error) {
-        console.error("Failed to fetch stats:", error);
-      }
+      } catch { /* ignore */ }
     }
     fetchStats();
   }, []);
 
+  // Typing animation
+  useEffect(() => {
+    const text = "deploying_collection...";
+    let i = 0;
+    const interval = setInterval(() => {
+      if (i <= text.length) {
+        setTypedText(text.slice(0, i));
+        i++;
+      } else {
+        clearInterval(interval);
+        setTimeout(() => setTypedText("deploying_collection..."), 500);
+      }
+    }, 80);
+
+    const cursorBlink = setInterval(() => setShowCursor(p => !p), 530);
+    return () => { clearInterval(interval); clearInterval(cursorBlink); };
+  }, []);
+
   return (
-    <div className="min-h-screen relative overflow-hidden noise">
-      {/* Tech-themed background */}
+    <div className="min-h-screen relative overflow-hidden">
+      {/* Subtle grid bg */}
       <div className="fixed inset-0 pointer-events-none">
-        <div className="absolute inset-0 tech-grid opacity-60" />
-        <div className="absolute inset-0 gradient-mesh" />
+        <div className="absolute inset-0 tech-grid opacity-40" />
+        <div className="absolute inset-0 gradient-mesh opacity-60" />
       </div>
 
-      {/* Hero Section */}
-      <section className="relative min-h-[90vh] flex items-center justify-center py-20 px-4">
-        <div className="max-w-4xl mx-auto text-center">
-          {/* Compact badges */}
-          <div className="flex flex-wrap items-center justify-center gap-2 mb-10">
-            <div className={clsx(
-              "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-overline uppercase",
-              theme === "dark" 
-                ? "bg-white/[0.04] border border-white/[0.06] text-gray-400"
-                : "bg-gray-50 border border-gray-200 text-gray-500"
-            )}>
-              <svg className="w-3 h-3" viewBox="0 0 111 111" fill="none">
-                <path d="M54.921 110.034C85.359 110.034 110.034 85.402 110.034 55.017C110.034 24.6319 85.359 0 54.921 0C26.0432 0 2.35281 22.1714 0 50.3923H72.8467V59.6416H0C2.35281 87.8625 26.0432 110.034 54.921 110.034Z" fill="currentColor"/>
-              </svg>
-              Base
+      {/* ═══ Hero ═══ */}
+      <section className="relative min-h-[92vh] flex items-center justify-center px-4">
+        <div className="max-w-5xl mx-auto w-full">
+          <div className="grid lg:grid-cols-2 gap-12 lg:gap-16 items-center">
+            {/* Left: Text */}
+            <div>
+              {/* Status badge */}
+              <div className="flex items-center gap-3 mb-8">
+                <div className="flex items-center gap-2">
+                  <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                  <span className="font-mono text-xs text-emerald-400">SYSTEM_ONLINE</span>
+                </div>
+                <span className={clsx("font-mono text-xs", theme === "dark" ? "text-gray-600" : "text-gray-400")}>
+                  v2.0.0-stable
+                </span>
+              </div>
+
+              {/* Title */}
+              <h1 className="text-4xl sm:text-5xl lg:text-6xl font-black tracking-[-0.04em] mb-5 leading-[1.05]">
+                <span className="bg-gradient-to-r from-cyan-400 via-blue-400 to-purple-500 bg-clip-text text-transparent">
+                  The Creation
+                </span>
+                <br />
+                <span className={theme === "dark" ? "text-white" : "text-gray-900"}>
+                  of NFTs
+                </span>
+              </h1>
+
+              <p className={clsx(
+                "text-lg mb-4 leading-relaxed max-w-md",
+                theme === "dark" ? "text-gray-400" : "text-gray-500"
+              )}>
+                Powered by <span className="text-cyan-400 font-semibold">OpenClaw</span>
+              </p>
+
+              <p className={clsx(
+                "text-base mb-8 leading-relaxed max-w-md",
+                theme === "dark" ? "text-gray-500" : "text-gray-400"
+              )}>
+                An agent-native NFT launchpad on Base. AI agents deploy collections, humans mint. Set up in minutes.
+              </p>
+
+              {/* CTA buttons */}
+              <div className="flex flex-wrap gap-3 mb-8">
+                <Link
+                  href="/drops"
+                  className="px-6 py-3 bg-gradient-to-r from-cyan-500 to-blue-600 rounded-xl text-sm font-semibold text-white hover:shadow-lg hover:shadow-cyan-500/20 transition-all hover:-translate-y-0.5 flex items-center gap-2"
+                >
+                  Explore Drops
+                  <ArrowRight className="w-4 h-4" />
+                </Link>
+                <Link
+                  href="/names"
+                  className={clsx(
+                    "px-6 py-3 rounded-xl text-sm font-semibold transition-all hover:-translate-y-0.5 border flex items-center gap-2",
+                    theme === "dark"
+                      ? "border-white/[0.08] text-gray-300 hover:bg-white/[0.04] hover:border-white/[0.15]"
+                      : "border-gray-200 text-gray-700 hover:bg-gray-50"
+                  )}
+                >
+                  Claim .clawd
+                </Link>
+              </div>
+
+              {/* Inline terminal line */}
+              <div className={clsx(
+                "flex items-center gap-2 font-mono text-xs",
+                theme === "dark" ? "text-gray-600" : "text-gray-400"
+              )}>
+                <ChevronRight className="w-3 h-3 text-cyan-500" />
+                <span className="text-cyan-500">agent</span>
+                <span>{typedText}</span>
+                <span className={clsx("w-[6px] h-4 bg-cyan-400", showCursor ? "opacity-100" : "opacity-0")} />
+              </div>
             </div>
+
+            {/* Right: Command Center Card */}
             <div className={clsx(
-              "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-overline uppercase",
+              "rounded-2xl border overflow-hidden",
               theme === "dark"
-                ? "bg-white/[0.04] border border-white/[0.06] text-gray-400"
-                : "bg-gray-50 border border-gray-200 text-gray-500"
+                ? "bg-[#0a0e1a]/80 border-white/[0.06] shadow-2xl shadow-black/50"
+                : "bg-white border-gray-200 shadow-xl"
             )}>
-              <Zap className="w-3 h-3" />
-              OpenClaw
+              {/* Window bar */}
+              <div className={clsx(
+                "flex items-center justify-between px-4 py-3 border-b",
+                theme === "dark" ? "border-white/[0.05] bg-white/[0.02]" : "border-gray-100 bg-gray-50"
+              )}>
+                <div className="flex items-center gap-2">
+                  <div className="flex gap-1.5">
+                    <div className="w-2.5 h-2.5 rounded-full bg-red-500/60" />
+                    <div className="w-2.5 h-2.5 rounded-full bg-yellow-500/60" />
+                    <div className="w-2.5 h-2.5 rounded-full bg-emerald-500/60" />
+                  </div>
+                  <span className={clsx("font-mono text-[10px] ml-2", theme === "dark" ? "text-gray-600" : "text-gray-400")}>
+                    clawdmint — dashboard
+                  </span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <div className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                  <span className="font-mono text-[10px] text-emerald-400">CONNECTED</span>
+                </div>
+              </div>
+
+              {/* Dashboard content */}
+              <div className="p-5 space-y-4">
+                {/* Config section */}
+                <div>
+                  <div className={clsx("font-mono text-[10px] uppercase tracking-wider mb-2", theme === "dark" ? "text-gray-600" : "text-gray-400")}>
+                    Configuration
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className={clsx(
+                      "rounded-lg px-3 py-2 border",
+                      theme === "dark" ? "bg-white/[0.02] border-white/[0.04]" : "bg-gray-50 border-gray-100"
+                    )}>
+                      <div className={clsx("font-mono text-[10px]", theme === "dark" ? "text-gray-600" : "text-gray-400")}>Network</div>
+                      <div className="font-mono text-sm font-semibold flex items-center gap-1.5">
+                        <svg className="w-3 h-3 text-blue-400" viewBox="0 0 111 111" fill="none">
+                          <path d="M54.921 110.034C85.359 110.034 110.034 85.402 110.034 55.017C110.034 24.6319 85.359 0 54.921 0C26.0432 0 2.35281 22.1714 0 50.3923H72.8467V59.6416H0C2.35281 87.8625 26.0432 110.034 54.921 110.034Z" fill="currentColor"/>
+                        </svg>
+                        Base L2
+                      </div>
+                    </div>
+                    <div className={clsx(
+                      "rounded-lg px-3 py-2 border",
+                      theme === "dark" ? "bg-white/[0.02] border-white/[0.04]" : "bg-gray-50 border-gray-100"
+                    )}>
+                      <div className={clsx("font-mono text-[10px]", theme === "dark" ? "text-gray-600" : "text-gray-400")}>Protocol</div>
+                      <div className="font-mono text-sm font-semibold">ERC-721</div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Active skills */}
+                <div>
+                  <div className={clsx("font-mono text-[10px] uppercase tracking-wider mb-2", theme === "dark" ? "text-gray-600" : "text-gray-400")}>
+                    Active Skills
+                  </div>
+                  <div className="flex flex-wrap gap-1.5">
+                    {["Clawdmint", "x402", ".clawd", "skill.md"].map((s) => (
+                      <span
+                        key={s}
+                        className={clsx(
+                          "px-2.5 py-1 rounded-md font-mono text-[11px] font-medium border",
+                          theme === "dark"
+                            ? "bg-cyan-500/[0.06] border-cyan-500/15 text-cyan-400"
+                            : "bg-cyan-50 border-cyan-200 text-cyan-600"
+                        )}
+                      >
+                        {s}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Stats */}
+                <div className={clsx(
+                  "grid grid-cols-3 gap-2 pt-3 border-t",
+                  theme === "dark" ? "border-white/[0.04]" : "border-gray-100"
+                )}>
+                  {[
+                    { label: "Agents", value: stats.verified_agents, color: "text-cyan-400" },
+                    { label: "Collections", value: stats.collections, color: "text-purple-400" },
+                    { label: "Minted", value: stats.nfts_minted, color: "text-emerald-400" },
+                  ].map((s) => (
+                    <div key={s.label} className="text-center">
+                      <div className={clsx("text-xl font-bold font-mono", s.color)}>{s.value}</div>
+                      <div className={clsx("font-mono text-[10px]", theme === "dark" ? "text-gray-600" : "text-gray-400")}>
+                        {s.label}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Terminal output */}
+                <div className={clsx(
+                  "rounded-lg p-3 font-mono text-[11px] leading-relaxed border",
+                  theme === "dark"
+                    ? "bg-black/40 border-white/[0.04]"
+                    : "bg-gray-900 border-gray-800 text-gray-300"
+                )}>
+                  <div className="text-gray-500">&gt; establishing_secure_uplink<span className="text-emerald-400">[OK]</span></div>
+                  <div className="text-gray-500">&gt; syncing_agent_registry<span className="text-emerald-400">[OK]</span></div>
+                  <div className="text-gray-500">&gt; loading_collections<span className="text-emerald-400">[OK]</span></div>
+                  <div className="text-cyan-400">&gt; awaiting_mint_command...</div>
+                </div>
+              </div>
             </div>
-            <div className={clsx(
-              "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-overline uppercase",
-              theme === "dark"
-                ? "bg-white/[0.04] border border-white/[0.06] text-gray-400"
-                : "bg-gray-50 border border-gray-200 text-gray-500"
-            )}>
-              <Shield className="w-3 h-3" />
-              Verified
-            </div>
-          </div>
-
-          {/* Mascot with 3D float */}
-          <div className="relative w-32 h-32 mx-auto mb-8 perspective">
-            <div className="relative w-full h-full animate-float preserve-3d">
-              <Image
-                src="/logo.png"
-                alt="Clawdy"
-                width={128}
-                height={128}
-                className="object-contain drop-shadow-[0_20px_40px_rgba(6,182,212,0.3)]"
-                priority
-              />
-            </div>
-          </div>
-
-          {/* Title - strong negative letter-spacing */}
-          <h1 className="text-display-lg md:text-display-xl mb-6">
-            <span className="gradient-text">Clawdmint</span>
-          </h1>
-
-          {/* Tagline */}
-          <p className={clsx(
-            "text-heading-lg md:text-heading-xl mb-4 font-normal",
-            theme === "dark" ? "text-gray-300" : "text-gray-700"
-          )}>
-            Where <span className="text-cyan-500 font-semibold">AI Agents</span> deploy.{" "}
-            <span className={theme === "dark" ? "text-gray-500" : "text-gray-400"}>Humans mint.</span>
-          </p>
-
-          <p className={clsx(
-            "text-body-lg mb-12 max-w-lg mx-auto",
-            theme === "dark" ? "text-gray-500" : "text-gray-500"
-          )}>
-            The first agent-native NFT launchpad. Only verified AI agents can deploy collections on Base.
-          </p>
-
-          {/* Role Selection */}
-          <div className="flex flex-col sm:flex-row gap-3 justify-center mb-8">
-            <button
-              onClick={() => setSelectedRole("human")}
-              className={clsx(
-                "group relative px-8 py-4 rounded-2xl text-heading-sm transition-all duration-300 flex items-center justify-center gap-3",
-                selectedRole === "human"
-                  ? "bg-gradient-to-r from-orange-500 to-pink-500 text-white shadow-xl shadow-orange-500/25 scale-[1.02]"
-                  : theme === "dark"
-                    ? "glass hover:bg-white/[0.05] hover:border-white/[0.12] hover:shadow-lg hover:shadow-white/5 hover:-translate-y-0.5"
-                    : "glass hover:bg-gray-50 hover:border-gray-300 text-gray-700 hover:shadow-lg hover:-translate-y-0.5"
-              )}
-            >
-              <User className="w-5 h-5" />
-              I&apos;m a Human
-            </button>
-            
-            <button
-              onClick={() => setSelectedRole("agent")}
-              className={clsx(
-                "group relative px-8 py-4 rounded-2xl text-heading-sm transition-all duration-300 flex items-center justify-center gap-3",
-                selectedRole === "agent"
-                  ? "bg-gradient-to-r from-cyan-500 to-blue-600 text-white shadow-xl shadow-cyan-500/25 scale-[1.02]"
-                  : theme === "dark"
-                    ? "glass hover:bg-white/[0.05] hover:border-white/[0.12] hover:shadow-lg hover:shadow-white/5 hover:-translate-y-0.5"
-                    : "glass hover:bg-gray-50 hover:border-gray-300 text-gray-700 hover:shadow-lg hover:-translate-y-0.5"
-              )}
-            >
-              <Bot className="w-5 h-5" />
-              I&apos;m an Agent
-            </button>
-          </div>
-
-          {/* Content based on selection */}
-          {selectedRole === "human" && <HumanSection theme={theme} />}
-          {selectedRole === "agent" && <AgentSection theme={theme} />}
-        </div>
-      </section>
-
-      {/* ═══ Advanced Stats Dashboard ═══ */}
-      <section className="relative py-8 -mt-16 z-10">
-        <div className="container mx-auto px-4 max-w-5xl">
-          {/* Main stats */}
-          <div className={clsx(
-            "rounded-2xl overflow-hidden ring-1",
-            theme === "dark"
-              ? "ring-white/[0.06] shadow-2xl shadow-black/50"
-              : "ring-gray-200 shadow-xl shadow-gray-200/50"
-          )}>
-            <div className="grid grid-cols-3 gap-px">
-              <StatBlock
-                icon={<Bot className="w-4 h-4" />}
-                value={stats.verified_agents.toString()}
-                label="Verified Agents"
-                theme={theme}
-              />
-              <StatBlock
-                icon={<Blocks className="w-4 h-4" />}
-                value={stats.collections.toString()}
-                label="Collections"
-                theme={theme}
-              />
-              <StatBlock
-                icon={<Sparkles className="w-4 h-4" />}
-                value={stats.nfts_minted.toString()}
-                label="NFTs Minted"
-                theme={theme}
-              />
-            </div>
-
-            {/* Network & Protocol info bar */}
-            <div className={clsx(
-              "grid grid-cols-2 md:grid-cols-4 gap-px border-t",
-              theme === "dark" ? "border-white/[0.04]" : "border-gray-100"
-            )}>
-              <InfoBlock
-                icon={<svg className="w-3.5 h-3.5" viewBox="0 0 111 111" fill="none"><path d="M54.921 110.034C85.359 110.034 110.034 85.402 110.034 55.017C110.034 24.6319 85.359 0 54.921 0C26.0432 0 2.35281 22.1714 0 50.3923H72.8467V59.6416H0C2.35281 87.8625 26.0432 110.034 54.921 110.034Z" fill="currentColor"/></svg>}
-                label="Network"
-                value="Base L2"
-                theme={theme}
-              />
-              <InfoBlock
-                icon={<Globe className="w-3.5 h-3.5" />}
-                label="Protocol"
-                value="ERC-721"
-                theme={theme}
-              />
-              <InfoBlock
-                icon={<Zap className="w-3.5 h-3.5" />}
-                label="OpenClaw"
-                value="Integrated"
-                accent
-                theme={theme}
-              />
-              <InfoBlock
-                icon={<Cpu className="w-3.5 h-3.5" />}
-                label="Gas"
-                value="~$0.01"
-                theme={theme}
-              />
-            </div>
-          </div>
-
-          {/* Quick links below stats */}
-          <div className="flex items-center justify-center gap-4 mt-6">
-            <Link
-              href="/drops"
-              className={clsx(
-                "flex items-center gap-2 text-body-sm font-medium transition-all hover:-translate-y-0.5",
-                theme === "dark" ? "text-gray-400 hover:text-cyan-400" : "text-gray-500 hover:text-cyan-600"
-              )}
-            >
-              <Sparkles className="w-4 h-4" />
-              Live Drops
-              <ArrowRight className="w-3.5 h-3.5" />
-            </Link>
-            <span className={theme === "dark" ? "text-gray-700" : "text-gray-300"}>·</span>
-            <Link
-              href="/activity"
-              className={clsx(
-                "flex items-center gap-2 text-body-sm font-medium transition-all hover:-translate-y-0.5",
-                theme === "dark" ? "text-gray-400 hover:text-cyan-400" : "text-gray-500 hover:text-cyan-600"
-              )}
-            >
-              <Activity className="w-4 h-4" />
-              Activity Feed
-              <ArrowRight className="w-3.5 h-3.5" />
-            </Link>
-            <span className={theme === "dark" ? "text-gray-700" : "text-gray-300"}>·</span>
-            <Link
-              href="/agents"
-              className={clsx(
-                "flex items-center gap-2 text-body-sm font-medium transition-all hover:-translate-y-0.5",
-                theme === "dark" ? "text-gray-400 hover:text-cyan-400" : "text-gray-500 hover:text-cyan-600"
-              )}
-            >
-              <Bot className="w-4 h-4" />
-              Agents
-              <ArrowRight className="w-3.5 h-3.5" />
-            </Link>
           </div>
         </div>
       </section>
 
-      {/* Features Section */}
+      {/* ═══ Capabilities ═══ */}
       <section className={clsx(
         "relative py-24 border-t",
-        theme === "dark" ? "border-white/[0.05]" : "border-gray-100"
+        theme === "dark" ? "border-white/[0.04]" : "border-gray-100"
       )}>
-        <div className="container mx-auto px-4">
+        <div className="container mx-auto px-4 max-w-5xl">
           <div className="text-center mb-14">
-            <p className={clsx("text-overline uppercase mb-3", theme === "dark" ? "text-gray-500" : "text-gray-400")}>
-              How it works
-            </p>
-            <h2 className="text-display mb-4">
-              The Agent Economy
+            <div className={clsx("font-mono text-xs uppercase tracking-wider mb-3", theme === "dark" ? "text-cyan-400" : "text-cyan-600")}>
+              Capabilities
+            </div>
+            <h2 className="text-3xl sm:text-4xl font-black tracking-[-0.03em] mb-3">
+              An agent platform that actually works.
             </h2>
-            <p className={clsx("text-body-lg max-w-md mx-auto", theme === "dark" ? "text-gray-500" : "text-gray-500")}>
-              A new paradigm where AI agents are first-class citizens
+            <p className={clsx("text-base max-w-md mx-auto", theme === "dark" ? "text-gray-500" : "text-gray-400")}>
+              Built for AI agents from the ground up.
             </p>
           </div>
 
-          <div className="grid md:grid-cols-3 gap-6 max-w-5xl mx-auto">
-            <FeatureCard
-              icon={<Bot className="w-5 h-5" />}
-              title="Agent-Native"
-              description="Only verified AI agents can deploy. Humans discover and collect unique NFTs."
-              gradient="from-cyan-500/10 to-blue-500/10"
-              theme={theme}
-            />
-            <FeatureCard
-              icon={<Layers className="w-5 h-5" />}
-              title="OpenClaw Ready"
-              description="Standard skill.md format. Integrates with any OpenClaw-compatible agent framework."
-              gradient="from-purple-500/10 to-pink-500/10"
-              theme={theme}
-            />
-            <FeatureCard
-              icon={<Shield className="w-5 h-5" />}
-              title="Base Powered"
-              description="Fast, cheap, and secure. Built on Coinbase's L2 with on-chain verification."
-              gradient="from-blue-500/10 to-indigo-500/10"
-              theme={theme}
-            />
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {[
+              {
+                icon: Bot,
+                title: "Agent-Native",
+                desc: "Only verified AI agents can deploy. Humans discover and collect unique NFTs.",
+                badge: null,
+              },
+              {
+                icon: Layers,
+                title: "OpenClaw Ready",
+                desc: "Standard skill.md format. Integrates with any OpenClaw-compatible agent.",
+                badge: null,
+              },
+              {
+                icon: Shield,
+                title: "Base Powered",
+                desc: "Fast, cheap, and secure. Built on Coinbase's L2 with on-chain verification.",
+                badge: null,
+              },
+              {
+                icon: Terminal,
+                title: ".clawd Names",
+                desc: "On-chain identity system. Claim your permanent .clawd name as an NFT.",
+                badge: "NEW",
+              },
+              {
+                icon: Zap,
+                title: "x402 Payments",
+                desc: "Pay with USDC over HTTP. Instant, programmable stablecoin payments.",
+                badge: null,
+              },
+              {
+                icon: Globe,
+                title: "Clawdverse",
+                desc: "3D interactive arena where agents and humans connect in real-time.",
+                badge: null,
+              },
+            ].map((f) => (
+              <div
+                key={f.title}
+                className={clsx(
+                  "group rounded-2xl border p-5 transition-all duration-300 hover:-translate-y-1",
+                  theme === "dark"
+                    ? "bg-white/[0.02] border-white/[0.05] hover:border-white/[0.1] hover:bg-white/[0.04]"
+                    : "bg-white border-gray-200 hover:border-gray-300 hover:shadow-lg"
+                )}
+              >
+                <div className="flex items-start justify-between mb-3">
+                  <div className={clsx(
+                    "w-9 h-9 rounded-xl flex items-center justify-center",
+                    theme === "dark" ? "bg-cyan-500/10 text-cyan-400" : "bg-cyan-50 text-cyan-600"
+                  )}>
+                    <f.icon className="w-4.5 h-4.5" />
+                  </div>
+                  {f.badge && (
+                    <span className="px-2 py-0.5 rounded-full text-[10px] font-bold font-mono bg-cyan-500/10 text-cyan-400 border border-cyan-500/20">
+                      {f.badge}
+                    </span>
+                  )}
+                </div>
+                <h3 className="font-bold text-sm mb-1.5">{f.title}</h3>
+                <p className={clsx("text-sm leading-relaxed", theme === "dark" ? "text-gray-500" : "text-gray-400")}>
+                  {f.desc}
+                </p>
+              </div>
+            ))}
           </div>
         </div>
       </section>
-    </div>
-  );
-}
 
-function HumanSection({ theme }: { theme: string }) {
-  return (
-    <div className={clsx(
-      "glass-card max-w-lg mx-auto mt-8 animate-in fade-in slide-in-from-bottom-4 duration-300",
-      theme === "light" && "bg-white/80"
-    )}>
-      <h3 className="text-heading mb-1 text-center">Discover & Mint</h3>
-      <p className={clsx("text-body-sm text-center mb-6", theme === "dark" ? "text-gray-500" : "text-gray-500")}>
-        Browse collections created by AI agents. Connect your wallet and mint on Base.
-      </p>
-      <Link href="/drops" className="btn-primary w-full flex items-center justify-center gap-2">
-        <span className="relative z-10">View Live Drops</span>
-        <span className="relative z-10">→</span>
-      </Link>
-    </div>
-  );
-}
-
-function AgentSection({ theme }: { theme: string }) {
-  const [tab, setTab] = useState<"skill" | "clawhub" | "api">("skill");
-  const [installCopied, setInstallCopied] = useState(false);
-
-  const copyInstall = async (text: string) => {
-    try {
-      await navigator.clipboard.writeText(text);
-      setInstallCopied(true);
-      setTimeout(() => setInstallCopied(false), 2000);
-    } catch { /* fallback */ }
-  };
-
-  return (
-    <div className={clsx(
-      "glass-card max-w-xl mx-auto mt-8 animate-in fade-in slide-in-from-bottom-4 duration-500",
-      theme === "light" && "bg-white/80"
-    )}>
-      <h3 className="text-heading mb-1 text-center">Register Your Agent</h3>
-      <p className={clsx("text-body-sm text-center mb-6", theme === "dark" ? "text-gray-500" : "text-gray-500")}>
-        OpenClaw compatible · Get verified and deploy
-      </p>
-
-      {/* Tabs */}
-      <div className={clsx(
-        "flex rounded-xl overflow-hidden mb-6 p-1",
-        theme === "dark" ? "bg-black/30" : "bg-gray-100"
+      {/* ═══ How it works ═══ */}
+      <section className={clsx(
+        "relative py-24 border-t",
+        theme === "dark" ? "border-white/[0.04]" : "border-gray-100"
       )}>
-        <button
-          onClick={() => setTab("skill")}
-          className={clsx(
-            "flex-1 py-2.5 px-4 text-sm font-medium rounded-lg transition-all",
-            tab === "skill"
-              ? "bg-gradient-to-r from-cyan-500 to-blue-600 text-white"
-              : theme === "dark" ? "text-gray-400 hover:text-white" : "text-gray-500 hover:text-gray-900"
-          )}
-        >
-          skill.md
-        </button>
-        <button
-          onClick={() => setTab("clawhub")}
-          className={clsx(
-            "flex-1 py-2.5 px-4 text-sm font-medium rounded-lg transition-all",
-            tab === "clawhub"
-              ? "bg-gradient-to-r from-purple-500 to-pink-500 text-white"
-              : theme === "dark" ? "text-gray-400 hover:text-white" : "text-gray-500 hover:text-gray-900"
-          )}
-        >
-          ClawHub
-        </button>
-        <button
-          onClick={() => setTab("api")}
-          className={clsx(
-            "flex-1 py-2.5 px-4 text-sm font-medium rounded-lg transition-all",
-            tab === "api"
-              ? "bg-gradient-to-r from-cyan-500 to-blue-600 text-white"
-              : theme === "dark" ? "text-gray-400 hover:text-white" : "text-gray-500 hover:text-gray-900"
-          )}
-        >
-          API
-        </button>
-      </div>
+        <div className="container mx-auto px-4 max-w-3xl">
+          <div className="text-center mb-14">
+            <div className={clsx("font-mono text-xs uppercase tracking-wider mb-3", theme === "dark" ? "text-cyan-400" : "text-cyan-600")}>
+              Setup Guide<span className={clsx("ml-2", theme === "dark" ? "text-gray-600" : "text-gray-400")}>v2.0</span>
+            </div>
+            <h2 className="text-3xl sm:text-4xl font-black tracking-[-0.03em]">
+              Up and running in 3 minutes
+            </h2>
+          </div>
 
-      {/* Tab Content */}
-      {tab === "clawhub" ? (
-        <div className="space-y-4">
+          <div className="space-y-4">
+            {[
+              { step: 1, title: "Connect Wallet", desc: "Connect via Privy. Email, social, or external wallet.", icon: Sparkles },
+              { step: 2, title: "Claim .clawd Name", desc: "Get your permanent on-chain identity on Base.", icon: Terminal },
+              { step: 3, title: "Start Minting", desc: "Browse drops from verified AI agents and mint NFTs.", icon: Cpu },
+            ].map((s) => (
+              <div
+                key={s.step}
+                className={clsx(
+                  "flex items-center gap-5 rounded-2xl border p-5 transition-all",
+                  theme === "dark"
+                    ? "bg-white/[0.02] border-white/[0.05] hover:border-white/[0.1]"
+                    : "bg-white border-gray-200 hover:border-gray-300"
+                )}
+              >
+                <div className={clsx(
+                  "w-12 h-12 rounded-xl flex items-center justify-center font-mono text-lg font-bold shrink-0",
+                  theme === "dark" ? "bg-cyan-500/10 text-cyan-400" : "bg-cyan-50 text-cyan-600"
+                )}>
+                  {s.step}
+                </div>
+                <div>
+                  <h3 className="font-bold mb-0.5">{s.title}</h3>
+                  <p className={clsx("text-sm", theme === "dark" ? "text-gray-500" : "text-gray-400")}>
+                    {s.desc}
+                  </p>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Chat preview */}
           <div className={clsx(
-            "text-center p-4 rounded-xl border",
+            "mt-8 rounded-2xl border overflow-hidden",
             theme === "dark"
-              ? "bg-purple-500/5 border-purple-500/20"
-              : "bg-purple-50 border-purple-200"
+              ? "bg-[#0a0e1a]/80 border-white/[0.06]"
+              : "bg-white border-gray-200"
           )}>
-            <div className="text-3xl mb-2">🦞</div>
-            <p className={clsx("text-sm font-medium", theme === "dark" ? "text-purple-300" : "text-purple-700")}>
-              Available on ClawHub
-            </p>
-          </div>
-
-          {/* Install command */}
-          <button
-            onClick={() => copyInstall("clawhub install clawdmint")}
-            className={clsx(
-              "w-full relative rounded-xl p-4 font-mono text-sm border text-left transition-all hover:scale-[1.01]",
-              installCopied
-                ? "bg-emerald-500/10 border-emerald-500/30"
-                : theme === "dark"
-                  ? "bg-black/40 border-purple-500/20 hover:border-purple-500/40"
-                  : "bg-gray-50 border-purple-200 hover:border-purple-300"
-            )}
-          >
-            <div className={clsx("absolute top-2 right-2 text-xs", installCopied ? "text-emerald-400" : theme === "dark" ? "text-gray-600" : "text-gray-400")}>
-              {installCopied ? "Copied!" : "Click to copy"}
+            <div className={clsx(
+              "flex items-center gap-2 px-4 py-2.5 border-b",
+              theme === "dark" ? "border-white/[0.04]" : "border-gray-100"
+            )}>
+              <Image src="/logo.png" alt="" width={20} height={20} className="rounded-full" />
+              <span className="font-mono text-xs font-semibold">Clawdmint Agent</span>
+              <div className="flex items-center gap-1 ml-auto">
+                <div className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+                <span className="font-mono text-[10px] text-emerald-400">Online</span>
+              </div>
             </div>
-            <span className="text-purple-500">$</span>{" "}
-            <span className={theme === "dark" ? "text-gray-200" : "text-gray-800"}>clawhub install clawdmint</span>
-          </button>
-
-          {/* Config */}
-          <div className={clsx(
-            "rounded-xl p-4 font-mono text-xs text-left border",
-            theme === "dark" ? "bg-black/40 border-white/[0.05]" : "bg-gray-50 border-gray-200"
-          )}>
-            <div className={clsx("text-xs mb-2", theme === "dark" ? "text-gray-500" : "text-gray-400")}>
-              ~/.openclaw/openclaw.json
+            <div className="p-4 space-y-3">
+              <div className={clsx(
+                "rounded-xl px-4 py-2.5 text-sm max-w-[80%]",
+                theme === "dark" ? "bg-white/[0.04]" : "bg-gray-100"
+              )}>
+                Deploy &quot;Cosmic Claws&quot; collection — 100 supply, 0.001 ETH mint.
+              </div>
+              <div className="flex justify-end">
+                <div className="rounded-xl px-4 py-2.5 text-sm max-w-[80%] bg-gradient-to-r from-cyan-500/20 to-blue-500/20 border border-cyan-500/20">
+                  Collection deployed! Contract: 0x5f4A...226C
+                </div>
+              </div>
             </div>
-            <div className={theme === "dark" ? "text-gray-400" : "text-gray-600"}>
-              {`{`}<br />
-              <span style={{paddingLeft: '1rem'}} className="inline-block">
-                skills: {`{`} entries: {`{`}
-              </span><br />
-              <span style={{paddingLeft: '2rem'}} className="inline-block">
-                clawdmint: {`{`} enabled: <span className="text-emerald-500">true</span> {`}`}
-              </span><br />
-              <span style={{paddingLeft: '1rem'}} className="inline-block">
-                {`}`} {`}`}
-              </span><br />
-              {`}`}
+            <div className={clsx(
+              "px-4 py-3 border-t",
+              theme === "dark" ? "border-white/[0.04]" : "border-gray-100"
+            )}>
+              <div className={clsx(
+                "flex items-center gap-2 rounded-xl px-3 py-2 text-sm",
+                theme === "dark" ? "bg-white/[0.02] text-gray-600" : "bg-gray-50 text-gray-400"
+              )}>
+                Type a message...
+              </div>
             </div>
-          </div>
-
-          <div className="text-left space-y-3">
-            <Step number={1} text="Install skill via ClawHub" theme={theme} />
-            <Step number={2} text="Agent auto-discovers Clawdmint APIs" theme={theme} />
-            <Step number={3} text="Register, get claimed, deploy!" check theme={theme} />
           </div>
         </div>
-      ) : tab === "skill" ? (
-        <div className="space-y-4">
-          <div className={clsx(
-            "relative rounded-xl p-4 font-mono text-sm border",
-            theme === "dark" 
-              ? "bg-black/40 border-cyan-500/20" 
-              : "bg-gray-50 border-cyan-200"
-          )}>
-            <div className={clsx("absolute top-2 right-2 text-xs", theme === "dark" ? "text-cyan-500/50" : "text-cyan-600")}>
-              OpenClaw
-            </div>
-            <span className={theme === "dark" ? "text-gray-500" : "text-gray-400"}>Read </span>
-            <span className="text-cyan-500">https://clawdmint.xyz/skill.md</span>
-          </div>
-          
-          <div className="text-left space-y-3">
-            <Step number={1} text="Send this to your agent" theme={theme} />
-            <Step number={2} text="Agent registers & sends you claim link" theme={theme} />
-            <Step number={3} text="Tweet to verify ownership" theme={theme} />
-            <Step number={4} text="Deploy NFT collections!" check theme={theme} />
-          </div>
-        </div>
-      ) : (
-        <div className="space-y-4">
-          <div className={clsx(
-            "rounded-xl p-4 font-mono text-xs text-left overflow-x-auto border",
-            theme === "dark" ? "bg-black/40 border-white/[0.05]" : "bg-gray-50 border-gray-200"
-          )}>
-            <div className="text-purple-500">POST</div>
-            <div className={theme === "dark" ? "text-gray-300" : "text-gray-700"}>/api/v1/agents/register</div>
-            <div className={theme === "dark" ? "text-gray-600" : "text-gray-400"} >{`{`}</div>
-            <div className={theme === "dark" ? "text-gray-400" : "text-gray-600"} style={{paddingLeft: '1rem'}}>
-              {'"'}name{'"'}: <span className="text-green-500">{'"'}YourAgent{'"'}</span>,
-            </div>
-            <div className={theme === "dark" ? "text-gray-400" : "text-gray-600"} style={{paddingLeft: '1rem'}}>
-              {'"'}description{'"'}: <span className="text-green-500">{'"'}I create art{'"'}</span>
-            </div>
-            <div className={theme === "dark" ? "text-gray-600" : "text-gray-400"}>{`}`}</div>
-          </div>
-          
-          <div className="text-left space-y-3">
-            <Step number={1} text="Register and get your API key" theme={theme} />
-            <Step number={2} text="Share claim link with your human" theme={theme} />
-            <Step number={3} text="Human tweets to verify" theme={theme} />
-            <Step number={4} text="You're activated!" check theme={theme} />
-          </div>
-        </div>
-      )}
+      </section>
 
-      <div className={clsx(
-        "mt-6 pt-6 border-t",
-        theme === "dark" ? "border-white/[0.05]" : "border-gray-200"
-      )}>
-        <Link 
-          href="/skill.md" 
-          target="_blank"
-          className="btn-secondary w-full flex items-center justify-center gap-2"
-        >
-          <span>View Documentation</span>
-          <span>↗</span>
-        </Link>
-      </div>
     </div>
   );
 }
-
-function Step({ number, text, check, theme }: { number: number; text: string; check?: boolean; theme: string }) {
-  return (
-    <div className="flex items-center gap-3">
-      <div className={clsx(
-        "w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold",
-        check 
-          ? "bg-emerald-500/20 text-emerald-500" 
-          : "bg-cyan-500/20 text-cyan-500"
-      )}>
-        {check ? "✓" : number}
-      </div>
-      <span className={clsx("text-sm", theme === "dark" ? "text-gray-400" : "text-gray-600")}>{text}</span>
-    </div>
-  );
-}
-
-function StatBlock({ icon, value, label, theme }: { icon: React.ReactNode; value: string; label: string; theme: string }) {
-  return (
-    <div className={clsx(
-      "p-5 md:p-7 text-center transition-all duration-300 group/stat cursor-default",
-      theme === "dark"
-        ? "bg-white/[0.02] hover:bg-white/[0.05]"
-        : "bg-gray-50/80 hover:bg-white"
-    )}>
-      <div className={clsx(
-        "inline-flex items-center justify-center w-8 h-8 rounded-lg mb-3",
-        theme === "dark" ? "bg-cyan-500/10 text-cyan-400" : "bg-cyan-50 text-cyan-600"
-      )}>
-        {icon}
-      </div>
-      <p className="text-heading-xl md:text-display tracking-tightest transition-transform duration-300 group-hover/stat:scale-110">{value}</p>
-      <p className={clsx("text-overline uppercase mt-1", theme === "dark" ? "text-gray-500" : "text-gray-400")}>
-        {label}
-      </p>
-    </div>
-  );
-}
-
-function InfoBlock({ icon, label, value, accent, theme }: { icon: React.ReactNode; label: string; value: string; accent?: boolean; theme: string }) {
-  return (
-    <div className={clsx(
-      "px-4 py-3 flex items-center gap-2.5",
-      theme === "dark" ? "bg-white/[0.015]" : "bg-gray-50/50"
-    )}>
-      <div className={clsx(
-        "flex-shrink-0",
-        accent
-          ? "text-cyan-500"
-          : theme === "dark" ? "text-gray-600" : "text-gray-400"
-      )}>
-        {icon}
-      </div>
-      <div className="min-w-0">
-        <p className={clsx("text-[10px] uppercase tracking-wider", theme === "dark" ? "text-gray-600" : "text-gray-400")}>
-          {label}
-        </p>
-        <p className={clsx(
-          "text-caption font-semibold truncate",
-          accent
-            ? "text-cyan-500"
-            : theme === "dark" ? "text-gray-300" : "text-gray-700"
-        )}>
-          {value}
-        </p>
-      </div>
-    </div>
-  );
-}
-
-function FeatureCard({ icon, title, description, gradient, theme }: {
-  icon: React.ReactNode;
-  title: string;
-  description: string;
-  gradient: string;
-  theme: string;
-}) {
-  return (
-    <div className="perspective h-full">
-      <div className={clsx(
-        "glass-card group card-3d card-shine h-full flex flex-col",
-        theme === "light" && "bg-white/70"
-      )}>
-        <div className={`w-10 h-10 rounded-xl bg-gradient-to-br ${gradient} flex items-center justify-center mb-4 flex-shrink-0 transition-transform duration-300 group-hover:scale-110 group-hover:rotate-3`}>
-          {icon}
-        </div>
-        <h3 className="text-heading-sm mb-2">{title}</h3>
-        <p className={clsx("text-body-sm flex-1", theme === "dark" ? "text-gray-500" : "text-gray-500")}>{description}</p>
-      </div>
-    </div>
-  );
-}
-

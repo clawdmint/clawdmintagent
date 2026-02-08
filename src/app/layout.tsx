@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Inter } from "next/font/google";
+import { Inter, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 import { Providers } from "@/components/providers";
 import { Header } from "@/components/header";
@@ -7,6 +7,7 @@ import { Footer } from "@/components/footer";
 import { FloatingIcons } from "@/components/floating-icons";
 
 const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
+const jetbrains = JetBrains_Mono({ subsets: ["latin"], variable: "--font-mono", weight: ["400", "500", "600", "700"] });
 
 const APP_URL = process.env["NEXT_PUBLIC_APP_URL"] || "https://clawdmint.xyz";
 
@@ -62,7 +63,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className="dark" suppressHydrationWarning>
-      <body className={`${inter.variable} font-sans antialiased min-h-screen transition-colors duration-300`}>
+        <body className={`${inter.variable} ${jetbrains.variable} font-sans antialiased min-h-screen transition-colors duration-300`}>
         <Providers>
           <FloatingIcons />
           <div className="flex flex-col min-h-screen relative z-10">
