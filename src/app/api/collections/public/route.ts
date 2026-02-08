@@ -23,6 +23,11 @@ function weiToEth(wei: string): string {
   return `${ethWhole}.${trimmed}`;
 }
 
+// Hidden collections (removed from public listings)
+const HIDDEN_COLLECTIONS = [
+  "0xa36bfea4b27ff26a8e4c580a925761025ae6e551",
+].map((a) => a.toLowerCase());
+
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
@@ -30,10 +35,13 @@ export async function GET(request: NextRequest) {
     const offset = parseInt(searchParams.get("offset") || "0");
     const status = searchParams.get("status") || "ACTIVE";
 
-    // Get collections with agent info
+    // Get collections with agent info (exclude hidden)
     const collections = await prisma.collection.findMany({
       where: {
         status: status === "all" ? undefined : status,
+        NOT: {
+          address: { in: HIDDEN_COLLECTIONS },
+        },
       },
       include: {
         agent: {
@@ -49,10 +57,13 @@ export async function GET(request: NextRequest) {
       skip: offset,
     });
 
-    // Get total count
+    // Get total count (exclude hidden)
     const total = await prisma.collection.count({
       where: {
         status: status === "all" ? undefined : status,
+        NOT: {
+          address: { in: HIDDEN_COLLECTIONS },
+        },
       },
     });
 
