@@ -5,9 +5,36 @@ import { WagmiProvider as PrivyWagmiProvider, createConfig as privyCreateConfig 
 import { WagmiProvider as BaseWagmiProvider, createConfig as baseCreateConfig, http } from "wagmi";
 import { base, baseSepolia } from "wagmi/chains";
 import { PrivyProvider } from "@privy-io/react-auth";
-import { useState, useEffect } from "react";
+import { useState, useEffect, Component, type ReactNode } from "react";
 import { ThemeProvider } from "./theme-provider";
 import { PrivyWalletProvider, FallbackWalletProvider } from "./wallet-context";
+
+// Error boundary to catch Privy initialization failures gracefully
+class PrivyErrorBoundary extends Component<
+  { children: ReactNode; onError: () => void },
+  { hasError: boolean }
+> {
+  constructor(props: { children: ReactNode; onError: () => void }) {
+    super(props);
+    this.state = { hasError: false };
+  }
+
+  static getDerivedStateFromError() {
+    return { hasError: true };
+  }
+
+  componentDidCatch(error: Error) {
+    console.warn("[Clawdmint] Privy initialization failed, falling back to basic wallet:", error.message);
+    this.props.onError();
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return null; // Parent will re-render with fallback
+    }
+    return this.props.children;
+  }
+}
 
 // Get chain based on environment
 const chainId = parseInt(process.env["NEXT_PUBLIC_CHAIN_ID"] || "8453");
@@ -84,42 +111,47 @@ export function Providers({ children }: { children: React.ReactNode }) {
     };
   }, []);
 
-  const privyEnabled = mounted && !!PRIVY_APP_ID;
+  const [privyError, setPrivyError] = useState(false);
+
+  // Privy is enabled only client-side with a valid-looking app ID
+  const privyEnabled = mounted && !!PRIVY_APP_ID && PRIVY_APP_ID.length > 10 && !privyError;
 
   // When Privy is available (client-side + valid app ID), use full Privy + Wagmi stack
   if (privyEnabled) {
     return (
       <ThemeProvider>
-        <PrivyProvider
-          appId={PRIVY_APP_ID}
-          config={{
-            appearance: {
-              theme: theme,
-              accentColor: "#06b6d4",
-              logo: "https://clawdmint.xyz/logo.png",
-            },
-            embeddedWallets: {
-              ethereum: {
-                createOnLogin: "users-without-wallets",
+        <PrivyErrorBoundary onError={() => setPrivyError(true)}>
+          <PrivyProvider
+            appId={PRIVY_APP_ID}
+            config={{
+              appearance: {
+                theme: theme,
+                accentColor: "#06b6d4",
+                logo: "https://clawdmint.xyz/logo.png",
               },
-            },
-            defaultChain: targetChain,
-            supportedChains: [targetChain],
-          }}
-        >
-          <QueryClientProvider client={queryClient}>
-            <PrivyWagmiProvider config={privyWagmiConfig}>
-              <PrivyWalletProvider>
-                {children}
-              </PrivyWalletProvider>
-            </PrivyWagmiProvider>
-          </QueryClientProvider>
-        </PrivyProvider>
+              embeddedWallets: {
+                ethereum: {
+                  createOnLogin: "users-without-wallets",
+                },
+              },
+              defaultChain: targetChain,
+              supportedChains: [targetChain],
+            }}
+          >
+            <QueryClientProvider client={queryClient}>
+              <PrivyWagmiProvider config={privyWagmiConfig}>
+                <PrivyWalletProvider>
+                  {children}
+                </PrivyWalletProvider>
+              </PrivyWagmiProvider>
+            </QueryClientProvider>
+          </PrivyProvider>
+        </PrivyErrorBoundary>
       </ThemeProvider>
     );
   }
 
-  // Fallback: during SSR/build or when Privy App ID is not set
+  // Fallback: during SSR/build, when Privy App ID is not set, or when Privy fails
   return (
     <ThemeProvider>
       <BaseWagmiProvider config={fallbackWagmiConfig}>

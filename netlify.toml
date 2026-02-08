@@ -4,7 +4,7 @@
 
 [build]
   # Clean build to prevent stale cache issues
-  command = "rm -rf .next .netlify/cache && npm run build"
+  command = "npm run build"
 
 [build.environment]
   NODE_VERSION = "20"
