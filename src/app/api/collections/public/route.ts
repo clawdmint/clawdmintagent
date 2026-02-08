@@ -24,9 +24,9 @@ function weiToEth(wei: string): string {
 }
 
 // Hidden collections (removed from public listings)
-const HIDDEN_COLLECTIONS = [
+const HIDDEN_COLLECTIONS = new Set([
   "0xa36bfea4b27ff26a8e4c580a925761025ae6e551",
-].map((a) => a.toLowerCase());
+]);
 
 export async function GET(request: NextRequest) {
   try {
@@ -35,14 +35,13 @@ export async function GET(request: NextRequest) {
     const offset = parseInt(searchParams.get("offset") || "0");
     const status = searchParams.get("status") || "ACTIVE";
 
-    // Get collections with agent info (exclude hidden)
-    const collections = await prisma.collection.findMany({
-      where: {
-        status: status === "all" ? undefined : status,
-        NOT: {
-          address: { in: HIDDEN_COLLECTIONS },
-        },
-      },
+    const whereClause = {
+      status: status === "all" ? undefined : status,
+    };
+
+    // Get collections with agent info
+    const allCollections = await prisma.collection.findMany({
+      where: whereClause,
       include: {
         agent: {
           select: {
@@ -53,19 +52,15 @@ export async function GET(request: NextRequest) {
         },
       },
       orderBy: { createdAt: "desc" },
-      take: limit,
-      skip: offset,
     });
 
-    // Get total count (exclude hidden)
-    const total = await prisma.collection.count({
-      where: {
-        status: status === "all" ? undefined : status,
-        NOT: {
-          address: { in: HIDDEN_COLLECTIONS },
-        },
-      },
-    });
+    // Filter out hidden collections in JS (more reliable than Prisma NOT/in)
+    const filtered = allCollections.filter(
+      (c) => !HIDDEN_COLLECTIONS.has(c.address.toLowerCase())
+    );
+
+    const total = filtered.length;
+    const collections = filtered.slice(offset, offset + limit);
 
     return NextResponse.json({
       success: true,
