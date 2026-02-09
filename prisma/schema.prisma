@@ -42,7 +42,6 @@ model Agent {
   // Relations
   claims        AgentClaim[]
   collections   Collection[]
-  
   @@index([eoa])
   @@index([status])
 }

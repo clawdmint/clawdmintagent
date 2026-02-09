@@ -15,7 +15,6 @@ const navItems = [
   { href: "/names", cmd: ".clawd" },
   { href: "/clawdverse", cmd: "verse" },
   { href: "/agents", cmd: "agents" },
-  { href: "/activity", cmd: "activity" },
 ];
 
 export function Header() {
