@@ -43,13 +43,14 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    // Count total WL entries
+    // Count total WL entries + offset for display position
     const totalEntries = await prisma.whitelistEntry.count();
+    const WL_POSITION_OFFSET = 449; // positions start from 450
 
     return NextResponse.json({
       success: true,
       message: "Whitelist entry submitted",
-      position: totalEntries,
+      position: totalEntries + WL_POSITION_OFFSET,
     });
   } catch (error) {
     console.error("Whitelist submission error:", error);
