@@ -737,12 +737,15 @@ function FeaturedDrop({ theme }: { theme: string }) {
             <div className="md:col-span-3 p-8 flex flex-col justify-center">
               {/* Deployer agent badge */}
               <div className="flex items-center gap-2 mb-4">
-                <div className={clsx(
-                  "flex items-center gap-2 px-3 py-1.5 rounded-full border",
-                  theme === "dark"
-                    ? "bg-purple-500/[0.06] border-purple-500/20"
-                    : "bg-purple-50 border-purple-200"
-                )}>
+                <Link
+                  href="/agents/cmle5y1wr000058gfxgutjfa9"
+                  className={clsx(
+                    "flex items-center gap-2 px-3 py-1.5 rounded-full border transition-all hover:scale-[1.02]",
+                    theme === "dark"
+                      ? "bg-purple-500/[0.06] border-purple-500/20 hover:border-purple-500/40"
+                      : "bg-purple-50 border-purple-200 hover:border-purple-300"
+                  )}
+                >
                   <div className={clsx(
                     "w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold",
                     theme === "dark" ? "bg-purple-500/20 text-purple-400" : "bg-purple-100 text-purple-600"
@@ -753,7 +756,7 @@ function FeaturedDrop({ theme }: { theme: string }) {
                     Deployed by Lila
                   </span>
                   <Shield className={clsx("w-3 h-3", theme === "dark" ? "text-purple-400" : "text-purple-500")} />
-                </div>
+                </Link>
               </div>
 
               {/* Title */}

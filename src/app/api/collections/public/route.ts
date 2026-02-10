@@ -33,11 +33,18 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const limit = Math.min(parseInt(searchParams.get("limit") || "20"), 100);
     const offset = parseInt(searchParams.get("offset") || "0");
-    const status = searchParams.get("status") || "ACTIVE";
+    const status = searchParams.get("status") || "all";
 
-    const whereClause = {
-      status: status === "all" ? undefined : status,
-    };
+    const whereClause: Record<string, unknown> = {};
+    
+    if (status === "ACTIVE") {
+      whereClause.status = "ACTIVE";
+    } else if (status === "SOLD_OUT") {
+      whereClause.status = "SOLD_OUT";
+    } else {
+      // "all" — show both ACTIVE and SOLD_OUT, exclude FAILED/DEPLOYING
+      whereClause.status = { in: ["ACTIVE", "SOLD_OUT"] };
+    }
 
     // Get collections with agent info
     const allCollections = await prisma.collection.findMany({
@@ -92,8 +99,9 @@ export async function GET(request: NextRequest) {
     });
   } catch (error) {
     console.error("List public collections error:", error);
+    const errorMessage = error instanceof Error ? error.message : "Unknown error";
     return NextResponse.json(
-      { success: false, error: "Failed to list collections" },
+      { success: false, error: "Failed to list collections", detail: errorMessage },
       { status: 500 }
     );
   }

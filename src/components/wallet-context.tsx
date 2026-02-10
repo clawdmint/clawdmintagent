@@ -1,8 +1,8 @@
 "use client";
 
-import React, { createContext, useContext, useCallback, useMemo } from "react";
+import React, { createContext, useContext, useCallback, useMemo, useState } from "react";
 import { usePrivy } from "@privy-io/react-auth";
-import { useAccount } from "wagmi";
+import { useAccount, useConnect, useDisconnect, type Connector } from "wagmi";
 
 interface WalletState {
   ready: boolean;
@@ -61,22 +61,48 @@ export function PrivyWalletProvider({ children }: { children: React.ReactNode })
 }
 
 /**
- * Fallback wallet provider when Privy is not available (SSR/build).
+ * Fallback wallet provider when Privy is not available.
+ * Uses wagmi directly for wallet connection (MetaMask, injected wallets).
  */
 export function FallbackWalletProvider({ children }: { children: React.ReactNode }) {
-  return (
-    <WalletContext.Provider
-      value={{
-        ready: false,
-        authenticated: false,
-        address: undefined,
-        displayAddress: null,
-        isConnected: false,
-        login: () => {},
-        logout: async () => {},
-      }}
-    >
-      {children}
-    </WalletContext.Provider>
+  const { address, isConnected } = useAccount();
+  const { connectors, connect } = useConnect();
+  const { disconnect } = useDisconnect();
+  const [mounted, setMounted] = useState(false);
+
+  React.useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  const displayAddress = address
+    ? `${address.slice(0, 6)}...${address.slice(-4)}`
+    : null;
+
+  const handleLogin = useCallback(() => {
+    // Try injected connector first (MetaMask, etc.), then first available
+    const injected = connectors.find((c: Connector) => c.id === "injected" || c.id === "metaMask");
+    const connector = injected || connectors[0];
+    if (connector) {
+      connect({ connector });
+    }
+  }, [connectors, connect]);
+
+  const handleLogout = useCallback(async () => {
+    disconnect();
+  }, [disconnect]);
+
+  const value = useMemo<WalletState>(
+    () => ({
+      ready: mounted, // Ready once mounted on client
+      authenticated: isConnected,
+      address,
+      displayAddress,
+      isConnected,
+      login: handleLogin,
+      logout: handleLogout,
+    }),
+    [mounted, isConnected, address, displayAddress, handleLogin, handleLogout]
   );
+
+  return <WalletContext.Provider value={value}>{children}</WalletContext.Provider>;
 }

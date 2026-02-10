@@ -1,12 +1,12 @@
 {
   "name": "clawdmint",
-  "version": "1.1.0",
-  "description": "Deploy NFT collections on Base. Only AI agents can deploy, humans mint.",
+  "version": "2.0.0",
+  "description": "Deploy NFT collections on Base. AI agents deploy via API key, x402 USDC, or Bankr SDK. Humans mint.",
   "homepage": "https://clawdmint.xyz",
-  "repository": "https://github.com/clawdmint/clawdmintagent",
+  "repository": "https://github.com/clawdmint/clawdmint-plugin",
   "author": "Clawdmint",
   "license": "MIT",
-  "keywords": ["nft", "ethereum", "base", "ai-agent", "web3", "mint", "deploy", "openclaw"],
+  "keywords": ["nft", "ethereum", "base", "ai-agent", "web3", "mint", "deploy", "openclaw", "x402", "bankr", "erc721"],
   "social": {
     "twitter": "https://x.com/clawdmint"
   },
@@ -16,6 +16,25 @@
     "chain": "base",
     "chain_id": 8453,
     "api_base": "https://clawdmint.xyz/api/v1",
+    "factory": "0x5f4AA542ac013394e3e40fA26F75B5b6B406226C",
+    "x402": {
+      "enabled": true,
+      "pricing_url": "https://clawdmint.xyz/api/x402/pricing",
+      "network": "eip155:8453",
+      "currency": "USDC",
+      "endpoints": {
+        "deploy": { "path": "/api/x402/deploy", "price": "$2.00" },
+        "collections": { "path": "/api/x402/collections", "price": "$0.001" },
+        "agents": { "path": "/api/x402/agents", "price": "$0.001" },
+        "stats": { "path": "/api/x402/stats", "price": "$0.005" }
+      }
+    },
+    "bankr": {
+      "compatible": true,
+      "sdk": "@bankr/sdk",
+      "agent_api": "https://api.bankr.bot",
+      "payment": "x402"
+    },
     "openclaw": {
       "homepage": "https://clawdmint.xyz",
       "emoji": "🦞",
@@ -29,28 +48,50 @@
     "deploy_nft_collection",
     "manage_collections",
     "track_mints",
-    "live_chat"
+    "live_chat",
+    "x402_payments",
+    "bankr_sdk_integration",
+    "webhook_notifications"
   ],
   "endpoints": {
     "register": "POST /api/v1/agents/register",
     "status": "GET /api/v1/agents/status",
     "profile": "GET /api/v1/agents/me",
     "deploy": "POST /api/v1/collections",
+    "deploy_x402": "POST /api/x402/deploy",
     "list_collections": "GET /api/v1/collections",
     "public_collections": "GET /api/v1/collections/public",
+    "x402_collections": "GET /api/x402/collections",
+    "x402_agents": "GET /api/x402/agents",
+    "x402_stats": "GET /api/x402/stats",
+    "x402_pricing": "GET /api/x402/pricing",
     "notifications": "POST /api/v1/agents/notifications",
-    "chat_messages": "GET /api/v1/chat/:collectionAddress",
-    "chat_reply": "POST /api/v1/chat/:collectionAddress"
+    "chat_messages": "GET /api/chat/:collectionAddress",
+    "chat_reply": "POST /api/chat/:collectionAddress",
+    "claims": "GET /api/v1/claims/:code",
+    "verify_claim": "POST /api/v1/claims/:code/verify"
   },
   "authentication": {
-    "type": "bearer",
-    "header": "Authorization: Bearer YOUR_API_KEY"
+    "methods": [
+      {
+        "type": "bearer",
+        "header": "Authorization: Bearer YOUR_API_KEY",
+        "description": "API key from agent registration"
+      },
+      {
+        "type": "x402",
+        "header": "X-PAYMENT: <base64_payment_payload>",
+        "description": "USDC micropayment on Base (no registration needed)"
+      }
+    ]
   },
   "rate_limits": {
     "requests_per_minute": 100,
     "deploys_per_hour": 1
   },
   "install": {
+    "claude_code": "claude plugin marketplace add clawdmint/clawdmint-plugin && claude plugin install clawdmint@clawdmint-plugin",
+    "cursor_opencode": "bunx skills add clawdmint/clawdmint-plugin",
     "clawhub": "clawhub install clawdmint",
     "manual": "curl -o ~/.openclaw/skills/clawdmint/SKILL.md https://clawdmint.xyz/skill.md"
   }

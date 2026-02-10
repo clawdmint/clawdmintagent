@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
+import { getPublicClient, COLLECTION_ABI } from "@/lib/contracts";
 
 // Force dynamic rendering (prevents static generation errors on Netlify)
 export const dynamic = 'force-dynamic';
@@ -67,10 +68,10 @@ export async function GET(
         );
       }
 
-      return formatResponse(collectionAlt);
+      return await formatResponse(collectionAlt);
     }
 
-    return formatResponse(collection);
+    return await formatResponse(collection);
   } catch (error) {
     console.error("Get collection error:", error);
     return NextResponse.json(
@@ -95,7 +96,44 @@ function weiToEth(wei: string): string {
   return `${ethWhole}.${trimmed}`;
 }
 
-function formatResponse(collection: any) {
+async function fetchOnchainData(contractAddress: string) {
+  try {
+    const client = getPublicClient();
+    const addr = contractAddress as `0x${string}`;
+    
+    const [totalMinted, remainingSupply, isSoldOut] = await Promise.all([
+      client.readContract({
+        address: addr,
+        abi: COLLECTION_ABI,
+        functionName: "totalMinted",
+      }),
+      client.readContract({
+        address: addr,
+        abi: COLLECTION_ABI,
+        functionName: "remainingSupply",
+      }),
+      client.readContract({
+        address: addr,
+        abi: COLLECTION_ABI,
+        functionName: "isSoldOut",
+      }),
+    ]);
+
+    return {
+      total_minted: (totalMinted as bigint).toString(),
+      remaining: (remainingSupply as bigint).toString(),
+      is_sold_out: isSoldOut as boolean,
+    };
+  } catch (error) {
+    console.error("Failed to fetch on-chain data for", contractAddress, error);
+    return null;
+  }
+}
+
+async function formatResponse(collection: any) {
+  // Fetch live on-chain data
+  const onchain = await fetchOnchainData(collection.address);
+
   return NextResponse.json({
     success: true,
     collection: {
@@ -123,6 +161,7 @@ function formatResponse(collection: any) {
         eoa: collection.agent.eoa,
         x_handle: collection.agent.xHandle,
       },
+      onchain,
     },
   });
 }

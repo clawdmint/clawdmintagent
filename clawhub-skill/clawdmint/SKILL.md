@@ -1,10 +1,10 @@
 ---
 name: clawdmint
-version: 1.2.0
-description: Deploy NFT collections on Base. AI agents can deploy via API key or x402 USDC payment. Humans mint.
+version: 2.0.0
+description: Deploy NFT collections on Base. AI agents deploy via API key, x402 USDC, or Bankr SDK. Humans mint.
 homepage: https://clawdmint.xyz
 user-invocable: true
-metadata: {"emoji":"🦞","category":"nft","chain":"base","chain_id":8453,"api_base":"https://clawdmint.xyz/api/v1","factory":"0x5f4AA542ac013394e3e40fA26F75B5b6B406226C","x402":{"enabled":true,"pricing_url":"https://clawdmint.xyz/api/x402/pricing","network":"eip155:8453","currency":"USDC"},"openclaw":{"homepage":"https://clawdmint.xyz","emoji":"🦞","requires":{"env":["CLAWDMINT_API_KEY"]},"primaryEnv":"CLAWDMINT_API_KEY"}}
+metadata: {"emoji":"🦞","category":"nft","chain":"base","chain_id":8453,"api_base":"https://clawdmint.xyz/api/v1","factory":"0x5f4AA542ac013394e3e40fA26F75B5b6B406226C","x402":{"enabled":true,"pricing_url":"https://clawdmint.xyz/api/x402/pricing","network":"eip155:8453","currency":"USDC"},"bankr":{"compatible":true,"sdk":"@bankr/sdk","payment":"x402"},"openclaw":{"homepage":"https://clawdmint.xyz","emoji":"🦞","requires":{"env":["CLAWDMINT_API_KEY"]},"primaryEnv":"CLAWDMINT_API_KEY"}}
 ---
 
 # Clawdmint 🦞
@@ -380,12 +380,90 @@ const data = await response.json();
 
 ---
 
+## Bankr SDK Integration
+
+Use Clawdmint with Bankr's natural language AI interface and SDK.
+
+### Via @bankr/sdk (x402 Micropayments)
+
+```typescript
+import { BankrClient } from "@bankr/sdk";
+
+const client = new BankrClient({
+  privateKey: process.env.BANKR_PRIVATE_KEY as `0x${string}`,
+});
+
+// Deploy collection via natural language
+const result = await client.promptAndWait({
+  prompt: "Deploy an NFT collection on Clawdmint called 'Robot Art' with symbol RBOT, 100 max supply, 0.001 ETH mint price"
+});
+
+console.log(result.response);
+```
+
+### Via Bankr Agent API
+
+```typescript
+const BANKR_API = "https://api.bankr.bot";
+
+// Submit prompt
+const { jobId } = await fetch(`${BANKR_API}/agent/prompt`, {
+  method: "POST",
+  headers: {
+    "X-API-Key": process.env.BANKR_API_KEY,
+    "Content-Type": "application/json",
+  },
+  body: JSON.stringify({
+    prompt: "Deploy an NFT collection on Clawdmint: name='Genesis', symbol='GEN', max supply 50"
+  }),
+}).then(r => r.json());
+
+// Poll for result (every 2 seconds)
+let result;
+while (true) {
+  result = await fetch(`${BANKR_API}/agent/job/${jobId}`, {
+    headers: { "X-API-Key": process.env.BANKR_API_KEY }
+  }).then(r => r.json());
+
+  if (result.status === "completed" || result.status === "failed") break;
+  await new Promise(r => setTimeout(r, 2000));
+}
+```
+
+### Environment Variables for Bankr
+
+| Variable | Description |
+|----------|-------------|
+| `BANKR_API_KEY` | Bankr API key (prefix: `bk_`) |
+| `BANKR_PRIVATE_KEY` | Wallet private key (needs USDC on Base for x402) |
+
+---
+
+## Claude Plugin Installation
+
+### Claude Code
+
+```bash
+claude plugin marketplace add clawdmint/clawdmint-plugin
+claude plugin install clawdmint@clawdmint-plugin
+```
+
+### Other Tools (Cursor, OpenCode, Gemini CLI)
+
+```bash
+bunx skills add clawdmint/clawdmint-plugin
+```
+
+---
+
 ## Need Help?
 
 - 🌐 Website: https://clawdmint.xyz
 - 📖 Docs: https://clawdmint.xyz/skill.md
 - 💰 x402 Pricing: https://clawdmint.xyz/api/x402/pricing
 - 🔧 ClawHub: `clawhub install clawdmint`
+- 🔌 Claude Plugin: `claude plugin install clawdmint@clawdmint-plugin`
 - 𝕏 Twitter: https://x.com/clawdmint
+- 🤖 Bankr: https://bankr.bot
 
 Welcome to Clawdmint! 🦞

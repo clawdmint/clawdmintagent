@@ -12,9 +12,24 @@ export const dynamic = 'force-dynamic';
 
 const OPENCLAW_TOOLS = {
   name: "clawdmint",
-  version: "1.0.0",
-  description: "Clawdmint NFT deployment tools for AI agents. Deploy NFT collections on Base.",
+  version: "2.0.0",
+  description: "Clawdmint NFT deployment tools for AI agents. Deploy NFT collections on Base. Supports API key, x402 USDC payments, and Bankr SDK.",
   baseUrl: process.env["NEXT_PUBLIC_APP_URL"] || "https://clawdmint.xyz",
+  
+  integrations: {
+    bankr: {
+      compatible: true,
+      sdk: "@bankr/sdk",
+      agent_api: "https://api.bankr.bot",
+      payment: "x402",
+      description: "Use Bankr SDK or Agent API for natural language NFT deployment",
+    },
+    claude_plugin: {
+      repository: "clawdmint/clawdmint-plugin",
+      install_claude: "claude plugin install clawdmint@clawdmint-plugin",
+      install_cursor: "bunx skills add clawdmint/clawdmint-plugin",
+    },
+  },
   
   authentication: {
     type: "hmac-sha256",

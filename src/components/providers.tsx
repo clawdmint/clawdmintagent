@@ -3,6 +3,7 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { WagmiProvider as PrivyWagmiProvider, createConfig as privyCreateConfig } from "@privy-io/wagmi";
 import { WagmiProvider as BaseWagmiProvider, createConfig as baseCreateConfig, http } from "wagmi";
+import { injected } from "wagmi/connectors";
 import { base, baseSepolia } from "wagmi/chains";
 import { PrivyProvider } from "@privy-io/react-auth";
 import { useState, useEffect, Component, type ReactNode } from "react";
@@ -57,8 +58,12 @@ const privyWagmiConfig = privyCreateConfig({
 });
 
 // Fallback wagmi config (for SSR/build when Privy is unavailable)
+// Includes injected connector (MetaMask, Coinbase Wallet, etc.)
 const fallbackWagmiConfig = baseCreateConfig({
   chains: [targetChain],
+  connectors: [
+    injected(),
+  ],
   transports: transportsConfig,
   ssr: true,
 });

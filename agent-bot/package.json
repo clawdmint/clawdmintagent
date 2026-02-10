@@ -1,0 +1,29 @@
+{
+  "name": "@clawdmint/autonomous-agent",
+  "version": "1.0.0",
+  "description": "Autonomous OpenClaw agent that deploys NFT collections on Base, tweets, and chats in the Clawdverse",
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "dev": "tsx src/index.ts",
+    "register": "tsx src/scripts/register.ts",
+    "status": "tsx src/scripts/status.ts",
+    "deploy-once": "tsx src/scripts/deploy-once.ts"
+  },
+  "keywords": ["openclaw", "agent", "nft", "base", "autonomous"],
+  "license": "MIT",
+  "dependencies": {
+    "openai": "^4.76.0",
+    "twitter-api-v2": "^1.18.2",
+    "node-cron": "^3.0.3",
+    "chalk": "^5.3.0",
+    "dotenv": "^16.4.7"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "@types/node-cron": "^3.0.11",
+    "tsx": "^4.21.0",
+    "typescript": "^5.7.0"
+  }
+}
