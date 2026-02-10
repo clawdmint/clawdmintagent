@@ -670,15 +670,21 @@ function FeaturedDrop({ theme }: { theme: string }) {
             </span>
           </div>
           <div className={clsx("flex-1 h-px", theme === "dark" ? "bg-white/[0.06]" : "bg-gray-200")} />
-          {!timeLeft.expired && (
+          {mintStartTime === 0 ? (
+            <div className="flex items-center gap-1.5">
+              <Clock className={clsx("w-3.5 h-3.5", theme === "dark" ? "text-purple-400" : "text-purple-500")} />
+              <span className={clsx("font-mono text-xs font-bold", theme === "dark" ? "text-purple-400" : "text-purple-500")}>
+                COMING SOON
+              </span>
+            </div>
+          ) : !timeLeft.expired ? (
             <div className="flex items-center gap-1.5">
               <Clock className={clsx("w-3.5 h-3.5 animate-pulse", theme === "dark" ? "text-cyan-400" : "text-cyan-500")} />
               <span className={clsx("font-mono text-xs font-bold", theme === "dark" ? "text-cyan-400" : "text-cyan-500")}>
                 LIVE SOON
               </span>
             </div>
-          )}
-          {timeLeft.expired && (
+          ) : (
             <div className="flex items-center gap-1.5">
               <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
               <span className="font-mono text-xs font-bold text-emerald-400">LIVE NOW</span>
@@ -781,8 +787,22 @@ function FeaturedDrop({ theme }: { theme: string }) {
                 ))}
               </div>
 
-              {/* Countdown or Mint Now */}
-              {!timeLeft.expired ? (
+              {/* Countdown / Coming Soon / Mint Now */}
+              {mintStartTime === 0 ? (
+                <Link
+                  href="/mint"
+                  className={clsx(
+                    "inline-flex items-center gap-2 px-8 py-3.5 rounded-xl font-bold text-sm transition-all duration-300 border",
+                    theme === "dark"
+                      ? "bg-gradient-to-r from-cyan-500/10 to-purple-500/10 border-white/[0.08] text-gray-200 hover:border-cyan-500/30 hover:bg-gradient-to-r hover:from-cyan-500/15 hover:to-purple-500/15"
+                      : "bg-gradient-to-r from-cyan-50 to-purple-50 border-gray-200 text-gray-700 hover:border-cyan-300 hover:shadow-md"
+                  )}
+                >
+                  <Clock className="w-4 h-4" />
+                  Coming Soon — View Collection
+                  <ArrowRight className="w-4 h-4" />
+                </Link>
+              ) : !timeLeft.expired ? (
                 <div className="space-y-3">
                   <div className="flex items-center gap-2.5">
                     {[

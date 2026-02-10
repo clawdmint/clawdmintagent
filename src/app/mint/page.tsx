@@ -276,15 +276,17 @@ export default function MintPage() {
   const isSoldOut = collection.isSoldOut;
   const mintStartTime = collection.mintStartTime;
 
-  // Check if minting is live (countdown expired)
+  // Check if minting is live
+  // mintStartTime=0 means "coming soon" (TBA), >0 means countdown to that time
   const [now, setNow] = useState(Math.floor(Date.now() / 1000));
+  const isComingSoon = mintStartTime === 0; // No date set yet
   useEffect(() => {
     if (mintStartTime > 0 && now < mintStartTime) {
       const interval = setInterval(() => setNow(Math.floor(Date.now() / 1000)), 1000);
       return () => clearInterval(interval);
     }
   }, [mintStartTime, now]);
-  const mintLive = mintStartTime === 0 || now >= mintStartTime;
+  const mintLive = !isComingSoon && mintStartTime > 0 && now >= mintStartTime;
 
   const handleMint = useCallback(() => {
     if (!AGENTS_CONTRACT || !isConnected) return;
@@ -391,23 +393,42 @@ export default function MintPage() {
               </div>
             ))}
           </div>
-          <p className={clsx(
-            "text-xs font-mono mb-2",
-            theme === "dark" ? "text-gray-600" : "text-gray-400"
-          )}>
-            Showing 6 of 10,000 unique agents
-          </p>
         </section>
 
         {/* ══════════════════ MINT + STATS ══════════════════ */}
         <section className="max-w-4xl mx-auto mb-20">
           <div className="grid md:grid-cols-2 gap-6">
-            {/* Left: Progress */}
+            {/* Left: Progress + Preview */}
             <div className={clsx("glass-card", theme === "light" && "bg-white/80")}>
               <h2 className="text-lg font-bold mb-5 flex items-center gap-2">
                 <Layers className="w-5 h-5 text-cyan-500" />
                 Mint Progress
               </h2>
+
+              {/* Agent preview mosaic */}
+              <div className="grid grid-cols-3 gap-2 mb-5">
+                {[256, 1024, 4096, 512, 2048, 8192].map((id, i) => (
+                  <div
+                    key={id}
+                    className={clsx(
+                      "aspect-square rounded-xl overflow-hidden border transition-all duration-300 hover:scale-[1.04] hover:shadow-md group",
+                      theme === "dark"
+                        ? "border-white/[0.06] bg-[#0a0e1a] hover:border-cyan-500/30 hover:shadow-cyan-500/10"
+                        : "border-gray-200 bg-gray-50 hover:border-cyan-300 hover:shadow-cyan-200/30"
+                    )}
+                    style={{ animationDelay: `${i * 80}ms` }}
+                  >
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={`/agents-data/images/${id}.svg`}
+                      alt={`Agent #${id}`}
+                      className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+                      loading="lazy"
+                    />
+                  </div>
+                ))}
+              </div>
+
               <MintProgress
                 minted={!collection.loading ? collection.totalMinted : 0}
                 total={!collection.loading ? collection.maxSupply : MAX_SUPPLY}
@@ -525,6 +546,24 @@ export default function MintPage() {
                   <CountdownTimer targetTime={mintStartTime} />
                 )}
 
+                {/* Coming Soon banner */}
+                {isComingSoon && (
+                  <div className={clsx(
+                    "text-center py-5 rounded-2xl border",
+                    theme === "dark"
+                      ? "bg-gradient-to-br from-cyan-500/[0.04] to-purple-500/[0.04] border-white/[0.06]"
+                      : "bg-gradient-to-br from-cyan-50 to-purple-50 border-gray-200"
+                  )}>
+                    <Clock className={clsx("w-6 h-6 mx-auto mb-2", theme === "dark" ? "text-cyan-400" : "text-cyan-500")} />
+                    <p className="text-sm font-bold uppercase tracking-wider bg-gradient-to-r from-cyan-400 to-purple-400 bg-clip-text text-transparent">
+                      Coming Soon
+                    </p>
+                    <p className={clsx("text-xs mt-1", theme === "dark" ? "text-gray-500" : "text-gray-400")}>
+                      Mint date will be announced
+                    </p>
+                  </div>
+                )}
+
                 {/* Mint Button */}
                 {!isConnected ? (
                   <WalletButton />
@@ -540,7 +579,7 @@ export default function MintPage() {
                       : "bg-gray-100 text-gray-400 border-gray-200"
                   )}>
                     <Clock className="w-5 h-5" />
-                    Minting Opens Soon
+                    Coming Soon
                   </button>
                 ) : (
                   <button

@@ -14,7 +14,6 @@ interface IClawdmintCollection {
     event MetadataFrozen();
     event BaseURIUpdated(string oldURI, string newURI);
     event FundsWithdrawn(address indexed to, uint256 amount, uint256 platformFee);
-    event MintStartTimeUpdated(uint256 startTime);
 
     // ═══════════════════════════════════════════════════════════════════════
     // ERRORS
