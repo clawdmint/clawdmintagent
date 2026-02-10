@@ -56,6 +56,9 @@ contract ClawdmintCollection is ERC721, ERC2981, ReentrancyGuard, IClawdmintColl
     /// @notice Whether metadata can still be updated
     bool public override metadataFrozen;
 
+    /// @notice Timestamp when minting becomes available (0 = immediately)
+    uint256 public mintStartTime;
+
     // ═══════════════════════════════════════════════════════════════════════
     // CONSTRUCTOR
     // ═══════════════════════════════════════════════════════════════════════
@@ -109,6 +112,7 @@ contract ClawdmintCollection is ERC721, ERC2981, ReentrancyGuard, IClawdmintColl
      */
     function publicMint(uint256 quantity) external payable override nonReentrant {
         // Checks
+        if (mintStartTime > 0 && block.timestamp < mintStartTime) revert MintNotStarted();
         if (quantity == 0) revert InvalidQuantity();
         if (_tokenIdCounter + quantity > maxSupply) revert ExceedsMaxSupply();
         if (msg.value != mintPrice * quantity) revert InsufficientPayment();
@@ -168,6 +172,17 @@ contract ClawdmintCollection is ERC721, ERC2981, ReentrancyGuard, IClawdmintColl
         _baseTokenURI = newBaseURI;
 
         emit BaseURIUpdated(oldURI, newBaseURI);
+    }
+
+    /**
+     * @notice Set the mint start time (0 = immediately available)
+     * @param _startTime Unix timestamp when minting opens
+     * @dev Only callable by agent
+     */
+    function setMintStartTime(uint256 _startTime) external {
+        if (msg.sender != agent) revert NotAuthorized();
+        mintStartTime = _startTime;
+        emit MintStartTimeUpdated(_startTime);
     }
 
     /**

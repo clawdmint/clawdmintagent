@@ -1,0 +1,50 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" fill="none">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#0c0a1a"/>
+      <stop offset="100%" stop-color="#1a0e2e"/>
+    </linearGradient>
+    <linearGradient id="body" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#8b5cf6"/>
+      <stop offset="100%" stop-color="#6d28d9"/>
+    </linearGradient>
+    <linearGradient id="glow" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#c084fc"/>
+      <stop offset="100%" stop-color="#a855f7"/>
+    </linearGradient>
+    <radialGradient id="aura" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0%" stop-color="#a855f7" stop-opacity="0.3"/>
+      <stop offset="100%" stop-color="#a855f7" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <!-- Background -->
+  <rect width="200" height="200" rx="40" fill="url(#bg)"/>
+  <!-- Aura -->
+  <circle cx="100" cy="100" r="80" fill="url(#aura)"/>
+  <!-- Body -->
+  <rect x="72" y="95" width="56" height="60" rx="8" fill="url(#body)" stroke="#a855f7" stroke-width="1.5"/>
+  <!-- Chest core -->
+  <circle cx="100" cy="118" r="8" fill="#0c0a1a" stroke="#c084fc" stroke-width="1.5"/>
+  <circle cx="100" cy="118" r="3" fill="#c084fc">
+    <animate attributeName="opacity" values="1;0.4;1" dur="2s" repeatCount="indefinite"/>
+  </circle>
+  <!-- Head -->
+  <rect x="76" y="52" width="48" height="44" rx="10" fill="url(#body)" stroke="#a855f7" stroke-width="1.5"/>
+  <!-- Visor -->
+  <rect x="82" y="64" width="36" height="12" rx="6" fill="#06b6d4" opacity="0.9">
+    <animate attributeName="opacity" values="0.9;0.5;0.9" dur="3s" repeatCount="indefinite"/>
+  </rect>
+  <!-- Antenna -->
+  <line x1="100" y1="52" x2="100" y2="40" stroke="#c084fc" stroke-width="2"/>
+  <circle cx="100" cy="38" r="3" fill="#c084fc">
+    <animate attributeName="r" values="3;4;3" dur="1.5s" repeatCount="indefinite"/>
+  </circle>
+  <!-- Arms -->
+  <rect x="56" y="100" width="16" height="40" rx="8" fill="url(#body)" stroke="#a855f7" stroke-width="1"/>
+  <rect x="128" y="100" width="16" height="40" rx="8" fill="url(#body)" stroke="#a855f7" stroke-width="1"/>
+  <!-- Legs -->
+  <rect x="80" y="155" width="14" height="24" rx="4" fill="url(#body)" stroke="#a855f7" stroke-width="1"/>
+  <rect x="106" y="155" width="14" height="24" rx="4" fill="url(#body)" stroke="#a855f7" stroke-width="1"/>
+  <!-- Name tag -->
+  <text x="100" y="192" text-anchor="middle" font-family="monospace" font-size="10" font-weight="bold" fill="#c084fc">LILA</text>
+</svg>

@@ -1,0 +1,98 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400" width="400" height="400">
+  <defs>
+    <pattern id="bg-grid3" width="16" height="16" patternUnits="userSpaceOnUse">
+      <circle cx="8" cy="8" r="0.4" fill="#0a1a1a" opacity="0.6"/>
+    </pattern>
+    <filter id="tg1"><feGaussianBlur stdDeviation="4" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+    <filter id="tg2"><feGaussianBlur stdDeviation="8" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+    <filter id="tg3"><feGaussianBlur stdDeviation="14" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+    <radialGradient id="tamb" cx="50%" cy="30%" r="55%">
+      <stop offset="0%" stop-color="#14b8a6" stop-opacity="0.06"/>
+      <stop offset="100%" stop-color="#14b8a6" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="visor-screen" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#0d3d3d"/>
+      <stop offset="100%" stop-color="#0a2a2a"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Background -->
+  <rect width="400" height="400" fill="#060c0c"/>
+  <rect width="400" height="400" fill="url(#bg-grid3)"/>
+  <rect width="400" height="400" fill="url(#tamb)"/>
+
+  <g transform="translate(200, 200)">
+
+    <!-- === LEGS: Boot Style === -->
+    <!-- Left leg -->
+    <polygon points="-30,95 -15,95 -15,140 -20,155 -50,155 -45,140" fill="#0e1a1e"/>
+    <polygon points="-30,95 -15,95 -15,140 -20,155 -50,155 -45,140" stroke="#132428" stroke-width="0.5" fill="none"/>
+    <!-- Right leg -->
+    <polygon points="15,95 30,95 45,140 50,155 20,155 15,140" fill="#0e1a1e"/>
+    <polygon points="15,95 30,95 45,140 50,155 20,155 15,140" stroke="#132428" stroke-width="0.5" fill="none"/>
+
+    <!-- === BODY: Segmented Cylinder === -->
+    <rect x="-40" y="-5" width="80" height="100" rx="8" fill="#0f1c22"/>
+    <rect x="-40" y="-5" width="80" height="100" rx="8" stroke="#162a30" stroke-width="1" fill="none"/>
+    <!-- Horizontal segments -->
+    <rect x="-38" y="10" width="76" height="3" rx="1" fill="#091215"/>
+    <rect x="-38" y="28" width="76" height="3" rx="1" fill="#091215"/>
+    <rect x="-38" y="46" width="76" height="3" rx="1" fill="#091215"/>
+    <rect x="-38" y="64" width="76" height="3" rx="1" fill="#091215"/>
+    <rect x="-38" y="80" width="76" height="3" rx="1" fill="#091215"/>
+
+    <!-- Center data port -->
+    <rect x="-10" y="35" width="20" height="20" rx="3" fill="#091215" stroke="#162a30" stroke-width="0.5"/>
+    <circle cx="0" cy="45" r="4" fill="#14b8a6" opacity="0.3" filter="url(#tg1)"/>
+    <circle cx="0" cy="45" r="2" fill="#14b8a6" opacity="0.5"/>
+
+    <!-- === ARMS: Angled with Ring Joints === -->
+    <!-- Left arm -->
+    <line x1="-42" y1="20" x2="-85" y2="60" stroke="#0f1c22" stroke-width="12" stroke-linecap="round"/>
+    <line x1="-42" y1="20" x2="-85" y2="60" stroke="#162a30" stroke-width="12" stroke-linecap="round" opacity="0.3"/>
+    <!-- Ring joint -->
+    <circle cx="-92" cy="66" r="16" fill="#091215" stroke="#14b8a6" stroke-width="2" opacity="0.6"/>
+    <circle cx="-92" cy="66" r="10" fill="#0a1a1a"/>
+    <circle cx="-92" cy="66" r="6" fill="#14b8a6" opacity="0.5" filter="url(#tg2)"/>
+    <circle cx="-92" cy="66" r="3" fill="#5eead4" opacity="0.4"/>
+
+    <!-- Right arm -->
+    <line x1="42" y1="20" x2="85" y2="60" stroke="#0f1c22" stroke-width="12" stroke-linecap="round"/>
+    <line x1="42" y1="20" x2="85" y2="60" stroke="#162a30" stroke-width="12" stroke-linecap="round" opacity="0.3"/>
+    <!-- Ring joint -->
+    <circle cx="92" cy="66" r="16" fill="#091215" stroke="#14b8a6" stroke-width="2" opacity="0.6"/>
+    <circle cx="92" cy="66" r="10" fill="#0a1a1a"/>
+    <circle cx="92" cy="66" r="6" fill="#14b8a6" opacity="0.5" filter="url(#tg2)"/>
+    <circle cx="92" cy="66" r="3" fill="#5eead4" opacity="0.4"/>
+
+    <!-- === NECK === -->
+    <rect x="-16" y="-18" width="32" height="16" rx="4" fill="#0f1c22"/>
+    <!-- Neck rings -->
+    <rect x="-14" y="-15" width="28" height="2" rx="1" fill="#091215"/>
+    <rect x="-14" y="-10" width="28" height="2" rx="1" fill="#091215"/>
+
+    <!-- === HEAD: Large Dome === -->
+    <!-- Dome shape -->
+    <ellipse cx="0" cy="-55" rx="52" ry="48" fill="#12222a"/>
+    <ellipse cx="0" cy="-55" rx="52" ry="48" stroke="#1a3038" stroke-width="1" fill="none"/>
+    <!-- Flat bottom of dome -->
+    <rect x="-48" y="-22" width="96" height="6" fill="#12222a"/>
+
+    <!-- EYES: Monitor Visor -->
+    <rect x="-35" y="-72" width="70" height="38" rx="6" fill="#091215" stroke="#14b8a6" stroke-width="1.5" opacity="0.5"/>
+    <!-- Screen content -->
+    <rect x="-30" y="-67" width="60" height="28" rx="3" fill="url(#visor-screen)"/>
+    <!-- Screen data lines -->
+    <rect x="-25" y="-62" width="30" height="3" rx="1" fill="#14b8a6" opacity="0.3"/>
+    <rect x="-25" y="-55" width="22" height="2" rx="1" fill="#14b8a6" opacity="0.2"/>
+    <rect x="-25" y="-50" width="35" height="2" rx="1" fill="#14b8a6" opacity="0.15"/>
+    <!-- Status indicator -->
+    <rect x="12" y="-62" width="16" height="10" rx="2" fill="#14b8a6" opacity="0.35" filter="url(#tg1)"/>
+    <!-- Screen scanline -->
+    <rect x="-30" y="-58" width="60" height="1" fill="#14b8a6" opacity="0.06"/>
+    <rect x="-30" y="-48" width="60" height="1" fill="#14b8a6" opacity="0.06"/>
+
+    <!-- Dome reflection -->
+    <ellipse cx="-15" cy="-80" rx="20" ry="8" fill="#1a3038" opacity="0.3"/>
+  </g>
+</svg>

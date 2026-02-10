@@ -3,8 +3,8 @@
 # ═══════════════════════════════════════════════════════════════════════════════
 
 [build]
-  # Clean build to prevent stale cache issues
-  command = "npm run build"
+  # Generate NFT collection assets, copy to public/, then build Next.js
+  command = "node scripts/generate-collection.js && node scripts/prepare-deploy.js && npm run build"
 
 [build.environment]
   NODE_VERSION = "20"

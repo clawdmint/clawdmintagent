@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg viewBox="-30 -10 260 260" xmlns="http://www.w3.org/2000/svg">
+<style>
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+@keyframes scan{0%{transform:translateY(-60px)}100%{transform:translateY(260px)}}
+</style>
+<defs>
+<linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+<stop offset="0%" stop-color="#0a0e1a"/>
+<stop offset="100%" stop-color="#050810"/>
+</linearGradient>
+</defs>
+<rect x="-30" y="-10" width="260" height="260" fill="url(#bg)"/>
+<rect x="40" y="50" width="120" height="150" rx="8" fill="none" stroke="#1e293b" stroke-width="2" stroke-dasharray="6 4"/>
+<text x="100" y="115" text-anchor="middle" fill="#334155" font-family="monospace" font-size="14" font-weight="bold">CLASSIFIED</text>
+<text x="100" y="135" text-anchor="middle" fill="#1e293b" font-family="monospace" font-size="9">AGENT DATA LOCKED</text>
+<rect x="75" y="155" width="50" height="6" rx="3" fill="#06b6d4" opacity=".15" style="animation:pulse 2s ease-in-out infinite"/>
+<text x="100" y="185" text-anchor="middle" fill="#1e293b" font-family="monospace" font-size="7">REVEAL ON SOLD OUT</text>
+<rect x="-30" y="120" width="260" height="3" fill="#06b6d4" opacity=".03" style="animation:scan 4s linear infinite"/>
+<text x="100" y="230" text-anchor="middle" fill="#0f172a" font-family="monospace" font-size="8">CLAWDMINT AGENTS</text>
+</svg>

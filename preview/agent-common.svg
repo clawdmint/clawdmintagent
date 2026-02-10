@@ -1,0 +1,95 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400" width="400" height="400">
+  <defs>
+    <pattern id="bg-grid" width="16" height="16" patternUnits="userSpaceOnUse">
+      <rect width="16" height="16" fill="none"/>
+      <circle cx="8" cy="8" r="0.4" fill="#1e293b" opacity="0.5"/>
+    </pattern>
+    <filter id="g1"><feGaussianBlur stdDeviation="4" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+    <filter id="g2"><feGaussianBlur stdDeviation="8" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+    <filter id="g3"><feGaussianBlur stdDeviation="12" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+    <radialGradient id="amb" cx="50%" cy="35%" r="60%">
+      <stop offset="0%" stop-color="#06b6d4" stop-opacity="0.06"/>
+      <stop offset="100%" stop-color="#06b6d4" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+
+  <!-- Background -->
+  <rect width="400" height="400" fill="#060a12"/>
+  <rect width="400" height="400" fill="url(#bg-grid)"/>
+  <rect width="400" height="400" fill="url(#amb)"/>
+
+  <g transform="translate(200, 200)">
+
+    <!-- === LEGS: Angular Boots === -->
+    <!-- Left leg -->
+    <polygon points="-30,100 -55,160 -35,160 -15,120" fill="#131b2e"/>
+    <polygon points="-30,100 -55,160 -35,160 -15,120" fill="#172033" stroke="#1a2540" stroke-width="0.5"/>
+    <!-- Right leg -->
+    <polygon points="30,100 55,160 35,160 15,120" fill="#131b2e"/>
+    <polygon points="30,100 55,160 35,160 15,120" fill="#172033" stroke="#1a2540" stroke-width="0.5"/>
+
+    <!-- === BODY: Wide Trapezoid === -->
+    <polygon points="-75,10 75,10 65,105 -65,105" fill="#141d30"/>
+    <polygon points="-75,10 75,10 65,105 -65,105" stroke="#1a2844" stroke-width="1" fill="none"/>
+    <!-- Center vertical line -->
+    <line x1="0" y1="15" x2="0" y2="100" stroke="#1a2844" stroke-width="1"/>
+    <!-- Chest panel left -->
+    <rect x="-58" y="25" width="53" height="55" rx="4" fill="#0f1726"/>
+    <!-- Chest panel right -->
+    <rect x="5" y="25" width="53" height="55" rx="4" fill="#0f1726"/>
+    <!-- Core energy indicator -->
+    <rect x="-8" y="88" width="16" height="6" rx="2" fill="#0c1220"/>
+    <rect x="-5" y="89.5" width="10" height="3" rx="1" fill="#06b6d4" opacity="0.5" filter="url(#g1)"/>
+
+    <!-- === ARMS: Curved Shield === -->
+    <!-- Left arm -->
+    <ellipse cx="-88" cy="55" rx="22" ry="40" fill="#141d30" stroke="#1a2844" stroke-width="1"/>
+    <ellipse cx="-88" cy="55" rx="16" ry="34" fill="none" stroke="#06b6d4" stroke-width="1.5" opacity="0.35"/>
+    <!-- Arm connector -->
+    <rect x="-76" y="42" width="8" height="26" fill="#141d30"/>
+    <!-- Right arm -->
+    <ellipse cx="88" cy="55" rx="22" ry="40" fill="#141d30" stroke="#1a2844" stroke-width="1"/>
+    <ellipse cx="88" cy="55" rx="16" ry="34" fill="none" stroke="#06b6d4" stroke-width="1.5" opacity="0.35"/>
+    <!-- Arm connector -->
+    <rect x="68" y="42" width="8" height="26" fill="#141d30"/>
+
+    <!-- === NECK === -->
+    <rect x="-18" y="-5" width="36" height="18" rx="3" fill="#172033"/>
+
+    <!-- === HEAD: Square with Antennas === -->
+    <rect x="-42" y="-75" width="84" height="72" rx="6" fill="#1e2d47"/>
+    <rect x="-42" y="-75" width="84" height="72" rx="6" stroke="#243552" stroke-width="1" fill="none"/>
+
+    <!-- Antennas (3 vertical bars) -->
+    <line x1="-14" y1="-75" x2="-14" y2="-100" stroke="#06b6d4" stroke-width="3" stroke-linecap="round" opacity="0.7"/>
+    <line x1="0" y1="-75" x2="0" y2="-108" stroke="#06b6d4" stroke-width="3" stroke-linecap="round" opacity="0.85"/>
+    <line x1="14" y1="-75" x2="14" y2="-100" stroke="#06b6d4" stroke-width="3" stroke-linecap="round" opacity="0.7"/>
+    <!-- Antenna tips glow -->
+    <circle cx="-14" cy="-101" r="3" fill="#06b6d4" opacity="0.6" filter="url(#g1)"/>
+    <circle cx="0" cy="-109" r="3.5" fill="#06b6d4" opacity="0.8" filter="url(#g2)"/>
+    <circle cx="14" cy="-101" r="3" fill="#06b6d4" opacity="0.6" filter="url(#g1)"/>
+
+    <!-- EYES: Full-width Visor Bar -->
+    <rect x="-35" y="-58" width="70" height="14" rx="3" fill="#0a1018"/>
+    <rect x="-33" y="-56" width="66" height="10" rx="2" fill="#06b6d4" opacity="0.85" filter="url(#g2)"/>
+    <!-- Visor highlights -->
+    <rect x="-30" y="-55" width="20" height="3" rx="1" fill="#fff" opacity="0.15"/>
+
+    <!-- MOUTH: Dot Grid -->
+    <rect x="-22" y="-32" width="44" height="16" rx="4" fill="#0f1726"/>
+    <rect x="-22" y="-32" width="44" height="16" rx="4" stroke="#1a2844" stroke-width="0.5" fill="none"/>
+    <!-- Dot pattern 3x7 -->
+    <g fill="#06b6d4" opacity="0.4">
+      <circle cx="-15" cy="-27" r="1.2"/><circle cx="-10" cy="-27" r="1.2"/><circle cx="-5" cy="-27" r="1.2"/>
+      <circle cx="0" cy="-27" r="1.2"/><circle cx="5" cy="-27" r="1.2"/><circle cx="10" cy="-27" r="1.2"/>
+      <circle cx="15" cy="-27" r="1.2"/>
+      <circle cx="-15" cy="-22" r="1.2"/><circle cx="-10" cy="-22" r="1.2"/><circle cx="-5" cy="-22" r="1.2"/>
+      <circle cx="0" cy="-22" r="1.2"/><circle cx="5" cy="-22" r="1.2"/><circle cx="10" cy="-22" r="1.2"/>
+      <circle cx="15" cy="-22" r="1.2"/>
+    </g>
+
+    <!-- Head side accents -->
+    <rect x="-48" y="-60" width="4" height="24" rx="2" fill="#172033"/>
+    <rect x="44" y="-60" width="4" height="24" rx="2" fill="#172033"/>
+  </g>
+</svg>

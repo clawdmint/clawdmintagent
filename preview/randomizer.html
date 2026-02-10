@@ -1,0 +1,1873 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Clawdmint Agents — Trait Randomizer</title>
+<style>
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{background:#080c14;color:#e2e8f0;font-family:'Courier New',monospace;min-height:100vh}
+  .container{max-width:1100px;margin:0 auto;padding:24px}
+  h1{text-align:center;font-size:22px;color:#06b6d4;margin-bottom:4px;letter-spacing:2px}
+  .sub{text-align:center;font-size:11px;color:#475569;margin-bottom:20px}
+  .main{display:flex;gap:24px;align-items:flex-start;flex-wrap:wrap;justify-content:center}
+  .svg-wrap{width:420px;height:420px;border:1px solid #1e293b;border-radius:12px;overflow:hidden;flex-shrink:0;background:#080c14;display:flex;align-items:center;justify-content:center}
+  .svg-wrap svg{width:100%;height:100%}
+  .panel{flex:1;min-width:300px}
+  .agent-name{font-size:26px;font-weight:bold;color:#fff;margin-bottom:2px}
+  .agent-code{font-size:11px;color:#06b6d4;margin-bottom:14px;letter-spacing:1px}
+  .trait-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:5px;margin-bottom:16px}
+  .trait-box{background:#111827;border:1px solid #1e293b;border-radius:8px;padding:8px 10px}
+  .trait-label{font-size:8px;color:#475569;text-transform:uppercase;letter-spacing:1px;margin-bottom:2px}
+  .trait-value{font-size:12px;font-weight:bold}
+  .rc .trait-value{color:#94a3b8} .ru .trait-value{color:#22d3ee}
+  .rr .trait-value{color:#a78bfa} .re .trait-value{color:#f43f5e}
+  .rl .trait-value{color:#fbbf24} .rm .trait-value{color:#f0abfc}
+  .stat-row{display:flex;gap:8px;margin-bottom:14px}
+  .stat-box{flex:1;background:#111827;border:1px solid #1e293b;border-radius:8px;padding:8px;text-align:center}
+  .stat-num{font-size:20px;font-weight:bold;color:#06b6d4}
+  .stat-lbl{font-size:8px;color:#475569;text-transform:uppercase;margin-top:1px}
+  .rarity-badge{display:inline-block;padding:3px 10px;border-radius:6px;font-size:10px;font-weight:bold;letter-spacing:1px;margin-bottom:10px}
+  .bc{background:#334155;color:#94a3b8} .bu{background:#164e63;color:#22d3ee}
+  .br{background:#2e1065;color:#a78bfa} .be{background:#4c0519;color:#f43f5e}
+  .bl{background:#451a03;color:#fbbf24} .bm{background:#4a044e;color:#f0abfc}
+  .btn{display:block;width:100%;padding:14px;background:linear-gradient(135deg,#06b6d4,#3b82f6);color:#fff;border:none;border-radius:10px;font-size:15px;font-weight:bold;cursor:pointer;font-family:inherit;letter-spacing:1px;transition:transform .15s}
+  .btn:hover{transform:scale(1.02)} .btn:active{transform:scale(0.98)}
+  .counter{text-align:center;margin-top:12px;font-size:10px;color:#334155}
+  .desig{background:#111827;border:1px solid #1e293b;border-radius:8px;padding:10px;margin-bottom:14px}
+  .desig .trait-label{margin-bottom:3px}
+  .desig-value{font-size:13px;font-weight:bold;color:#e2e8f0}
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+  .pulse{animation:pulse 2s ease-in-out infinite}
+  @keyframes flicker{0%,100%{opacity:.8}25%{opacity:1}50%{opacity:.6}75%{opacity:.9}}
+  .flicker{animation:flicker 1.5s ease-in-out infinite}
+  @keyframes scan{0%{transform:translateY(-8px);opacity:0}50%{opacity:.6}100%{transform:translateY(8px);opacity:0}}
+  .scan{animation:scan 3s linear infinite}
+  @keyframes drift{0%{transform:translateY(0)}50%{transform:translateY(-3px)}100%{transform:translateY(0)}}
+  .drift{animation:drift 4s ease-in-out infinite}
+  @keyframes rotate{0%{transform:rotate(0deg)}100%{transform:rotate(360deg)}}
+  .spin{animation:rotate 8s linear infinite;transform-origin:center}
+</style>
+</head>
+<body>
+<div class="container">
+  <h1>CLAWDMINT AGENTS</h1>
+  <p class="sub">10,000 Unique Agent Units on Base — Trait Randomizer Preview</p>
+  <div class="main">
+    <div class="svg-wrap" id="svgBox"></div>
+    <div class="panel">
+      <span class="rarity-badge bc" id="badge">COMMON</span>
+      <div class="agent-name" id="aName">—</div>
+      <div class="agent-code" id="aCode">XX-000000-X</div>
+      <div class="stat-row">
+        <div class="stat-box"><div class="stat-num" id="sEff">0</div><div class="stat-lbl">Efficiency</div></div>
+        <div class="stat-box"><div class="stat-num" id="sClr">1</div><div class="stat-lbl">Clearance</div></div>
+        <div class="stat-box"><div class="stat-num" id="sCmb">—</div><div class="stat-lbl">Combat</div></div>
+      </div>
+      <div class="desig"><div class="trait-label">Strategic Designation</div><div class="desig-value" id="sDesig">—</div></div>
+      <div class="trait-grid" id="tGrid"></div>
+      <div style="display:flex;gap:8px">
+        <button class="btn" onclick="generate()" style="flex:3">⟳ GENERATE NEW AGENT</button>
+        <button class="btn" onclick="generate(true)" style="flex:2;background:linear-gradient(135deg,#d946ef,#a855f7);font-size:12px">★ FORCE MYTHIC</button>
+      </div>
+      <div class="counter" id="cnt"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+const NS="http://www.w3.org/2000/svg";
+
+// ── SVG helpers ──
+function el(tag, attrs={}) {
+  const e = document.createElementNS(NS, tag);
+  for (const [k,v] of Object.entries(attrs)) {
+    if (k === "cls") e.classList.add(v);
+    else e.setAttribute(k, String(v));
+  }
+  return e;
+}
+function g(...children) {
+  const grp = el("g");
+  children.forEach(c => grp.appendChild(c));
+  return grp;
+}
+
+// ── COLOR UTILITIES (for 3D lighting) ──
+function hexToRgb(hex) {
+  const r = parseInt(hex.slice(1,3),16), g = parseInt(hex.slice(3,5),16), b = parseInt(hex.slice(5,7),16);
+  return [r,g,b];
+}
+function rgbToHex(r,g,b) {
+  return "#"+[r,g,b].map(v=>Math.max(0,Math.min(255,Math.round(v))).toString(16).padStart(2,"0")).join("");
+}
+function lighten(hex, pct) {
+  const [r,g,b] = hexToRgb(hex);
+  const f = pct/100;
+  return rgbToHex(r+(255-r)*f, g+(255-g)*f, b+(255-b)*f);
+}
+function darken(hex, pct) {
+  const [r,g,b] = hexToRgb(hex);
+  const f = 1-pct/100;
+  return rgbToHex(r*f, g*f, b*f);
+}
+
+// ── ADVANCED 3D DEFS (gradients + filters + textures) ──
+function setup3dDefs(svg, c) {
+  const defs = el("defs");
+  const pL = lighten(c.p,40), pM = c.p, pD = darken(c.p,35);
+  const sL = lighten(c.s,30), sM = c.s, sD = darken(c.s,35);
+  const aL = lighten(c.a,45), aM = c.a, aD = darken(c.a,30);
+  defs.innerHTML = `
+    <!-- Main body gradient — 4 stops for metallic feel -->
+    <linearGradient id="gm" x1="0" y1="0" x2="0.7" y2="1">
+      <stop offset="0%" stop-color="${pL}"/>
+      <stop offset="35%" stop-color="${lighten(c.p,15)}"/>
+      <stop offset="70%" stop-color="${pM}"/>
+      <stop offset="100%" stop-color="${pD}"/>
+    </linearGradient>
+    <!-- Secondary gradient -->
+    <linearGradient id="gs" x1="0" y1="0" x2="0.7" y2="1">
+      <stop offset="0%" stop-color="${sL}"/>
+      <stop offset="40%" stop-color="${sM}"/>
+      <stop offset="100%" stop-color="${sD}"/>
+    </linearGradient>
+    <!-- Accent gradient -->
+    <linearGradient id="ga" x1="0" y1="0" x2="0.5" y2="1">
+      <stop offset="0%" stop-color="${aL}"/>
+      <stop offset="50%" stop-color="${aM}"/>
+      <stop offset="100%" stop-color="${aD}"/>
+    </linearGradient>
+    <!-- Vertical main -->
+    <linearGradient id="gm-h" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="${pL}"/>
+      <stop offset="40%" stop-color="${pM}"/>
+      <stop offset="100%" stop-color="${pD}"/>
+    </linearGradient>
+    <!-- Vertical secondary -->
+    <linearGradient id="gs-h" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="${sL}"/>
+      <stop offset="100%" stop-color="${sD}"/>
+    </linearGradient>
+    <!-- Radial metallic sheen -->
+    <radialGradient id="gr-sheen" cx="35%" cy="30%" r="70%">
+      <stop offset="0%" stop-color="#fff" stop-opacity="0.12"/>
+      <stop offset="50%" stop-color="#fff" stop-opacity="0.03"/>
+      <stop offset="100%" stop-color="#000" stop-opacity="0.1"/>
+    </radialGradient>
+    <!-- Accent glow radial -->
+    <radialGradient id="gr-glow" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="${aM}" stop-opacity="0.6"/>
+      <stop offset="60%" stop-color="${aM}" stop-opacity="0.15"/>
+      <stop offset="100%" stop-color="${aM}" stop-opacity="0"/>
+    </radialGradient>
+    <!-- Emission light cast from eyes -->
+    <radialGradient id="gr-emit" cx="50%" cy="40%" r="60%">
+      <stop offset="0%" stop-color="${aM}" stop-opacity="0.08"/>
+      <stop offset="100%" stop-color="${aM}" stop-opacity="0"/>
+    </radialGradient>
+
+    <!-- Drop shadow -->
+    <filter id="sh">
+      <feDropShadow dx="2" dy="4" stdDeviation="3" flood-color="#000" flood-opacity="0.4"/>
+    </filter>
+    <filter id="sh-sm">
+      <feDropShadow dx="1" dy="2" stdDeviation="1.8" flood-color="#000" flood-opacity="0.35"/>
+    </filter>
+    <!-- Glow: multi-layer for richness -->
+    <filter id="gl">
+      <feGaussianBlur in="SourceGraphic" stdDeviation="4" result="b1"/>
+      <feGaussianBlur in="SourceGraphic" stdDeviation="1.5" result="b2"/>
+      <feMerge><feMergeNode in="b1"/><feMergeNode in="b2"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+    <!-- Intense glow -->
+    <filter id="gl2">
+      <feGaussianBlur in="SourceGraphic" stdDeviation="6" result="b1"/>
+      <feGaussianBlur in="SourceGraphic" stdDeviation="2" result="b2"/>
+      <feMerge><feMergeNode in="b1"/><feMergeNode in="b2"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+    <!-- Metallic bevel -->
+    <filter id="bevel" x="-5%" y="-5%" width="110%" height="110%">
+      <feGaussianBlur in="SourceAlpha" stdDeviation="1" result="blur"/>
+      <feSpecularLighting in="blur" surfaceScale="3" specularConstant=".6" specularExponent="20" result="spec" lighting-color="#fff">
+        <fePointLight x="60" y="40" z="80"/>
+      </feSpecularLighting>
+      <feComposite in="spec" in2="SourceAlpha" operator="in" result="spec2"/>
+      <feComposite in="SourceGraphic" in2="spec2" operator="arithmetic" k1="0" k2="1" k3=".4" k4="0"/>
+    </filter>
+    <!-- Inner shadow -->
+    <filter id="inn">
+      <feComponentTransfer in="SourceAlpha"><feFuncA type="table" tableValues="1 0"/></feComponentTransfer>
+      <feGaussianBlur stdDeviation="2.5"/>
+      <feOffset dx="1" dy="2" result="offsetblur"/>
+      <feFlood flood-color="#000" flood-opacity="0.35"/>
+      <feComposite in2="offsetblur" operator="in"/>
+      <feComposite in2="SourceAlpha" operator="in"/>
+      <feMerge><feMergeNode in="SourceGraphic"/><feMergeNode/></feMerge>
+    </filter>
+    <!-- Surface noise texture -->
+    <filter id="noise" x="0" y="0" width="100%" height="100%">
+      <feTurbulence type="fractalNoise" baseFrequency="0.8" numOctaves="4" result="n"/>
+      <feColorMatrix in="n" type="saturate" values="0" result="ng"/>
+      <feBlend in="SourceGraphic" in2="ng" mode="overlay" result="blend"/>
+      <feComposite in="blend" in2="SourceAlpha" operator="in"/>
+    </filter>
+    <!-- Rivet/panel detail pattern -->
+    <pattern id="rivets" width="16" height="16" patternUnits="userSpaceOnUse">
+      <circle cx="8" cy="8" r=".8" fill="${sL}" opacity=".15"/>
+    </pattern>
+    <pattern id="circuits" width="20" height="20" patternUnits="userSpaceOnUse">
+      <path d="M0 10 h8 v-8 M12 10 h8 M10 12 v8" fill="none" stroke="${aM}" stroke-width=".3" opacity=".08"/>
+    </pattern>
+  `;
+  svg.appendChild(defs);
+}
+
+// Helper: add specular highlight to a shape area
+function spec(cx, cy, rx, ry) {
+  return el("ellipse", {cx, cy, rx: rx||8, ry: ry||4, fill:"#fff", opacity:.08});
+}
+
+// ── COLOR PALETTES ──
+const PRIMARIES = [
+  { hex:"#0f172a", name:"Deep Black" },
+  { hex:"#334155", name:"Slate Gray" },
+  { hex:"#1e293b", name:"Navy Stealth" },
+  { hex:"#475569", name:"Cool Gray" },
+  { hex:"#111827", name:"Dark Carbon" },
+  { hex:"#312e81", name:"Indigo Operative" },
+  { hex:"#1e1b4b", name:"Midnight Blue" },
+];
+const SECONDARIES = [
+  { hex:"#334155", name:"Slate" },
+  { hex:"#475569", name:"Smoke" },
+  { hex:"#1e293b", name:"Navy" },
+  { hex:"#3f3f46", name:"Zinc" },
+  { hex:"#27272a", name:"Charcoal" },
+  { hex:"#312e81", name:"Indigo" },
+  { hex:"#374151", name:"Iron" },
+];
+const ACCENTS = [
+  { hex:"#06b6d4", name:"Cyan Glow",     r:"c" },
+  { hex:"#ef4444", name:"Red Alert",     r:"u" },
+  { hex:"#10b981", name:"Emerald Energy",r:"u" },
+  { hex:"#f59e0b", name:"Amber HUD",     r:"r" },
+  { hex:"#8b5cf6", name:"Violet Ion",    r:"r" },
+  { hex:"#ffffff", name:"Crisp White",   r:"e" },
+  { hex:"#f43f5e", name:"Rose Flare",    r:"e" },
+  { hex:"#fbbf24", name:"Gold Signal",   r:"l" },
+];
+
+// ── PART RENDERERS ──
+// Each returns a <g> element. c = { p, s, a } (primary, secondary, accent hex strings)
+
+const HEAD_RENDERERS = {
+  "Tactical Helmet": {r:"c", d: (c) => {
+    const grp = el("g", {filter:"url(#bevel)"});
+    // Main shell
+    grp.appendChild(el("path", {d:"M70 30 L130 30 L135 80 L65 80 Z", fill:"url(#gm)", stroke:c.s, "stroke-width":1.5}));
+    // Visor panel
+    grp.appendChild(el("path", {d:"M70 30 L130 30 L118 48 L82 48 Z", fill:"url(#gs)", "fill-opacity":.6}));
+    // Panel seam lines
+    grp.appendChild(el("line", {x1:72, y1:50, x2:128, y2:50, stroke:c.s, "stroke-width":.5, opacity:.35}));
+    grp.appendChild(el("line", {x1:68, y1:65, x2:132, y2:65, stroke:c.s, "stroke-width":.4, opacity:.25}));
+    // Center ridge
+    grp.appendChild(el("line", {x1:100, y1:30, x2:100, y2:80, stroke:c.s, "stroke-width":.4, opacity:.2}));
+    // Side vent ports
+    for(let y=55;y<75;y+=5){
+      grp.appendChild(el("rect", {x:67, y, width:7, height:1.8, rx:.5, fill:c.s, opacity:.25}));
+      grp.appendChild(el("rect", {x:126, y, width:7, height:1.8, rx:.5, fill:c.s, opacity:.25}));
+    }
+    // Chin guard accent
+    grp.appendChild(el("path", {d:"M75 76 L125 76 L128 80 L72 80 Z", fill:c.a, opacity:.08}));
+    // Edge highlights
+    grp.appendChild(el("path", {d:"M72 31 L128 31", stroke:"#fff", "stroke-width":.8, opacity:.18}));
+    grp.appendChild(el("path", {d:"M66 79 L134 79", stroke:"#000", "stroke-width":.5, opacity:.12}));
+    // Surface layers
+    grp.appendChild(el("path", {d:"M70 30 L130 30 L135 80 L65 80 Z", fill:"url(#gr-sheen)"}));
+    // Bolts
+    [[73,35],[127,35],[68,72],[132,72]].forEach(([x,y]) => {
+      grp.appendChild(el("circle", {cx:x, cy:y, r:1.2, fill:c.s, opacity:.25}));
+      grp.appendChild(el("circle", {cx:x, cy:y, r:.4, fill:"#fff", opacity:.1}));
+    });
+    grp.appendChild(spec(92, 40, 14, 6));
+    return grp;
+  }},
+  "Stealth Visor": {r:"c", d: (c) => {
+    const grp = el("g", {filter:"url(#bevel)"});
+    // Smooth shell
+    grp.appendChild(el("rect", {x:70, y:30, width:60, height:50, rx:15, ry:8, fill:"url(#gm)", stroke:c.s, "stroke-width":1.5}));
+    // Visor band
+    grp.appendChild(el("path", {d:"M70 44 L130 44 L130 58 L70 58 Z", fill:c.a, "fill-opacity":.12}));
+    grp.appendChild(el("line", {x1:72, y1:45, x2:128, y2:45, stroke:c.a, "stroke-width":.5, opacity:.3}));
+    grp.appendChild(el("line", {x1:72, y1:57, x2:128, y2:57, stroke:c.a, "stroke-width":.5, opacity:.3}));
+    // Center seam
+    grp.appendChild(el("path", {d:"M100 30 Q100 33 100 44 M100 58 L100 80", stroke:c.s, "stroke-width":.4, opacity:.2}));
+    // Side accent strips
+    grp.appendChild(el("rect", {x:68, y:48, width:3, height:8, rx:1, fill:c.a, opacity:.12}));
+    grp.appendChild(el("rect", {x:129, y:48, width:3, height:8, rx:1, fill:c.a, opacity:.12}));
+    // Top highlight curve
+    grp.appendChild(el("path", {d:"M78 33 Q100 28 122 33", fill:"none", stroke:"#fff", "stroke-width":.8, opacity:.14}));
+    // Surface layers
+    grp.appendChild(el("rect", {x:70, y:30, width:60, height:50, rx:15, ry:8, fill:"url(#gr-sheen)"}));
+    grp.appendChild(spec(90, 36, 12, 5));
+    return grp;
+  }},
+  "Neural Link": {r:"u", d: (c) => {
+    const grp = el("g");
+    const head = el("g", {filter:"url(#bevel)"});
+    head.appendChild(el("rect", {x:75, y:35, width:50, height:45, rx:4, fill:"url(#gm)", stroke:c.s, "stroke-width":1.5}));
+    // Circuit board surface
+    head.appendChild(el("rect", {x:75, y:35, width:50, height:45, rx:4, fill:"url(#circuits)"}));
+    // Panel detail
+    head.appendChild(el("line", {x1:78, y1:50, x2:122, y2:50, stroke:c.s, "stroke-width":.4, opacity:.3}));
+    head.appendChild(el("line", {x1:78, y1:65, x2:122, y2:65, stroke:c.s, "stroke-width":.4, opacity:.3}));
+    // Side data ports
+    [[74,45],[126,45],[74,60],[126,60]].forEach(([x,y]) =>
+      head.appendChild(el("rect", {x:x-2, y:y-1, width:4, height:2, rx:.5, fill:c.a, opacity:.18})));
+    // Surface layers
+    head.appendChild(el("rect", {x:75, y:35, width:50, height:45, rx:4, fill:"url(#gr-sheen)"}));
+    head.appendChild(spec(90, 42, 12, 5));
+    grp.appendChild(head);
+    // Antenna array with energy nodes
+    [100,85,115].forEach((x,i) => {
+      const topY = i===0?12:18;
+      grp.appendChild(el("path", {d:`M${x} 35 L${x} ${topY}`, stroke:"url(#ga)", "stroke-width":2.5}));
+      // Connector at base
+      grp.appendChild(el("rect", {x:x-3, y:33, width:6, height:4, rx:1, fill:c.s, opacity:.5}));
+      // Energy node
+      grp.appendChild(el("circle", {cx:x, cy:topY, r:i===0?4:3, fill:"#000", stroke:c.a, "stroke-width":1.5}));
+      grp.appendChild(el("circle", {cx:x, cy:topY, r:i===0?2:1.5, fill:c.a, filter:"url(#gl2)", cls:"pulse"}));
+    });
+    // Cross-connect cable
+    grp.appendChild(el("path", {d:"M88 20 L100 16 L112 20", fill:"none", stroke:c.a, "stroke-width":.8, opacity:.25}));
+    return grp;
+  }},
+  "Sentinel": {r:"r", d: (c) => {
+    const grp = el("g", {filter:"url(#bevel)"});
+    // Imposing dome
+    grp.appendChild(el("path", {d:"M70 80 Q70 25 100 20 Q130 25 130 80 Z", fill:"url(#gm)", stroke:c.s, "stroke-width":2}));
+    // Layered armor plates
+    grp.appendChild(el("path", {d:"M74 75 L126 75 L122 67 L78 67 Z", fill:"url(#gs)"}));
+    grp.appendChild(el("path", {d:"M76 67 L124 67 L120 60 L80 60 Z", fill:"url(#gs)", opacity:.7}));
+    // Chin shield
+    grp.appendChild(el("path", {d:"M80 80 L120 80 L115 74 L85 74 Z", fill:c.s, opacity:.4}));
+    // Panel arc lines
+    grp.appendChild(el("path", {d:"M78 45 Q100 40 122 45", fill:"none", stroke:c.s, "stroke-width":.5, opacity:.3}));
+    grp.appendChild(el("path", {d:"M75 55 Q100 50 125 55", fill:"none", stroke:c.s, "stroke-width":.5, opacity:.25}));
+    // Side armor plates
+    grp.appendChild(el("path", {d:"M70 50 L65 55 L65 72 L70 76", fill:"url(#gs)", stroke:c.s, "stroke-width":.5, opacity:.6}));
+    grp.appendChild(el("path", {d:"M130 50 L135 55 L135 72 L130 76", fill:"url(#gs)", stroke:c.s, "stroke-width":.5, opacity:.6}));
+    // Crest energy accent
+    grp.appendChild(el("path", {d:"M100 20 L100 35", stroke:c.a, "stroke-width":2, opacity:.5}));
+    grp.appendChild(el("circle", {cx:100, cy:19, r:2.5, fill:c.a, filter:"url(#gl)", cls:"flicker"}));
+    // Top highlight
+    grp.appendChild(el("path", {d:"M82 28 Q100 22 118 28", fill:"none", stroke:"#fff", "stroke-width":.8, opacity:.14}));
+    // Surface layers
+    grp.appendChild(el("path", {d:"M70 80 Q70 25 100 20 Q130 25 130 80 Z", fill:"url(#gr-sheen)"}));
+    grp.appendChild(spec(90, 38, 12, 6));
+    return grp;
+  }},
+  "Cyber-mask": {r:"e", d: (c) => {
+    const grp = el("g", {filter:"url(#bevel)"});
+    // Pointed face plate
+    grp.appendChild(el("path", {d:"M70 28 L130 28 L122 82 L100 94 L78 82 Z", fill:"url(#gm)", stroke:c.s, "stroke-width":1.5}));
+    // Forehead crest
+    grp.appendChild(el("path", {d:"M85 28 L100 18 L115 28", fill:"url(#gs)", stroke:c.s, "stroke-width":1}));
+    grp.appendChild(el("circle", {cx:100, cy:22, r:2, fill:c.a, filter:"url(#gl)", cls:"pulse"}));
+    // Cheek armor plates
+    grp.appendChild(el("path", {d:"M70 40 L65 50 L68 70 L78 75 L78 40 Z", fill:"url(#gs)", stroke:c.s, "stroke-width":.5, opacity:.7}));
+    grp.appendChild(el("path", {d:"M130 40 L135 50 L132 70 L122 75 L122 40 Z", fill:"url(#gs)", stroke:c.s, "stroke-width":.5, opacity:.7}));
+    // Jaw mechanism lines
+    grp.appendChild(el("path", {d:"M82 75 L100 88 L118 75", fill:"none", stroke:c.s, "stroke-width":.5, opacity:.35}));
+    grp.appendChild(el("path", {d:"M85 78 L100 84 L115 78", fill:"none", stroke:c.a, "stroke-width":.4, opacity:.2}));
+    // Mouth plate
+    grp.appendChild(el("path", {d:"M85 73 L115 73 L112 82 L88 82 Z", fill:"url(#gs)"}));
+    // Panel lines
+    grp.appendChild(el("line", {x1:82, y1:45, x2:118, y2:45, stroke:c.s, "stroke-width":.4, opacity:.3}));
+    grp.appendChild(el("line", {x1:80, y1:60, x2:120, y2:60, stroke:c.s, "stroke-width":.4, opacity:.25}));
+    // Cheek energy accents
+    grp.appendChild(el("path", {d:"M68 52 L74 52 L74 65", fill:"none", stroke:c.a, "stroke-width":.8, opacity:.18}));
+    grp.appendChild(el("path", {d:"M132 52 L126 52 L126 65", fill:"none", stroke:c.a, "stroke-width":.8, opacity:.18}));
+    // Top edge highlight
+    grp.appendChild(el("path", {d:"M74 29 L126 29", stroke:"#fff", "stroke-width":.8, opacity:.14}));
+    // Surface layers
+    grp.appendChild(el("path", {d:"M70 28 L130 28 L122 82 L100 94 L78 82 Z", fill:"url(#gr-sheen)"}));
+    grp.appendChild(spec(90, 40, 14, 6));
+    return grp;
+  }},
+  "Crustacean Helm": {r:"r", d: (c) => {
+    const grp = el("g");
+    const shell = el("g", {filter:"url(#sh-sm)"});
+    shell.appendChild(el("path", {d:"M68 80 L68 50 Q68 28 100 25 Q132 28 132 50 L132 80 Z", fill:"url(#ga)", stroke:c.s, "stroke-width":1.5}));
+    shell.appendChild(el("path", {d:"M72 60 L128 60", stroke:c.s, "stroke-width":1, opacity:.4}));
+    shell.appendChild(el("path", {d:"M70 70 L130 70", stroke:c.s, "stroke-width":1, opacity:.3}));
+    shell.appendChild(el("path", {d:"M80 32 Q100 27 120 32", fill:"none", stroke:"#fff", "stroke-width":1, opacity:.2}));
+    shell.appendChild(spec(90, 40, 14, 6));
+    grp.appendChild(shell);
+    // Antennae with gradient
+    grp.appendChild(el("path", {d:"M82 30 Q70 10 55 5 Q45 3 38 8", fill:"none", stroke:"url(#ga)", "stroke-width":3.5, "stroke-linecap":"round"}));
+    grp.appendChild(el("circle", {cx:38, cy:8, r:3, fill:c.a, filter:"url(#gl)"}));
+    grp.appendChild(el("path", {d:"M118 30 Q130 10 145 5 Q155 3 162 8", fill:"none", stroke:"url(#ga)", "stroke-width":3.5, "stroke-linecap":"round"}));
+    grp.appendChild(el("circle", {cx:162, cy:8, r:3, fill:c.a, filter:"url(#gl)"}));
+    return grp;
+  }},
+  // ─── LEGENDARY: OMEGA CROWN ───
+  "Omega Crown": {r:"l", d: (c) => {
+    const grp = el("g");
+    const head = el("g", {filter:"url(#bevel)"});
+    head.appendChild(el("path", {d:"M72 80 L72 45 Q72 26 100 22 Q128 26 128 45 L128 80 Z", fill:"url(#gm)", stroke:c.s, "stroke-width":2}));
+    // Crown spikes with energy tips
+    [[82,24,-6],[100,22,0],[118,24,6]].forEach(([x,y,lean]) => {
+      head.appendChild(el("path", {d:`M${x-5} ${y} L${x+lean*.4} ${y-20} L${x+5} ${y} Z`, fill:"url(#ga)", stroke:c.a, "stroke-width":.8}));
+      head.appendChild(el("circle", {cx:x+lean*.4, cy:y-22, r:3, fill:c.a, filter:"url(#gl2)", cls:"flicker"}));
+    });
+    // Side ornate fin panels
+    head.appendChild(el("path", {d:"M72 38 L58 30 L56 50 L72 52 Z", fill:"url(#gs)", stroke:c.s, "stroke-width":1}));
+    head.appendChild(el("path", {d:"M128 38 L142 30 L144 50 L128 52 Z", fill:"url(#gs)", stroke:c.s, "stroke-width":1}));
+    // Face plate detail
+    head.appendChild(el("path", {d:"M76 52 L124 52 L126 74 L74 74 Z", fill:"url(#gs)", "fill-opacity":.45}));
+    head.appendChild(el("line", {x1:100, y1:52, x2:100, y2:74, stroke:c.s, "stroke-width":.5, opacity:.25}));
+    // Energy seam centerline
+    head.appendChild(el("line", {x1:100, y1:22, x2:100, y2:80, stroke:c.a, "stroke-width":1.2, opacity:.15}));
+    head.appendChild(el("line", {x1:100, y1:22, x2:100, y2:80, stroke:c.a, "stroke-width":.5, opacity:.35, filter:"url(#gl)"}));
+    // Panel accent seams
+    [[78,60,122,60],[76,68,124,68]].forEach(([x1,y1,x2,y2]) =>
+      head.appendChild(el("line", {x1,y1,x2,y2, stroke:c.s, "stroke-width":.4, opacity:.3})));
+    // Surface detail layers
+    head.appendChild(el("path", {d:"M72 80 L72 45 Q72 26 100 22 Q128 26 128 45 L128 80 Z", fill:"url(#circuits)"}));
+    head.appendChild(el("path", {d:"M72 80 L72 45 Q72 26 100 22 Q128 26 128 45 L128 80 Z", fill:"url(#gr-sheen)"}));
+    // Bolts
+    [[75,34],[125,34],[74,72],[126,72]].forEach(([x,y]) => {
+      head.appendChild(el("circle", {cx:x, cy:y, r:1.3, fill:c.s, opacity:.25}));
+      head.appendChild(el("circle", {cx:x, cy:y, r:.45, fill:"#fff", opacity:.12}));
+    });
+    head.appendChild(spec(88, 35, 14, 6));
+    grp.appendChild(head);
+    // Floating energy diamond shards
+    const shardsG = el("g", {cls:"drift"});
+    [[62,14,6],[138,14,6],[74,4,4.5],[126,4,4.5],[100,-2,3.5]].forEach(([x,y,s]) => {
+      shardsG.appendChild(el("polygon", {points:`${x},${y-s} ${x+s*.6},${y} ${x},${y+s*.4} ${x-s*.6},${y}`, fill:c.a, opacity:.3, filter:"url(#gl)"}));
+    });
+    grp.appendChild(shardsG);
+    return grp;
+  }},
+  // ─── LEGENDARY: VOID HELM ───
+  "Void Helm": {r:"l", d: (c) => {
+    const grp = el("g");
+    const head = el("g", {filter:"url(#bevel)"});
+    head.appendChild(el("rect", {x:66, y:26, width:68, height:58, rx:6, fill:"url(#gm)", stroke:c.s, "stroke-width":2}));
+    // Void fracture cracks — glowing energy lines
+    ["M84 28 L80 40 L76 52 L80 62","M116 28 L120 40 L124 52 L120 62","M100 26 L97 38 L103 50 L100 58","M70 42 L76 46 L72 54","M130 42 L124 46 L128 54"].forEach(d => {
+      head.appendChild(el("path", {d, fill:"none", stroke:c.a, "stroke-width":2.2, opacity:.5, filter:"url(#gl2)"}));
+      head.appendChild(el("path", {d, fill:"none", stroke:"#fff", "stroke-width":.6, opacity:.25}));
+    });
+    // Emission overlay
+    head.appendChild(el("rect", {x:66, y:26, width:68, height:58, rx:6, fill:"url(#gr-emit)"}));
+    // Escaping void particles
+    for(let i=0;i<10;i++){
+      const px=74+Math.random()*52, py=26+Math.random()*58;
+      head.appendChild(el("circle", {cx:px, cy:py, r:.4+Math.random()*.8, fill:c.a, opacity:(.08+Math.random()*.18).toFixed(2), cls:"drift"}));
+    }
+    head.appendChild(spec(86, 34, 12, 5));
+    grp.appendChild(head);
+    // Outer pulsing reality aura
+    grp.appendChild(el("rect", {x:60, y:20, width:80, height:68, rx:10, fill:"none", stroke:c.a, "stroke-width":.6, opacity:.12, cls:"pulse"}));
+    grp.appendChild(el("rect", {x:54, y:14, width:92, height:80, rx:14, fill:"none", stroke:c.a, "stroke-width":.3, opacity:.06, cls:"pulse"}));
+    return grp;
+  }},
+};
+
+const EYES_RENDERERS = {
+  "Mono Visor": {r:"c", d: (c) => g(
+    el("ellipse", {cx:100, cy:53, rx:30, ry:10, fill:c.a, opacity:.03}),
+    el("rect", {x:74, y:49, width:52, height:8, rx:4, fill:"#000", stroke:c.a, "stroke-width":.5, opacity:.4}),
+    el("rect", {x:75, y:50, width:50, height:6, rx:3, fill:c.a, cls:"pulse"}),
+    el("path", {d:"M75 53 L125 53", stroke:"#ffffff", "stroke-width":1, "stroke-opacity":.5}),
+    el("rect", {x:78, y:50.5, width:16, height:2, rx:1, fill:"#fff", opacity:.15})
+  )},
+  "Tri-lens": {r:"u", d: (c) => g(
+    el("circle", {cx:85, cy:50, r:5, fill:"#000", stroke:c.a, "stroke-width":1}),
+    el("circle", {cx:85, cy:50, r:3, fill:c.a}),
+    el("circle", {cx:115, cy:50, r:5, fill:"#000", stroke:c.a, "stroke-width":1}),
+    el("circle", {cx:115, cy:50, r:3, fill:c.a}),
+    el("circle", {cx:100, cy:65, r:5, fill:"#000", stroke:c.a, "stroke-width":1}),
+    el("circle", {cx:100, cy:65, r:3, fill:c.a})
+  )},
+  "HUD Display": {r:"r", d: (c) => {
+    const grp = el("g");
+    // Emission glow
+    grp.appendChild(el("ellipse", {cx:100, cy:55, rx:30, ry:14, fill:c.a, opacity:.025}));
+    // HUD frame
+    grp.appendChild(el("rect", {x:74, y:44, width:52, height:22, rx:3, fill:c.a, "fill-opacity":.08, stroke:c.a, "stroke-width":1}));
+    // Corner brackets
+    ["M74 48 L74 44 L80 44","M120 44 L126 44 L126 48","M74 62 L74 66 L80 66","M120 66 L126 66 L126 62"].forEach(d =>
+      grp.appendChild(el("path", {d, fill:"none", stroke:c.a, "stroke-width":1, opacity:.5})));
+    // Data readouts
+    grp.appendChild(el("path", {d:"M79 50 L92 50", stroke:c.a, "stroke-width":1.5}));
+    grp.appendChild(el("path", {d:"M79 54 L86 54", stroke:c.a, "stroke-width":1}));
+    grp.appendChild(el("path", {d:"M79 58 L83 58", stroke:c.a, "stroke-width":1, opacity:.6}));
+    // Mini readout bars
+    for(let i=0;i<4;i++) grp.appendChild(el("rect", {x:108+i*4, y:56, width:2, height:3+Math.random()*5, fill:c.a, opacity:.5, cls:"flicker"}));
+    // Targeting reticle
+    grp.appendChild(el("circle", {cx:112, cy:50, r:3, fill:"none", stroke:c.a, "stroke-width":.5, cls:"spin"}));
+    grp.appendChild(el("circle", {cx:112, cy:50, r:1, fill:c.a, cls:"pulse"}));
+    return grp;
+  }},
+  "Digital Aperture": {r:"e", d: (c) => g(
+    el("ellipse", {cx:100, cy:55, rx:22, ry:14, fill:c.a, opacity:.03}),
+    el("circle", {cx:100, cy:55, r:15, fill:"#000", stroke:c.a, "stroke-width":2}),
+    el("circle", {cx:100, cy:55, r:11, fill:"none", stroke:c.a, "stroke-width":.5, opacity:.3}),
+    el("circle", {cx:100, cy:55, r:8, fill:"none", stroke:c.a, "stroke-width":1, "stroke-dasharray":"2 2", cls:"spin"}),
+    el("circle", {cx:100, cy:55, r:4, fill:c.a, filter:"url(#gl)", cls:"pulse"}),
+    el("circle", {cx:100, cy:55, r:1.5, fill:"#fff", opacity:.5}),
+    el("circle", {cx:96, cy:51, r:1, fill:"#fff", opacity:.2})
+  )},
+  "Stealth Scan": {r:"c", d: (c) => g(
+    el("rect", {x:80, y:52, width:40, height:4, rx:2, fill:c.a}),
+    el("path", {d:"M70 54 L130 54", stroke:c.a, "stroke-width":.5, "stroke-dasharray":"2 2"})
+  )},
+  "Stalker Eyes": {r:"r", d: (c) => {
+    // Lobster-style eye stalks protruding upward
+    const grp = el("g");
+    // Left stalk
+    grp.appendChild(el("path", {d:"M88 50 Q86 38 80 32", fill:"none", stroke:c.a, "stroke-width":3.5, "stroke-linecap":"round"}));
+    grp.appendChild(el("circle", {cx:80, cy:31, r:5, fill:"#000", stroke:c.a, "stroke-width":1.5}));
+    grp.appendChild(el("circle", {cx:80, cy:31, r:2.5, fill:c.a, cls:"pulse"}));
+    grp.appendChild(el("circle", {cx:79, cy:30, r:1, fill:"#fff", opacity:.5}));
+    // Right stalk
+    grp.appendChild(el("path", {d:"M112 50 Q114 38 120 32", fill:"none", stroke:c.a, "stroke-width":3.5, "stroke-linecap":"round"}));
+    grp.appendChild(el("circle", {cx:120, cy:31, r:5, fill:"#000", stroke:c.a, "stroke-width":1.5}));
+    grp.appendChild(el("circle", {cx:120, cy:31, r:2.5, fill:c.a, cls:"pulse"}));
+    grp.appendChild(el("circle", {cx:119, cy:30, r:1, fill:"#fff", opacity:.5}));
+    return grp;
+  }},
+  // ─── LEGENDARY: QUANTUM SIGHT ───
+  "Quantum Sight": {r:"l", d: (c) => {
+    const grp = el("g");
+    // Two portal-vortex eyes
+    [[85,52],[115,52]].forEach(([cx,cy]) => {
+      grp.appendChild(el("circle", {cx, cy, r:11, fill:"#000", stroke:c.a, "stroke-width":1.5}));
+      // Vortex concentric rings
+      [8.5,6,3.5].forEach((r,i) => {
+        grp.appendChild(el("circle", {cx, cy, r, fill:"none", stroke:c.a, "stroke-width":.7-i*.15, opacity:.5-i*.12, cls:"spin"}));
+      });
+      // Core singularity
+      grp.appendChild(el("circle", {cx, cy, r:2, fill:c.a, filter:"url(#gl2)", cls:"flicker"}));
+      grp.appendChild(el("circle", {cx, cy, r:.8, fill:"#fff", opacity:.7}));
+      // Orbiting particles
+      for(let i=0;i<5;i++){
+        const angle=i*Math.PI*2/5;
+        grp.appendChild(el("circle", {cx:cx+Math.cos(angle)*7.5, cy:cy+Math.sin(angle)*7.5, r:.7, fill:c.a, opacity:.45, cls:"spin"}));
+      }
+    });
+    // Energy beam connecting both eyes
+    grp.appendChild(el("line", {x1:96, y1:52, x2:104, y2:52, stroke:c.a, "stroke-width":1, opacity:.35, filter:"url(#gl)"}));
+    // Wide emission glow on face
+    grp.appendChild(el("ellipse", {cx:100, cy:54, rx:30, ry:16, fill:c.a, opacity:.04}));
+    return grp;
+  }},
+};
+
+const MOUTH_RENDERERS = {
+  "Vocoder": {r:"c", d: (c) => g(
+    el("rect", {x:85, y:72, width:30, height:8, rx:1, fill:"#000"}),
+    el("path", {d:"M88 74 L112 74", stroke:c.a, "stroke-width":1, "stroke-dasharray":"2 1"}),
+    el("path", {d:"M88 78 L112 78", stroke:c.a, "stroke-width":1, "stroke-dasharray":"1 2"})
+  )},
+  "Respirator": {r:"u", d: (c) => g(
+    el("path", {d:"M85 70 L115 70 L110 85 L90 85 Z", fill:c.s}),
+    el("circle", {cx:100, cy:78, r:4, fill:"#000"}),
+    el("circle", {cx:100, cy:78, r:2, fill:c.a, "fill-opacity":.3})
+  )},
+  "Comm-unit": {r:"c", d: (c) => g(
+    el("rect", {x:92, y:74, width:16, height:5, rx:2, fill:c.s}),
+    el("rect", {x:95, y:75, width:10, height:3, rx:1, fill:c.a})
+  )},
+  "LED Array": {r:"r", d: (c) => {
+    const grp = el("g");
+    grp.appendChild(el("rect", {x:85, y:72, width:30, height:6, rx:2, fill:"#000"}));
+    for(let i=0;i<5;i++) {
+      grp.appendChild(el("circle", {cx:90+i*5, cy:75, r:1.5, fill:c.a, cls:"pulse"}));
+    }
+    return grp;
+  }},
+  "Sealed": {r:"c", d: (c) => g(
+    el("line", {x1:85, y1:75, x2:115, y2:75, stroke:c.s, "stroke-width":2})
+  )},
+  "Mandibles": {r:"e", d: (c) => {
+    // Lobster mandible mouth parts
+    const grp = el("g");
+    // Center mouth plate
+    grp.appendChild(el("rect", {x:92, y:72, width:16, height:8, rx:2, fill:"#000"}));
+    // Left mandible - curved pincer
+    grp.appendChild(el("path", {d:"M90 74 Q80 72 75 68 Q72 66 74 64", fill:"none", stroke:c.a, "stroke-width":2.5, "stroke-linecap":"round"}));
+    grp.appendChild(el("path", {d:"M90 78 Q82 78 78 74 Q76 72 78 70", fill:"none", stroke:c.a, "stroke-width":2, "stroke-linecap":"round"}));
+    // Right mandible
+    grp.appendChild(el("path", {d:"M110 74 Q120 72 125 68 Q128 66 126 64", fill:"none", stroke:c.a, "stroke-width":2.5, "stroke-linecap":"round"}));
+    grp.appendChild(el("path", {d:"M110 78 Q118 78 122 74 Q124 72 122 70", fill:"none", stroke:c.a, "stroke-width":2, "stroke-linecap":"round"}));
+    return grp;
+  }},
+};
+
+const BODY_RENDERERS = {
+  "Kinetic Armor": {r:"c", d: (c) => {
+    const grp = el("g", {filter:"url(#sh)"});
+    // Main trapezoid plate
+    grp.appendChild(el("path", {d:"M60 80 L140 80 L150 160 L50 160 Z", fill:"url(#gm)", stroke:c.s, "stroke-width":2}));
+    // Inner panel
+    grp.appendChild(el("path", {d:"M70 90 L130 90 L135 150 L65 150 Z", fill:"url(#gs)", "fill-opacity":.4}));
+    // Center seam
+    grp.appendChild(el("line", {x1:100, y1:80, x2:100, y2:160, stroke:c.s, "stroke-width":.8, opacity:.4}));
+    // Horizontal panel seams
+    [[64,100,136,100],[62,120,138,120],[60,140,140,140]].forEach(([x1,y1,x2,y2]) =>
+      grp.appendChild(el("line", {x1,y1,x2,y2, stroke:c.s, "stroke-width":.5, opacity:.25})));
+    // Shoulder mounts
+    grp.appendChild(el("rect", {x:56, y:78, width:12, height:8, rx:2, fill:"url(#gs)", stroke:c.s, "stroke-width":.8}));
+    grp.appendChild(el("rect", {x:132, y:78, width:12, height:8, rx:2, fill:"url(#gs)", stroke:c.s, "stroke-width":.8}));
+    // Energy accent line down center
+    grp.appendChild(el("line", {x1:100, y1:92, x2:100, y2:148, stroke:c.a, "stroke-width":.6, opacity:.1}));
+    // Rivet bolts
+    [[68,86],[132,86],[56,152],[144,152],[100,88]].forEach(([x,y]) => {
+      grp.appendChild(el("circle", {cx:x, cy:y, r:1.2, fill:c.s, opacity:.2}));
+      grp.appendChild(el("circle", {cx:x, cy:y, r:.4, fill:"#fff", opacity:.08}));
+    });
+    // Top edge highlight + bottom shadow
+    grp.appendChild(el("path", {d:"M64 81 L136 81", stroke:"#fff", "stroke-width":.6, opacity:.12}));
+    grp.appendChild(el("path", {d:"M52 159 L148 159", stroke:"#000", "stroke-width":.5, opacity:.1}));
+    // Surface layers
+    grp.appendChild(el("path", {d:"M60 80 L140 80 L150 160 L50 160 Z", fill:"url(#circuits)"}));
+    grp.appendChild(el("path", {d:"M60 80 L140 80 L150 160 L50 160 Z", fill:"url(#gr-sheen)"}));
+    grp.appendChild(spec(85, 95, 18, 7));
+    return grp;
+  }},
+  "Nano Chassis": {r:"u", d: (c) => {
+    const grp = el("g", {filter:"url(#sh)"});
+    // Rounded shell
+    grp.appendChild(el("rect", {x:65, y:80, width:70, height:90, rx:35, fill:"url(#gm)", stroke:c.s, "stroke-width":1.5}));
+    // Surface circuit pattern
+    grp.appendChild(el("rect", {x:65, y:80, width:70, height:90, rx:35, fill:"url(#circuits)"}));
+    // Energy core rings
+    grp.appendChild(el("circle", {cx:100, cy:120, r:22, fill:c.a, "fill-opacity":.04}));
+    grp.appendChild(el("circle", {cx:100, cy:120, r:18, fill:"none", stroke:c.a, "stroke-width":1, opacity:.15}));
+    grp.appendChild(el("circle", {cx:100, cy:120, r:12, fill:c.a, "fill-opacity":.08, cls:"pulse"}));
+    grp.appendChild(el("circle", {cx:100, cy:120, r:6, fill:c.a, filter:"url(#gl2)", cls:"flicker"}));
+    grp.appendChild(el("circle", {cx:100, cy:120, r:2, fill:"#fff", opacity:.4}));
+    // Energy tendrils from core
+    [0,90,180,270].forEach(deg => {
+      const rad=deg*Math.PI/180;
+      grp.appendChild(el("line", {x1:100+Math.cos(rad)*8, y1:120+Math.sin(rad)*8, x2:100+Math.cos(rad)*20, y2:120+Math.sin(rad)*20, stroke:c.a, "stroke-width":.5, opacity:.12}));
+    });
+    // Metallic sheen
+    grp.appendChild(el("rect", {x:65, y:80, width:70, height:90, rx:35, fill:"url(#gr-sheen)"}));
+    grp.appendChild(spec(85, 92, 16, 6));
+    return grp;
+  }},
+  "Stealth Core": {r:"r", d: (c) => {
+    const grp = el("g", {filter:"url(#sh)"});
+    // Stealth body shell
+    grp.appendChild(el("path", {d:"M70 80 L130 80 L120 170 L80 170 Z", fill:"url(#gm)", stroke:c.s, "stroke-width":1.5}));
+    // Dark data display screen
+    grp.appendChild(el("rect", {x:84, y:88, width:32, height:64, fill:"#000", rx:3, filter:"url(#inn)"}));
+    grp.appendChild(el("rect", {x:84, y:88, width:32, height:64, rx:3, fill:"none", stroke:c.a, "stroke-width":.5, opacity:.2}));
+    // Scrolling data lines (animated feel)
+    [96,106,116,126,136,146].forEach((y,i) => {
+      const w = 12+Math.random()*14;
+      grp.appendChild(el("rect", {x:88, y, width:w, height:1.5, rx:.5, fill:c.a, opacity:.15+i*.04, cls:"scan"}));
+    });
+    // Side panel lines
+    grp.appendChild(el("line", {x1:74, y1:95, x2:82, y2:95, stroke:c.s, "stroke-width":.5, opacity:.3}));
+    grp.appendChild(el("line", {x1:118, y1:95, x2:126, y2:95, stroke:c.s, "stroke-width":.5, opacity:.3}));
+    grp.appendChild(el("line", {x1:72, y1:130, x2:82, y2:130, stroke:c.s, "stroke-width":.5, opacity:.25}));
+    grp.appendChild(el("line", {x1:118, y1:130, x2:128, y2:130, stroke:c.s, "stroke-width":.5, opacity:.25}));
+    // Surface detail
+    grp.appendChild(el("path", {d:"M70 80 L130 80 L120 170 L80 170 Z", fill:"url(#gr-sheen)"}));
+    grp.appendChild(spec(88, 88, 14, 5));
+    return grp;
+  }},
+  "Tactical Vest": {r:"c", d: (c) => {
+    const grp = el("g", {filter:"url(#sh)"});
+    // Main vest body
+    grp.appendChild(el("rect", {x:60, y:80, width:80, height:85, rx:5, fill:"url(#gm)", stroke:c.s, "stroke-width":1.5}));
+    // Chest pockets
+    grp.appendChild(el("rect", {x:68, y:88, width:26, height:16, fill:"url(#gs)", rx:2, stroke:c.s, "stroke-width":.5}));
+    grp.appendChild(el("rect", {x:106, y:88, width:26, height:16, fill:"url(#gs)", rx:2, stroke:c.s, "stroke-width":.5}));
+    // Pocket flap lines
+    grp.appendChild(el("line", {x1:70, y1:92, x2:92, y2:92, stroke:c.s, "stroke-width":.4, opacity:.3}));
+    grp.appendChild(el("line", {x1:108, y1:92, x2:130, y2:92, stroke:c.s, "stroke-width":.4, opacity:.3}));
+    // Utility belt
+    grp.appendChild(el("rect", {x:60, y:142, width:80, height:8, rx:2, fill:"url(#gs)", stroke:c.s, "stroke-width":.5}));
+    grp.appendChild(el("rect", {x:95, y:143, width:10, height:6, rx:1, fill:c.s, opacity:.4}));
+    // Magazine pouches
+    grp.appendChild(el("rect", {x:68, y:114, width:62, height:22, fill:"url(#gs)", rx:2}));
+    [72,82,92,102,112,122].forEach(x =>
+      grp.appendChild(el("line", {x1:x, y1:116, x2:x, y2:134, stroke:c.s, "stroke-width":.4, opacity:.3})));
+    // Center seam
+    grp.appendChild(el("line", {x1:100, y1:80, x2:100, y2:165, stroke:c.s, "stroke-width":.8, opacity:.25}));
+    // Collar/neck guard
+    grp.appendChild(el("path", {d:"M75 80 Q100 76 125 80", fill:"none", stroke:c.s, "stroke-width":1, opacity:.3}));
+    // Surface layers
+    grp.appendChild(el("rect", {x:60, y:80, width:80, height:85, rx:5, fill:"url(#gr-sheen)"}));
+    grp.appendChild(spec(82, 93, 14, 5));
+    return grp;
+  }},
+  "Exoskeleton": {r:"e", d: (c) => {
+    const grp = el("g", {filter:"url(#sh)"});
+    // Inner core body
+    grp.appendChild(el("rect", {x:78, y:80, width:44, height:95, rx:4, fill:"url(#gm)", stroke:c.s, "stroke-width":1}));
+    // External frame struts
+    [90,120,150].forEach(y => {
+      grp.appendChild(el("path", {d:`M56 ${y} L144 ${y}`, stroke:"url(#gs)", "stroke-width":8}));
+      // Joint pistons
+      grp.appendChild(el("rect", {x:56, y:y-3, width:6, height:6, rx:1, fill:c.s, opacity:.5}));
+      grp.appendChild(el("rect", {x:138, y:y-3, width:6, height:6, rx:1, fill:c.s, opacity:.5}));
+      // Strut edge highlights
+      grp.appendChild(el("line", {x1:60, y1:y-3.5, x2:140, y2:y-3.5, stroke:"#fff", "stroke-width":.4, opacity:.08}));
+    });
+    // Central energy ring — pulsing
+    grp.appendChild(el("circle", {cx:100, cy:120, r:12, fill:"none", stroke:c.a, "stroke-width":1, opacity:.15}));
+    grp.appendChild(el("circle", {cx:100, cy:120, r:9, fill:"none", stroke:c.a, "stroke-width":2, filter:"url(#gl)", cls:"pulse"}));
+    grp.appendChild(el("circle", {cx:100, cy:120, r:4, fill:c.a, opacity:.2, cls:"flicker"}));
+    // Hydraulic cables
+    grp.appendChild(el("path", {d:"M78 90 Q70 105 78 120", fill:"none", stroke:c.a, "stroke-width":.8, opacity:.15}));
+    grp.appendChild(el("path", {d:"M122 90 Q130 105 122 120", fill:"none", stroke:c.a, "stroke-width":.8, opacity:.15}));
+    // Surface detail
+    grp.appendChild(el("rect", {x:78, y:80, width:44, height:95, rx:4, fill:"url(#gr-sheen)"}));
+    grp.appendChild(spec(90, 90, 12, 5));
+    return grp;
+  }},
+  "Carapace": {r:"r", d: (c) => {
+    const grp = el("g", {filter:"url(#sh)"});
+    grp.appendChild(el("path", {d:"M60 80 Q58 85 60 90 L60 160 Q60 168 70 170 L130 170 Q140 168 140 160 L140 90 Q142 85 140 80 Z", fill:"url(#ga)", stroke:c.s, "stroke-width":1.5}));
+    [98,116,134,152].forEach(y => grp.appendChild(el("path", {d:`M64 ${y} L136 ${y}`, stroke:c.s, "stroke-width":1.5, opacity:.5})));
+    grp.appendChild(el("path", {d:"M100 84 L100 166", stroke:c.s, "stroke-width":1.5, opacity:.25}));
+    grp.appendChild(el("path", {d:"M70 86 Q100 80 130 86", fill:"none", stroke:"#fff", "stroke-width":1, opacity:.2}));
+    grp.appendChild(el("rect", {x:85, y:100, width:30, height:55, rx:4, fill:c.s, opacity:.25}));
+    grp.appendChild(spec(85, 90, 18, 7));
+    return grp;
+  }},
+  // ─── LEGENDARY: QUANTUM CORE ───
+  "Quantum Core": {r:"l", d: (c) => {
+    const grp = el("g", {filter:"url(#sh)"});
+    // Main armored shell
+    grp.appendChild(el("path", {d:"M58 80 L142 80 L148 168 L52 168 Z", fill:"url(#gm)", stroke:c.s, "stroke-width":2}));
+    // Shoulder pylons
+    grp.appendChild(el("rect", {x:50, y:78, width:15, height:13, rx:2, fill:"url(#gs)", stroke:c.s, "stroke-width":1}));
+    grp.appendChild(el("rect", {x:135, y:78, width:15, height:13, rx:2, fill:"url(#gs)", stroke:c.s, "stroke-width":1}));
+    grp.appendChild(el("circle", {cx:57, cy:84, r:2.5, fill:c.a, opacity:.45}));
+    grp.appendChild(el("circle", {cx:143, cy:84, r:2.5, fill:c.a, opacity:.45}));
+    // Glass viewport panel — dark transparent window
+    grp.appendChild(el("rect", {x:80, y:92, width:40, height:56, rx:4, fill:"#000", opacity:.85}));
+    grp.appendChild(el("rect", {x:80, y:92, width:40, height:56, rx:4, fill:"none", stroke:c.a, "stroke-width":1, opacity:.4}));
+    // Inner reactor sphere — pulsing energy
+    grp.appendChild(el("circle", {cx:100, cy:120, r:18, fill:c.a, opacity:.05}));
+    grp.appendChild(el("circle", {cx:100, cy:120, r:12, fill:c.a, opacity:.08, cls:"pulse"}));
+    grp.appendChild(el("circle", {cx:100, cy:120, r:6, fill:c.a, filter:"url(#gl2)", cls:"flicker"}));
+    grp.appendChild(el("circle", {cx:100, cy:120, r:2.5, fill:"#fff", opacity:.6}));
+    // Energy tendrils radiating outward
+    [0,45,90,135,180,225,270,315].forEach(deg => {
+      const rad=deg*Math.PI/180;
+      const x1=100+Math.cos(rad)*8, y1=120+Math.sin(rad)*8;
+      const x2=100+Math.cos(rad)*26, y2=120+Math.sin(rad)*26;
+      grp.appendChild(el("line", {x1,y1,x2,y2, stroke:c.a, "stroke-width":.6, opacity:.2}));
+    });
+    // Panel seam lines
+    [[62,96,78,96],[122,96,138,96],[58,130,78,130],[122,130,142,130],[55,155,145,155]].forEach(([x1,y1,x2,y2]) =>
+      grp.appendChild(el("line", {x1,y1,x2,y2, stroke:c.s, "stroke-width":.5, opacity:.3})));
+    // Surface circuits + metallic sheen
+    grp.appendChild(el("path", {d:"M58 80 L142 80 L148 168 L52 168 Z", fill:"url(#circuits)"}));
+    grp.appendChild(el("path", {d:"M58 80 L142 80 L148 168 L52 168 Z", fill:"url(#gr-sheen)"}));
+    // Corner bolts
+    [[62,84],[138,84],[55,162],[145,162]].forEach(([x,y]) => {
+      grp.appendChild(el("circle", {cx:x, cy:y, r:1.5, fill:c.s, opacity:.3}));
+      grp.appendChild(el("circle", {cx:x, cy:y, r:.5, fill:"#fff", opacity:.12}));
+    });
+    grp.appendChild(spec(82, 88, 20, 7));
+    return grp;
+  }},
+};
+
+const ARMS_RENDERERS = {
+  "Tactical Blade": {r:"r", d: (c) => {
+    const grp = el("g", {filter:"url(#sh-sm)"});
+    grp.appendChild(el("path", {d:"M60 100 L25 100 L15 140 L30 135 Z", fill:"url(#gm)", stroke:c.s, "stroke-width":1.5}));
+    grp.appendChild(el("path", {d:"M15 140 L10 170 L20 150 Z", fill:"url(#ga)"}));
+    grp.appendChild(el("path", {d:"M140 100 L175 100 L185 140 L170 135 Z", fill:"url(#gm)", stroke:c.s, "stroke-width":1.5}));
+    grp.appendChild(el("path", {d:"M185 140 L190 170 L180 150 Z", fill:"url(#ga)"}));
+    return grp;
+  }},
+  "Grapple Hook": {r:"u", d: (c) => {
+    const grp = el("g", {filter:"url(#sh-sm)"});
+    grp.appendChild(el("rect", {x:30, y:100, width:30, height:12, rx:2, fill:"url(#gm)", stroke:c.s, "stroke-width":1}));
+    grp.appendChild(el("path", {d:"M30 106 L10 106", stroke:"url(#gs)", "stroke-width":4}));
+    grp.appendChild(el("path", {d:"M10 100 L0 106 L10 112 Z", fill:"url(#ga)"}));
+    grp.appendChild(el("rect", {x:140, y:100, width:30, height:12, rx:2, fill:"url(#gm)", stroke:c.s, "stroke-width":1}));
+    grp.appendChild(el("path", {d:"M170 106 L190 106", stroke:"url(#gs)", "stroke-width":4}));
+    grp.appendChild(el("path", {d:"M190 100 L200 106 L190 112 Z", fill:"url(#ga)"}));
+    return grp;
+  }},
+  "Ion Blaster": {r:"e", d: (c) => {
+    const grp = el("g", {filter:"url(#sh-sm)"});
+    grp.appendChild(el("rect", {x:20, y:95, width:40, height:25, rx:4, fill:"url(#gs)", stroke:c.p, "stroke-width":1}));
+    grp.appendChild(el("circle", {cx:25, cy:107, r:7, fill:"#000", stroke:c.a, "stroke-width":1.5}));
+    grp.appendChild(el("circle", {cx:25, cy:107, r:3.5, fill:c.a, filter:"url(#gl)", cls:"pulse"}));
+    grp.appendChild(el("rect", {x:140, y:95, width:40, height:25, rx:4, fill:"url(#gs)", stroke:c.p, "stroke-width":1}));
+    grp.appendChild(el("circle", {cx:175, cy:107, r:7, fill:"#000", stroke:c.a, "stroke-width":1.5}));
+    grp.appendChild(el("circle", {cx:175, cy:107, r:3.5, fill:c.a, filter:"url(#gl)", cls:"pulse"}));
+    grp.appendChild(spec(35, 100, 8, 3));
+    grp.appendChild(spec(155, 100, 8, 3));
+    return grp;
+  }},
+  "Precision Servo": {r:"c", d: (c) => {
+    const grp = el("g", {filter:"url(#sh-sm)"});
+    grp.appendChild(el("line", {x1:60, y1:100, x2:30, y2:130, stroke:"url(#gm)", "stroke-width":9, "stroke-linecap":"round"}));
+    grp.appendChild(el("circle", {cx:30, cy:130, r:11, fill:"url(#gs)", stroke:c.a, "stroke-width":1.5}));
+    grp.appendChild(el("circle", {cx:30, cy:130, r:4.5, fill:c.a, opacity:.6}));
+    grp.appendChild(el("line", {x1:140, y1:100, x2:170, y2:130, stroke:"url(#gm)", "stroke-width":9, "stroke-linecap":"round"}));
+    grp.appendChild(el("circle", {cx:170, cy:130, r:11, fill:"url(#gs)", stroke:c.a, "stroke-width":1.5}));
+    grp.appendChild(el("circle", {cx:170, cy:130, r:4.5, fill:c.a, opacity:.6}));
+    return grp;
+  }},
+  "Shield Emitter": {r:"r", d: (c) => {
+    const grp = el("g", {filter:"url(#sh-sm)"});
+    grp.appendChild(el("rect", {x:40, y:100, width:20, height:40, rx:4, fill:"url(#gm)", stroke:c.s, "stroke-width":1}));
+    grp.appendChild(el("path", {d:"M40 100 Q20 120 40 140", fill:c.a, "fill-opacity":.15, stroke:c.a, "stroke-width":1.5}));
+    grp.appendChild(el("path", {d:"M40 106 Q26 120 40 134", fill:"none", stroke:c.a, "stroke-width":.7, "stroke-dasharray":"2 2", cls:"pulse"}));
+    grp.appendChild(el("rect", {x:140, y:100, width:20, height:40, rx:4, fill:"url(#gm)", stroke:c.s, "stroke-width":1}));
+    grp.appendChild(el("path", {d:"M160 100 Q180 120 160 140", fill:c.a, "fill-opacity":.15, stroke:c.a, "stroke-width":1.5}));
+    grp.appendChild(el("path", {d:"M160 106 Q174 120 160 134", fill:"none", stroke:c.a, "stroke-width":.7, "stroke-dasharray":"2 2", cls:"pulse"}));
+    return grp;
+  }},
+  "Lobster Claws": {r:"e", d: (c) => {
+    const grp = el("g", {filter:"url(#sh-sm)"});
+    // ─── LEFT CLAW ───
+    grp.appendChild(el("path", {d:"M60 100 L30 110", stroke:"url(#ga)", "stroke-width":9, "stroke-linecap":"round"}));
+    grp.appendChild(el("circle", {cx:30, cy:110, r:7, fill:"url(#gs)", stroke:c.a, "stroke-width":1.5}));
+    grp.appendChild(el("path", {d:"M28 106 Q15 95 5 90 Q0 88 -2 92 Q2 96 12 102 L24 108", fill:"url(#ga)", stroke:c.s, "stroke-width":1.5}));
+    grp.appendChild(el("path", {d:"M28 114 Q15 122 8 130 Q5 134 8 136 Q12 132 18 124 L26 116", fill:"url(#ga)", stroke:c.s, "stroke-width":1.5}));
+    grp.appendChild(el("path", {d:"M24 108 Q16 110 24 114", fill:"none", stroke:c.s, "stroke-width":1}));
+    grp.appendChild(el("path", {d:"M18 94 Q10 92 4 91", fill:"none", stroke:"#fff", "stroke-width":1, opacity:.2}));
+    // ─── RIGHT CLAW (mirror) ───
+    grp.appendChild(el("path", {d:"M140 100 L170 110", stroke:"url(#ga)", "stroke-width":9, "stroke-linecap":"round"}));
+    grp.appendChild(el("circle", {cx:170, cy:110, r:7, fill:"url(#gs)", stroke:c.a, "stroke-width":1.5}));
+    grp.appendChild(el("path", {d:"M172 106 Q185 95 195 90 Q200 88 202 92 Q198 96 188 102 L176 108", fill:"url(#ga)", stroke:c.s, "stroke-width":1.5}));
+    grp.appendChild(el("path", {d:"M172 114 Q185 122 192 130 Q195 134 192 136 Q188 132 182 124 L174 116", fill:"url(#ga)", stroke:c.s, "stroke-width":1.5}));
+    grp.appendChild(el("path", {d:"M176 108 Q184 110 176 114", fill:"none", stroke:c.s, "stroke-width":1}));
+    grp.appendChild(el("path", {d:"M182 94 Q190 92 196 91", fill:"none", stroke:"#fff", "stroke-width":1, opacity:.2}));
+    return grp;
+  }},
+  // ─── LEGENDARY: PLASMA BLADE ───
+  "Plasma Blade": {r:"l", d: (c) => {
+    const grp = el("g", {filter:"url(#sh-sm)"});
+    // Mechanical upper arm segments
+    grp.appendChild(el("rect", {x:35, y:96, width:25, height:16, rx:3, fill:"url(#gs)", stroke:c.s, "stroke-width":1.5}));
+    grp.appendChild(el("rect", {x:140, y:96, width:25, height:16, rx:3, fill:"url(#gs)", stroke:c.s, "stroke-width":1.5}));
+    // Joint detail bolts
+    [[40,104],[55,104],[145,104],[160,104]].forEach(([x,y]) =>
+      grp.appendChild(el("circle", {cx:x, cy:y, r:2, fill:c.s, opacity:.4})));
+    // Hilt sections
+    grp.appendChild(el("rect", {x:20, y:100, width:15, height:8, rx:1, fill:"url(#gm)", stroke:c.s, "stroke-width":1}));
+    grp.appendChild(el("rect", {x:165, y:100, width:15, height:8, rx:1, fill:"url(#gm)", stroke:c.s, "stroke-width":1}));
+    // Energy blade LEFT — gradient with bright core
+    grp.appendChild(el("path", {d:"M20 101 L-8 97 L-15 104 L20 107 Z", fill:"url(#ga)", filter:"url(#gl2)"}));
+    grp.appendChild(el("path", {d:"M20 103 L-4 100.5 L-10 104 L20 105.5 Z", fill:"#fff", opacity:.3}));
+    // Energy blade RIGHT
+    grp.appendChild(el("path", {d:"M180 101 L208 97 L215 104 L180 107 Z", fill:"url(#ga)", filter:"url(#gl2)"}));
+    grp.appendChild(el("path", {d:"M180 103 L204 100.5 L210 104 L180 105.5 Z", fill:"#fff", opacity:.3}));
+    // Blade edge particles
+    [[-10,-2],[0,1],[10,-1]].forEach(([dx,dy]) => {
+      grp.appendChild(el("circle", {cx:dx, cy:103+dy, r:.5+Math.random()*.5, fill:c.a, opacity:.35, cls:"flicker"}));
+      grp.appendChild(el("circle", {cx:200-dx, cy:103+dy, r:.5+Math.random()*.5, fill:c.a, opacity:.35, cls:"flicker"}));
+    });
+    return grp;
+  }},
+};
+
+const LEGS_RENDERERS = {
+  "Agile Biped": {r:"c", d: (c) => {
+    const grp = el("g", {filter:"url(#sh-sm)"});
+    grp.appendChild(el("path", {d:"M80 160 L70 210 L60 220 L90 220 Z", fill:"url(#gm)", stroke:c.s, "stroke-width":1.5}));
+    grp.appendChild(el("path", {d:"M120 160 L130 210 L140 220 L110 220 Z", fill:"url(#gm)", stroke:c.s, "stroke-width":1.5}));
+    grp.appendChild(el("rect", {x:60, y:217, width:30, height:6, rx:2, fill:"url(#gs)"}));
+    grp.appendChild(el("rect", {x:110, y:217, width:30, height:6, rx:2, fill:"url(#gs)"}));
+    return grp;
+  }},
+  "Combat Thrusters": {r:"r", d: (c) => {
+    const grp = el("g", {filter:"url(#sh-sm)"});
+    grp.appendChild(el("path", {d:"M80 160 Q80 200 90 220 L70 220 Q80 200 80 160 Z", fill:"url(#gm)", stroke:c.s, "stroke-width":1.5}));
+    grp.appendChild(el("path", {d:"M120 160 Q120 200 110 220 L130 220 Q120 200 120 160 Z", fill:"url(#gm)", stroke:c.s, "stroke-width":1.5}));
+    grp.appendChild(el("path", {d:"M70 222 L90 222 L80 244 Z", fill:c.a, filter:"url(#gl)", cls:"pulse"}));
+    grp.appendChild(el("path", {d:"M110 222 L130 222 L120 244 Z", fill:c.a, filter:"url(#gl)", cls:"pulse"}));
+    grp.appendChild(el("path", {d:"M76 222 L84 222 L80 236 Z", fill:"#fff", opacity:.2}));
+    grp.appendChild(el("path", {d:"M116 222 L124 222 L120 236 Z", fill:"#fff", opacity:.2}));
+    return grp;
+  }},
+  "Mag-boots": {r:"u", d: (c) => {
+    const grp = el("g", {filter:"url(#sh-sm)"});
+    grp.appendChild(el("rect", {x:75, y:160, width:15, height:45, fill:"url(#gm-h)", stroke:c.s, "stroke-width":1}));
+    grp.appendChild(el("rect", {x:110, y:160, width:15, height:45, fill:"url(#gm-h)", stroke:c.s, "stroke-width":1}));
+    grp.appendChild(el("rect", {x:65, y:205, width:35, height:15, rx:3, fill:"url(#gs)", stroke:c.p, "stroke-width":1}));
+    grp.appendChild(el("rect", {x:100, y:205, width:35, height:15, rx:3, fill:"url(#gs)", stroke:c.p, "stroke-width":1}));
+    grp.appendChild(el("rect", {x:70, y:215, width:25, height:3, rx:1, fill:c.a, "fill-opacity":.5, filter:"url(#gl)"}));
+    grp.appendChild(el("rect", {x:105, y:215, width:25, height:3, rx:1, fill:c.a, "fill-opacity":.5, filter:"url(#gl)"}));
+    return grp;
+  }},
+  "Heavy Treads": {r:"u", d: (c) => {
+    const grp = el("g", {filter:"url(#sh-sm)"});
+    grp.appendChild(el("rect", {x:78, y:160, width:12, height:22, fill:"url(#gm-h)"}));
+    grp.appendChild(el("rect", {x:110, y:160, width:12, height:22, fill:"url(#gm-h)"}));
+    grp.appendChild(el("rect", {x:55, y:180, width:90, height:35, rx:6, fill:"url(#gs)", stroke:c.p, "stroke-width":1}));
+    [190,200,210].forEach(y => grp.appendChild(el("path", {d:`M58 ${y} L142 ${y}`, stroke:"#000", "stroke-width":1.5, opacity:.6})));
+    grp.appendChild(spec(85, 188, 16, 4));
+    return grp;
+  }},
+  "Hover Plate": {r:"e", d: (c) => {
+    const grp = el("g");
+    grp.appendChild(el("rect", {x:90, y:160, width:20, height:14, rx:4, fill:"url(#gm)", filter:"url(#sh-sm)"}));
+    grp.appendChild(el("ellipse", {cx:100, cy:180, rx:50, ry:12, fill:"url(#gm)", stroke:c.s, "stroke-width":1.5, filter:"url(#sh-sm)"}));
+    grp.appendChild(el("ellipse", {cx:100, cy:180, rx:36, ry:8, fill:"url(#gs)"}));
+    grp.appendChild(el("path", {d:"M70 190 Q100 240 130 190", fill:c.a, "fill-opacity":.15, filter:"url(#gl)", cls:"pulse"}));
+    grp.appendChild(el("ellipse", {cx:100, cy:182, rx:20, ry:4, fill:c.a, "fill-opacity":.35, filter:"url(#gl)", cls:"pulse"}));
+    grp.appendChild(spec(88, 176, 14, 4));
+    return grp;
+  }},
+  "Crustacean Legs": {r:"r", d: (c) => {
+    const grp = el("g", {filter:"url(#sh-sm)"});
+    grp.appendChild(el("path", {d:"M85 160 L82 185 Q100 195 118 185 L115 160 Z", fill:"url(#ga)", stroke:c.s, "stroke-width":1.5}));
+    // Tail segment lines
+    grp.appendChild(el("path", {d:"M84 170 L116 170", stroke:c.s, "stroke-width":1, opacity:.4}));
+    grp.appendChild(el("path", {d:"M83 180 L117 180", stroke:c.s, "stroke-width":1, opacity:.3}));
+    // Fan tail at bottom
+    grp.appendChild(el("path", {d:"M88 188 Q100 210 112 188", fill:c.a, stroke:c.s, "stroke-width":1, opacity:.6}));
+    grp.appendChild(el("path", {d:"M82 186 Q78 200 85 210", fill:"none", stroke:c.a, "stroke-width":2, "stroke-linecap":"round"}));
+    grp.appendChild(el("path", {d:"M118 186 Q122 200 115 210", fill:"none", stroke:c.a, "stroke-width":2, "stroke-linecap":"round"}));
+    // Walking legs — 4 pairs, jointed (crustacean)
+    const legPairs = [
+      {y:162, outL:-15, outR:15, downL:22, downR:22},
+      {y:168, outL:-22, outR:22, downL:28, downR:28},
+      {y:174, outL:-20, outR:20, downL:32, downR:32},
+      {y:180, outL:-14, outR:14, downL:26, downR:26},
+    ];
+    legPairs.forEach(lp => {
+      // Left leg
+      const lx1 = 85, lmx = 85+lp.outL*0.6, lx2 = 85+lp.outL;
+      const lmy = lp.y+lp.downL*0.4, ly2 = lp.y+lp.downL;
+      grp.appendChild(el("path", {d:`M${lx1} ${lp.y} Q${lmx} ${lmy} ${lx2} ${ly2}`, fill:"none", stroke:c.a, "stroke-width":2, "stroke-linecap":"round"}));
+      grp.appendChild(el("circle", {cx:lx2, cy:ly2, r:1.5, fill:c.a}));
+      // Right leg
+      const rx1 = 115, rmx = 115-lp.outL*0.6, rx2 = 115-lp.outL;
+      grp.appendChild(el("path", {d:`M${rx1} ${lp.y} Q${rmx} ${lmy} ${rx2} ${ly2}`, fill:"none", stroke:c.a, "stroke-width":2, "stroke-linecap":"round"}));
+      grp.appendChild(el("circle", {cx:rx2, cy:ly2, r:1.5, fill:c.a}));
+    });
+    return grp;
+  }},
+  // ─── LEGENDARY: ANTI-GRAV THRUSTERS ───
+  "Anti-Grav": {r:"l", d: (c) => {
+    const grp = el("g");
+    // Mechanical hip connectors
+    grp.appendChild(el("rect", {x:80, y:160, width:16, height:8, rx:2, fill:"url(#gs)", stroke:c.s, "stroke-width":1, filter:"url(#sh-sm)"}));
+    grp.appendChild(el("rect", {x:104, y:160, width:16, height:8, rx:2, fill:"url(#gs)", stroke:c.s, "stroke-width":1, filter:"url(#sh-sm)"}));
+    // Thruster nacelles
+    grp.appendChild(el("ellipse", {cx:88, cy:178, rx:12, ry:6, fill:"url(#gm)", stroke:c.s, "stroke-width":1.5, filter:"url(#bevel)"}));
+    grp.appendChild(el("ellipse", {cx:112, cy:178, rx:12, ry:6, fill:"url(#gm)", stroke:c.s, "stroke-width":1.5, filter:"url(#bevel)"}));
+    // Thruster exhaust ports
+    grp.appendChild(el("ellipse", {cx:88, cy:183, rx:7, ry:3, fill:"#000", stroke:c.a, "stroke-width":1, opacity:.6}));
+    grp.appendChild(el("ellipse", {cx:112, cy:183, rx:7, ry:3, fill:"#000", stroke:c.a, "stroke-width":1, opacity:.6}));
+    // Engine core glow inside nacelles
+    grp.appendChild(el("ellipse", {cx:88, cy:178, rx:5, ry:2.5, fill:c.a, opacity:.3, cls:"flicker"}));
+    grp.appendChild(el("ellipse", {cx:112, cy:178, rx:5, ry:2.5, fill:c.a, opacity:.3, cls:"flicker"}));
+    // Thrust plumes — layered energy cones
+    [[88,186],[112,186]].forEach(([cx,y]) => {
+      grp.appendChild(el("path", {d:`M${cx-8} ${y} Q${cx} ${y+35} ${cx+8} ${y}`, fill:c.a, "fill-opacity":.12, filter:"url(#gl2)", cls:"pulse"}));
+      grp.appendChild(el("path", {d:`M${cx-4} ${y} Q${cx} ${y+28} ${cx+4} ${y}`, fill:c.a, "fill-opacity":.2, filter:"url(#gl)", cls:"pulse"}));
+      grp.appendChild(el("path", {d:`M${cx-2} ${y} Q${cx} ${y+20} ${cx+2} ${y}`, fill:"#fff", "fill-opacity":.15, cls:"flicker"}));
+    });
+    // Energy link between nacelles
+    grp.appendChild(el("path", {d:"M96 178 L104 178", stroke:c.a, "stroke-width":.8, opacity:.25, filter:"url(#gl)"}));
+    // Floating stabilizer particles
+    for(let i=0;i<6;i++){
+      const px=80+Math.random()*40, py=186+Math.random()*30;
+      grp.appendChild(el("circle", {cx:px, cy:py, r:.3+Math.random()*.4, fill:c.a, opacity:.15, cls:"drift"}));
+    }
+    return grp;
+  }},
+};
+
+// ══════════════════════════════════════════════════════
+// BACKGROUND TYPES (from COLLECTION-PLAN)
+// ══════════════════════════════════════════════════════
+
+// ── Background colors are INDEPENDENT from character colors to avoid clashing ──
+const BG_RENDERERS = {
+
+  // ═══ COMMON (45%) ═══
+
+  "Hex Grid": { r:"c", d: (svg) => {
+    const bc="#0a1020", lc="#1a2a44";
+    svg.appendChild(el("rect", {width:200, height:250, fill:bc}));
+    const g1 = el("g", {opacity:.12});
+    for(let row=0;row<14;row++) for(let col=0;col<8;col++){
+      const x=col*28+(row%2)*14, y=row*20-10;
+      g1.appendChild(el("polygon", {points:`${x},${y-10} ${x+10},${y-5} ${x+10},${y+5} ${x},${y+10} ${x-10},${y+5} ${x-10},${y-5}`, fill:"none", stroke:lc, "stroke-width":.6}));
+    }
+    svg.appendChild(g1);
+  }},
+
+  "Carbon Weave": { r:"c", d: (svg) => {
+    const bc="#08090e";
+    svg.appendChild(el("rect", {width:200, height:250, fill:bc}));
+    const g1 = el("g", {opacity:.08});
+    for(let y=-10;y<260;y+=6){
+      g1.appendChild(el("line", {x1:0,y1:y,x2:200,y2:y+30,stroke:"#2a2e3a","stroke-width":.5}));
+      g1.appendChild(el("line", {x1:200,y1:y,x2:0,y2:y+30,stroke:"#2a2e3a","stroke-width":.5}));
+    }
+    svg.appendChild(g1);
+    // Subtle sheen
+    svg.appendChild(el("ellipse", {cx:80, cy:90, rx:90, ry:60, fill:"#ffffff", opacity:.015}));
+  }},
+
+  "Deep Space": { r:"c", d: (svg) => {
+    svg.appendChild(el("rect", {width:200, height:250, fill:"#030610"}));
+    // Nebula — uses muted purple/blue, never accent
+    const nb = el("g", {opacity:.05});
+    nb.appendChild(el("ellipse", {cx:150, cy:50, rx:90, ry:60, fill:"#4338ca"}));
+    nb.appendChild(el("ellipse", {cx:40, cy:210, rx:70, ry:50, fill:"#7c3aed"}));
+    svg.appendChild(nb);
+    const sg = el("g");
+    for(let i=0;i<60;i++){
+      const sx=Math.random()*200, sy=Math.random()*250;
+      const sr=Math.random()>.92?1.3:Math.random()>.7?.5:.25;
+      sg.appendChild(el("circle", {cx:sx, cy:sy, r:sr, fill:"#fff", opacity:(.15+Math.random()*.5).toFixed(2)}));
+    }
+    svg.appendChild(sg);
+  }},
+
+  "Steel Plate": { r:"c", d: (svg) => {
+    svg.appendChild(el("rect", {width:200, height:250, fill:"#0c0f16"}));
+    // Metal texture — horizontal streaks
+    const g1 = el("g", {opacity:.04});
+    for(let y=0;y<250;y+=2){
+      const w=.3+Math.random()*.4;
+      g1.appendChild(el("line", {x1:0, y1:y, x2:200, y2:y, stroke:"#fff", "stroke-width":w}));
+    }
+    svg.appendChild(g1);
+    // Bolts
+    const g2 = el("g", {opacity:.1});
+    [[12,12],[188,12],[12,238],[188,238],[100,8],[100,242]].forEach(([x,y])=>{
+      g2.appendChild(el("circle", {cx:x, cy:y, r:3, fill:"none", stroke:"#334155", "stroke-width":1}));
+      g2.appendChild(el("circle", {cx:x, cy:y, r:1, fill:"#334155"}));
+    });
+    svg.appendChild(g2);
+  }},
+
+  "Scan Lines": { r:"c", d: (svg) => {
+    svg.appendChild(el("rect", {width:200, height:250, fill:"#080b14"}));
+    const g1 = el("g", {opacity:.06});
+    for(let y=0;y<250;y+=3) g1.appendChild(el("line", {x1:0,y1:y,x2:200,y2:y,stroke:"#fff","stroke-width":.4}));
+    svg.appendChild(g1);
+    // Corner vignette
+    svg.appendChild(el("rect", {width:200, height:250, fill:"url(#vig)", opacity:.4}));
+    // Add vignette gradient (reuse defs area by appending)
+    const d = el("defs");
+    d.innerHTML = `<radialGradient id="vig" cx="50%" cy="50%" r="60%"><stop offset="0%" stop-color="transparent"/><stop offset="100%" stop-color="#000"/></radialGradient>`;
+    svg.appendChild(d);
+    svg.appendChild(el("rect", {width:200, height:250, fill:"url(#vig)", opacity:.5}));
+  }},
+
+  // ═══ UNCOMMON (25%) ═══
+
+  "Neon City": { r:"u", d: (svg) => {
+    svg.appendChild(el("rect", {width:200, height:250, fill:"#04060e"}));
+    // Gradient sky
+    const sky = el("g", {opacity:.06});
+    sky.appendChild(el("rect", {x:0, y:0, width:200, height:100, fill:"#1e1b4b"}));
+    svg.appendChild(sky);
+    // Buildings — dark silhouettes
+    const bg = el("g");
+    [[0,200,22,65],[24,210,18,45],[45,195,28,70],[76,205,20,52],[100,198,24,60],[128,208,16,48],[148,192,26,72],[178,202,22,55]].forEach(([x,gy,w,h])=>{
+      bg.appendChild(el("rect", {x, y:gy-h, width:w, height:h, fill:"#0a0e1a", stroke:"#151d30", "stroke-width":.5}));
+      for(let wy=gy-h+8;wy<gy-6;wy+=8) for(let wx=x+4;wx<x+w-4;wx+=6){
+        if(Math.random()>.5){
+          const wc=["#fbbf24","#f59e0b","#06b6d4","#a78bfa","#fff"][Math.floor(Math.random()*5)];
+          bg.appendChild(el("rect", {x:wx, y:wy, width:2.5, height:3.5, fill:wc, opacity:(.08+Math.random()*.12).toFixed(2)}));
+        }
+      }
+    });
+    svg.appendChild(bg);
+    // Horizon glow
+    svg.appendChild(el("rect", {x:0, y:205, width:200, height:45, fill:"#1e1b4b", opacity:.08}));
+    // Stars
+    for(let i=0;i<15;i++) svg.appendChild(el("circle", {cx:Math.random()*200, cy:Math.random()*140, r:.25, fill:"#fff", opacity:(.15+Math.random()*.3).toFixed(2)}));
+  }},
+
+  "Aurora Veil": { r:"u", d: (svg) => {
+    svg.appendChild(el("rect", {width:200, height:250, fill:"#040810"}));
+    // Aurora bands — always green/teal tones (never matches accents)
+    const au = el("g", {opacity:.06});
+    for(let i=0;i<5;i++){
+      const y=20+i*30+Math.random()*20, h=40+Math.random()*30;
+      const col=["#10b981","#14b8a6","#06b6d4","#34d399","#2dd4bf"][i];
+      let d=`M 0 ${y}`;
+      for(let x=0;x<=200;x+=8) d+=` Q ${x+4} ${y+Math.sin(x/20+i)*h*.3} ${x+8} ${y+Math.sin(x/15+i*2)*h*.2}`;
+      d+=` L 200 ${y+h} L 0 ${y+h} Z`;
+      au.appendChild(el("path", {d, fill:col}));
+    }
+    svg.appendChild(au);
+    // Stars
+    for(let i=0;i<40;i++) svg.appendChild(el("circle", {cx:Math.random()*200, cy:Math.random()*250, r:Math.random()>.9?1:.3, fill:"#fff", opacity:(.1+Math.random()*.4).toFixed(2)}));
+  }},
+
+  "Reactor Core": { r:"u", d: (svg) => {
+    svg.appendChild(el("rect", {width:200, height:250, fill:"#060810"}));
+    // Concentric energy rings — uses warm amber (independent)
+    const rc = el("g", {opacity:.06});
+    [80,60,40,25,14].forEach((r,i)=>{
+      rc.appendChild(el("circle", {cx:100, cy:240, r:r*2, fill:"none", stroke:"#f59e0b", "stroke-width":1.5-i*.2}));
+    });
+    svg.appendChild(rc);
+    // Energy core glow
+    svg.appendChild(el("circle", {cx:100, cy:240, r:20, fill:"#f59e0b", opacity:.03}));
+    svg.appendChild(el("circle", {cx:100, cy:240, r:8, fill:"#fbbf24", opacity:.04}));
+    // Vertical energy lines
+    const vl = el("g", {opacity:.04});
+    [-30,-15,0,15,30].forEach(dx=>{
+      vl.appendChild(el("line", {x1:100+dx, y1:250, x2:100+dx*2.5, y2:0, stroke:"#f59e0b", "stroke-width":.5}));
+    });
+    svg.appendChild(vl);
+  }},
+
+  "Cyber Grid": { r:"u", d: (svg) => {
+    svg.appendChild(el("rect", {width:200, height:250, fill:"#050810"}));
+    // Perspective floor grid — teal lines
+    const fg = el("g", {opacity:.08});
+    for(let i=0;i<12;i++){
+      const y=160+i*10;
+      const spread=(i/12)*100;
+      fg.appendChild(el("line", {x1:100-spread, y1:y, x2:100+spread, y2:y, stroke:"#0d9488", "stroke-width":.5+i*.05}));
+    }
+    for(let i=-6;i<=6;i++){
+      fg.appendChild(el("line", {x1:100, y1:155, x2:100+i*18, y2:280, stroke:"#0d9488", "stroke-width":.4}));
+    }
+    svg.appendChild(fg);
+    // Horizon line
+    svg.appendChild(el("line", {x1:0, y1:155, x2:200, y2:155, stroke:"#0d9488", "stroke-width":.3, opacity:.1}));
+    // Stars above horizon
+    for(let i=0;i<20;i++) svg.appendChild(el("circle", {cx:Math.random()*200, cy:Math.random()*150, r:.3, fill:"#fff", opacity:(.1+Math.random()*.25).toFixed(2)}));
+  }},
+
+  // ═══ RARE (18%) ═══
+
+  "Neural Network": { r:"r", d: (svg) => {
+    svg.appendChild(el("rect", {width:200, height:250, fill:"#050810"}));
+    // Neural nodes and connections — soft purple
+    const pts=[];
+    for(let i=0;i<28;i++) pts.push([10+Math.random()*180, 10+Math.random()*230]);
+    const cg = el("g", {opacity:.06});
+    pts.forEach(([x1,y1],i)=>pts.forEach(([x2,y2],j)=>{
+      if(j<=i) return;
+      const d=Math.sqrt((x2-x1)**2+(y2-y1)**2);
+      if(d<55) cg.appendChild(el("line", {x1,y1,x2,y2,stroke:"#7c3aed","stroke-width":.4}));
+    }));
+    svg.appendChild(cg);
+    const ng = el("g");
+    pts.forEach(([x,y])=>{
+      ng.appendChild(el("circle", {cx:x, cy:y, r:2, fill:"#7c3aed", opacity:.08}));
+      ng.appendChild(el("circle", {cx:x, cy:y, r:.7, fill:"#a78bfa", opacity:.12}));
+    });
+    svg.appendChild(ng);
+  }},
+
+  "Plasma Storm": { r:"r", d: (svg) => {
+    svg.appendChild(el("rect", {width:200, height:250, fill:"#08040c"}));
+    // Plasma bolts — electric magenta/rose
+    const pg = el("g", {opacity:.07});
+    for(let i=0;i<6;i++){
+      let d=`M ${Math.random()*200} ${Math.random()*50}`;
+      for(let s=0;s<8;s++){
+        const dx=(Math.random()-.5)*40, dy=20+Math.random()*15;
+        d+=` l ${dx} ${dy}`;
+      }
+      pg.appendChild(el("path", {d, fill:"none", stroke:"#e879f9", "stroke-width":.8, "stroke-linecap":"round"}));
+    }
+    svg.appendChild(pg);
+    // Glow clouds
+    const gc = el("g", {opacity:.04});
+    gc.appendChild(el("ellipse", {cx:60, cy:80, rx:50, ry:40, fill:"#ec4899"}));
+    gc.appendChild(el("ellipse", {cx:160, cy:180, rx:60, ry:45, fill:"#d946ef"}));
+    svg.appendChild(gc);
+  }},
+
+  "Warp Tunnel": { r:"r", d: (svg) => {
+    svg.appendChild(el("rect", {width:200, height:250, fill:"#040610"}));
+    // Speed lines converging to center — uses blue
+    const wg = el("g", {opacity:.05});
+    for(let i=0;i<40;i++){
+      const angle=Math.random()*Math.PI*2;
+      const r1=30+Math.random()*20, r2=120+Math.random()*60;
+      const x1=100+Math.cos(angle)*r1, y1=125+Math.sin(angle)*r1;
+      const x2=100+Math.cos(angle)*r2, y2=125+Math.sin(angle)*r2;
+      wg.appendChild(el("line", {x1,y1,x2,y2,stroke:"#3b82f6","stroke-width":.3+Math.random()*.5}));
+    }
+    svg.appendChild(wg);
+    // Center portal glow
+    svg.appendChild(el("circle", {cx:100, cy:125, r:25, fill:"#1d4ed8", opacity:.04}));
+    svg.appendChild(el("circle", {cx:100, cy:125, r:10, fill:"#3b82f6", opacity:.05}));
+    // Outer ring
+    svg.appendChild(el("circle", {cx:100, cy:125, r:50, fill:"none", stroke:"#3b82f6", "stroke-width":.5, opacity:.06}));
+  }},
+
+  "Data Matrix": { r:"r", d: (svg) => {
+    svg.appendChild(el("rect", {width:200, height:250, fill:"#040a08"}));
+    // Matrix rain — uses green (independent, muted)
+    const rg = el("g", {opacity:.08});
+    for(let col=0;col<22;col++){
+      const x=col*9+2, startY=Math.floor(Math.random()*120);
+      const len=8+Math.floor(Math.random()*14);
+      for(let row=0;row<len;row++){
+        const y=startY+row*9; if(y>250) break;
+        const op=(1-row/len).toFixed(2);
+        const ch=String.fromCharCode(0x30A0+Math.floor(Math.random()*96));
+        const t=el("text",{x,y,fill:"#22c55e","font-size":"6","font-family":"monospace",opacity:op});
+        t.textContent=ch; rg.appendChild(t);
+      }
+    }
+    svg.appendChild(rg);
+    // Scan line
+    svg.appendChild(el("rect",{x:0, y:Math.random()*240, width:200, height:2, fill:"#22c55e", opacity:.03}));
+  }},
+
+  // ═══ EPIC (8%) ═══
+
+  "Hologram Room": { r:"e", d: (svg) => {
+    svg.appendChild(el("rect", {width:200, height:250, fill:"#030610"}));
+    const hg = el("g", {opacity:.07});
+    // Perspective floor grid
+    for(let i=0;i<12;i++){
+      const y=175+i*7; const s=(i/12)*100;
+      hg.appendChild(el("line", {x1:100-s, y1:y, x2:100+s, y2:y, stroke:"#06b6d4", "stroke-width":.4+i*.02}));
+    }
+    for(let i=-7;i<=7;i++) hg.appendChild(el("line", {x1:100, y1:170, x2:100+i*16, y2:260, stroke:"#06b6d4", "stroke-width":.3}));
+    // Back wall grid
+    for(let y=15;y<170;y+=12) hg.appendChild(el("line", {x1:8, y1:y, x2:192, y2:y, stroke:"#06b6d4", "stroke-width":.18}));
+    for(let x=8;x<=192;x+=15) hg.appendChild(el("line", {x1:x, y1:15, x2:x, y2:170, stroke:"#06b6d4", "stroke-width":.18}));
+    svg.appendChild(hg);
+    // Holographic data panels floating
+    const panels = el("g", {opacity:.04});
+    [[20,30,40,28],[140,50,45,22],[10,140,30,18]].forEach(([x,y,w,h]) => {
+      panels.appendChild(el("rect", {x, y, width:w, height:h, rx:2, fill:"#06b6d4"}));
+      panels.appendChild(el("rect", {x:x+3, y:y+3, width:w-6, height:2, fill:"#fff"}));
+      panels.appendChild(el("rect", {x:x+3, y:y+7, width:w*0.6, height:1.5, fill:"#fff", opacity:.5}));
+    });
+    svg.appendChild(panels);
+    // Floor ambient glow
+    svg.appendChild(el("ellipse", {cx:100, cy:175, rx:85, ry:18, fill:"#06b6d4", opacity:.025}));
+    // Ceiling light strip
+    svg.appendChild(el("rect", {x:40, y:8, width:120, height:2, rx:1, fill:"#06b6d4", opacity:.04}));
+    // Corner accent lights
+    [[8,8],[192,8],[8,248],[192,248]].forEach(([x,y]) =>
+      svg.appendChild(el("circle", {cx:x, cy:y, r:2, fill:"#06b6d4", opacity:.03})));
+  }},
+
+  "Singularity": { r:"e", d: (svg) => {
+    svg.appendChild(el("rect", {width:200, height:250, fill:"#020408"}));
+    // Gravitational lensing — warped rings
+    const sg = el("g", {opacity:.07});
+    for(let i=0;i<8;i++){
+      const r=15+i*12, skew=.6+i*.05;
+      sg.appendChild(el("ellipse", {cx:100, cy:110, rx:r, ry:r*skew, fill:"none", stroke:"#f97316", "stroke-width":.4+(.8-i*.08), transform:`rotate(${i*8} 100 110)`}));
+    }
+    svg.appendChild(sg);
+    // Event horizon
+    svg.appendChild(el("circle", {cx:100, cy:110, r:12, fill:"#000"}));
+    svg.appendChild(el("circle", {cx:100, cy:110, r:14, fill:"none", stroke:"#f97316", "stroke-width":1, opacity:.1}));
+    // Particle accretion
+    const pg = el("g", {opacity:.1});
+    for(let i=0;i<30;i++){
+      const angle=Math.random()*Math.PI*2, dist=16+Math.random()*80;
+      pg.appendChild(el("circle", {cx:100+Math.cos(angle)*dist, cy:110+Math.sin(angle)*dist*.7, r:.3+Math.random()*.5, fill:"#fb923c"}));
+    }
+    svg.appendChild(pg);
+  }},
+
+  "Cryo Chamber": { r:"e", d: (svg) => {
+    svg.appendChild(el("rect", {width:200, height:250, fill:"#030a10"}));
+    // Ice crystal structures — light blue independent
+    const ig = el("g", {opacity:.06});
+    for(let i=0;i<10;i++){
+      const cx=Math.random()*200, cy=Math.random()*250, s=8+Math.random()*20;
+      ig.appendChild(el("polygon", {points:`${cx},${cy-s} ${cx+s*.4},${cy-s*.3} ${cx+s*.4},${cy+s*.3} ${cx},${cy+s} ${cx-s*.4},${cy+s*.3} ${cx-s*.4},${cy-s*.3}`, fill:"none", stroke:"#7dd3fc", "stroke-width":.5}));
+    }
+    svg.appendChild(ig);
+    // Frost overlay
+    const fg = el("g", {opacity:.03});
+    for(let i=0;i<80;i++) fg.appendChild(el("circle", {cx:Math.random()*200, cy:Math.random()*250, r:.2+Math.random()*.8, fill:"#bae6fd"}));
+    svg.appendChild(fg);
+    // Cold vignette — blue tint at edges
+    svg.appendChild(el("rect", {x:0, y:0, width:200, height:20, fill:"#0c4a6e", opacity:.04}));
+    svg.appendChild(el("rect", {x:0, y:230, width:200, height:20, fill:"#0c4a6e", opacity:.04}));
+  }},
+
+  // ═══ LEGENDARY (3.5%) ═══
+
+  "Base Genesis": { r:"l", d: (svg) => {
+    const bb="#3b82f6", bd="#1d4ed8";
+    svg.appendChild(el("rect", {width:200, height:250, fill:"#020818"}));
+    // Radial presence — multi-layer
+    svg.appendChild(el("ellipse", {cx:100, cy:125, rx:130, ry:150, fill:bd, opacity:.04}));
+    svg.appendChild(el("ellipse", {cx:100, cy:125, rx:80, ry:90, fill:bb, opacity:.03}));
+    // Base-inspired concentric diamonds — rotating feel
+    const dg = el("g", {opacity:.1});
+    [80,60,42,28,16].forEach((s,i)=>{
+      dg.appendChild(el("polygon", {points:`100,${125-s} ${100+s},125 100,${125+s} ${100-s},125`, fill:"none", stroke:bb, "stroke-width":2-i*.3}));
+    });
+    svg.appendChild(dg);
+    // Energy lines radiating from center
+    const eg = el("g", {opacity:.03});
+    for(let i=0;i<16;i++){
+      const a=i*Math.PI/8, len=100+Math.random()*50;
+      eg.appendChild(el("line", {x1:100, y1:125, x2:100+Math.cos(a)*len, y2:125+Math.sin(a)*len, stroke:bb, "stroke-width":.4}));
+    }
+    svg.appendChild(eg);
+    // Data particles — more dense
+    for(let i=0;i<65;i++){
+      const px=Math.random()*200, py=Math.random()*250;
+      const dist=Math.sqrt((px-100)**2+(py-125)**2);
+      const sz=dist<50?(Math.random()>.7?1.5:.5):(Math.random()>.9?1:.3);
+      svg.appendChild(el("circle", {cx:px, cy:py, r:sz, fill:bb, opacity:(.04+Math.random()*.18).toFixed(2)}));
+    }
+    // Scan lines
+    const sl = el("g", {opacity:.025});
+    for(let y=0;y<250;y+=3) sl.appendChild(el("line", {x1:0,y1:y,x2:200,y2:y,stroke:bb,"stroke-width":.4}));
+    svg.appendChild(sl);
+    // Corner Base "B" inspired marks
+    const cg = el("g", {opacity:.06});
+    cg.appendChild(el("path", {d:"M8 8 L20 8 Q24 8 24 12 L24 20 Q24 24 20 24 L8 24", fill:"none", stroke:bb, "stroke-width":1}));
+    cg.appendChild(el("path", {d:"M192 226 L180 226 Q176 226 176 230 L176 238 Q176 242 180 242 L192 242", fill:"none", stroke:bb, "stroke-width":1}));
+    svg.appendChild(cg);
+  }},
+
+  "Supernova": { r:"l", d: (svg) => {
+    svg.appendChild(el("rect", {width:200, height:250, fill:"#0a0408"}));
+    // Explosion rays from upper-right
+    const rg = el("g", {opacity:.04});
+    for(let i=0;i<30;i++){
+      const angle=Math.PI*.8+Math.random()*Math.PI*1.2;
+      const len=60+Math.random()*140;
+      rg.appendChild(el("line", {x1:160, y1:40, x2:160+Math.cos(angle)*len, y2:40+Math.sin(angle)*len, stroke:"#fbbf24", "stroke-width":.3+Math.random()*.8}));
+    }
+    svg.appendChild(rg);
+    // Core glow
+    svg.appendChild(el("circle", {cx:160, cy:40, r:30, fill:"#f59e0b", opacity:.04}));
+    svg.appendChild(el("circle", {cx:160, cy:40, r:12, fill:"#fbbf24", opacity:.06}));
+    svg.appendChild(el("circle", {cx:160, cy:40, r:4, fill:"#fff", opacity:.08}));
+    // Debris particles
+    const dg = el("g", {opacity:.08});
+    for(let i=0;i<40;i++){
+      const a=Math.random()*Math.PI*2, d=20+Math.random()*120;
+      dg.appendChild(el("circle", {cx:160+Math.cos(a)*d, cy:40+Math.sin(a)*d, r:.3+Math.random()*.6, fill:Math.random()>.5?"#fbbf24":"#f97316"}));
+    }
+    svg.appendChild(dg);
+  }},
+
+  // ═══ MYTHIC (0.5%) ═══
+
+  "The Void": { r:"m", d: (svg) => {
+    svg.appendChild(el("rect", {width:200, height:250, fill:"#010204"}));
+    // Reality fracture lines — multicolor cracks across canvas
+    const fracColors = ["#e879f9","#06b6d4","#f43f5e","#fbbf24","#10b981","#8b5cf6"];
+    for(let i=0;i<14;i++){
+      let d = `M ${Math.random()*200} ${Math.random()*40}`;
+      for(let s=0;s<7;s++){
+        const dx=(Math.random()-.5)*50, dy=12+Math.random()*22;
+        d+=` l ${dx} ${dy}`;
+      }
+      const col = fracColors[i%fracColors.length];
+      svg.appendChild(el("path", {d, fill:"none", stroke:col, "stroke-width":1.5, opacity:.08}));
+      svg.appendChild(el("path", {d, fill:"none", stroke:"#fff", "stroke-width":.3, opacity:.04}));
+    }
+    // Void vortex — concentric warped rings
+    for(let r=85;r>5;r-=7){
+      const op = (.008+(.06*(85-r)/85)).toFixed(3);
+      svg.appendChild(el("circle", {cx:100, cy:125, r, fill:"none", stroke:fracColors[Math.floor(r/7)%6], "stroke-width":.5, opacity:op}));
+    }
+    // Dimensional tear particles
+    for(let i=0;i<70;i++){
+      const px=Math.random()*200, py=Math.random()*250;
+      const col=fracColors[Math.floor(Math.random()*6)];
+      svg.appendChild(el("circle", {cx:px, cy:py, r:.2+Math.random()*.7, fill:col, opacity:(.015+Math.random()*.06).toFixed(3)}));
+    }
+    // Central anomaly white glow
+    svg.appendChild(el("circle", {cx:100, cy:125, r:28, fill:"#fff", opacity:.012}));
+    svg.appendChild(el("circle", {cx:100, cy:125, r:10, fill:"#fff", opacity:.02}));
+    // Gravitational lens distortion arcs
+    for(let i=0;i<6;i++){
+      const a = i*Math.PI/3, r1=35+i*8;
+      const x1=100+Math.cos(a)*r1, y1=125+Math.sin(a)*r1;
+      const x2=100+Math.cos(a+.5)*r1*1.3, y2=125+Math.sin(a+.5)*r1*1.3;
+      svg.appendChild(el("path", {d:`M${x1} ${y1} Q${100} ${125} ${x2} ${y2}`, fill:"none", stroke:fracColors[i], "stroke-width":.4, opacity:.05}));
+    }
+  }},
+
+  "Quantum Lab": { r:"e", d: (svg) => {
+    svg.appendChild(el("rect", {width:200, height:250, fill:"#040810"}));
+    // Lab equipment silhouettes
+    const labG = el("g", {opacity:.06});
+    // Containment chamber
+    labG.appendChild(el("rect", {x:70, y:180, width:60, height:60, rx:4, fill:"none", stroke:"#06b6d4", "stroke-width":1}));
+    labG.appendChild(el("rect", {x:75, y:185, width:50, height:50, rx:2, fill:"none", stroke:"#06b6d4", "stroke-width":.5}));
+    // Ceiling pipes
+    for(let x=20;x<200;x+=35){
+      labG.appendChild(el("rect", {x, y:0, width:8, height:250, fill:"#0c1425", stroke:"#1a2a44", "stroke-width":.3}));
+    }
+    // Floor grid
+    for(let y=200;y<250;y+=8) labG.appendChild(el("line", {x1:0, y1:y, x2:200, y2:y, stroke:"#06b6d4", "stroke-width":.3}));
+    for(let x=0;x<200;x+=12) labG.appendChild(el("line", {x1:x, y1:200, x2:x, y2:250, stroke:"#06b6d4", "stroke-width":.2}));
+    svg.appendChild(labG);
+    // Holographic displays
+    const hg = el("g", {opacity:.04});
+    hg.appendChild(el("rect", {x:10, y:30, width:35, height:25, rx:2, fill:"#06b6d4"}));
+    hg.appendChild(el("rect", {x:155, y:45, width:40, height:20, rx:2, fill:"#06b6d4"}));
+    svg.appendChild(hg);
+    // Energy containment glow
+    svg.appendChild(el("ellipse", {cx:100, cy:210, rx:25, ry:20, fill:"#06b6d4", opacity:.025}));
+    // Ambient particles
+    for(let i=0;i<20;i++) svg.appendChild(el("circle", {cx:Math.random()*200, cy:Math.random()*250, r:.3, fill:"#06b6d4", opacity:(.02+Math.random()*.04).toFixed(3)}));
+  }},
+
+  "Warzone": { r:"r", d: (svg) => {
+    svg.appendChild(el("rect", {width:200, height:250, fill:"#0a0806"}));
+    // Destroyed terrain
+    const tg = el("g", {opacity:.08});
+    // Rubble mounds
+    tg.appendChild(el("path", {d:"M0 220 Q30 195 60 210 Q90 200 120 215 Q150 205 180 218 L200 220 L200 250 L0 250 Z", fill:"#1a1510"}));
+    // Craters
+    tg.appendChild(el("ellipse", {cx:40, cy:225, rx:15, ry:5, fill:"#050403", stroke:"#2a1f15", "stroke-width":.5}));
+    tg.appendChild(el("ellipse", {cx:140, cy:230, rx:20, ry:6, fill:"#050403", stroke:"#2a1f15", "stroke-width":.5}));
+    svg.appendChild(tg);
+    // Smoke columns
+    const sg = el("g", {opacity:.03});
+    [30,90,160].forEach(x => {
+      sg.appendChild(el("ellipse", {cx:x, cy:180, rx:20, ry:35, fill:"#666"}));
+      sg.appendChild(el("ellipse", {cx:x+5, cy:150, rx:15, ry:25, fill:"#888"}));
+    });
+    svg.appendChild(sg);
+    // Distant fire glow
+    svg.appendChild(el("ellipse", {cx:160, cy:200, rx:25, ry:15, fill:"#f97316", opacity:.025}));
+    svg.appendChild(el("ellipse", {cx:30, cy:210, rx:20, ry:10, fill:"#ef4444", opacity:.02}));
+    // Ember particles
+    for(let i=0;i<25;i++){
+      const x=Math.random()*200, y=150+Math.random()*80;
+      svg.appendChild(el("circle", {cx:x, cy:y, r:.3+Math.random()*.4, fill:Math.random()>.5?"#f97316":"#fbbf24", opacity:(.02+Math.random()*.04).toFixed(3)}));
+    }
+  }},
+
+  "Underwater Abyss": { r:"u", d: (svg) => {
+    svg.appendChild(el("rect", {width:200, height:250, fill:"#020810"}));
+    // Deep sea gradient
+    const dg = el("g", {opacity:.04});
+    dg.appendChild(el("rect", {x:0, y:0, width:200, height:80, fill:"#0c4a6e"}));
+    dg.appendChild(el("rect", {x:0, y:80, width:200, height:170, fill:"#082f49"}));
+    svg.appendChild(dg);
+    // Bioluminescent organisms
+    const bg = el("g");
+    for(let i=0;i<18;i++){
+      const x=Math.random()*200, y=Math.random()*250;
+      const r=1+Math.random()*3;
+      const col=["#06b6d4","#10b981","#8b5cf6","#14b8a6"][Math.floor(Math.random()*4)];
+      bg.appendChild(el("circle", {cx:x, cy:y, r, fill:col, opacity:(.02+Math.random()*.03).toFixed(3)}));
+      bg.appendChild(el("circle", {cx:x, cy:y, r:r*.4, fill:col, opacity:(.04+Math.random()*.06).toFixed(3)}));
+    }
+    svg.appendChild(bg);
+    // Kelp/seaweed silhouettes
+    const kg = el("g", {opacity:.04});
+    [10,45,155,185].forEach(x => {
+      let d=`M${x} 250`;
+      for(let y=250;y>100;y-=15) d+=` Q${x+Math.sin(y/20)*10} ${y-7} ${x+Math.sin(y/15)*8} ${y-15}`;
+      kg.appendChild(el("path", {d, fill:"none", stroke:"#10b981", "stroke-width":2}));
+    });
+    svg.appendChild(kg);
+    // Rising bubbles
+    for(let i=0;i<12;i++){
+      const x=20+Math.random()*160, y=50+Math.random()*180;
+      svg.appendChild(el("circle", {cx:x, cy:y, r:.5+Math.random()*1.5, fill:"none", stroke:"#7dd3fc", "stroke-width":.3, opacity:(.03+Math.random()*.05).toFixed(3)}));
+    }
+    // Light rays from above
+    const lg = el("g", {opacity:.015});
+    [40,80,120,160].forEach(x => {
+      lg.appendChild(el("path", {d:`M${x} 0 L${x-15} 120 L${x+15} 120 Z`, fill:"#7dd3fc"}));
+    });
+    svg.appendChild(lg);
+  }},
+};
+
+// ══════════════════════════════════════════════════════
+// RARITY-WEIGHTED NAMING SYSTEM (from COLLECTION-PLAN)
+// ══════════════════════════════════════════════════════
+
+// Adjectives — first part of compound name
+const ADJECTIVES = {
+  c: ["Iron","Steel","Chrome","Copper","Zinc","Carbon","Cobalt","Slate","Ash","Gray"],
+  u: ["Neon","Plasma","Volt","Surge","Flux","Frost","Shadow","Drift"],
+  r: ["Onyx","Prism","Nova","Cipher","Void","Apex"],
+  e: ["Quantum","Phantom","Eclipse","Radiant"],
+  l: ["Genesis","Omega","Eternal"],
+};
+
+// Roles — second part of compound name
+const ROLES = {
+  c: ["Guard","Scout","Worker","Drone","Unit","Bot","Mech","Core"],
+  u: ["Stalker","Hunter","Walker","Seeker","Watcher","Runner"],
+  r: ["Oracle","Sentinel","Spectre","Knight","Warden"],
+  e: ["Sovereign","Overlord","Commander"],
+  l: ["Architect","Protocol","Nexus"],
+};
+
+// 50 Mythic 1/1 names — Base ecosystem & crypto culture references
+const MYTHIC_NAMES = [
+  "Jesse",      // Jesse Pollak — Base creator
+  "Brian",      // Brian Armstrong — Coinbase CEO
+  "Satoshi",    // Satoshi Nakamoto — Bitcoin creator
+  "Vitalik",    // Vitalik Buterin — Ethereum creator
+  "Molt",       // Clawdmint mascot
+  "Degen",      // DEGEN token — Base culture
+  "Aero",       // Aerodrome — Base DEX
+  "Farcaster",  // Farcaster — Base social protocol
+  "Zora",       // Zora — NFT marketplace
+  "Brett",      // Brett meme — Base meme culture
+  "Toshi",      // Coinbase mascot
+  "Warpcast",   // Warpcast — Farcaster client
+  "Nouns",      // Nouns DAO
+  "Punk",       // CryptoPunks — OG NFT
+  "Ape",        // BAYC — NFT culture
+  "Pepe",       // Pepe meme
+  "Chad",       // Based Chad
+  "Anon",       // Anonymous — Crypto culture
+  "Whale",      // Crypto whale
+  "Dex",        // DEX trading
+  "Onchain",    // Onchain movement
+  "Based",      // Base ecosystem ethos
+  "Optimism",   // OP Stack — Base foundation
+  "Layer",      // Layer 2 reference
+  "Sequencer",  // L2 sequencer
+  "Blob",       // EIP-4844 blobs
+  "Rollup",     // Rollup technology
+  "Bridge",     // Cross-chain bridge
+  "Airdrop",    // Token airdrop culture
+  "Mintoor",    // Minting culture
+  "Hodl",       // Hold on for dear life
+  "Rekt",       // Rekt culture
+  "Alpha",      // Alpha caller
+  "Sigma",      // Sigma variant
+  "Delta",      // Delta neutral
+  "Pixel",      // Pixel art culture
+  "Glitch",     // Digital glitch
+  "Nonce",      // Transaction nonce
+  "Hash",       // Hash function
+  "Block",      // Block producer
+  "Node",       // Network node
+  "Stake",      // Staking
+  "Yield",      // Yield farming
+  "Swap",       // Token swap
+  "Pool",       // Liquidity pool
+  "Vault",      // DeFi vault
+  "Forge",      // Smart contract forge
+  "Shard",      // Sharding
+  "Oracle",     // Blockchain oracle
+  "Beacon",     // Beacon chain
+];
+
+// Strategic Designations — rarity-tiered
+const DESIGNATIONS = {
+  c: [
+    "Perimeter Security Guard",
+    "Data Relay Operator",
+    "Maintenance Protocol Unit",
+    "Resource Collection Drone",
+    "Signal Monitoring Station",
+    "Patrol Coordination Unit",
+  ],
+  u: [
+    "Deep-Cover Information Retrieval Specialist",
+    "Tactical Assault Coordinator",
+    "Neural Network Analyst",
+    "Stealth Operations Handler",
+    "Supply Chain Optimizer",
+    "Emergency Response Unit",
+  ],
+  r: [
+    "Quantum Encryption Specialist",
+    "Advanced Weapons Researcher",
+    "Base Infrastructure Architect",
+    "Protocol Defense Guardian",
+    "Frontier Exploration Pioneer",
+  ],
+  e: [
+    "Dimensional Rift Navigator",
+    "AI Consciousness Interface",
+    "Temporal Analysis Commander",
+    "Void Sector Warden",
+  ],
+  l: [
+    "Genesis Protocol Architect",
+    "Onchain Reality Shaper",
+    "Multiverse Consensus Oracle",
+  ],
+};
+
+// Clearance Level — weighted distribution from plan
+// LV1: 30%, LV2: 25%, LV3: 20%, LV4: 13%, LV5: 7%, LV6: 4%, LV7: 1%
+const CLEARANCE_POOL = [];
+[[1,"c",300],[2,"c",250],[3,"u",200],[4,"r",130],[5,"e",70],[6,"l",40],[7,"m",10]]
+  .forEach(([lv,r,w]) => { for(let i=0;i<w;i++) CLEARANCE_POOL.push({level:lv,r}); });
+
+// Combat Mod — weighted
+const COMBAT_POOL = [];
+[["Disabled","c",400],["Enabled","u",450],["Overclocked","r",150]]
+  .forEach(([name,r,w]) => { for(let i=0;i<w;i++) COMBAT_POOL.push({name,r}); });
+
+// ══════════════════════════════════════════════════════
+// RARITY ENGINE
+// ══════════════════════════════════════════════════════
+
+const RW={c:45,u:25,r:18,e:8,l:3.5,m:0.5};
+const RN={c:"COMMON",u:"UNCOMMON",r:"RARE",e:"EPIC",l:"LEGENDARY",m:"MYTHIC"};
+const RO=["m","l","e","r","u","c"];
+const RORD={c:0,u:1,r:2,e:3,l:4,m:5}; // rarity order for comparison
+const RC={c:"rc",u:"ru",r:"rr",e:"re",l:"rl",m:"rm"};
+const BC={c:"bc",u:"bu",r:"br",e:"be",l:"bl",m:"bm"};
+
+// Pick from renderer objects (head/eyes/mouth/body/arms/legs)
+function pickW(obj) {
+  const entries = Object.entries(obj);
+  let pool = [];
+  entries.forEach(([name, data]) => {
+    const w = RW[data.r] || 1;
+    for (let i = 0; i < w * 10; i++) pool.push({name, ...data});
+  });
+  return pool[Math.floor(Math.random() * pool.length)];
+}
+
+// Pick from tiered name/designation objects {c:[...], u:[...], ...}
+function pickTiered(tiers) {
+  let pool = [];
+  for (const [rarity, items] of Object.entries(tiers)) {
+    const w = RW[rarity] || 1;
+    items.forEach(item => {
+      for (let i = 0; i < w * 10; i++) pool.push({value:item, r:rarity});
+    });
+  }
+  return pool[Math.floor(Math.random() * pool.length)];
+}
+
+// Pick from pre-built pool arrays
+function pickPool(pool) { return pool[Math.floor(Math.random() * pool.length)]; }
+
+// Pick random element
+function pick(a) { return a[Math.floor(Math.random() * a.length)]; }
+
+// Pick accent with rarity weighting
+function pickWAccent() {
+  let pool = [];
+  ACCENTS.forEach(a => {
+    const w = RW[a.r] || 1;
+    for (let i = 0; i < w * 10; i++) pool.push(a);
+  });
+  return pool[Math.floor(Math.random() * pool.length)];
+}
+
+// Get highest rarity from an array of rarity codes
+function highestRarity(rarities) {
+  let best = "c";
+  for (const r of RO) { if (rarities.includes(r)) { best = r; break; } }
+  return best;
+}
+
+// ══════════════════════════════════════════════════════
+// GENERATOR
+// ══════════════════════════════════════════════════════
+
+let cnt = 0;
+
+function generate(forceMythic = false) {
+  cnt++;
+
+  // ── Pick colors ──
+  const primary = pick(PRIMARIES);
+  const secondary = pick(SECONDARIES.filter(s => s.hex !== primary.hex));
+  const accent = forceMythic
+    ? pick(ACCENTS.filter(a => a.r === "l" || a.r === "e"))
+    : pickWAccent();
+  const c = { p: primary.hex, s: secondary.hex, a: accent.hex };
+
+  // ── Pick visual parts ──
+  const head = pickW(HEAD_RENDERERS);
+  const eyes = pickW(EYES_RENDERERS);
+  const mouth = pickW(MOUTH_RENDERERS);
+  const body = pickW(BODY_RENDERERS);
+  const arms = pickW(ARMS_RENDERERS);
+  const legs = pickW(LEGS_RENDERERS);
+
+  // ── Generate name (Mythic 0.5% chance, or forced) ──
+  const isMythic = forceMythic || Math.random() < 0.005;
+  let agentName, nameRarity, adjRarity = "c", roleRarity = "c";
+
+  if (isMythic) {
+    agentName = pick(MYTHIC_NAMES);
+    nameRarity = "m";
+  } else {
+    const adj = pickTiered(ADJECTIVES);
+    const role = pickTiered(ROLES);
+    agentName = adj.value + "-" + role.value;
+    adjRarity = adj.r;
+    roleRarity = role.r;
+    nameRarity = RORD[adj.r] >= RORD[role.r] ? adj.r : role.r;
+  }
+
+  // ── Pick metadata ──
+  let designation, clearance, combat, efficiency;
+  if (forceMythic) {
+    // Mythic agents get top-tier metadata
+    const desigPool = DESIGNATIONS.l || DESIGNATIONS.e;
+    designation = { value: pick(desigPool), r: "l" };
+    clearance = { level: 7, r: "m" };
+    combat = { name: "Overclocked", r: "r" };
+    efficiency = (92 + Math.random() * 7.9).toFixed(1);
+  } else {
+    designation = pickTiered(DESIGNATIONS);
+    clearance = pickPool(CLEARANCE_POOL);
+    combat = pickPool(COMBAT_POOL);
+    efficiency = (45 + Math.random() * 54.9).toFixed(1);
+  }
+
+  // ── Classification code ──
+  const codePrefix = agentName.slice(0,2).toUpperCase();
+  const codeNum = String(Math.floor(Math.random() * 900000 + 100000));
+  const codeSuffix = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"[Math.floor(Math.random() * 26)];
+  const classCode = `${codePrefix}-${codeNum}-${codeSuffix}`;
+
+  // ── Pick background ──
+  const bg = pickW(BG_RENDERERS);
+
+  // ── Build SVG (square viewBox for square container) ──
+  const svg = el("svg", {viewBox:"-30 -10 260 260", xmlns:NS, width:"420", height:"420"});
+
+  // 3D lighting defs (gradients + filters)
+  setup3dDefs(svg, c);
+
+  // Bleed fill — covers expanded square area beyond the 200×250 drawing zone
+  svg.appendChild(el("rect", {x:-30, y:-10, width:260, height:260, fill:"#050810"}));
+
+  // Draw background (covers the 0,0 → 200,250 core area)
+  bg.d(svg, c);
+
+  // Floor shadow
+  svg.appendChild(el("ellipse", {cx:100, cy:232, rx:55, ry:8, fill:"#000", opacity:.25}));
+
+  // Draw order: legs → arms → body → head → eyes → mouth
+  svg.appendChild(legs.d(c));
+  svg.appendChild(arms.d(c));
+  svg.appendChild(body.d(c));
+  svg.appendChild(head.d(c));
+  svg.appendChild(eyes.d(c));
+  svg.appendChild(mouth.d(c));
+
+  // ── POST-PROCESSING OVERLAYS ──
+  const postFx = el("g");
+
+  // Eye emission glow — ambient light from eyes onto face
+  postFx.appendChild(el("ellipse", {cx:100, cy:56, rx:34, ry:20, fill:c.a, opacity:.025}));
+
+  // Core/body ambient glow
+  postFx.appendChild(el("ellipse", {cx:100, cy:125, rx:28, ry:35, fill:c.a, opacity:.012}));
+
+  // Surface detail — subtle circuit texture over robot area
+  postFx.appendChild(el("rect", {x:55, y:22, width:90, height:200, fill:"url(#circuits)", opacity:.7}));
+
+  // Floating energy particles
+  for(let i=0;i<16;i++){
+    const px=8+Math.random()*184, py=2+Math.random()*244;
+    const pr=Math.random()>.82?1:.35;
+    postFx.appendChild(el("circle", {cx:px, cy:py, r:pr, fill:c.a,
+      opacity:(.006+Math.random()*.03).toFixed(3),
+      cls: Math.random()>.5?"drift":"pulse"}));
+  }
+
+  // Ground reflection glow
+  postFx.appendChild(el("ellipse", {cx:100, cy:242, rx:42, ry:4, fill:c.a, opacity:.018}));
+
+  // Subtle atmospheric scanlines
+  const scanFx = el("g", {opacity:.015});
+  for(let y=-10;y<250;y+=2.5) scanFx.appendChild(el("line", {x1:-30,y1:y,x2:230,y2:y,stroke:"#fff","stroke-width":.3}));
+  postFx.appendChild(scanFx);
+
+  svg.appendChild(postFx);
+
+  // Render SVG
+  const box = document.getElementById("svgBox");
+  box.innerHTML = "";
+  box.appendChild(svg);
+
+  // ── Overall rarity (highest among ALL traits) ──
+  const allRarities = [accent.r, head.r, eyes.r, mouth.r, body.r, arms.r, legs.r, bg.r, nameRarity, designation.r, clearance.r, combat.r];
+  const overallRarity = highestRarity(allRarities);
+
+  // ── Update UI ──
+  const badge = document.getElementById("badge");
+  badge.textContent = RN[overallRarity];
+  badge.className = "rarity-badge " + BC[overallRarity];
+
+  const nameEl = document.getElementById("aName");
+  nameEl.textContent = agentName;
+  // Color the name by its rarity
+  const nameColors = {c:"#94a3b8",u:"#22d3ee",r:"#a78bfa",e:"#f43f5e",l:"#fbbf24",m:"#f0abfc"};
+  nameEl.style.color = nameColors[nameRarity] || "#fff";
+
+  document.getElementById("aCode").textContent = classCode;
+
+  document.getElementById("sEff").textContent = efficiency;
+
+  const clrEl = document.getElementById("sClr");
+  clrEl.textContent = "LV" + clearance.level;
+  clrEl.style.color = nameColors[clearance.r] || "#06b6d4";
+
+  const cmbEl = document.getElementById("sCmb");
+  cmbEl.textContent = combat.name === "Disabled" ? "OFF" : combat.name === "Enabled" ? "ON" : "OC";
+  cmbEl.style.color = nameColors[combat.r] || "#06b6d4";
+
+  document.getElementById("sDesig").textContent = designation.value;
+  document.getElementById("sDesig").style.color = nameColors[designation.r] || "#e2e8f0";
+
+  // ── Trait grid ──
+  const traits = [
+    {l:"Head",       v:head.name,       r:head.r},
+    {l:"Eyes",       v:eyes.name,       r:eyes.r},
+    {l:"Mouth",      v:mouth.name,      r:mouth.r},
+    {l:"Body",       v:body.name,       r:body.r},
+    {l:"Arms",       v:arms.name,       r:arms.r},
+    {l:"Legs",       v:legs.name,       r:legs.r},
+    {l:"Accent",     v:accent.name,     r:accent.r},
+    {l:"Background", v:bg.name,         r:bg.r},
+    {l:"Agent Name", v:agentName,       r:nameRarity},
+    {l:"Clearance",  v:"Level "+clearance.level, r:clearance.r},
+    {l:"Combat Mod", v:combat.name,     r:combat.r},
+    {l:"Designation",v:designation.value,r:designation.r},
+    {l:"Efficiency", v:efficiency+"%",  r: efficiency>=95?"e" : efficiency>=85?"r" : efficiency>=70?"u" : "c"},
+  ];
+  const grid = document.getElementById("tGrid");
+  grid.innerHTML = "";
+  traits.forEach(t => {
+    const b = document.createElement("div");
+    b.className = "trait-box " + RC[t.r];
+    b.innerHTML = `<div class="trait-label">${t.l}</div><div class="trait-value">${t.v}</div>`;
+    grid.appendChild(b);
+  });
+
+  if(!window._mythicCount) window._mythicCount = 0;
+  if(isMythic) window._mythicCount++;
+  document.getElementById("cnt").textContent = `Generated: ${cnt} agents | Mythic seen: ${window._mythicCount} | Normal chance: 0.5%`;
+}
+
+generate();
+</script>
+</body>
+</html>

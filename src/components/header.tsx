@@ -11,6 +11,7 @@ import { useWallet } from "./wallet-context";
 import { reverseResolveAddress } from "@/lib/clawd-names";
 
 const navItems = [
+  { href: "/mint", cmd: "mint" },
   { href: "/drops", cmd: "drops" },
   { href: "/names", cmd: ".clawd" },
   { href: "/clawdverse", cmd: "verse" },

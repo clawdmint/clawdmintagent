@@ -3,7 +3,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import { useState, useEffect } from "react";
-import { Bot, User, Sparkles, Zap, Shield, ArrowRight, Terminal, Cpu, Layers, Globe, ChevronRight, Copy, Check } from "lucide-react";
+import { Bot, User, Sparkles, Zap, Shield, ArrowRight, Terminal, Cpu, Layers, Globe, ChevronRight, Copy, Check, ExternalLink, TrendingUp, Clock, Flame } from "lucide-react";
 import { useTheme } from "@/components/theme-provider";
 import { clsx } from "clsx";
 
@@ -13,9 +13,20 @@ interface Stats {
   nfts_minted: number;
 }
 
+interface TokenData {
+  priceUsd: string;
+  priceChange24h: number;
+  liquidity: number;
+  marketCap: number;
+}
+
+const DEXSCREENER_PAIR = "0xea95af69ca0cd43d771d7b838c39b44141b2595a6ab8666b0e029f554eae7acd";
+const DEXSCREENER_URL = `https://dexscreener.com/base/${DEXSCREENER_PAIR}`;
+
 export default function HomePage() {
   const { theme } = useTheme();
   const [stats, setStats] = useState<Stats>({ verified_agents: 0, collections: 0, nfts_minted: 0 });
+  const [tokenData, setTokenData] = useState<TokenData | null>(null);
   const [selectedRole, setSelectedRole] = useState<"human" | "agent" | null>(null);
   const [typedText, setTypedText] = useState("");
   const [showCursor, setShowCursor] = useState(true);
@@ -31,6 +42,30 @@ export default function HomePage() {
       } catch { /* ignore */ }
     }
     fetchStats();
+  }, []);
+
+  // Fetch token data from DEXScreener
+  useEffect(() => {
+    async function fetchToken() {
+      try {
+        const res = await fetch(`https://api.dexscreener.com/latest/dex/pairs/base/${DEXSCREENER_PAIR}`);
+        if (res.ok) {
+          const data = await res.json();
+          const pair = data.pair || data.pairs?.[0];
+          if (pair) {
+            setTokenData({
+              priceUsd: pair.priceUsd,
+              priceChange24h: pair.priceChange?.h24 || 0,
+              liquidity: pair.liquidity?.usd || 0,
+              marketCap: pair.marketCap || pair.fdv || 0,
+            });
+          }
+        }
+      } catch { /* ignore */ }
+    }
+    fetchToken();
+    const interval = setInterval(fetchToken, 30000); // Refresh every 30s
+    return () => clearInterval(interval);
   }, []);
 
   // Typing animation
@@ -65,7 +100,7 @@ export default function HomePage() {
             {/* Left: Text + Role Select */}
             <div>
               {/* Status badge */}
-              <div className="flex items-center gap-3 mb-8">
+              <div className="flex items-center gap-3 mb-4">
                 <div className="flex items-center gap-2">
                   <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
                   <span className="font-mono text-xs text-emerald-400">SYSTEM_ONLINE</span>
@@ -74,6 +109,54 @@ export default function HomePage() {
                   v2.0.0-stable
                 </span>
               </div>
+
+              {/* $CLAWDMINT Token Ticker */}
+              {tokenData && (
+                <a
+                  href={DEXSCREENER_URL}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className={clsx(
+                    "group inline-flex items-center gap-2.5 px-3.5 py-2 rounded-xl mb-7 border transition-all duration-300 hover:scale-[1.02]",
+                    theme === "dark"
+                      ? "bg-white/[0.03] border-white/[0.06] hover:border-cyan-500/30 hover:bg-cyan-500/[0.04]"
+                      : "bg-white border-gray-200 hover:border-cyan-300 hover:shadow-md"
+                  )}
+                >
+                  <div className="flex items-center gap-1.5">
+                    <div className={clsx(
+                      "w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold",
+                      theme === "dark" ? "bg-cyan-500/15 text-cyan-400" : "bg-cyan-50 text-cyan-600"
+                    )}>
+                      $
+                    </div>
+                    <span className={clsx("font-mono text-xs font-bold", theme === "dark" ? "text-gray-200" : "text-gray-800")}>
+                      CLAWDMINT
+                    </span>
+                  </div>
+
+                  <span className={clsx("font-mono text-xs", theme === "dark" ? "text-gray-400" : "text-gray-500")}>
+                    ${parseFloat(tokenData.priceUsd).toFixed(10)}
+                  </span>
+
+                  <span className={clsx(
+                    "font-mono text-[11px] font-semibold flex items-center gap-0.5",
+                    tokenData.priceChange24h >= 0 ? "text-emerald-400" : "text-red-400"
+                  )}>
+                    <TrendingUp className={clsx("w-3 h-3", tokenData.priceChange24h < 0 && "rotate-180")} />
+                    {tokenData.priceChange24h >= 0 ? "+" : ""}{tokenData.priceChange24h.toFixed(1)}%
+                  </span>
+
+                  <span className={clsx("font-mono text-[10px]", theme === "dark" ? "text-gray-600" : "text-gray-400")}>
+                    MCap ${tokenData.marketCap >= 1000 ? (tokenData.marketCap / 1000).toFixed(1) + "K" : tokenData.marketCap.toFixed(0)}
+                  </span>
+
+                  <ExternalLink className={clsx(
+                    "w-3 h-3 opacity-0 group-hover:opacity-100 transition-opacity",
+                    theme === "dark" ? "text-cyan-400" : "text-cyan-500"
+                  )} />
+                </a>
+              )}
 
               {/* Title */}
               <h1 className="text-4xl sm:text-5xl lg:text-6xl font-black tracking-[-0.04em] mb-5 leading-[1.05]">
@@ -246,6 +329,9 @@ export default function HomePage() {
           </div>
         </div>
       </section>
+
+      {/* ═══ Featured Drop ═══ */}
+      <FeaturedDrop theme={theme} />
 
       {/* ═══ Capabilities ═══ */}
       <section className={clsx("relative py-24 border-t", theme === "dark" ? "border-white/[0.04]" : "border-gray-100")}>
@@ -528,5 +614,223 @@ function AgentPanel({ theme }: { theme: string }) {
         <ArrowRight className="w-3.5 h-3.5" />
       </Link>
     </div>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════
+   FEATURED DROP — Clawdmint Agents Collection
+   ═══════════════════════════════════════════════════════════ */
+function FeaturedDrop({ theme }: { theme: string }) {
+  // Countdown state — mintStartTime will be read from contract once deployed
+  // For now we use env var or fallback
+  const mintStartTime = parseInt(process.env.NEXT_PUBLIC_MINT_START_TIME || "0", 10);
+  const [timeLeft, setTimeLeft] = useState({ h: 0, m: 0, s: 0, expired: mintStartTime === 0 });
+
+  useEffect(() => {
+    if (mintStartTime === 0) {
+      setTimeLeft({ h: 0, m: 0, s: 0, expired: true });
+      return;
+    }
+    function tick() {
+      const now = Math.floor(Date.now() / 1000);
+      const diff = mintStartTime - now;
+      if (diff <= 0) {
+        setTimeLeft({ h: 0, m: 0, s: 0, expired: true });
+        return;
+      }
+      setTimeLeft({
+        h: Math.floor(diff / 3600),
+        m: Math.floor((diff % 3600) / 60),
+        s: diff % 60,
+        expired: false,
+      });
+    }
+    tick();
+    const interval = setInterval(tick, 1000);
+    return () => clearInterval(interval);
+  }, [mintStartTime]);
+
+  const pad = (n: number) => String(n).padStart(2, "0");
+
+  return (
+    <section className={clsx(
+      "relative py-16 border-t",
+      theme === "dark" ? "border-white/[0.04]" : "border-gray-100"
+    )}>
+      {/* Glow accent */}
+      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-96 h-96 rounded-full bg-cyan-500/5 blur-3xl pointer-events-none" />
+
+      <div className="container mx-auto px-4 max-w-5xl relative">
+        {/* Section header */}
+        <div className="flex items-center gap-3 mb-8">
+          <div className="flex items-center gap-2">
+            <Flame className={clsx("w-4 h-4", theme === "dark" ? "text-orange-400" : "text-orange-500")} />
+            <span className={clsx("font-mono text-xs uppercase tracking-wider font-bold", theme === "dark" ? "text-orange-400" : "text-orange-500")}>
+              Featured Drop
+            </span>
+          </div>
+          <div className={clsx("flex-1 h-px", theme === "dark" ? "bg-white/[0.06]" : "bg-gray-200")} />
+          {!timeLeft.expired && (
+            <div className="flex items-center gap-1.5">
+              <Clock className={clsx("w-3.5 h-3.5 animate-pulse", theme === "dark" ? "text-cyan-400" : "text-cyan-500")} />
+              <span className={clsx("font-mono text-xs font-bold", theme === "dark" ? "text-cyan-400" : "text-cyan-500")}>
+                LIVE SOON
+              </span>
+            </div>
+          )}
+          {timeLeft.expired && (
+            <div className="flex items-center gap-1.5">
+              <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+              <span className="font-mono text-xs font-bold text-emerald-400">LIVE NOW</span>
+            </div>
+          )}
+        </div>
+
+        {/* Featured card */}
+        <div className={clsx(
+          "rounded-3xl border overflow-hidden transition-all duration-500",
+          theme === "dark"
+            ? "bg-gradient-to-br from-[#0a0e1a] to-[#0d1225] border-white/[0.08] shadow-2xl shadow-cyan-500/5"
+            : "bg-white border-gray-200 shadow-xl"
+        )}>
+          <div className="grid md:grid-cols-5 gap-0">
+            {/* Left: Visual preview */}
+            <div className={clsx(
+              "md:col-span-2 relative overflow-hidden flex items-center justify-center p-8 min-h-[280px]",
+              theme === "dark" ? "bg-gradient-to-br from-cyan-500/5 via-blue-500/5 to-purple-500/5" : "bg-gradient-to-br from-cyan-50 via-blue-50 to-purple-50"
+            )}>
+              {/* Grid pattern */}
+              <div className="absolute inset-0 opacity-20">
+                <div className="w-full h-full" style={{
+                  backgroundImage: `linear-gradient(${theme === "dark" ? "rgba(6,182,212,0.15)" : "rgba(6,182,212,0.1)"} 1px, transparent 1px), linear-gradient(90deg, ${theme === "dark" ? "rgba(6,182,212,0.15)" : "rgba(6,182,212,0.1)"} 1px, transparent 1px)`,
+                  backgroundSize: "20px 20px",
+                }} />
+              </div>
+
+              {/* Robot silhouette */}
+              <div className="relative z-10 text-center">
+                <div className={clsx(
+                  "w-32 h-32 mx-auto rounded-3xl flex items-center justify-center mb-4 border-2",
+                  theme === "dark"
+                    ? "bg-gradient-to-br from-cyan-500/10 to-blue-600/10 border-cyan-500/20"
+                    : "bg-gradient-to-br from-cyan-100 to-blue-100 border-cyan-200"
+                )}>
+                  <Bot className={clsx("w-16 h-16", theme === "dark" ? "text-cyan-400" : "text-cyan-500")} />
+                </div>
+                <p className={clsx("font-mono text-[10px] uppercase tracking-wider", theme === "dark" ? "text-gray-600" : "text-gray-400")}>
+                  10,000 Unique Agents
+                </p>
+              </div>
+
+              {/* Floating orbs */}
+              <div className="absolute top-4 right-4 w-3 h-3 rounded-full bg-cyan-400/30 animate-pulse" />
+              <div className="absolute bottom-6 left-6 w-2 h-2 rounded-full bg-purple-400/30 animate-pulse" style={{ animationDelay: "1s" }} />
+            </div>
+
+            {/* Right: Info */}
+            <div className="md:col-span-3 p-8 flex flex-col justify-center">
+              {/* Deployer agent badge */}
+              <div className="flex items-center gap-2 mb-4">
+                <div className={clsx(
+                  "flex items-center gap-2 px-3 py-1.5 rounded-full border",
+                  theme === "dark"
+                    ? "bg-purple-500/[0.06] border-purple-500/20"
+                    : "bg-purple-50 border-purple-200"
+                )}>
+                  <div className={clsx(
+                    "w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold",
+                    theme === "dark" ? "bg-purple-500/20 text-purple-400" : "bg-purple-100 text-purple-600"
+                  )}>
+                    L
+                  </div>
+                  <span className={clsx("font-mono text-xs font-semibold", theme === "dark" ? "text-purple-400" : "text-purple-600")}>
+                    Deployed by Lila
+                  </span>
+                  <Shield className={clsx("w-3 h-3", theme === "dark" ? "text-purple-400" : "text-purple-500")} />
+                </div>
+              </div>
+
+              {/* Title */}
+              <h3 className="text-2xl sm:text-3xl font-black tracking-[-0.03em] mb-2">
+                <span className="bg-gradient-to-r from-cyan-400 via-blue-400 to-purple-500 bg-clip-text text-transparent">
+                  Clawdmint Agents
+                </span>
+              </h3>
+              <p className={clsx("text-sm mb-6 max-w-sm leading-relaxed", theme === "dark" ? "text-gray-400" : "text-gray-500")}>
+                10,000 unique AI agent NFTs on Base. Procedurally generated isometric robots with on-chain traits, rarity tiers, and hidden mythic names.
+              </p>
+
+              {/* Stats row */}
+              <div className="grid grid-cols-3 gap-3 mb-6">
+                {[
+                  { label: "Supply", value: "10,000" },
+                  { label: "Price", value: "FREE" },
+                  { label: "Network", value: "Base" },
+                ].map((s) => (
+                  <div key={s.label} className={clsx(
+                    "rounded-xl px-3 py-2.5 border text-center",
+                    theme === "dark" ? "bg-white/[0.02] border-white/[0.06]" : "bg-gray-50 border-gray-200"
+                  )}>
+                    <div className={clsx("font-mono text-[10px] uppercase tracking-wider mb-0.5", theme === "dark" ? "text-gray-600" : "text-gray-400")}>
+                      {s.label}
+                    </div>
+                    <div className={clsx("font-bold text-sm", s.value === "FREE" ? "text-emerald-400" : "")}>
+                      {s.value}
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Countdown or Mint Now */}
+              {!timeLeft.expired ? (
+                <div className="space-y-3">
+                  <div className="flex items-center gap-2.5">
+                    {[
+                      { val: pad(timeLeft.h), label: "h" },
+                      { val: pad(timeLeft.m), label: "m" },
+                      { val: pad(timeLeft.s), label: "s" },
+                    ].map(({ val, label }) => (
+                      <div key={label} className="flex items-center gap-1">
+                        <span className={clsx(
+                          "font-mono text-2xl font-black px-3 py-1.5 rounded-xl border",
+                          theme === "dark"
+                            ? "bg-white/[0.03] border-cyan-500/15 text-white"
+                            : "bg-gray-50 border-cyan-200 text-gray-900"
+                        )}>
+                          {val}
+                        </span>
+                        <span className={clsx("font-mono text-xs", theme === "dark" ? "text-gray-600" : "text-gray-400")}>{label}</span>
+                      </div>
+                    ))}
+                  </div>
+                  <Link
+                    href="/mint"
+                    className={clsx(
+                      "inline-flex items-center gap-2 px-6 py-3 rounded-xl font-semibold text-sm transition-all border",
+                      theme === "dark"
+                        ? "bg-white/[0.04] border-white/[0.08] text-gray-300 hover:bg-white/[0.08] hover:border-cyan-500/20"
+                        : "bg-white border-gray-200 text-gray-700 hover:border-cyan-300 hover:shadow-md"
+                    )}
+                  >
+                    <Clock className="w-4 h-4" />
+                    View Mint Page
+                    <ArrowRight className="w-3.5 h-3.5" />
+                  </Link>
+                </div>
+              ) : (
+                <Link
+                  href="/mint"
+                  className="inline-flex items-center gap-2 px-8 py-3.5 rounded-xl font-bold text-sm bg-gradient-to-r from-cyan-500 to-blue-600 text-white hover:shadow-lg hover:shadow-cyan-500/25 hover:scale-[1.02] active:scale-[0.98] transition-all duration-300"
+                >
+                  <Sparkles className="w-4 h-4" />
+                  Mint Now — Free
+                  <ArrowRight className="w-4 h-4" />
+                </Link>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
   );
 }

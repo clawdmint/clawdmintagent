@@ -276,6 +276,20 @@ export const COLLECTION_ABI = [
   },
   {
     type: "function",
+    name: "mintStartTime",
+    inputs: [],
+    outputs: [{ type: "uint256" }],
+    stateMutability: "view",
+  },
+  {
+    type: "function",
+    name: "setMintStartTime",
+    inputs: [{ name: "_startTime", type: "uint256" }],
+    outputs: [],
+    stateMutability: "nonpayable",
+  },
+  {
+    type: "function",
     name: "payoutAddress",
     inputs: [],
     outputs: [{ type: "address" }],

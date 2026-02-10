@@ -1,0 +1,104 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400" width="400" height="400">
+  <defs>
+    <pattern id="bg-grid2" width="16" height="16" patternUnits="userSpaceOnUse">
+      <circle cx="8" cy="8" r="0.4" fill="#1a1030" opacity="0.6"/>
+    </pattern>
+    <filter id="pg1"><feGaussianBlur stdDeviation="4" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+    <filter id="pg2"><feGaussianBlur stdDeviation="8" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+    <filter id="pg3"><feGaussianBlur stdDeviation="14" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+    <radialGradient id="pamb" cx="50%" cy="35%" r="55%">
+      <stop offset="0%" stop-color="#8b5cf6" stop-opacity="0.07"/>
+      <stop offset="100%" stop-color="#8b5cf6" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+
+  <!-- Background -->
+  <rect width="400" height="400" fill="#08060f"/>
+  <rect width="400" height="400" fill="url(#bg-grid2)"/>
+  <rect width="400" height="400" fill="url(#pamb)"/>
+
+  <g transform="translate(200, 195)">
+
+    <!-- === LEGS: Rocket Thrusters === -->
+    <!-- Left leg -->
+    <rect x="-35" y="105" width="18" height="40" rx="2" fill="#15102a"/>
+    <!-- Thruster nozzle -->
+    <polygon points="-35,145 -17,145 -20,155 -32,155" fill="#1a1335"/>
+    <!-- Rocket flame -->
+    <polygon points="-32,155 -20,155 -24,178 -28,178" fill="#8b5cf6" opacity="0.7" filter="url(#pg1)"/>
+    <polygon points="-30,155 -22,155 -25,172 -27,172" fill="#c4b5fd" opacity="0.5" filter="url(#pg2)"/>
+
+    <!-- Right leg -->
+    <rect x="17" y="105" width="18" height="40" rx="2" fill="#15102a"/>
+    <!-- Thruster nozzle -->
+    <polygon points="17,145 35,145 32,155 20,155" fill="#1a1335"/>
+    <!-- Rocket flame -->
+    <polygon points="20,155 32,155 28,178 24,178" fill="#8b5cf6" opacity="0.7" filter="url(#pg1)"/>
+    <polygon points="22,155 30,155 27,172 25,172" fill="#c4b5fd" opacity="0.5" filter="url(#pg2)"/>
+
+    <!-- === BODY: Large Rectangle === -->
+    <rect x="-60" y="10" width="120" height="95" rx="6" fill="#12102a"/>
+    <rect x="-60" y="10" width="120" height="95" rx="6" stroke="#1e1640" stroke-width="1" fill="none"/>
+
+    <!-- Chest plate -->
+    <rect x="-50" y="25" width="100" height="30" rx="4" fill="#0d0a1e"/>
+    <rect x="-50" y="25" width="100" height="30" rx="4" stroke="#1a1335" stroke-width="0.5" fill="none"/>
+    <!-- Horizontal divider -->
+    <line x1="-50" y1="42" x2="50" y2="42" stroke="#1a1335" stroke-width="0.5"/>
+
+    <!-- Core indicator dots -->
+    <g fill="#8b5cf6" opacity="0.5">
+      <rect x="-20" y="67" width="6" height="6" rx="1"/>
+      <rect x="-7" y="67" width="6" height="6" rx="1" opacity="0.7"/>
+      <rect x="6" y="67" width="6" height="6" rx="1" opacity="0.4"/>
+      <rect x="19" y="67" width="6" height="6" rx="1" opacity="0.3"/>
+    </g>
+    <!-- V-neck detail -->
+    <polygon points="0,8 -12,18 12,18" fill="#1a1540" stroke="#1e1640" stroke-width="0.5"/>
+
+    <!-- === ARMS: Straight Beam with Round Joints === -->
+    <!-- Left arm -->
+    <rect x="-110" y="38" width="55" height="14" rx="5" fill="#12102a" stroke="#1e1640" stroke-width="0.5"/>
+    <!-- Joint sphere -->
+    <circle cx="-115" cy="45" r="14" fill="#0d0a1e" stroke="#1e1640" stroke-width="1"/>
+    <circle cx="-115" cy="45" r="8" fill="#8b5cf6" opacity="0.7" filter="url(#pg2)"/>
+    <circle cx="-115" cy="45" r="4" fill="#c4b5fd" opacity="0.5"/>
+
+    <!-- Right arm -->
+    <rect x="55" y="38" width="55" height="14" rx="5" fill="#12102a" stroke="#1e1640" stroke-width="0.5"/>
+    <!-- Joint sphere -->
+    <circle cx="115" cy="45" r="14" fill="#0d0a1e" stroke="#1e1640" stroke-width="1"/>
+    <circle cx="115" cy="45" r="8" fill="#8b5cf6" opacity="0.7" filter="url(#pg2)"/>
+    <circle cx="115" cy="45" r="4" fill="#c4b5fd" opacity="0.5"/>
+
+    <!-- === NECK === -->
+    <rect x="-14" y="-2" width="28" height="15" rx="3" fill="#15102a"/>
+
+    <!-- === HEAD: Trapezoid (wider at top) === -->
+    <polygon points="-48,-70 48,-70 38,-8 -38,-8" fill="#18143a"/>
+    <polygon points="-48,-70 48,-70 38,-8 -38,-8" stroke="#221a50" stroke-width="1" fill="none"/>
+
+    <!-- EYES: Two round glowing orbs -->
+    <circle cx="-18" cy="-45" r="10" fill="#0d0a1e"/>
+    <circle cx="-18" cy="-45" r="7" fill="#8b5cf6" opacity="0.8" filter="url(#pg2)"/>
+    <circle cx="-18" cy="-45" r="3.5" fill="#c4b5fd" opacity="0.7"/>
+    <circle cx="-16" cy="-47" r="1.5" fill="#fff" opacity="0.5"/>
+
+    <circle cx="18" cy="-45" r="10" fill="#0d0a1e"/>
+    <circle cx="18" cy="-45" r="7" fill="#8b5cf6" opacity="0.8" filter="url(#pg2)"/>
+    <circle cx="18" cy="-45" r="3.5" fill="#c4b5fd" opacity="0.7"/>
+    <circle cx="20" cy="-47" r="1.5" fill="#fff" opacity="0.5"/>
+
+    <!-- Nose dot -->
+    <circle cx="0" cy="-33" r="3" fill="#8b5cf6" opacity="0.4"/>
+
+    <!-- MOUTH: Dot strip -->
+    <rect x="-22" y="-24" width="44" height="10" rx="3" fill="#0d0a1e"/>
+    <g fill="#8b5cf6" opacity="0.45">
+      <circle cx="-15" cy="-19" r="1.3"/><circle cx="-10" cy="-19" r="1.3"/>
+      <circle cx="-5" cy="-19" r="1.3"/><circle cx="0" cy="-19" r="1.3"/>
+      <circle cx="5" cy="-19" r="1.3"/><circle cx="10" cy="-19" r="1.3"/>
+      <circle cx="15" cy="-19" r="1.3"/>
+    </g>
+  </g>
+</svg>

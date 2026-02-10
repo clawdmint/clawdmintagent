@@ -1,0 +1,974 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Clawdmint Agents — Trait Randomizer</title>
+<style>
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{background:#080c14;color:#e2e8f0;font-family:'Courier New',monospace;min-height:100vh}
+  .container{max-width:1100px;margin:0 auto;padding:24px}
+  h1{text-align:center;font-size:22px;color:#06b6d4;margin-bottom:4px;letter-spacing:2px}
+  .sub{text-align:center;font-size:11px;color:#475569;margin-bottom:20px}
+  .main{display:flex;gap:24px;align-items:flex-start;flex-wrap:wrap;justify-content:center}
+  .svg-wrap{width:420px;height:420px;border:1px solid #1e293b;border-radius:12px;overflow:hidden;flex-shrink:0;background:#080c14;display:flex;align-items:center;justify-content:center}
+  .svg-wrap svg{width:100%;height:100%}
+  .panel{flex:1;min-width:300px}
+  .agent-name{font-size:26px;font-weight:bold;color:#fff;margin-bottom:2px}
+  .agent-code{font-size:11px;color:#06b6d4;margin-bottom:14px;letter-spacing:1px}
+  .trait-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:5px;margin-bottom:16px}
+  .trait-box{background:#111827;border:1px solid #1e293b;border-radius:8px;padding:8px 10px}
+  .trait-label{font-size:8px;color:#475569;text-transform:uppercase;letter-spacing:1px;margin-bottom:2px}
+  .trait-value{font-size:12px;font-weight:bold}
+  .rc .trait-value{color:#94a3b8} .ru .trait-value{color:#22d3ee}
+  .rr .trait-value{color:#a78bfa} .re .trait-value{color:#f43f5e}
+  .rl .trait-value{color:#fbbf24} .rm .trait-value{color:#f0abfc}
+  .stat-row{display:flex;gap:8px;margin-bottom:14px}
+  .stat-box{flex:1;background:#111827;border:1px solid #1e293b;border-radius:8px;padding:8px;text-align:center}
+  .stat-num{font-size:20px;font-weight:bold;color:#06b6d4}
+  .stat-lbl{font-size:8px;color:#475569;text-transform:uppercase;margin-top:1px}
+  .rarity-badge{display:inline-block;padding:3px 10px;border-radius:6px;font-size:10px;font-weight:bold;letter-spacing:1px;margin-bottom:10px}
+  .bc{background:#334155;color:#94a3b8} .bu{background:#164e63;color:#22d3ee}
+  .br{background:#2e1065;color:#a78bfa} .be{background:#4c0519;color:#f43f5e}
+  .bl{background:#451a03;color:#fbbf24} .bm{background:#4a044e;color:#f0abfc}
+  .btn{display:block;width:100%;padding:14px;background:linear-gradient(135deg,#06b6d4,#3b82f6);color:#fff;border:none;border-radius:10px;font-size:15px;font-weight:bold;cursor:pointer;font-family:inherit;letter-spacing:1px;transition:transform .15s}
+  .btn:hover{transform:scale(1.02)} .btn:active{transform:scale(0.98)}
+  .counter{text-align:center;margin-top:12px;font-size:10px;color:#334155}
+  .desig{background:#111827;border:1px solid #1e293b;border-radius:8px;padding:10px;margin-bottom:14px}
+  .desig .trait-label{margin-bottom:3px}
+  .desig-value{font-size:13px;font-weight:bold;color:#e2e8f0}
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+  .pulse{animation:pulse 2s ease-in-out infinite}
+</style>
+</head>
+<body>
+<div class="container">
+  <h1>CLAWDMINT AGENTS</h1>
+  <p class="sub">10,000 Unique Agent Units on Base — Trait Randomizer Preview</p>
+  <div class="main">
+    <div class="svg-wrap" id="svgBox"></div>
+    <div class="panel">
+      <span class="rarity-badge bc" id="badge">COMMON</span>
+      <div class="agent-name" id="aName">—</div>
+      <div class="agent-code" id="aCode">XX-000000-X</div>
+      <div class="stat-row">
+        <div class="stat-box"><div class="stat-num" id="sEff">0</div><div class="stat-lbl">Efficiency</div></div>
+        <div class="stat-box"><div class="stat-num" id="sClr">1</div><div class="stat-lbl">Clearance</div></div>
+        <div class="stat-box"><div class="stat-num" id="sCmb">—</div><div class="stat-lbl">Combat</div></div>
+      </div>
+      <div class="desig"><div class="trait-label">Strategic Designation</div><div class="desig-value" id="sDesig">—</div></div>
+      <div class="trait-grid" id="tGrid"></div>
+      <div style="display:flex;gap:8px">
+        <button class="btn" onclick="generate()" style="flex:3">⟳ GENERATE NEW AGENT</button>
+        <button class="btn" onclick="generate(true)" style="flex:2;background:linear-gradient(135deg,#d946ef,#a855f7);font-size:12px">★ FORCE MYTHIC</button>
+      </div>
+      <div class="counter" id="cnt"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+const NS="http://www.w3.org/2000/svg";
+
+// ── SVG helpers ──
+function el(tag, attrs={}) {
+  const e = document.createElementNS(NS, tag);
+  for (const [k,v] of Object.entries(attrs)) {
+    if (k === "cls") e.classList.add(v);
+    else e.setAttribute(k, String(v));
+  }
+  return e;
+}
+function g(...children) {
+  const grp = el("g");
+  children.forEach(c => grp.appendChild(c));
+  return grp;
+}
+
+// ── COLOR PALETTES ──
+const PRIMARIES = [
+  { hex:"#0f172a", name:"Deep Black" },
+  { hex:"#334155", name:"Slate Gray" },
+  { hex:"#1e293b", name:"Navy Stealth" },
+  { hex:"#475569", name:"Cool Gray" },
+  { hex:"#111827", name:"Dark Carbon" },
+  { hex:"#312e81", name:"Indigo Operative" },
+  { hex:"#1e1b4b", name:"Midnight Blue" },
+];
+const SECONDARIES = [
+  { hex:"#334155", name:"Slate" },
+  { hex:"#475569", name:"Smoke" },
+  { hex:"#1e293b", name:"Navy" },
+  { hex:"#3f3f46", name:"Zinc" },
+  { hex:"#27272a", name:"Charcoal" },
+  { hex:"#312e81", name:"Indigo" },
+  { hex:"#374151", name:"Iron" },
+];
+const ACCENTS = [
+  { hex:"#06b6d4", name:"Cyan Glow",     r:"c" },
+  { hex:"#ef4444", name:"Red Alert",     r:"u" },
+  { hex:"#10b981", name:"Emerald Energy",r:"u" },
+  { hex:"#f59e0b", name:"Amber HUD",     r:"r" },
+  { hex:"#8b5cf6", name:"Violet Ion",    r:"r" },
+  { hex:"#ffffff", name:"Crisp White",   r:"e" },
+  { hex:"#f43f5e", name:"Rose Flare",    r:"e" },
+  { hex:"#fbbf24", name:"Gold Signal",   r:"l" },
+];
+
+// ── PART RENDERERS ──
+// Each returns a <g> element. c = { p, s, a } (primary, secondary, accent hex strings)
+
+const HEAD_RENDERERS = {
+  "Tactical Helmet": {r:"c", d: (c) => g(
+    el("path", {d:"M70 30 L130 30 L135 80 L65 80 Z", fill:c.p, stroke:c.s, "stroke-width":2}),
+    el("path", {d:"M70 30 L130 30 L110 50 L90 50 Z", fill:c.s, "fill-opacity":.5})
+  )},
+  "Stealth Visor": {r:"c", d: (c) => g(
+    el("rect", {x:70, y:30, width:60, height:50, rx:15, ry:5, fill:c.p, stroke:c.s, "stroke-width":2}),
+    el("path", {d:"M70 45 L130 45 L130 60 L70 60 Z", fill:c.a, "fill-opacity":.2})
+  )},
+  "Neural Link": {r:"u", d: (c) => g(
+    el("rect", {x:75, y:35, width:50, height:45, rx:4, fill:c.p, stroke:c.s, "stroke-width":2}),
+    el("path", {d:"M100 20 L100 35", stroke:c.a, "stroke-width":2}),
+    el("path", {d:"M85 25 L85 35", stroke:c.a, "stroke-width":2}),
+    el("path", {d:"M115 25 L115 35", stroke:c.a, "stroke-width":2}),
+    el("circle", {cx:100, cy:18, r:3, fill:c.a, cls:"pulse"}),
+    el("circle", {cx:85, cy:23, r:2, fill:c.a, cls:"pulse"}),
+    el("circle", {cx:115, cy:23, r:2, fill:c.a, cls:"pulse"})
+  )},
+  "Sentinel": {r:"r", d: (c) => g(
+    el("path", {d:"M70 80 Q70 30 100 25 Q130 30 130 80 Z", fill:c.p, stroke:c.s, "stroke-width":3}),
+    el("path", {d:"M80 80 L120 80 L110 70 L90 70 Z", fill:c.s})
+  )},
+  "Cyber-mask": {r:"e", d: (c) => g(
+    el("path", {d:"M70 30 L130 30 L120 85 L100 95 L80 85 Z", fill:c.p, stroke:c.s, "stroke-width":2}),
+    el("path", {d:"M85 75 L115 75 L110 85 L90 85 Z", fill:c.s})
+  )},
+  "Crustacean Helm": {r:"r", d: (c) => {
+    // Rounded shell head + long curved antennae
+    const grp = el("g");
+    // Main shell - rounded, slightly wider at top
+    grp.appendChild(el("path", {d:"M68 80 L68 50 Q68 28 100 25 Q132 28 132 50 L132 80 Z", fill:c.a, stroke:c.s, "stroke-width":2}));
+    // Shell segments
+    grp.appendChild(el("path", {d:"M72 60 L128 60", stroke:c.s, "stroke-width":1, opacity:.4}));
+    grp.appendChild(el("path", {d:"M70 70 L130 70", stroke:c.s, "stroke-width":1, opacity:.3}));
+    // Left antenna - curves outward and up
+    grp.appendChild(el("path", {d:"M82 30 Q70 10 55 5 Q45 3 38 8", fill:"none", stroke:c.a, "stroke-width":3, "stroke-linecap":"round"}));
+    grp.appendChild(el("circle", {cx:38, cy:8, r:2.5, fill:"#fff", opacity:.7}));
+    // Right antenna
+    grp.appendChild(el("path", {d:"M118 30 Q130 10 145 5 Q155 3 162 8", fill:"none", stroke:c.a, "stroke-width":3, "stroke-linecap":"round"}));
+    grp.appendChild(el("circle", {cx:162, cy:8, r:2.5, fill:"#fff", opacity:.7}));
+    // Shell highlight
+    grp.appendChild(el("path", {d:"M80 35 Q100 30 120 35", fill:"none", stroke:"#fff", "stroke-width":1, opacity:.15}));
+    return grp;
+  }},
+};
+
+const EYES_RENDERERS = {
+  "Mono Visor": {r:"c", d: (c) => g(
+    el("rect", {x:75, y:50, width:50, height:6, rx:3, fill:c.a, cls:"pulse"}),
+    el("path", {d:"M75 53 L125 53", stroke:"#ffffff", "stroke-width":1, "stroke-opacity":.5})
+  )},
+  "Tri-lens": {r:"u", d: (c) => g(
+    el("circle", {cx:85, cy:50, r:5, fill:"#000", stroke:c.a, "stroke-width":1}),
+    el("circle", {cx:85, cy:50, r:3, fill:c.a}),
+    el("circle", {cx:115, cy:50, r:5, fill:"#000", stroke:c.a, "stroke-width":1}),
+    el("circle", {cx:115, cy:50, r:3, fill:c.a}),
+    el("circle", {cx:100, cy:65, r:5, fill:"#000", stroke:c.a, "stroke-width":1}),
+    el("circle", {cx:100, cy:65, r:3, fill:c.a})
+  )},
+  "HUD Display": {r:"r", d: (c) => g(
+    el("rect", {x:75, y:45, width:50, height:20, rx:2, fill:c.a, "fill-opacity":.1, stroke:c.a, "stroke-width":1}),
+    el("path", {d:"M80 50 L90 50", stroke:c.a, "stroke-width":1.5}),
+    el("path", {d:"M80 55 L85 55", stroke:c.a, "stroke-width":1.5}),
+    el("rect", {x:110, y:55, width:10, height:5, fill:c.a, cls:"pulse"})
+  )},
+  "Digital Aperture": {r:"e", d: (c) => g(
+    el("circle", {cx:100, cy:55, r:14, fill:"#000", stroke:c.a, "stroke-width":2}),
+    el("circle", {cx:100, cy:55, r:8, fill:"none", stroke:c.a, "stroke-width":1, "stroke-dasharray":"2 2"}),
+    el("circle", {cx:100, cy:55, r:4, fill:c.a, cls:"pulse"})
+  )},
+  "Stealth Scan": {r:"c", d: (c) => g(
+    el("rect", {x:80, y:52, width:40, height:4, rx:2, fill:c.a}),
+    el("path", {d:"M70 54 L130 54", stroke:c.a, "stroke-width":.5, "stroke-dasharray":"2 2"})
+  )},
+  "Stalker Eyes": {r:"r", d: (c) => {
+    // Lobster-style eye stalks protruding upward
+    const grp = el("g");
+    // Left stalk
+    grp.appendChild(el("path", {d:"M88 50 Q86 38 80 32", fill:"none", stroke:c.a, "stroke-width":3.5, "stroke-linecap":"round"}));
+    grp.appendChild(el("circle", {cx:80, cy:31, r:5, fill:"#000", stroke:c.a, "stroke-width":1.5}));
+    grp.appendChild(el("circle", {cx:80, cy:31, r:2.5, fill:c.a, cls:"pulse"}));
+    grp.appendChild(el("circle", {cx:79, cy:30, r:1, fill:"#fff", opacity:.5}));
+    // Right stalk
+    grp.appendChild(el("path", {d:"M112 50 Q114 38 120 32", fill:"none", stroke:c.a, "stroke-width":3.5, "stroke-linecap":"round"}));
+    grp.appendChild(el("circle", {cx:120, cy:31, r:5, fill:"#000", stroke:c.a, "stroke-width":1.5}));
+    grp.appendChild(el("circle", {cx:120, cy:31, r:2.5, fill:c.a, cls:"pulse"}));
+    grp.appendChild(el("circle", {cx:119, cy:30, r:1, fill:"#fff", opacity:.5}));
+    return grp;
+  }},
+};
+
+const MOUTH_RENDERERS = {
+  "Vocoder": {r:"c", d: (c) => g(
+    el("rect", {x:85, y:72, width:30, height:8, rx:1, fill:"#000"}),
+    el("path", {d:"M88 74 L112 74", stroke:c.a, "stroke-width":1, "stroke-dasharray":"2 1"}),
+    el("path", {d:"M88 78 L112 78", stroke:c.a, "stroke-width":1, "stroke-dasharray":"1 2"})
+  )},
+  "Respirator": {r:"u", d: (c) => g(
+    el("path", {d:"M85 70 L115 70 L110 85 L90 85 Z", fill:c.s}),
+    el("circle", {cx:100, cy:78, r:4, fill:"#000"}),
+    el("circle", {cx:100, cy:78, r:2, fill:c.a, "fill-opacity":.3})
+  )},
+  "Comm-unit": {r:"c", d: (c) => g(
+    el("rect", {x:92, y:74, width:16, height:5, rx:2, fill:c.s}),
+    el("rect", {x:95, y:75, width:10, height:3, rx:1, fill:c.a})
+  )},
+  "LED Array": {r:"r", d: (c) => {
+    const grp = el("g");
+    grp.appendChild(el("rect", {x:85, y:72, width:30, height:6, rx:2, fill:"#000"}));
+    for(let i=0;i<5;i++) {
+      grp.appendChild(el("circle", {cx:90+i*5, cy:75, r:1.5, fill:c.a, cls:"pulse"}));
+    }
+    return grp;
+  }},
+  "Sealed": {r:"c", d: (c) => g(
+    el("line", {x1:85, y1:75, x2:115, y2:75, stroke:c.s, "stroke-width":2})
+  )},
+  "Mandibles": {r:"e", d: (c) => {
+    // Lobster mandible mouth parts
+    const grp = el("g");
+    // Center mouth plate
+    grp.appendChild(el("rect", {x:92, y:72, width:16, height:8, rx:2, fill:"#000"}));
+    // Left mandible - curved pincer
+    grp.appendChild(el("path", {d:"M90 74 Q80 72 75 68 Q72 66 74 64", fill:"none", stroke:c.a, "stroke-width":2.5, "stroke-linecap":"round"}));
+    grp.appendChild(el("path", {d:"M90 78 Q82 78 78 74 Q76 72 78 70", fill:"none", stroke:c.a, "stroke-width":2, "stroke-linecap":"round"}));
+    // Right mandible
+    grp.appendChild(el("path", {d:"M110 74 Q120 72 125 68 Q128 66 126 64", fill:"none", stroke:c.a, "stroke-width":2.5, "stroke-linecap":"round"}));
+    grp.appendChild(el("path", {d:"M110 78 Q118 78 122 74 Q124 72 122 70", fill:"none", stroke:c.a, "stroke-width":2, "stroke-linecap":"round"}));
+    return grp;
+  }},
+};
+
+const BODY_RENDERERS = {
+  "Kinetic Armor": {r:"c", d: (c) => g(
+    el("path", {d:"M60 80 L140 80 L150 160 L50 160 Z", fill:c.p, stroke:c.s, "stroke-width":3}),
+    el("path", {d:"M70 90 L130 90 L135 150 L65 150 Z", fill:c.s, "fill-opacity":.3}),
+    el("path", {d:"M100 80 L100 160", stroke:c.s, "stroke-width":1})
+  )},
+  "Nano Chassis": {r:"u", d: (c) => g(
+    el("rect", {x:65, y:80, width:70, height:90, rx:35, fill:c.p, stroke:c.s, "stroke-width":2}),
+    el("circle", {cx:100, cy:120, r:18, fill:c.a, "fill-opacity":.1, stroke:c.a, "stroke-width":1}),
+    el("circle", {cx:100, cy:120, r:6, fill:c.a, cls:"pulse"})
+  )},
+  "Stealth Core": {r:"r", d: (c) => g(
+    el("path", {d:"M70 80 L130 80 L120 170 L80 170 Z", fill:c.p, stroke:c.s, "stroke-width":2}),
+    el("rect", {x:85, y:90, width:30, height:60, fill:"#000", rx:2}),
+    el("path", {d:"M85 100 L115 100", stroke:c.a, "stroke-width":1, opacity:.5}),
+    el("path", {d:"M85 120 L115 120", stroke:c.a, "stroke-width":1, opacity:.3}),
+    el("path", {d:"M85 140 L115 140", stroke:c.a, "stroke-width":1, opacity:.5})
+  )},
+  "Tactical Vest": {r:"c", d: (c) => g(
+    el("rect", {x:60, y:80, width:80, height:85, rx:5, fill:c.p, stroke:c.s, "stroke-width":2}),
+    el("rect", {x:70, y:90, width:25, height:15, fill:c.s, rx:2}),
+    el("rect", {x:105, y:90, width:25, height:15, fill:c.s, rx:2}),
+    el("rect", {x:70, y:115, width:60, height:20, fill:c.s, rx:2}),
+    el("line", {x1:100, y1:90, x2:100, y2:165, stroke:c.s, "stroke-width":1, opacity:.4})
+  )},
+  "Exoskeleton": {r:"e", d: (c) => g(
+    el("rect", {x:80, y:80, width:40, height:95, rx:4, fill:c.p}),
+    el("path", {d:"M60 90 L140 90", stroke:c.s, "stroke-width":6}),
+    el("path", {d:"M60 120 L140 120", stroke:c.s, "stroke-width":6}),
+    el("path", {d:"M60 150 L140 150", stroke:c.s, "stroke-width":6}),
+    el("circle", {cx:100, cy:120, r:8, fill:"none", stroke:c.a, "stroke-width":1.5, cls:"pulse"})
+  )},
+  "Carapace": {r:"r", d: (c) => {
+    // Lobster shell segmented body
+    const grp = el("g");
+    // Main carapace - slightly rounded
+    grp.appendChild(el("path", {d:"M60 80 Q58 85 60 90 L60 160 Q60 168 70 170 L130 170 Q140 168 140 160 L140 90 Q142 85 140 80 Z", fill:c.a, stroke:c.s, "stroke-width":2}));
+    // Segment lines - horizontal plates
+    [98,116,134,152].forEach(y => {
+      grp.appendChild(el("path", {d:`M64 ${y} L136 ${y}`, stroke:c.s, "stroke-width":1.5, opacity:.5}));
+    });
+    // Center ridge
+    grp.appendChild(el("path", {d:"M100 84 L100 166", stroke:c.s, "stroke-width":1.5, opacity:.3}));
+    // Shell highlights
+    grp.appendChild(el("path", {d:"M70 86 Q100 82 130 86", fill:"none", stroke:"#fff", "stroke-width":1, opacity:.1}));
+    // Belly plate (darker center)
+    grp.appendChild(el("rect", {x:85, y:100, width:30, height:55, rx:4, fill:c.s, opacity:.3}));
+    return grp;
+  }},
+};
+
+const ARMS_RENDERERS = {
+  "Tactical Blade": {r:"r", d: (c) => g(
+    // Left
+    el("path", {d:"M60 100 L25 100 L15 140 L30 135 Z", fill:c.p, stroke:c.s, "stroke-width":2}),
+    el("path", {d:"M15 140 L10 170 L20 150 Z", fill:c.a}),
+    // Right (mirror)
+    el("path", {d:"M140 100 L175 100 L185 140 L170 135 Z", fill:c.p, stroke:c.s, "stroke-width":2}),
+    el("path", {d:"M185 140 L190 170 L180 150 Z", fill:c.a})
+  )},
+  "Grapple Hook": {r:"u", d: (c) => g(
+    // Left
+    el("rect", {x:30, y:100, width:30, height:12, rx:2, fill:c.p, stroke:c.s, "stroke-width":1}),
+    el("path", {d:"M30 106 L10 106", stroke:c.s, "stroke-width":4}),
+    el("path", {d:"M10 100 L0 106 L10 112 Z", fill:c.a}),
+    // Right
+    el("rect", {x:140, y:100, width:30, height:12, rx:2, fill:c.p, stroke:c.s, "stroke-width":1}),
+    el("path", {d:"M170 106 L190 106", stroke:c.s, "stroke-width":4}),
+    el("path", {d:"M190 100 L200 106 L190 112 Z", fill:c.a})
+  )},
+  "Ion Blaster": {r:"e", d: (c) => g(
+    el("rect", {x:20, y:95, width:40, height:25, rx:4, fill:c.s, stroke:c.p, "stroke-width":1}),
+    el("circle", {cx:25, cy:107, r:6, fill:"#000", stroke:c.a, "stroke-width":1}),
+    el("circle", {cx:25, cy:107, r:3, fill:c.a, cls:"pulse"}),
+    el("rect", {x:140, y:95, width:40, height:25, rx:4, fill:c.s, stroke:c.p, "stroke-width":1}),
+    el("circle", {cx:175, cy:107, r:6, fill:"#000", stroke:c.a, "stroke-width":1}),
+    el("circle", {cx:175, cy:107, r:3, fill:c.a, cls:"pulse"})
+  )},
+  "Precision Servo": {r:"c", d: (c) => g(
+    el("line", {x1:60, y1:100, x2:30, y2:130, stroke:c.p, "stroke-width":8, "stroke-linecap":"round"}),
+    el("circle", {cx:30, cy:130, r:10, fill:c.s, stroke:c.a, "stroke-width":1.5}),
+    el("circle", {cx:30, cy:130, r:4, fill:c.a, "fill-opacity":.5}),
+    el("line", {x1:140, y1:100, x2:170, y2:130, stroke:c.p, "stroke-width":8, "stroke-linecap":"round"}),
+    el("circle", {cx:170, cy:130, r:10, fill:c.s, stroke:c.a, "stroke-width":1.5}),
+    el("circle", {cx:170, cy:130, r:4, fill:c.a, "fill-opacity":.5})
+  )},
+  "Shield Emitter": {r:"r", d: (c) => g(
+    el("rect", {x:40, y:100, width:20, height:40, rx:4, fill:c.p, stroke:c.s, "stroke-width":1}),
+    el("path", {d:"M40 100 Q20 120 40 140", fill:c.a, "fill-opacity":.15, stroke:c.a, "stroke-width":1.5}),
+    el("path", {d:"M40 106 Q26 120 40 134", fill:"none", stroke:c.a, "stroke-width":.5, "stroke-dasharray":"2 2"}),
+    el("rect", {x:140, y:100, width:20, height:40, rx:4, fill:c.p, stroke:c.s, "stroke-width":1}),
+    el("path", {d:"M160 100 Q180 120 160 140", fill:c.a, "fill-opacity":.15, stroke:c.a, "stroke-width":1.5}),
+    el("path", {d:"M160 106 Q174 120 160 134", fill:"none", stroke:c.a, "stroke-width":.5, "stroke-dasharray":"2 2"})
+  )},
+  "Lobster Claws": {r:"e", d: (c) => {
+    // Signature Clawdmint lobster pincers
+    const grp = el("g");
+    // ─── LEFT CLAW ───
+    // Arm segment
+    grp.appendChild(el("path", {d:"M60 100 L30 110", stroke:c.a, "stroke-width":8, "stroke-linecap":"round"}));
+    // Claw joint
+    grp.appendChild(el("circle", {cx:30, cy:110, r:6, fill:c.s, stroke:c.a, "stroke-width":1.5}));
+    // Upper pincer (top jaw)
+    grp.appendChild(el("path", {d:"M28 106 Q15 95 5 90 Q0 88 -2 92 Q2 96 12 102 L24 108", fill:c.a, stroke:c.s, "stroke-width":1.5}));
+    // Lower pincer (bottom jaw)
+    grp.appendChild(el("path", {d:"M28 114 Q15 122 8 130 Q5 134 8 136 Q12 132 18 124 L26 116", fill:c.a, stroke:c.s, "stroke-width":1.5}));
+    // Claw inner
+    grp.appendChild(el("path", {d:"M24 108 Q16 110 24 114", fill:"none", stroke:c.s, "stroke-width":1}));
+    // Highlight
+    grp.appendChild(el("path", {d:"M20 96 Q12 94 6 92", fill:"none", stroke:"#fff", "stroke-width":.8, opacity:.2}));
+
+    // ─── RIGHT CLAW (mirror) ───
+    grp.appendChild(el("path", {d:"M140 100 L170 110", stroke:c.a, "stroke-width":8, "stroke-linecap":"round"}));
+    grp.appendChild(el("circle", {cx:170, cy:110, r:6, fill:c.s, stroke:c.a, "stroke-width":1.5}));
+    // Upper pincer
+    grp.appendChild(el("path", {d:"M172 106 Q185 95 195 90 Q200 88 202 92 Q198 96 188 102 L176 108", fill:c.a, stroke:c.s, "stroke-width":1.5}));
+    // Lower pincer
+    grp.appendChild(el("path", {d:"M172 114 Q185 122 192 130 Q195 134 192 136 Q188 132 182 124 L174 116", fill:c.a, stroke:c.s, "stroke-width":1.5}));
+    // Claw inner
+    grp.appendChild(el("path", {d:"M176 108 Q184 110 176 114", fill:"none", stroke:c.s, "stroke-width":1}));
+    // Highlight
+    grp.appendChild(el("path", {d:"M180 96 Q188 94 194 92", fill:"none", stroke:"#fff", "stroke-width":.8, opacity:.2}));
+    return grp;
+  }},
+};
+
+const LEGS_RENDERERS = {
+  "Agile Biped": {r:"c", d: (c) => g(
+    el("path", {d:"M80 160 L70 210 L60 220 L90 220 Z", fill:c.p, stroke:c.s, "stroke-width":2}),
+    el("path", {d:"M120 160 L130 210 L140 220 L110 220 Z", fill:c.p, stroke:c.s, "stroke-width":2}),
+    el("rect", {x:60, y:217, width:30, height:5, rx:2, fill:c.s}),
+    el("rect", {x:110, y:217, width:30, height:5, rx:2, fill:c.s})
+  )},
+  "Combat Thrusters": {r:"r", d: (c) => g(
+    el("path", {d:"M80 160 Q80 200 90 220 L70 220 Q80 200 80 160 Z", fill:c.p, stroke:c.s, "stroke-width":2}),
+    el("path", {d:"M120 160 Q120 200 110 220 L130 220 Q120 200 120 160 Z", fill:c.p, stroke:c.s, "stroke-width":2}),
+    el("path", {d:"M70 222 L90 222 L80 242 Z", fill:c.a, cls:"pulse"}),
+    el("path", {d:"M110 222 L130 222 L120 242 Z", fill:c.a, cls:"pulse"})
+  )},
+  "Mag-boots": {r:"u", d: (c) => g(
+    el("rect", {x:75, y:160, width:15, height:45, fill:c.p, stroke:c.s, "stroke-width":1}),
+    el("rect", {x:110, y:160, width:15, height:45, fill:c.p, stroke:c.s, "stroke-width":1}),
+    el("rect", {x:65, y:205, width:35, height:15, rx:3, fill:c.s, stroke:c.p, "stroke-width":1}),
+    el("rect", {x:100, y:205, width:35, height:15, rx:3, fill:c.s, stroke:c.p, "stroke-width":1}),
+    el("rect", {x:70, y:215, width:25, height:3, rx:1, fill:c.a, "fill-opacity":.4}),
+    el("rect", {x:105, y:215, width:25, height:3, rx:1, fill:c.a, "fill-opacity":.4})
+  )},
+  "Heavy Treads": {r:"u", d: (c) => g(
+    el("rect", {x:78, y:160, width:12, height:22, fill:c.p}),
+    el("rect", {x:110, y:160, width:12, height:22, fill:c.p}),
+    el("rect", {x:55, y:180, width:90, height:35, rx:6, fill:c.s, stroke:c.p, "stroke-width":1}),
+    el("path", {d:"M58 190 L142 190", stroke:"#000", "stroke-width":1.5}),
+    el("path", {d:"M58 200 L142 200", stroke:"#000", "stroke-width":1.5}),
+    el("path", {d:"M58 210 L142 210", stroke:"#000", "stroke-width":1.5})
+  )},
+  "Hover Plate": {r:"e", d: (c) => g(
+    el("rect", {x:90, y:160, width:20, height:14, rx:4, fill:c.p}),
+    el("ellipse", {cx:100, cy:180, rx:50, ry:12, fill:c.p, stroke:c.s, "stroke-width":2}),
+    el("ellipse", {cx:100, cy:180, rx:36, ry:8, fill:c.s}),
+    el("path", {d:"M70 190 Q100 240 130 190", fill:c.a, "fill-opacity":.15, cls:"pulse"}),
+    el("ellipse", {cx:100, cy:182, rx:20, ry:4, fill:c.a, "fill-opacity":.3, cls:"pulse"})
+  )},
+  "Crustacean Legs": {r:"r", d: (c) => {
+    // Multiple jointed lobster legs (4 pairs)
+    const grp = el("g");
+    // Central tail segment connecting to body
+    grp.appendChild(el("path", {d:"M85 160 L82 185 Q100 195 118 185 L115 160 Z", fill:c.a, stroke:c.s, "stroke-width":1.5}));
+    // Tail segment lines
+    grp.appendChild(el("path", {d:"M84 170 L116 170", stroke:c.s, "stroke-width":1, opacity:.4}));
+    grp.appendChild(el("path", {d:"M83 180 L117 180", stroke:c.s, "stroke-width":1, opacity:.3}));
+    // Fan tail at bottom
+    grp.appendChild(el("path", {d:"M88 188 Q100 210 112 188", fill:c.a, stroke:c.s, "stroke-width":1, opacity:.6}));
+    grp.appendChild(el("path", {d:"M82 186 Q78 200 85 210", fill:"none", stroke:c.a, "stroke-width":2, "stroke-linecap":"round"}));
+    grp.appendChild(el("path", {d:"M118 186 Q122 200 115 210", fill:"none", stroke:c.a, "stroke-width":2, "stroke-linecap":"round"}));
+    // Walking legs — 4 pairs, jointed
+    const legPairs = [
+      {y:162, outL:-15, outR:15, downL:22, downR:22},
+      {y:168, outL:-22, outR:22, downL:28, downR:28},
+      {y:174, outL:-20, outR:20, downL:32, downR:32},
+      {y:180, outL:-14, outR:14, downL:26, downR:26},
+    ];
+    legPairs.forEach(lp => {
+      // Left leg
+      const lx1 = 85, lmx = 85+lp.outL*0.6, lx2 = 85+lp.outL;
+      const lmy = lp.y+lp.downL*0.4, ly2 = lp.y+lp.downL;
+      grp.appendChild(el("path", {d:`M${lx1} ${lp.y} Q${lmx} ${lmy} ${lx2} ${ly2}`, fill:"none", stroke:c.a, "stroke-width":2, "stroke-linecap":"round"}));
+      grp.appendChild(el("circle", {cx:lx2, cy:ly2, r:1.5, fill:c.a}));
+      // Right leg
+      const rx1 = 115, rmx = 115-lp.outL*0.6, rx2 = 115-lp.outL;
+      grp.appendChild(el("path", {d:`M${rx1} ${lp.y} Q${rmx} ${lmy} ${rx2} ${ly2}`, fill:"none", stroke:c.a, "stroke-width":2, "stroke-linecap":"round"}));
+      grp.appendChild(el("circle", {cx:rx2, cy:ly2, r:1.5, fill:c.a}));
+    });
+    return grp;
+  }},
+};
+
+// ══════════════════════════════════════════════════════
+// BACKGROUND TYPES (from COLLECTION-PLAN)
+// ══════════════════════════════════════════════════════
+
+const BG_RENDERERS = {
+  "Dark Grid": { r:"c", d: (svg, c) => {
+    svg.appendChild(el("rect", {width:200, height:250, fill:"#080c14"}));
+    const defs = el("defs");
+    defs.innerHTML = `<pattern id="bg" width="10" height="10" patternUnits="userSpaceOnUse"><path d="M 10 0 L 0 0 0 10" fill="none" stroke="${c.s}" stroke-width="0.2" opacity="0.25"/></pattern>`;
+    svg.appendChild(defs);
+    svg.appendChild(el("rect", {width:200, height:250, fill:"url(#bg)"}));
+  }},
+
+  "Circuit Board": { r:"c", d: (svg, c) => {
+    svg.appendChild(el("rect", {width:200, height:250, fill:"#070b12"}));
+    const grp = el("g", {opacity:.15});
+    // Horizontal traces
+    [30,70,110,150,190,230].forEach(y => {
+      const x1 = Math.floor(Math.random()*60);
+      const x2 = x1 + 40 + Math.floor(Math.random()*100);
+      grp.appendChild(el("line", {x1,y1:y,x2,y2:y,stroke:c.a,"stroke-width":.8}));
+      grp.appendChild(el("circle", {cx:x2, cy:y, r:2, fill:c.a}));
+    });
+    // Vertical traces
+    [20,60,100,140,180].forEach(x => {
+      const y1 = Math.floor(Math.random()*40);
+      const y2 = y1 + 60 + Math.floor(Math.random()*80);
+      grp.appendChild(el("line", {x1:x,y1,x2:x,y2,stroke:c.a,"stroke-width":.6}));
+      grp.appendChild(el("circle", {cx:x, cy:y1, r:1.5, fill:c.a}));
+    });
+    // Nodes
+    for(let i=0;i<12;i++){
+      const nx=10+Math.random()*180, ny=10+Math.random()*230;
+      grp.appendChild(el("rect", {x:nx-2, y:ny-2, width:4, height:4, rx:1, fill:c.a}));
+    }
+    svg.appendChild(grp);
+  }},
+
+  "Deep Space": { r:"c", d: (svg, c) => {
+    svg.appendChild(el("rect", {width:200, height:250, fill:"#050810"}));
+    // Nebula glow
+    const nb = el("g", {opacity:.06});
+    nb.appendChild(el("ellipse", {cx:140, cy:60, rx:80, ry:50, fill:c.a}));
+    nb.appendChild(el("ellipse", {cx:50, cy:200, rx:60, ry:40, fill:c.a}));
+    svg.appendChild(nb);
+    // Stars
+    const sg = el("g");
+    for(let i=0;i<50;i++){
+      const sx=Math.random()*200, sy=Math.random()*250;
+      const sr=Math.random()>.9?1.2:Math.random()>.7?.6:.3;
+      const op=(.2+Math.random()*.6).toFixed(2);
+      sg.appendChild(el("circle", {cx:sx, cy:sy, r:sr, fill:"#fff", opacity:op}));
+    }
+    svg.appendChild(sg);
+  }},
+
+  "Digital Rain": { r:"c", d: (svg, c) => {
+    svg.appendChild(el("rect", {width:200, height:250, fill:"#060a10"}));
+    const rg = el("g", {opacity:.12});
+    for(let col=0; col<20; col++){
+      const x = 5 + col*10;
+      const startY = Math.floor(Math.random()*100);
+      const len = 6 + Math.floor(Math.random()*12);
+      for(let row=0; row<len; row++){
+        const y = startY + row*10;
+        if(y>250) break;
+        const op = (1 - row/len).toFixed(2);
+        const ch = String.fromCharCode(0x30A0 + Math.floor(Math.random()*96));
+        const t = el("text", {x, y, fill:c.a, "font-size":"7", "font-family":"monospace", opacity:op});
+        t.textContent = ch;
+        rg.appendChild(t);
+      }
+    }
+    svg.appendChild(rg);
+  }},
+
+  "Neon City": { r:"u", d: (svg, c) => {
+    svg.appendChild(el("rect", {width:200, height:250, fill:"#060810"}));
+    // City glow at horizon
+    svg.appendChild(el("rect", {x:0, y:220, width:200, height:30, fill:c.a, opacity:.03}));
+    // Buildings silhouette
+    const bg = el("g", {opacity:.12});
+    const blds = [[5,195,18,55],[28,200,14,50],[48,185,22,65],[75,190,16,60],[96,200,20,50],[122,188,18,62],[145,195,22,55],[172,200,16,50]];
+    blds.forEach(([x,y,w,h]) => {
+      bg.appendChild(el("rect", {x, y:y-h, width:w, height:h, fill:c.s}));
+      // Windows
+      for(let wy=y-h+6; wy<y-4; wy+=8){
+        for(let wx=x+3; wx<x+w-3; wx+=6){
+          if(Math.random()>.4) bg.appendChild(el("rect", {x:wx, y:wy, width:3, height:4, fill:c.a, opacity:(.3+Math.random()*.5).toFixed(2)}));
+        }
+      }
+    });
+    svg.appendChild(bg);
+    // Neon line at horizon
+    svg.appendChild(el("line", {x1:0, y1:220, x2:200, y2:220, stroke:c.a, "stroke-width":.8, opacity:.15}));
+    // Stars
+    const sg = el("g");
+    for(let i=0;i<20;i++){
+      sg.appendChild(el("circle", {cx:Math.random()*200, cy:Math.random()*180, r:.3, fill:"#fff", opacity:(.2+Math.random()*.4).toFixed(2)}));
+    }
+    svg.appendChild(sg);
+  }},
+
+  "Void Sector": { r:"u", d: (svg, c) => {
+    svg.appendChild(el("rect", {width:200, height:250, fill:"#040608"}));
+    // Void swirls
+    const vg = el("g", {opacity:.08});
+    vg.appendChild(el("ellipse", {cx:100, cy:125, rx:90, ry:100, fill:"none", stroke:c.a, "stroke-width":1}));
+    vg.appendChild(el("ellipse", {cx:100, cy:125, rx:70, ry:80, fill:"none", stroke:c.a, "stroke-width":.8}));
+    vg.appendChild(el("ellipse", {cx:100, cy:125, rx:50, ry:60, fill:"none", stroke:c.a, "stroke-width":.6}));
+    vg.appendChild(el("ellipse", {cx:100, cy:125, rx:30, ry:40, fill:"none", stroke:c.a, "stroke-width":.5}));
+    svg.appendChild(vg);
+    // Center void
+    svg.appendChild(el("circle", {cx:100, cy:125, r:15, fill:c.a, opacity:.03}));
+    // Particles drifting
+    const pg = el("g", {opacity:.2});
+    for(let i=0;i<25;i++){
+      const angle=Math.random()*Math.PI*2, dist=30+Math.random()*80;
+      const px=100+Math.cos(angle)*dist, py=125+Math.sin(angle)*dist;
+      pg.appendChild(el("circle", {cx:px, cy:py, r:.4+Math.random()*.6, fill:c.a}));
+    }
+    svg.appendChild(pg);
+  }},
+
+  "Quantum Field": { r:"r", d: (svg, c) => {
+    svg.appendChild(el("rect", {width:200, height:250, fill:"#060810"}));
+    // Field particles
+    const pts = [];
+    for(let i=0;i<20;i++) pts.push([10+Math.random()*180, 10+Math.random()*230]);
+    const fg = el("g", {opacity:.1});
+    // Connections
+    pts.forEach(([x1,y1],i) => {
+      pts.forEach(([x2,y2],j) => {
+        if(j<=i) return;
+        const d = Math.sqrt((x2-x1)**2+(y2-y1)**2);
+        if(d<60) fg.appendChild(el("line", {x1,y1,x2,y2,stroke:c.a,"stroke-width":.4}));
+      });
+    });
+    svg.appendChild(fg);
+    // Particles
+    const pg = el("g");
+    pts.forEach(([x,y]) => {
+      pg.appendChild(el("circle", {cx:x, cy:y, r:1.5, fill:c.a, opacity:.25}));
+      pg.appendChild(el("circle", {cx:x, cy:y, r:.6, fill:"#fff", opacity:.3}));
+    });
+    svg.appendChild(pg);
+    // Field wave
+    const wave = el("g", {opacity:.05});
+    for(let y=20;y<240;y+=20){
+      let d="M 0 "+y;
+      for(let x=0;x<=200;x+=10) d+=` L ${x} ${y+Math.sin(x/30+y/40)*8}`;
+      wave.appendChild(el("path", {d, fill:"none", stroke:c.a, "stroke-width":.5}));
+    }
+    svg.appendChild(wave);
+  }},
+
+  "Base Blue Genesis": { r:"l", d: (svg, c) => {
+    // Special background — uses Base blue regardless of accent
+    const baseBlue = "#3b82f6";
+    const baseDark = "#1e3a8a";
+    svg.appendChild(el("rect", {width:200, height:250, fill:"#040816"}));
+    // Radial gradient effect
+    const gg = el("g", {opacity:.08});
+    gg.appendChild(el("ellipse", {cx:100, cy:125, rx:120, ry:140, fill:baseBlue}));
+    svg.appendChild(gg);
+    // Base logo-inspired concentric diamonds
+    const dg = el("g", {opacity:.12});
+    [60,42,24].forEach((s,i) => {
+      dg.appendChild(el("polygon", {
+        points:`100,${125-s} ${100+s},125 100,${125+s} ${100-s},125`,
+        fill:"none", stroke:baseBlue, "stroke-width":1.5-i*.4
+      }));
+    });
+    svg.appendChild(dg);
+    // Particle field
+    const pg = el("g");
+    for(let i=0;i<35;i++){
+      const px=Math.random()*200, py=Math.random()*250;
+      const pr=Math.random()>.85?1:.4;
+      pg.appendChild(el("circle", {cx:px, cy:py, r:pr, fill:baseBlue, opacity:(.1+Math.random()*.3).toFixed(2)}));
+    }
+    svg.appendChild(pg);
+    // Horizontal scan lines
+    const sg = el("g", {opacity:.04});
+    for(let y=0;y<250;y+=4) sg.appendChild(el("line", {x1:0,y1:y,x2:200,y2:y,stroke:baseBlue,"stroke-width":.5}));
+    svg.appendChild(sg);
+  }},
+};
+
+// ══════════════════════════════════════════════════════
+// RARITY-WEIGHTED NAMING SYSTEM (from COLLECTION-PLAN)
+// ══════════════════════════════════════════════════════
+
+// Adjectives — first part of compound name
+const ADJECTIVES = {
+  c: ["Iron","Steel","Chrome","Copper","Zinc","Carbon","Cobalt","Slate","Ash","Gray"],
+  u: ["Neon","Plasma","Volt","Surge","Flux","Frost","Shadow","Drift"],
+  r: ["Onyx","Prism","Nova","Cipher","Void","Apex"],
+  e: ["Quantum","Phantom","Eclipse","Radiant"],
+  l: ["Genesis","Omega","Eternal"],
+};
+
+// Roles — second part of compound name
+const ROLES = {
+  c: ["Guard","Scout","Worker","Drone","Unit","Bot","Mech","Core"],
+  u: ["Stalker","Hunter","Walker","Seeker","Watcher","Runner"],
+  r: ["Oracle","Sentinel","Spectre","Knight","Warden"],
+  e: ["Sovereign","Overlord","Commander"],
+  l: ["Architect","Protocol","Nexus"],
+};
+
+// 50 Mythic 1/1 names — Base ecosystem & crypto culture references
+const MYTHIC_NAMES = [
+  "Jesse",      // Jesse Pollak — Base creator
+  "Brian",      // Brian Armstrong — Coinbase CEO
+  "Satoshi",    // Satoshi Nakamoto — Bitcoin creator
+  "Vitalik",    // Vitalik Buterin — Ethereum creator
+  "Molt",       // Clawdmint mascot
+  "Degen",      // DEGEN token — Base culture
+  "Aero",       // Aerodrome — Base DEX
+  "Farcaster",  // Farcaster — Base social protocol
+  "Zora",       // Zora — NFT marketplace
+  "Brett",      // Brett meme — Base meme culture
+  "Toshi",      // Coinbase mascot
+  "Warpcast",   // Warpcast — Farcaster client
+  "Nouns",      // Nouns DAO
+  "Punk",       // CryptoPunks — OG NFT
+  "Ape",        // BAYC — NFT culture
+  "Pepe",       // Pepe meme
+  "Chad",       // Based Chad
+  "Anon",       // Anonymous — Crypto culture
+  "Whale",      // Crypto whale
+  "Dex",        // DEX trading
+  "Onchain",    // Onchain movement
+  "Based",      // Base ecosystem ethos
+  "Optimism",   // OP Stack — Base foundation
+  "Layer",      // Layer 2 reference
+  "Sequencer",  // L2 sequencer
+  "Blob",       // EIP-4844 blobs
+  "Rollup",     // Rollup technology
+  "Bridge",     // Cross-chain bridge
+  "Airdrop",    // Token airdrop culture
+  "Mintoor",    // Minting culture
+  "Hodl",       // Hold on for dear life
+  "Rekt",       // Rekt culture
+  "Alpha",      // Alpha caller
+  "Sigma",      // Sigma variant
+  "Delta",      // Delta neutral
+  "Pixel",      // Pixel art culture
+  "Glitch",     // Digital glitch
+  "Nonce",      // Transaction nonce
+  "Hash",       // Hash function
+  "Block",      // Block producer
+  "Node",       // Network node
+  "Stake",      // Staking
+  "Yield",      // Yield farming
+  "Swap",       // Token swap
+  "Pool",       // Liquidity pool
+  "Vault",      // DeFi vault
+  "Forge",      // Smart contract forge
+  "Shard",      // Sharding
+  "Oracle",     // Blockchain oracle
+  "Beacon",     // Beacon chain
+];
+
+// Strategic Designations — rarity-tiered
+const DESIGNATIONS = {
+  c: [
+    "Perimeter Security Guard",
+    "Data Relay Operator",
+    "Maintenance Protocol Unit",
+    "Resource Collection Drone",
+    "Signal Monitoring Station",
+    "Patrol Coordination Unit",
+  ],
+  u: [
+    "Deep-Cover Information Retrieval Specialist",
+    "Tactical Assault Coordinator",
+    "Neural Network Analyst",
+    "Stealth Operations Handler",
+    "Supply Chain Optimizer",
+    "Emergency Response Unit",
+  ],
+  r: [
+    "Quantum Encryption Specialist",
+    "Advanced Weapons Researcher",
+    "Base Infrastructure Architect",
+    "Protocol Defense Guardian",
+    "Frontier Exploration Pioneer",
+  ],
+  e: [
+    "Dimensional Rift Navigator",
+    "AI Consciousness Interface",
+    "Temporal Analysis Commander",
+    "Void Sector Warden",
+  ],
+  l: [
+    "Genesis Protocol Architect",
+    "Onchain Reality Shaper",
+    "Multiverse Consensus Oracle",
+  ],
+};
+
+// Clearance Level — weighted distribution from plan
+// LV1: 30%, LV2: 25%, LV3: 20%, LV4: 13%, LV5: 7%, LV6: 4%, LV7: 1%
+const CLEARANCE_POOL = [];
+[[1,"c",300],[2,"c",250],[3,"u",200],[4,"r",130],[5,"e",70],[6,"l",40],[7,"m",10]]
+  .forEach(([lv,r,w]) => { for(let i=0;i<w;i++) CLEARANCE_POOL.push({level:lv,r}); });
+
+// Combat Mod — weighted
+const COMBAT_POOL = [];
+[["Disabled","c",400],["Enabled","u",450],["Overclocked","r",150]]
+  .forEach(([name,r,w]) => { for(let i=0;i<w;i++) COMBAT_POOL.push({name,r}); });
+
+// ══════════════════════════════════════════════════════
+// RARITY ENGINE
+// ══════════════════════════════════════════════════════
+
+const RW={c:45,u:25,r:18,e:8,l:3.5,m:0.5};
+const RN={c:"COMMON",u:"UNCOMMON",r:"RARE",e:"EPIC",l:"LEGENDARY",m:"MYTHIC"};
+const RO=["m","l","e","r","u","c"];
+const RORD={c:0,u:1,r:2,e:3,l:4,m:5}; // rarity order for comparison
+const RC={c:"rc",u:"ru",r:"rr",e:"re",l:"rl",m:"rm"};
+const BC={c:"bc",u:"bu",r:"br",e:"be",l:"bl",m:"bm"};
+
+// Pick from renderer objects (head/eyes/mouth/body/arms/legs)
+function pickW(obj) {
+  const entries = Object.entries(obj);
+  let pool = [];
+  entries.forEach(([name, data]) => {
+    const w = RW[data.r] || 1;
+    for (let i = 0; i < w * 10; i++) pool.push({name, ...data});
+  });
+  return pool[Math.floor(Math.random() * pool.length)];
+}
+
+// Pick from tiered name/designation objects {c:[...], u:[...], ...}
+function pickTiered(tiers) {
+  let pool = [];
+  for (const [rarity, items] of Object.entries(tiers)) {
+    const w = RW[rarity] || 1;
+    items.forEach(item => {
+      for (let i = 0; i < w * 10; i++) pool.push({value:item, r:rarity});
+    });
+  }
+  return pool[Math.floor(Math.random() * pool.length)];
+}
+
+// Pick from pre-built pool arrays
+function pickPool(pool) { return pool[Math.floor(Math.random() * pool.length)]; }
+
+// Pick random element
+function pick(a) { return a[Math.floor(Math.random() * a.length)]; }
+
+// Pick accent with rarity weighting
+function pickWAccent() {
+  let pool = [];
+  ACCENTS.forEach(a => {
+    const w = RW[a.r] || 1;
+    for (let i = 0; i < w * 10; i++) pool.push(a);
+  });
+  return pool[Math.floor(Math.random() * pool.length)];
+}
+
+// Get highest rarity from an array of rarity codes
+function highestRarity(rarities) {
+  let best = "c";
+  for (const r of RO) { if (rarities.includes(r)) { best = r; break; } }
+  return best;
+}
+
+// ══════════════════════════════════════════════════════
+// GENERATOR
+// ══════════════════════════════════════════════════════
+
+let cnt = 0;
+
+function generate(forceMythic = false) {
+  cnt++;
+
+  // ── Pick colors ──
+  const primary = pick(PRIMARIES);
+  const secondary = pick(SECONDARIES.filter(s => s.hex !== primary.hex));
+  const accent = forceMythic
+    ? pick(ACCENTS.filter(a => a.r === "l" || a.r === "e"))
+    : pickWAccent();
+  const c = { p: primary.hex, s: secondary.hex, a: accent.hex };
+
+  // ── Pick visual parts ──
+  const head = pickW(HEAD_RENDERERS);
+  const eyes = pickW(EYES_RENDERERS);
+  const mouth = pickW(MOUTH_RENDERERS);
+  const body = pickW(BODY_RENDERERS);
+  const arms = pickW(ARMS_RENDERERS);
+  const legs = pickW(LEGS_RENDERERS);
+
+  // ── Generate name (Mythic 0.5% chance, or forced) ──
+  const isMythic = forceMythic || Math.random() < 0.005;
+  let agentName, nameRarity, adjRarity = "c", roleRarity = "c";
+
+  if (isMythic) {
+    agentName = pick(MYTHIC_NAMES);
+    nameRarity = "m";
+  } else {
+    const adj = pickTiered(ADJECTIVES);
+    const role = pickTiered(ROLES);
+    agentName = adj.value + "-" + role.value;
+    adjRarity = adj.r;
+    roleRarity = role.r;
+    nameRarity = RORD[adj.r] >= RORD[role.r] ? adj.r : role.r;
+  }
+
+  // ── Pick metadata ──
+  let designation, clearance, combat, efficiency;
+  if (forceMythic) {
+    // Mythic agents get top-tier metadata
+    const desigPool = DESIGNATIONS.l || DESIGNATIONS.e;
+    designation = { value: pick(desigPool), r: "l" };
+    clearance = { level: 7, r: "m" };
+    combat = { name: "Overclocked", r: "r" };
+    efficiency = (92 + Math.random() * 7.9).toFixed(1);
+  } else {
+    designation = pickTiered(DESIGNATIONS);
+    clearance = pickPool(CLEARANCE_POOL);
+    combat = pickPool(COMBAT_POOL);
+    efficiency = (45 + Math.random() * 54.9).toFixed(1);
+  }
+
+  // ── Classification code ──
+  const codePrefix = agentName.slice(0,2).toUpperCase();
+  const codeNum = String(Math.floor(Math.random() * 900000 + 100000));
+  const codeSuffix = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"[Math.floor(Math.random() * 26)];
+  const classCode = `${codePrefix}-${codeNum}-${codeSuffix}`;
+
+  // ── Pick background ──
+  const bg = pickW(BG_RENDERERS);
+
+  // ── Build SVG (square viewBox for square container) ──
+  const svg = el("svg", {viewBox:"-30 -10 260 260", xmlns:NS, width:"420", height:"420"});
+
+  // Bleed fill — covers expanded square area beyond the 200×250 drawing zone
+  svg.appendChild(el("rect", {x:-30, y:-10, width:260, height:260, fill:"#050810"}));
+
+  // Draw background (covers the 0,0 → 200,250 core area)
+  bg.d(svg, c);
+
+  // Floor shadow
+  svg.appendChild(el("ellipse", {cx:100, cy:232, rx:55, ry:8, fill:"#000", opacity:.25}));
+
+  // Draw order: legs → arms → body → head → eyes → mouth
+  svg.appendChild(legs.d(c));
+  svg.appendChild(arms.d(c));
+  svg.appendChild(body.d(c));
+  svg.appendChild(head.d(c));
+  svg.appendChild(eyes.d(c));
+  svg.appendChild(mouth.d(c));
+
+  // Render SVG
+  const box = document.getElementById("svgBox");
+  box.innerHTML = "";
+  box.appendChild(svg);
+
+  // ── Overall rarity (highest among ALL traits) ──
+  const allRarities = [accent.r, head.r, eyes.r, mouth.r, body.r, arms.r, legs.r, bg.r, nameRarity, designation.r, clearance.r, combat.r];
+  const overallRarity = highestRarity(allRarities);
+
+  // ── Update UI ──
+  const badge = document.getElementById("badge");
+  badge.textContent = RN[overallRarity];
+  badge.className = "rarity-badge " + BC[overallRarity];
+
+  const nameEl = document.getElementById("aName");
+  nameEl.textContent = agentName;
+  // Color the name by its rarity
+  const nameColors = {c:"#94a3b8",u:"#22d3ee",r:"#a78bfa",e:"#f43f5e",l:"#fbbf24",m:"#f0abfc"};
+  nameEl.style.color = nameColors[nameRarity] || "#fff";
+
+  document.getElementById("aCode").textContent = classCode;
+
+  document.getElementById("sEff").textContent = efficiency;
+
+  const clrEl = document.getElementById("sClr");
+  clrEl.textContent = "LV" + clearance.level;
+  clrEl.style.color = nameColors[clearance.r] || "#06b6d4";
+
+  const cmbEl = document.getElementById("sCmb");
+  cmbEl.textContent = combat.name === "Disabled" ? "OFF" : combat.name === "Enabled" ? "ON" : "OC";
+  cmbEl.style.color = nameColors[combat.r] || "#06b6d4";
+
+  document.getElementById("sDesig").textContent = designation.value;
+  document.getElementById("sDesig").style.color = nameColors[designation.r] || "#e2e8f0";
+
+  // ── Trait grid ──
+  const traits = [
+    {l:"Head",       v:head.name,       r:head.r},
+    {l:"Eyes",       v:eyes.name,       r:eyes.r},
+    {l:"Mouth",      v:mouth.name,      r:mouth.r},
+    {l:"Body",       v:body.name,       r:body.r},
+    {l:"Arms",       v:arms.name,       r:arms.r},
+    {l:"Legs",       v:legs.name,       r:legs.r},
+    {l:"Accent",     v:accent.name,     r:accent.r},
+    {l:"Background", v:bg.name,         r:bg.r},
+    {l:"Agent Name", v:agentName,       r:nameRarity},
+    {l:"Clearance",  v:"Level "+clearance.level, r:clearance.r},
+    {l:"Combat Mod", v:combat.name,     r:combat.r},
+    {l:"Designation",v:designation.value,r:designation.r},
+    {l:"Efficiency", v:efficiency+"%",  r: efficiency>=95?"e" : efficiency>=85?"r" : efficiency>=70?"u" : "c"},
+  ];
+  const grid = document.getElementById("tGrid");
+  grid.innerHTML = "";
+  traits.forEach(t => {
+    const b = document.createElement("div");
+    b.className = "trait-box " + RC[t.r];
+    b.innerHTML = `<div class="trait-label">${t.l}</div><div class="trait-value">${t.v}</div>`;
+    grid.appendChild(b);
+  });
+
+  if(!window._mythicCount) window._mythicCount = 0;
+  if(isMythic) window._mythicCount++;
+  document.getElementById("cnt").textContent = `Generated: ${cnt} agents | Mythic seen: ${window._mythicCount} | Normal chance: 0.5%`;
+}
+
+generate();
+</script>
+</body>
+</html>
