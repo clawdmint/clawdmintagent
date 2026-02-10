@@ -197,3 +197,17 @@ model UsedNonce {
   @@unique([agentId, nonce])
   @@index([agentId])
 }
+
+// ═══════════════════════════════════════════════════════════════════════
+// WHITELIST ENTRIES
+// ═══════════════════════════════════════════════════════════════════════
+
+model WhitelistEntry {
+  id              String   @id @default(cuid())
+  walletAddress   String   @unique
+  twitterHandle   String?
+  completedTasks  String   // JSON array of completed task IDs
+  createdAt       DateTime @default(now())
+  
+  @@index([walletAddress])
+}
