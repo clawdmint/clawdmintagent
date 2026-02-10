@@ -368,27 +368,35 @@ export default function MintPage() {
             Reveal on sold out.
           </p>
 
-          {/* Animated robot preview grid */}
-          <div className="flex items-center justify-center gap-3 mb-8">
-            {[1, 42, 99, 7, 55].map((id) => (
+          {/* Collection preview grid — real agent SVGs */}
+          <div className="flex items-center justify-center gap-3 md:gap-4 mb-8 flex-wrap">
+            {[42, 137, 888, 1337, 7777, 9999].map((id, i) => (
               <div
                 key={id}
                 className={clsx(
-                  "w-16 h-16 md:w-20 md:h-20 rounded-xl overflow-hidden ring-2 transition-all hover:scale-110 hover:ring-4",
+                  "w-20 h-20 md:w-24 md:h-24 lg:w-28 lg:h-28 rounded-2xl overflow-hidden ring-2 transition-all duration-300 hover:scale-110 hover:ring-4 hover:-translate-y-1 hover:shadow-lg group",
                   theme === "dark"
-                    ? "ring-white/[0.08] hover:ring-cyan-500/30 bg-gray-900"
-                    : "ring-gray-200 hover:ring-cyan-300 bg-gray-100"
+                    ? "ring-white/[0.08] hover:ring-cyan-500/40 bg-[#0a0e1a] hover:shadow-cyan-500/10"
+                    : "ring-gray-200 hover:ring-cyan-400 bg-gray-50 hover:shadow-cyan-200/40"
                 )}
+                style={{ animationDelay: `${i * 100}ms` }}
               >
-                <div className={clsx(
-                  "w-full h-full flex items-center justify-center",
-                  theme === "dark" ? "text-gray-700" : "text-gray-300"
-                )}>
-                  <Cpu className="w-8 h-8 md:w-10 md:h-10" />
-                </div>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={`/agents-data/images/${id}.svg`}
+                  alt={`Agent #${id}`}
+                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                  loading="lazy"
+                />
               </div>
             ))}
           </div>
+          <p className={clsx(
+            "text-xs font-mono mb-2",
+            theme === "dark" ? "text-gray-600" : "text-gray-400"
+          )}>
+            Showing 6 of 10,000 unique agents
+          </p>
         </section>
 
         {/* ══════════════════ MINT + STATS ══════════════════ */}
