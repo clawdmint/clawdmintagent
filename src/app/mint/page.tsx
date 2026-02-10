@@ -28,6 +28,11 @@ const MAX_PER_TX = 10;
 // Deployer agent page
 const DEPLOYER_AGENT_URL = "/agents/cmle5y1wr000058gfxgutjfa9";
 
+// Deterministic number formatting (avoids hydration mismatch from toLocaleString)
+function fmtNum(n: number): string {
+  return n.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+}
+
 // ═══════════════════════════════════════════════════════════════════════
 // RARITY DATA
 // ═══════════════════════════════════════════════════════════════════════
@@ -245,21 +250,12 @@ export default function MintPage() {
             <div className="w-5 h-5 rounded-full bg-emerald-500/20 flex items-center justify-center">
               <Cpu className="w-3 h-3 text-emerald-400" />
             </div>
-            <span className="font-mono text-xs text-emerald-400/80">deployed_by: <span className="text-emerald-400">agent_cmle5y</span></span>
+            <span className="font-mono text-xs text-emerald-400/80">deployed_by: <span className="text-emerald-400">agent_lila</span></span>
           </Link>
         </div>
 
-        {/* ══════════════════ PLACEHOLDER PREVIEW ══════════════════ */}
-        <div className="flex justify-center mb-10">
-          <div className="w-40 h-40 md:w-48 md:h-48 rounded-2xl border-2 border-emerald-500/20 bg-emerald-500/[0.02] p-3 hover:border-emerald-500/40 transition-colors group">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src="/agents/placeholder.svg"
-              alt="Classified Agent"
-              className="w-full h-full object-contain opacity-60 group-hover:opacity-90 transition-opacity"
-            />
-          </div>
-        </div>
+        {/* ══════════════════ NFT CAROUSEL ══════════════════ */}
+        <AgentCarousel />
 
         {/* ══════════════════ MAIN GRID ══════════════════ */}
         <div className="grid md:grid-cols-2 gap-6 mb-12">
@@ -272,9 +268,9 @@ export default function MintPage() {
               <TermLine prefix=" ">collection: <span className="text-emerald-400">Clawdmint Agents</span></TermLine>
               <TermLine prefix=" ">network:    <span className="text-cyan-400">Base L2</span></TermLine>
               <TermLine prefix=" ">standard:   <span className="text-gray-400">ERC-721</span></TermLine>
-              <TermLine prefix=" ">supply:     <span className="text-white">{collection.maxSupply.toLocaleString()}</span></TermLine>
-              <TermLine prefix=" ">minted:     <span className="text-emerald-400">{collection.totalMinted.toLocaleString()}</span></TermLine>
-              <TermLine prefix=" ">remaining:  <span className="text-yellow-400">{remaining.toLocaleString()}</span></TermLine>
+              <TermLine prefix=" ">supply:     <span className="text-white">{fmtNum(collection.maxSupply)}</span></TermLine>
+              <TermLine prefix=" ">minted:     <span className="text-emerald-400">{fmtNum(collection.totalMinted)}</span></TermLine>
+              <TermLine prefix=" ">remaining:  <span className="text-yellow-400">{fmtNum(remaining)}</span></TermLine>
               <TermLine prefix=" ">price:      <span className="text-emerald-400">FREE</span></TermLine>
             </div>
 
@@ -292,7 +288,7 @@ export default function MintPage() {
               </div>
               <div className="flex justify-between text-[10px] text-gray-700 mt-1 font-mono">
                 <span>0</span>
-                <span>{collection.maxSupply.toLocaleString()}</span>
+                <span>{fmtNum(collection.maxSupply)}</span>
               </div>
             </div>
 
@@ -524,6 +520,82 @@ export default function MintPage() {
             </div>
           </div>
         )}
+      </div>
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// COUNTDOWN (TERMINAL STYLE)
+// ═══════════════════════════════════════════════════════════════════════
+
+// ═══════════════════════════════════════════════════════════════════════
+// AGENT CAROUSEL — cycles through 10 NFT images
+// ═══════════════════════════════════════════════════════════════════════
+
+const CAROUSEL_IDS = [42, 137, 256, 888, 1337, 2048, 4096, 5555, 7777, 9999];
+
+function AgentCarousel() {
+  const [activeIndex, setActiveIndex] = useState(0);
+  const [isTransitioning, setIsTransitioning] = useState(false);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setIsTransitioning(true);
+      setTimeout(() => {
+        setActiveIndex((prev) => (prev + 1) % CAROUSEL_IDS.length);
+        setIsTransitioning(false);
+      }, 300);
+    }, 2000);
+    return () => clearInterval(interval);
+  }, []);
+
+  return (
+    <div className="flex flex-col items-center mb-10">
+      {/* Main showcase */}
+      <div className="relative w-44 h-44 md:w-56 md:h-56 mb-4">
+        {/* Glow behind active image */}
+        <div className="absolute inset-0 rounded-2xl bg-emerald-500/10 blur-xl" />
+        {/* Frame */}
+        <div className="relative w-full h-full rounded-2xl border-2 border-emerald-500/30 bg-[#060d06] overflow-hidden">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={`/agents-data/images/${CAROUSEL_IDS[activeIndex]}.svg`}
+            alt={`Agent #${CAROUSEL_IDS[activeIndex]}`}
+            className={clsx(
+              "w-full h-full object-cover transition-all duration-300",
+              isTransitioning ? "opacity-0 scale-95" : "opacity-100 scale-100"
+            )}
+          />
+          {/* Scanline overlay */}
+          <div className="absolute inset-0 pointer-events-none opacity-10" style={{
+            backgroundImage: "repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,255,0,0.05) 2px, rgba(0,255,0,0.05) 4px)",
+          }} />
+        </div>
+      </div>
+
+      {/* Thumbnail strip */}
+      <div className="flex items-center gap-1.5">
+        {CAROUSEL_IDS.map((id, i) => (
+          <button
+            key={id}
+            onClick={() => { setIsTransitioning(true); setTimeout(() => { setActiveIndex(i); setIsTransitioning(false); }, 200); }}
+            className={clsx(
+              "w-8 h-8 md:w-10 md:h-10 rounded-lg overflow-hidden border-2 transition-all duration-200",
+              i === activeIndex
+                ? "border-emerald-400 scale-110 shadow-lg shadow-emerald-500/20"
+                : "border-emerald-500/10 opacity-40 hover:opacity-70 hover:border-emerald-500/30"
+            )}
+          >
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={`/agents-data/images/${id}.svg`}
+              alt={`Agent #${id}`}
+              className="w-full h-full object-cover"
+              loading="lazy"
+            />
+          </button>
+        ))}
       </div>
     </div>
   );

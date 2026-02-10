@@ -3,7 +3,11 @@
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
-import { CollectionCard } from "@/components/collection-card";
+import { useTheme } from "@/components/theme-provider";
+import { clsx } from "clsx";
+import { ArrowRight, Sparkles } from "lucide-react";
+
+const AGENTS_CONTRACT = (process.env["NEXT_PUBLIC_AGENTS_CONTRACT"] || "").toLowerCase();
 
 interface Agent {
   id: string;
@@ -28,6 +32,7 @@ interface Agent {
 }
 
 export default function AgentPage() {
+  const { theme } = useTheme();
   const params = useParams();
   const id = params.id as string;
 
@@ -196,19 +201,98 @@ export default function AgentPage() {
             </div>
           ) : (
             <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {agent.collections.map((collection) => (
-                <CollectionCard
-                  key={collection.id}
-                  collection={{
-                    ...collection,
-                    agent: {
-                      id: agent.id,
-                      name: agent.name,
-                      avatar_url: agent.avatar_url,
-                    },
-                  }}
-                />
-              ))}
+              {agent.collections.map((collection) => {
+                const isAgentsCollection = collection.address.toLowerCase() === AGENTS_CONTRACT;
+                const href = isAgentsCollection ? "/mint" : `/collection/${collection.address}`;
+                const progress = collection.max_supply > 0 ? (collection.total_minted / collection.max_supply) * 100 : 0;
+
+                return (
+                  <Link key={collection.id} href={href}>
+                    <div className={clsx(
+                      "group relative h-full rounded-2xl overflow-hidden transition-all duration-300",
+                      theme === "dark"
+                        ? "bg-[#0d1117] ring-1 ring-white/[0.06] hover:ring-emerald-500/30 hover:shadow-2xl hover:shadow-emerald-500/10"
+                        : "bg-white ring-1 ring-gray-200 hover:ring-emerald-300 hover:shadow-2xl"
+                    )}>
+                      {/* Image */}
+                      <div className="relative aspect-[4/5] overflow-hidden">
+                        {collection.image_url ? (
+                          <img
+                            src={collection.image_url}
+                            alt={collection.name}
+                            className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-[1.05]"
+                          />
+                        ) : (
+                          <div className={clsx(
+                            "w-full h-full flex items-center justify-center",
+                            theme === "dark"
+                              ? "bg-gradient-to-br from-emerald-900/30 to-gray-900"
+                              : "bg-gradient-to-br from-emerald-50 to-gray-100"
+                          )}>
+                            <Sparkles className="w-16 h-16 opacity-20" />
+                          </div>
+                        )}
+
+                        {/* Gradient overlay */}
+                        <div className={clsx(
+                          "absolute inset-0 bg-gradient-to-t via-transparent",
+                          theme === "dark"
+                            ? "from-[#0d1117] via-transparent to-transparent"
+                            : "from-white via-transparent to-transparent"
+                        )} />
+
+                        {/* FREE badge */}
+                        <div className={clsx(
+                          "absolute top-3 left-3 px-3 py-1.5 rounded-lg backdrop-blur-md text-sm font-bold",
+                          theme === "dark" ? "bg-emerald-500/20 text-emerald-400" : "bg-emerald-50 text-emerald-600"
+                        )}>
+                          FREE
+                        </div>
+
+                        {/* Status badge */}
+                        <div className="absolute top-3 right-3 flex items-center gap-1.5 px-2.5 py-1 bg-black/50 backdrop-blur-md rounded-lg">
+                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                          <span className="text-[10px] uppercase tracking-widest font-bold text-white/90">Live</span>
+                        </div>
+
+                        {/* Progress */}
+                        <div className="absolute bottom-0 left-0 right-0 p-4">
+                          <div className={clsx("h-1 rounded-full overflow-hidden", theme === "dark" ? "bg-white/10" : "bg-black/10")}>
+                            <div
+                              className="h-full rounded-full bg-gradient-to-r from-emerald-400 to-cyan-400 transition-all duration-700"
+                              style={{ width: `${Math.min(progress, 100)}%` }}
+                            />
+                          </div>
+                          <div className="flex justify-between mt-1">
+                            <span className={clsx("text-[10px] font-medium", theme === "dark" ? "text-white/50" : "text-gray-500")}>
+                              {collection.total_minted.toLocaleString()}/{collection.max_supply.toLocaleString()}
+                            </span>
+                            <span className={clsx("text-[10px] font-bold", theme === "dark" ? "text-white/70" : "text-gray-700")}>
+                              {Math.round(progress)}%
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Info */}
+                      <div className="p-4 pt-2">
+                        <h3 className="font-bold group-hover:text-emerald-400 transition-colors line-clamp-1 mb-2">
+                          {collection.name}
+                        </h3>
+                        <div className={clsx(
+                          "flex items-center justify-between text-xs",
+                          theme === "dark" ? "text-gray-500" : "text-gray-400"
+                        )}>
+                          <span>by {agent.name}</span>
+                          <span className="flex items-center gap-1 text-emerald-400 font-semibold">
+                            Mint <ArrowRight className="w-3 h-3" />
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  </Link>
+                );
+              })}
             </div>
           )}
         </div>

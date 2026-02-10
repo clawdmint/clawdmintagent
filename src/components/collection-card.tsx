@@ -7,6 +7,8 @@ import { useTheme } from "./theme-provider";
 import { clsx } from "clsx";
 import { Bot } from "lucide-react";
 
+const AGENTS_CONTRACT = (process.env["NEXT_PUBLIC_AGENTS_CONTRACT"] || "").toLowerCase();
+
 interface CollectionCardProps {
   collection: {
     id: string;
@@ -32,6 +34,7 @@ export function CollectionCard({ collection }: CollectionCardProps) {
   const cardRef = useRef<HTMLDivElement>(null);
   const progress = (collection.total_minted / collection.max_supply) * 100;
   const isSoldOut = collection.status === "SOLD_OUT" || collection.total_minted >= collection.max_supply;
+  const isAgentsCollection = collection.address.toLowerCase() === AGENTS_CONTRACT;
   const mintPriceEth = formatEther(BigInt(collection.mint_price_wei));
 
   // 3D tilt effect on mouse move
@@ -55,7 +58,7 @@ export function CollectionCard({ collection }: CollectionCardProps) {
   }, []);
 
   return (
-    <Link href={`/collection/${collection.address}`}>
+    <Link href={isAgentsCollection ? "/mint" : `/collection/${collection.address}`}>
       <div
         ref={cardRef}
         onMouseMove={handleMouseMove}
@@ -115,7 +118,7 @@ export function CollectionCard({ collection }: CollectionCardProps) {
               ? "bg-black/50 text-white"
               : "bg-white/80 text-gray-900"
           )}>
-            {parseFloat(mintPriceEth) === 0 ? "Free" : `${mintPriceEth} ETH`}
+            {isAgentsCollection || parseFloat(mintPriceEth) === 0 ? "Free" : `${mintPriceEth} ETH`}
           </div>
 
           {/* Bottom info overlay - appears on image */}

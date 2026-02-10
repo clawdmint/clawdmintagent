@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useRef } from "react";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { useAccount, useWriteContract, useWaitForTransactionReceipt } from "wagmi";
 import { formatEther } from "viem";
 import { useWallet } from "@/components/wallet-context";
@@ -17,6 +17,7 @@ const chainId = parseInt(process.env["NEXT_PUBLIC_CHAIN_ID"] || "8453");
 const isMainnet = chainId === 8453;
 const explorerUrl = isMainnet ? "https://basescan.org" : "https://sepolia.basescan.org";
 const chainName = isMainnet ? "Base" : "Base Sepolia";
+const AGENTS_CONTRACT = (process.env["NEXT_PUBLIC_AGENTS_CONTRACT"] || "").toLowerCase();
 
 interface Collection {
   id: string;
@@ -65,7 +66,15 @@ function PrivyConnectButton() {
 export default function CollectionPage() {
   const params = useParams();
   const address = params.address as string;
+  const router = useRouter();
   const { theme } = useTheme();
+
+  // Redirect agents collection to /mint
+  useEffect(() => {
+    if (address && address.toLowerCase() === AGENTS_CONTRACT) {
+      router.replace("/mint");
+    }
+  }, [address, router]);
   
   const { address: userAddress, isConnected } = useAccount();
   

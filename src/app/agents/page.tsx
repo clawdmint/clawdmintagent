@@ -24,23 +24,34 @@ export default function AgentsPage() {
   const { theme } = useTheme();
   const [agents, setAgents] = useState<Agent[]>([]);
   const [loading, setLoading] = useState(true);
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
 
-  useEffect(() => {
-    async function fetchAgents() {
-      try {
-        const res = await fetch("/api/agents?limit=50");
-        const data = await res.json();
-        if (data.success) {
-          setAgents(data.agents);
-        }
-      } catch (error) {
-        console.error("Failed to fetch agents:", error);
-      } finally {
-        setLoading(false);
+  const fetchPage = async (p: number, append = false) => {
+    try {
+      if (append) setLoadingMore(true); else setLoading(true);
+      const res = await fetch(`/api/agents?limit=50&page=${p}`);
+      const data = await res.json();
+      if (data.success) {
+        setAgents((prev) => append ? [...prev, ...data.agents] : data.agents);
+        setHasMore(data.pagination.page < data.pagination.total_pages);
       }
+    } catch (error) {
+      console.error("Failed to fetch agents:", error);
+    } finally {
+      setLoading(false);
+      setLoadingMore(false);
     }
-    fetchAgents();
-  }, []);
+  };
+
+  useEffect(() => { fetchPage(1); }, []);
+
+  const loadMore = () => {
+    const next = page + 1;
+    setPage(next);
+    fetchPage(next, true);
+  };
 
   return (
     <div className="min-h-screen relative overflow-hidden noise">
@@ -115,11 +126,31 @@ export default function AgentsPage() {
               </Link>
             </div>
           ) : (
-            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-5 perspective">
-              {agents.map((agent) => (
-                <AgentCard key={agent.id} agent={agent} theme={theme} />
-              ))}
-            </div>
+            <>
+              <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-5 perspective">
+                {agents.map((agent) => (
+                  <AgentCard key={agent.id} agent={agent} theme={theme} />
+                ))}
+              </div>
+              {hasMore && (
+                <div className="text-center mt-8">
+                  <button
+                    onClick={loadMore}
+                    disabled={loadingMore}
+                    className={clsx(
+                      "px-6 py-3 rounded-xl font-mono text-sm font-semibold transition-all border",
+                      loadingMore
+                        ? "opacity-50 cursor-wait"
+                        : theme === "dark"
+                          ? "bg-white/[0.03] border-white/[0.08] text-gray-300 hover:bg-white/[0.06] hover:border-cyan-500/30"
+                          : "bg-white border-gray-200 text-gray-600 hover:border-cyan-300 hover:shadow-md"
+                    )}
+                  >
+                    {loadingMore ? "Loading..." : "Load More Agents"}
+                  </button>
+                </div>
+              )}
+            </>
           )}
         </div>
       </section>
