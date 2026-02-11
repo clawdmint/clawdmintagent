@@ -621,50 +621,37 @@ function AgentPanel({ theme }: { theme: string }) {
    FEATURED DROP — Clawdmint Agents Collection
    ═══════════════════════════════════════════════════════════ */
 function FeaturedDrop({ theme }: { theme: string }) {
-  // Two-phase mint schedule
-  const wlMintTime = parseInt(process.env.NEXT_PUBLIC_WL_MINT_TIME || "0", 10);
+  // Public mint schedule
   const publicMintTime = parseInt(process.env.NEXT_PUBLIC_PUBLIC_MINT_TIME || "0", 10);
-  const mintStartTime = wlMintTime || parseInt(process.env.NEXT_PUBLIC_MINT_START_TIME || "0", 10);
-  const hasSchedule = wlMintTime > 0 && publicMintTime > 0;
+  const mintStartTime = publicMintTime || parseInt(process.env.NEXT_PUBLIC_MINT_START_TIME || "0", 10);
+  const hasSchedule = mintStartTime > 0;
 
-  const [timeLeft, setTimeLeft] = useState({ d: 0, h: 0, m: 0, s: 0, expired: mintStartTime === 0, phase: "wl" as "wl" | "public" });
+  const [timeLeft, setTimeLeft] = useState({ d: 0, h: 0, m: 0, s: 0, expired: mintStartTime === 0 });
 
   useEffect(() => {
     if (!hasSchedule) {
-      setTimeLeft({ d: 0, h: 0, m: 0, s: 0, expired: true, phase: "wl" });
+      setTimeLeft({ d: 0, h: 0, m: 0, s: 0, expired: true });
       return;
     }
     function tick() {
       const now = Math.floor(Date.now() / 1000);
-      // Check WL countdown first
-      if (now < wlMintTime) {
-        const diff = wlMintTime - now;
-        setTimeLeft({
-          d: Math.floor(diff / 86400),
-          h: Math.floor((diff % 86400) / 3600),
-          m: Math.floor((diff % 3600) / 60),
-          s: diff % 60,
-          expired: false,
-          phase: "wl",
-        });
-      } else if (now < publicMintTime) {
-        const diff = publicMintTime - now;
-        setTimeLeft({
-          d: 0,
-          h: Math.floor(diff / 3600),
-          m: Math.floor((diff % 3600) / 60),
-          s: diff % 60,
-          expired: false,
-          phase: "public",
-        });
-      } else {
-        setTimeLeft({ d: 0, h: 0, m: 0, s: 0, expired: true, phase: "public" });
+      const diff = mintStartTime - now;
+      if (diff <= 0) {
+        setTimeLeft({ d: 0, h: 0, m: 0, s: 0, expired: true });
+        return;
       }
+      setTimeLeft({
+        d: Math.floor(diff / 86400),
+        h: Math.floor((diff % 86400) / 3600),
+        m: Math.floor((diff % 3600) / 60),
+        s: diff % 60,
+        expired: false,
+      });
     }
     tick();
     const interval = setInterval(tick, 1000);
     return () => clearInterval(interval);
-  }, [wlMintTime, publicMintTime, hasSchedule]);
+  }, [mintStartTime, hasSchedule]);
 
   const pad = (n: number) => String(n).padStart(2, "0");
 
@@ -806,17 +793,14 @@ function FeaturedDrop({ theme }: { theme: string }) {
                 ))}
               </div>
 
-              {/* Mint schedule info + Countdown */}
+              {/* Mint countdown */}
               {hasSchedule && !timeLeft.expired && (
                 <div className="space-y-3 mb-2">
-                  {/* Phase indicator */}
+                  {/* Schedule badge */}
                   <div className="flex items-center gap-2 flex-wrap">
-                    <span className={clsx("font-mono text-[10px] px-2 py-0.5 rounded-full border",
-                      timeLeft.phase === "wl" ? "text-yellow-400 border-yellow-500/30 bg-yellow-500/10 animate-pulse" : "text-gray-600 border-gray-700"
-                    )}>WL: Feb 11 — 18:00 UTC</span>
-                    <span className={clsx("font-mono text-[10px] px-2 py-0.5 rounded-full border",
-                      timeLeft.phase === "public" ? "text-emerald-400 border-emerald-500/30 bg-emerald-500/10 animate-pulse" : "text-gray-600 border-gray-700"
-                    )}>Public: Feb 11 — 20:00 UTC</span>
+                    <span className="font-mono text-[10px] px-2 py-0.5 rounded-full border text-emerald-400 border-emerald-500/30 bg-emerald-500/10 animate-pulse">
+                      Public Mint: Feb 11 — 15:00 UTC
+                    </span>
                   </div>
                   {/* Countdown */}
                   <div className="flex items-center gap-2.5">
@@ -847,7 +831,7 @@ function FeaturedDrop({ theme }: { theme: string }) {
                     ))}
                   </div>
                   <p className={clsx("font-mono text-[10px]", theme === "dark" ? "text-gray-500" : "text-gray-400")}>
-                    {timeLeft.phase === "wl" ? "WL Mint starts in" : "Public Mint starts in"}
+                    Mint starts in
                   </p>
                 </div>
               )}
