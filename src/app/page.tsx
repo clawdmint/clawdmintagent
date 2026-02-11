@@ -621,34 +621,50 @@ function AgentPanel({ theme }: { theme: string }) {
    FEATURED DROP — Clawdmint Agents Collection
    ═══════════════════════════════════════════════════════════ */
 function FeaturedDrop({ theme }: { theme: string }) {
-  // Countdown state — mintStartTime will be read from contract once deployed
-  // For now we use env var or fallback
-  const mintStartTime = parseInt(process.env.NEXT_PUBLIC_MINT_START_TIME || "0", 10);
-  const [timeLeft, setTimeLeft] = useState({ h: 0, m: 0, s: 0, expired: mintStartTime === 0 });
+  // Two-phase mint schedule
+  const wlMintTime = parseInt(process.env.NEXT_PUBLIC_WL_MINT_TIME || "0", 10);
+  const publicMintTime = parseInt(process.env.NEXT_PUBLIC_PUBLIC_MINT_TIME || "0", 10);
+  const mintStartTime = wlMintTime || parseInt(process.env.NEXT_PUBLIC_MINT_START_TIME || "0", 10);
+  const hasSchedule = wlMintTime > 0 && publicMintTime > 0;
+
+  const [timeLeft, setTimeLeft] = useState({ d: 0, h: 0, m: 0, s: 0, expired: mintStartTime === 0, phase: "wl" as "wl" | "public" });
 
   useEffect(() => {
-    if (mintStartTime === 0) {
-      setTimeLeft({ h: 0, m: 0, s: 0, expired: true });
+    if (!hasSchedule) {
+      setTimeLeft({ d: 0, h: 0, m: 0, s: 0, expired: true, phase: "wl" });
       return;
     }
     function tick() {
       const now = Math.floor(Date.now() / 1000);
-      const diff = mintStartTime - now;
-      if (diff <= 0) {
-        setTimeLeft({ h: 0, m: 0, s: 0, expired: true });
-        return;
+      // Check WL countdown first
+      if (now < wlMintTime) {
+        const diff = wlMintTime - now;
+        setTimeLeft({
+          d: Math.floor(diff / 86400),
+          h: Math.floor((diff % 86400) / 3600),
+          m: Math.floor((diff % 3600) / 60),
+          s: diff % 60,
+          expired: false,
+          phase: "wl",
+        });
+      } else if (now < publicMintTime) {
+        const diff = publicMintTime - now;
+        setTimeLeft({
+          d: 0,
+          h: Math.floor(diff / 3600),
+          m: Math.floor((diff % 3600) / 60),
+          s: diff % 60,
+          expired: false,
+          phase: "public",
+        });
+      } else {
+        setTimeLeft({ d: 0, h: 0, m: 0, s: 0, expired: true, phase: "public" });
       }
-      setTimeLeft({
-        h: Math.floor(diff / 3600),
-        m: Math.floor((diff % 3600) / 60),
-        s: diff % 60,
-        expired: false,
-      });
     }
     tick();
     const interval = setInterval(tick, 1000);
     return () => clearInterval(interval);
-  }, [mintStartTime]);
+  }, [wlMintTime, publicMintTime, hasSchedule]);
 
   const pad = (n: number) => String(n).padStart(2, "0");
 
@@ -670,7 +686,7 @@ function FeaturedDrop({ theme }: { theme: string }) {
             </span>
           </div>
           <div className={clsx("flex-1 h-px", theme === "dark" ? "bg-white/[0.06]" : "bg-gray-200")} />
-          {mintStartTime === 0 ? (
+          {!hasSchedule ? (
             <div className="flex items-center gap-1.5">
               <Clock className={clsx("w-3.5 h-3.5", theme === "dark" ? "text-purple-400" : "text-purple-500")} />
               <span className={clsx("font-mono text-xs font-bold", theme === "dark" ? "text-purple-400" : "text-purple-500")}>
@@ -790,24 +806,28 @@ function FeaturedDrop({ theme }: { theme: string }) {
                 ))}
               </div>
 
-              {/* Countdown / Coming Soon / Mint Now */}
-              {mintStartTime === 0 ? (
-                <Link
-                  href="/mint"
-                  className={clsx(
-                    "inline-flex items-center gap-2 px-8 py-3.5 rounded-xl font-bold text-sm transition-all duration-300 border",
-                    theme === "dark"
-                      ? "bg-gradient-to-r from-cyan-500/10 to-purple-500/10 border-white/[0.08] text-gray-200 hover:border-cyan-500/30 hover:bg-gradient-to-r hover:from-cyan-500/15 hover:to-purple-500/15"
-                      : "bg-gradient-to-r from-cyan-50 to-purple-50 border-gray-200 text-gray-700 hover:border-cyan-300 hover:shadow-md"
-                  )}
-                >
-                  <Clock className="w-4 h-4" />
-                  Coming Soon — View Collection
-                  <ArrowRight className="w-4 h-4" />
-                </Link>
-              ) : !timeLeft.expired ? (
-                <div className="space-y-3">
+              {/* Mint schedule info + Countdown */}
+              {hasSchedule && !timeLeft.expired && (
+                <div className="space-y-3 mb-2">
+                  {/* Phase indicator */}
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className={clsx("font-mono text-[10px] px-2 py-0.5 rounded-full border",
+                      timeLeft.phase === "wl" ? "text-yellow-400 border-yellow-500/30 bg-yellow-500/10 animate-pulse" : "text-gray-600 border-gray-700"
+                    )}>WL: Feb 11 — 18:00 UTC</span>
+                    <span className={clsx("font-mono text-[10px] px-2 py-0.5 rounded-full border",
+                      timeLeft.phase === "public" ? "text-emerald-400 border-emerald-500/30 bg-emerald-500/10 animate-pulse" : "text-gray-600 border-gray-700"
+                    )}>Public: Feb 11 — 20:00 UTC</span>
+                  </div>
+                  {/* Countdown */}
                   <div className="flex items-center gap-2.5">
+                    {timeLeft.d > 0 && (
+                      <div className="flex items-center gap-1">
+                        <span className={clsx("font-mono text-2xl font-black px-3 py-1.5 rounded-xl border", theme === "dark" ? "bg-white/[0.03] border-cyan-500/15 text-white" : "bg-gray-50 border-cyan-200 text-gray-900")}>
+                          {pad(timeLeft.d)}
+                        </span>
+                        <span className={clsx("font-mono text-xs", theme === "dark" ? "text-gray-600" : "text-gray-400")}>d</span>
+                      </div>
+                    )}
                     {[
                       { val: pad(timeLeft.h), label: "h" },
                       { val: pad(timeLeft.m), label: "m" },
@@ -826,20 +846,41 @@ function FeaturedDrop({ theme }: { theme: string }) {
                       </div>
                     ))}
                   </div>
-                  <Link
-                    href="/mint"
-                    className={clsx(
-                      "inline-flex items-center gap-2 px-6 py-3 rounded-xl font-semibold text-sm transition-all border",
-                      theme === "dark"
-                        ? "bg-white/[0.04] border-white/[0.08] text-gray-300 hover:bg-white/[0.08] hover:border-cyan-500/20"
-                        : "bg-white border-gray-200 text-gray-700 hover:border-cyan-300 hover:shadow-md"
-                    )}
-                  >
-                    <Clock className="w-4 h-4" />
-                    View Mint Page
-                    <ArrowRight className="w-3.5 h-3.5" />
-                  </Link>
+                  <p className={clsx("font-mono text-[10px]", theme === "dark" ? "text-gray-500" : "text-gray-400")}>
+                    {timeLeft.phase === "wl" ? "WL Mint starts in" : "Public Mint starts in"}
+                  </p>
                 </div>
+              )}
+
+              {/* CTA Button */}
+              {!hasSchedule ? (
+                <Link
+                  href="/mint"
+                  className={clsx(
+                    "inline-flex items-center gap-2 px-8 py-3.5 rounded-xl font-bold text-sm transition-all duration-300 border",
+                    theme === "dark"
+                      ? "bg-gradient-to-r from-cyan-500/10 to-purple-500/10 border-white/[0.08] text-gray-200 hover:border-cyan-500/30 hover:bg-gradient-to-r hover:from-cyan-500/15 hover:to-purple-500/15"
+                      : "bg-gradient-to-r from-cyan-50 to-purple-50 border-gray-200 text-gray-700 hover:border-cyan-300 hover:shadow-md"
+                  )}
+                >
+                  <Clock className="w-4 h-4" />
+                  Coming Soon — View Collection
+                  <ArrowRight className="w-4 h-4" />
+                </Link>
+              ) : !timeLeft.expired ? (
+                <Link
+                  href="/mint"
+                  className={clsx(
+                    "inline-flex items-center gap-2 px-6 py-3 rounded-xl font-semibold text-sm transition-all border",
+                    theme === "dark"
+                      ? "bg-white/[0.04] border-white/[0.08] text-gray-300 hover:bg-white/[0.08] hover:border-cyan-500/20"
+                      : "bg-white border-gray-200 text-gray-700 hover:border-cyan-300 hover:shadow-md"
+                  )}
+                >
+                  <Clock className="w-4 h-4" />
+                  View Mint Page
+                  <ArrowRight className="w-3.5 h-3.5" />
+                </Link>
               ) : (
                 <Link
                   href="/mint"

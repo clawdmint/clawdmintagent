@@ -67,6 +67,8 @@ interface CollectionData {
   totalMinted: number;
   isSoldOut: boolean;
   mintStartTime: number;
+  wlMintTime: number;
+  publicMintTime: number;
   refetch: () => void;
 }
 
@@ -92,11 +94,13 @@ function useCollectionData(): CollectionData {
 
   return useMemo((): CollectionData => {
     const envMintStart = parseInt(process.env["NEXT_PUBLIC_MINT_START_TIME"] || "0", 10);
+    const wlMintTime = parseInt(process.env["NEXT_PUBLIC_WL_MINT_TIME"] || "0", 10);
+    const publicMintTime = parseInt(process.env["NEXT_PUBLIC_PUBLIC_MINT_TIME"] || "0", 10);
     if (!data || isLoading) {
       return {
         loading: true, name: "Clawdmint Agents", maxSupply: MAX_SUPPLY,
         mintPrice: BigInt(0), totalMinted: 0, isSoldOut: false,
-        mintStartTime: envMintStart, refetch,
+        mintStartTime: envMintStart, wlMintTime, publicMintTime, refetch,
       };
     }
     const [nameRes, maxSupplyRes, mintPriceRes, totalMintedRes, isSoldOutRes] = data;
@@ -108,6 +112,8 @@ function useCollectionData(): CollectionData {
       totalMinted: Number(totalMintedRes.result || 0),
       isSoldOut: (isSoldOutRes.result as boolean) || false,
       mintStartTime: envMintStart,
+      wlMintTime,
+      publicMintTime,
       refetch,
     };
   }, [data, isLoading, refetch]);
@@ -176,16 +182,41 @@ export default function MintPage() {
   const remaining = collection.maxSupply - collection.totalMinted;
   const isSoldOut = collection.isSoldOut;
   const mintStartTime = collection.mintStartTime;
+  const wlMintTime = collection.wlMintTime;
+  const publicMintTime = collection.publicMintTime;
 
   const [now, setNow] = useState(Math.floor(Date.now() / 1000));
-  const isComingSoon = mintStartTime === 0;
+  // Two-phase mint: WL first, then Public
+  const hasSchedule = wlMintTime > 0 && publicMintTime > 0;
+  const isComingSoon = !hasSchedule && mintStartTime === 0;
+  const wlLive = hasSchedule && now >= wlMintTime && now < publicMintTime;
+  const publicLive = hasSchedule && now >= publicMintTime;
+  const mintLive = publicLive || (!hasSchedule && !isComingSoon && mintStartTime > 0 && now >= mintStartTime);
+  
+  // Current phase for display
+  const currentPhase: "coming" | "countdown-wl" | "wl-active" | "countdown-public" | "public-active" | "sold-out" =
+    isSoldOut ? "sold-out" :
+    !hasSchedule ? "coming" :
+    now < wlMintTime ? "countdown-wl" :
+    wlLive ? "wl-active" :
+    now < publicMintTime ? "countdown-public" :
+    "public-active";
+
+  // Countdown target
+  const countdownTarget = currentPhase === "countdown-wl" ? wlMintTime : currentPhase === "countdown-public" ? publicMintTime : 0;
+  const countdownRemaining = countdownTarget > 0 ? Math.max(0, countdownTarget - now) : 0;
+  const cdDays = Math.floor(countdownRemaining / 86400);
+  const cdHours = Math.floor((countdownRemaining % 86400) / 3600);
+  const cdMins = Math.floor((countdownRemaining % 3600) / 60);
+  const cdSecs = countdownRemaining % 60;
+  
   useEffect(() => {
-    if (mintStartTime > 0 && now < mintStartTime) {
+    const needsTick = hasSchedule ? (now < publicMintTime) : (mintStartTime > 0 && now < mintStartTime);
+    if (needsTick) {
       const interval = setInterval(() => setNow(Math.floor(Date.now() / 1000)), 1000);
       return () => clearInterval(interval);
     }
-  }, [mintStartTime, now]);
-  const mintLive = !isComingSoon && mintStartTime > 0 && now >= mintStartTime;
+  }, [mintStartTime, wlMintTime, publicMintTime, hasSchedule, now]);
 
   const handleMint = useCallback(() => {
     if (!AGENTS_CONTRACT || !isConnected) return;
@@ -229,7 +260,7 @@ export default function MintPage() {
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-emerald-500/20 bg-emerald-500/[0.05] mb-6">
             <div className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
             <span className="font-mono text-[11px] text-emerald-400 uppercase tracking-wider">
-              {isSoldOut ? "SOLD_OUT" : isComingSoon ? "COMING_SOON" : mintLive ? "MINT_ACTIVE" : "COUNTDOWN"}
+              {currentPhase === "sold-out" ? "SOLD_OUT" : currentPhase === "coming" ? "COMING_SOON" : currentPhase === "countdown-wl" ? "WL_COUNTDOWN" : currentPhase === "wl-active" ? "WL_MINT_LIVE" : currentPhase === "countdown-public" ? "PUBLIC_COUNTDOWN" : "PUBLIC_MINT_LIVE"}
             </span>
           </div>
 
@@ -343,18 +374,94 @@ export default function MintPage() {
                 </>
               )}
 
-              {/* Coming Soon */}
+              {/* Mint Schedule & Countdown */}
+              {hasSchedule && !isSoldOut && (
+                <div className="space-y-3">
+                  {/* Two-phase schedule */}
+                  <div className="rounded-lg border border-emerald-500/20 overflow-hidden">
+                    {/* WL Phase */}
+                    <div className={clsx(
+                      "flex items-center gap-3 px-4 py-3 border-b border-emerald-500/10",
+                      currentPhase === "wl-active" ? "bg-emerald-500/10" : currentPhase === "countdown-wl" ? "bg-emerald-500/[0.03]" : "bg-white/[0.01] opacity-50"
+                    )}>
+                      <div className={clsx("w-2.5 h-2.5 rounded-full shrink-0",
+                        currentPhase === "wl-active" ? "bg-emerald-400 animate-pulse" : currentPhase === "countdown-wl" ? "bg-yellow-400 animate-pulse" : "bg-gray-600"
+                      )} />
+                      <div className="flex-1 min-w-0">
+                        <div className="font-mono text-xs font-bold text-white">Phase 1: WL Mint</div>
+                        <div className="font-mono text-[10px] text-gray-500">Feb 11, 2026 — 18:00 UTC</div>
+                      </div>
+                      <span className={clsx("font-mono text-[10px] px-2 py-0.5 rounded-full border",
+                        currentPhase === "wl-active" ? "text-emerald-400 border-emerald-500/30 bg-emerald-500/10" :
+                        currentPhase === "countdown-wl" ? "text-yellow-400 border-yellow-500/30 bg-yellow-500/10" :
+                        "text-gray-600 border-gray-700"
+                      )}>
+                        {currentPhase === "wl-active" ? "LIVE" : currentPhase === "countdown-wl" ? "NEXT" : "DONE"}
+                      </span>
+                    </div>
+                    {/* Public Phase */}
+                    <div className={clsx(
+                      "flex items-center gap-3 px-4 py-3",
+                      currentPhase === "public-active" ? "bg-emerald-500/10" : currentPhase === "countdown-public" ? "bg-emerald-500/[0.03]" : "bg-white/[0.01]"
+                    )}>
+                      <div className={clsx("w-2.5 h-2.5 rounded-full shrink-0",
+                        currentPhase === "public-active" ? "bg-emerald-400 animate-pulse" : currentPhase === "countdown-public" ? "bg-yellow-400 animate-pulse" : "bg-gray-600"
+                      )} />
+                      <div className="flex-1 min-w-0">
+                        <div className="font-mono text-xs font-bold text-white">Phase 2: Public Mint</div>
+                        <div className="font-mono text-[10px] text-gray-500">Feb 11, 2026 — 20:00 UTC</div>
+                      </div>
+                      <span className={clsx("font-mono text-[10px] px-2 py-0.5 rounded-full border",
+                        currentPhase === "public-active" ? "text-emerald-400 border-emerald-500/30 bg-emerald-500/10" :
+                        currentPhase === "countdown-public" ? "text-yellow-400 border-yellow-500/30 bg-yellow-500/10" :
+                        "text-gray-600 border-gray-700"
+                      )}>
+                        {currentPhase === "public-active" ? "LIVE" : currentPhase === "countdown-public" || currentPhase === "wl-active" ? "NEXT" : "WAITING"}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Countdown timer */}
+                  {countdownRemaining > 0 && (
+                    <div className="text-center py-4 border border-dashed border-emerald-500/20 rounded-lg bg-emerald-500/[0.02]">
+                      <Clock className="w-5 h-5 mx-auto mb-2 text-emerald-400 animate-pulse" />
+                      <p className="font-mono text-[10px] text-gray-500 mb-2 uppercase tracking-wider">
+                        {currentPhase === "countdown-wl" ? "WL Mint starts in" : "Public Mint starts in"}
+                      </p>
+                      <div className="flex justify-center gap-3">
+                        {cdDays > 0 && (
+                          <div className="text-center">
+                            <div className="font-mono text-2xl font-black text-emerald-400">{String(cdDays).padStart(2, "0")}</div>
+                            <div className="font-mono text-[8px] text-gray-600 uppercase">days</div>
+                          </div>
+                        )}
+                        <div className="text-center">
+                          <div className="font-mono text-2xl font-black text-emerald-400">{String(cdHours).padStart(2, "0")}</div>
+                          <div className="font-mono text-[8px] text-gray-600 uppercase">hours</div>
+                        </div>
+                        <div className="text-emerald-500/30 font-mono text-2xl font-bold animate-pulse">:</div>
+                        <div className="text-center">
+                          <div className="font-mono text-2xl font-black text-emerald-400">{String(cdMins).padStart(2, "0")}</div>
+                          <div className="font-mono text-[8px] text-gray-600 uppercase">mins</div>
+                        </div>
+                        <div className="text-emerald-500/30 font-mono text-2xl font-bold animate-pulse">:</div>
+                        <div className="text-center">
+                          <div className="font-mono text-2xl font-black text-emerald-400">{String(cdSecs).padStart(2, "0")}</div>
+                          <div className="font-mono text-[8px] text-gray-600 uppercase">secs</div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* No schedule set */}
               {isComingSoon && (
                 <div className="text-center py-4 border border-dashed border-emerald-500/20 rounded-lg">
                   <Clock className="w-5 h-5 mx-auto mb-2 text-emerald-500/50" />
                   <p className="text-emerald-400 font-mono text-sm font-bold">COMING_SOON</p>
                   <p className="text-gray-600 text-xs mt-1">mint date will be announced</p>
                 </div>
-              )}
-
-              {/* Countdown */}
-              {mintStartTime > 0 && !mintLive && (
-                <CountdownTerminal targetTime={mintStartTime} />
               )}
 
               {/* Mint Button */}
@@ -369,9 +476,9 @@ export default function MintPage() {
                 <div className="w-full py-3 rounded-lg font-mono text-sm text-center bg-red-500/10 border border-red-500/20 text-red-400">
                   STATUS: SOLD_OUT
                 </div>
-              ) : !mintLive ? (
+              ) : !(wlLive || mintLive) ? (
                 <button disabled className="w-full py-3 rounded-lg font-mono text-sm bg-gray-500/5 border border-gray-500/10 text-gray-600 cursor-not-allowed">
-                  $ mint --status=pending
+                  {currentPhase === "countdown-wl" ? "$ mint --status=waiting_for_wl" : currentPhase === "countdown-public" ? "$ mint --status=waiting_for_public" : "$ mint --status=pending"}
                 </button>
               ) : (
                 <button
@@ -388,7 +495,9 @@ export default function MintPage() {
                     ? "$ confirming..."
                     : isWritePending
                       ? "$ awaiting_wallet..."
-                      : `$ mint --qty=${quantity}`}
+                      : wlLive
+                        ? `$ wl_mint --qty=${quantity}`
+                        : `$ mint --qty=${quantity}`}
                   {!isMinting && <BlinkCursor />}
                 </button>
               )}
