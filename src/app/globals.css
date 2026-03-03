@@ -32,11 +32,17 @@
    ═══════════════════════════════════════════════════════════════════════ */
 
 @layer base {
+  html {
+    scroll-behavior: auto !important;
+    overscroll-behavior: none;
+  }
+
   body {
     @apply bg-[rgb(var(--bg-primary))] text-[rgb(var(--text-primary))] transition-colors duration-300;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     text-rendering: optimizeLegibility;
+    overscroll-behavior: none;
   }
 
   /* Tight typography for headings - the Apple/Airbnb trick */

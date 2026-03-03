@@ -14,6 +14,11 @@
   # These are NOT hardcoded secrets - they come from Netlify's env var system
   SECRETS_SCAN_ENABLED = "false"
 
+# Netlify functions — increase timeout for API routes
+[functions]
+  external_node_modules = ["sharp"]
+  node_bundler = "esbuild"
+
 # Next.js Runtime - Otomatik public klasörü ve routing handle eder
 [[plugins]]
   package = "@netlify/plugin-nextjs"

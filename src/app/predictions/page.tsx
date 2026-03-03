@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback, useRef } from "react";
 import { clsx } from "clsx";
 import { useTheme } from "@/components/theme-provider";
 import { BankrGate } from "@/components/bankr-gate";
+import { fetchWithRetry, getErrorMessage } from "@/lib/fetch-retry";
 import Link from "next/link";
 import {
   Search, RefreshCw, ExternalLink, X, TrendingUp, TrendingDown,
@@ -471,7 +472,11 @@ export default function PredictionsPage() {
       if (category) params.set("category", category);
       if (searchQuery.trim()) params.set("q", searchQuery.trim());
 
-      const res = await fetch(`/api/predictions?${params.toString()}`);
+      const res = await fetchWithRetry(
+        `/api/predictions?${params.toString()}`,
+        {},
+        { retries: 2, timeoutMs: 30000 }
+      );
       const json = await res.json();
 
       if (json.success) {
@@ -479,8 +484,9 @@ export default function PredictionsPage() {
       } else {
         setError(json.error || "Failed to fetch markets");
       }
-    } catch {
-      setError("Network error");
+    } catch (e: unknown) {
+      setError(getErrorMessage(e));
+      console.error("Predictions fetch error:", e);
     } finally {
       setLoading(false);
     }
@@ -517,25 +523,30 @@ export default function PredictionsPage() {
     setBetError(null);
 
     try {
-      const res = await fetch("/api/predictions", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          apiKey,
-          action: "bet",
-          market: selectedMarket.question,
-          outcome,
-          amount,
-        }),
-      });
+      const res = await fetchWithRetry(
+        "/api/predictions",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            apiKey,
+            action: "bet",
+            market: selectedMarket.question,
+            outcome,
+            amount,
+          }),
+        },
+        { retries: 1, timeoutMs: 120000 }
+      );
       const json = await res.json();
       if (json.success) {
         setBetResult(json.response);
       } else {
         setBetError(json.error || "Bet failed");
       }
-    } catch {
-      setBetError("Network error");
+    } catch (e: unknown) {
+      setBetError(getErrorMessage(e));
+      console.error("Prediction bet error:", e);
     } finally {
       setBetting(false);
     }
@@ -547,19 +558,24 @@ export default function PredictionsPage() {
     setLoadingPositions(true);
     setPositions(null);
     try {
-      const res = await fetch("/api/predictions", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ apiKey, action: "positions" }),
-      });
+      const res = await fetchWithRetry(
+        "/api/predictions",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ apiKey, action: "positions" }),
+        },
+        { retries: 1, timeoutMs: 120000 }
+      );
       const json = await res.json();
       if (json.success) {
         setPositions(json.response);
       } else {
         setPositions(`Error: ${json.error}`);
       }
-    } catch {
-      setPositions("Network error");
+    } catch (e: unknown) {
+      setPositions(getErrorMessage(e));
+      console.error("Positions fetch error:", e);
     } finally {
       setLoadingPositions(false);
     }

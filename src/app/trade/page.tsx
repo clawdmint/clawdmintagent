@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback, useRef } from "react";
 import { clsx } from "clsx";
 import { useTheme } from "@/components/theme-provider";
 import { BankrGate } from "@/components/bankr-gate";
+import { fetchWithRetry, getErrorMessage } from "@/lib/fetch-retry";
 import Link from "next/link";
 import {
   ArrowDownUp, RefreshCw, Settings, ChevronDown, X, ExternalLink,
@@ -50,7 +51,6 @@ const POPULAR_TOKENS: Token[] = [
   { symbol: "TOSHI", name: "Toshi", popular: true },
   { symbol: "AERO", name: "Aerodrome", popular: true },
   { symbol: "HIGHER", name: "Higher", popular: true },
-  { symbol: "CLAWDMINT", name: "Clawdmint", popular: true },
 ];
 
 const CHAINS = [
@@ -505,26 +505,31 @@ export default function TradePage() {
     setResponse(null);
 
     try {
-      const res = await fetch("/api/trade", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          apiKey,
-          action: "quote",
-          fromToken: fromToken.symbol,
-          toToken: toToken.symbol,
-          amount,
-          chain,
-        }),
-      });
+      const res = await fetchWithRetry(
+        "/api/trade",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            apiKey,
+            action: "quote",
+            fromToken: fromToken.symbol,
+            toToken: toToken.symbol,
+            amount,
+            chain,
+          }),
+        },
+        { retries: 1, timeoutMs: 120000 }
+      );
       const json = await res.json();
       if (json.success) {
         setResponse(json.response);
       } else {
         setError(json.error || "Failed to get quote");
       }
-    } catch {
-      setError("Network error");
+    } catch (e: unknown) {
+      setError(getErrorMessage(e));
+      console.error("Trade quote error:", e);
     } finally {
       setQuoting(false);
     }
@@ -552,19 +557,23 @@ export default function TradePage() {
     setConfirmSwap(false);
 
     try {
-      const res = await fetch("/api/trade", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          apiKey,
-          action: "swap",
-          fromToken: fromToken.symbol,
-          toToken: toToken.symbol,
-          amount,
-          chain,
-          slippage,
-        }),
-      });
+      const res = await fetchWithRetry(
+        "/api/trade",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            apiKey,
+            action: "swap",
+            fromToken: fromToken.symbol,
+            toToken: toToken.symbol,
+            amount,
+            chain,
+            slippage,
+          }),
+        },
+        { retries: 1, timeoutMs: 180000 }
+      );
       const json = await res.json();
       if (json.success) {
         setResponse(json.response);
@@ -573,9 +582,11 @@ export default function TradePage() {
         setError(json.error || "Swap failed");
         updateTradeRecord(tradeId, { status: "failed", response: json.error });
       }
-    } catch {
-      setError("Network error");
-      updateTradeRecord(tradeId, { status: "failed", response: "Network error" });
+    } catch (e: unknown) {
+      const msg = getErrorMessage(e);
+      setError(msg);
+      updateTradeRecord(tradeId, { status: "failed", response: msg });
+      console.error("Trade swap error:", e);
     } finally {
       setLoading(false);
       setTradeHistory(getTradeHistory());

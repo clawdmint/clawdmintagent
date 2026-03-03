@@ -1,5 +1,8 @@
 import { NextResponse } from "next/server";
 
+export const dynamic = "force-dynamic";
+export const maxDuration = 60;
+
 // ═══════════════════════════════════════════════════════════════════════
 // Automation API — DCA, Limit Orders, Stop Loss, TWAP via Bankr Agent
 // User provides their own API key; we never store it.

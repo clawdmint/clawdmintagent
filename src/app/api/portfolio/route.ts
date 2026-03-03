@@ -1,5 +1,8 @@
 import { NextResponse } from "next/server";
 
+export const dynamic = "force-dynamic";
+export const maxDuration = 60;
+
 // ═══════════════════════════════════════════════════════════════════════
 // Portfolio API — Proxies requests to Bankr Agent API
 // User provides their own API key; we never store it.

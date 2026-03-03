@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { BankrGate } from "@/components/bankr-gate";
+import { fetchWithRetry, getErrorMessage } from "@/lib/fetch-retry";
 import type { ScreenerToken } from "@/app/api/screener/tokens/route";
 
 // ═══════════════════════════════════════════════════════════════════════
@@ -938,7 +939,11 @@ export default function BankrScreenerPage() {
       });
       if (searchQuery.trim()) params.set("q", searchQuery.trim());
 
-      const res = await fetch(`/api/screener/tokens?${params.toString()}`);
+      const res = await fetchWithRetry(
+        `/api/screener/tokens?${params.toString()}`,
+        {},
+        { retries: 2, timeoutMs: 30000 }
+      );
       const json = await res.json();
 
       if (json.success) {
@@ -948,9 +953,9 @@ export default function BankrScreenerPage() {
       } else {
         setError(json.error || "Failed to fetch tokens");
       }
-    } catch (e) {
-      setError("Network error - please try again");
-      console.error(e);
+    } catch (e: unknown) {
+      setError(getErrorMessage(e));
+      console.error("Screener fetch error:", e);
     } finally {
       setLoading(false);
       setRefreshing(false);

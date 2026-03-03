@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback } from "react";
 import { clsx } from "clsx";
 import { useTheme } from "@/components/theme-provider";
 import { BankrGate } from "@/components/bankr-gate";
+import { fetchWithRetry, getErrorMessage } from "@/lib/fetch-retry";
 import Link from "next/link";
 import {
   Repeat, TrendingUp, TrendingDown, ShieldCheck, Clock,
@@ -267,11 +268,15 @@ export default function AutomationPage() {
     setLoadingPrice(true);
     setCurrentPrice(null);
     try {
-      const res = await fetch("/api/automation", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ apiKey, action: "check-price", token }),
-      });
+      const res = await fetchWithRetry(
+        "/api/automation",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ apiKey, action: "check-price", token }),
+        },
+        { retries: 1, timeoutMs: 120000 }
+      );
       const data = await res.json();
       if (data.success) {
         setCurrentPrice(data.response);
@@ -286,19 +291,23 @@ export default function AutomationPage() {
     setLoadingAutomations(true);
     setActiveAutomations(null);
     try {
-      const res = await fetch("/api/automation", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ apiKey, action: "list-automations" }),
-      });
+      const res = await fetchWithRetry(
+        "/api/automation",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ apiKey, action: "list-automations" }),
+        },
+        { retries: 1, timeoutMs: 120000 }
+      );
       const data = await res.json();
       if (data.success) {
         setActiveAutomations(data.response);
       } else {
         setActiveAutomations("Failed to fetch automations: " + (data.error || "Unknown error"));
       }
-    } catch {
-      setActiveAutomations("Network error");
+    } catch (e: unknown) {
+      setActiveAutomations(getErrorMessage(e));
     } finally {
       setLoadingAutomations(false);
     }
@@ -368,11 +377,15 @@ export default function AutomationPage() {
     }
 
     try {
-      const res = await fetch("/api/automation", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(actionBody),
-      });
+      const res = await fetchWithRetry(
+        "/api/automation",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(actionBody),
+        },
+        { retries: 1, timeoutMs: 180000 }
+      );
       const data = await res.json();
 
       if (data.success) {
@@ -394,8 +407,9 @@ export default function AutomationPage() {
       } else {
         setError(data.error || "Failed to create automation");
       }
-    } catch {
-      setError("Network error — please try again");
+    } catch (e: unknown) {
+      setError(getErrorMessage(e));
+      console.error("Automation submit error:", e);
     } finally {
       setLoading(false);
     }

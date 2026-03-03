@@ -5,7 +5,7 @@ import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
 import { useState, useEffect, useRef } from "react";
 import { clsx } from "clsx";
-import { Menu, X, ChevronRight, ChevronDown, Moon, Sun, Activity, Wallet, BarChart3, ArrowDownUp, Target, Repeat } from "lucide-react";
+import { Menu, X, ChevronRight, ChevronDown, Moon, Sun, Activity, Wallet, BarChart3, ArrowDownUp, Target, Repeat, Rocket } from "lucide-react";
 import { useTheme } from "./theme-provider";
 import { useWallet } from "./wallet-context";
 import { reverseResolveAddress } from "@/lib/clawd-names";
@@ -34,8 +34,9 @@ const navItems: NavItem[] = [
   { href: "/mint", cmd: "mint" },
   { href: "/drops", cmd: "drops" },
   {
-    label: "BANKR",
+    label: "SUITE",
     children: [
+      { href: "/launch", cmd: "launch", icon: Rocket, desc: "Deploy tokens on Base" },
       { href: "/screener", cmd: "screener", icon: Activity, desc: "Token tracker" },
       { href: "/trade", cmd: "trade", icon: ArrowDownUp, desc: "Swap tokens" },
       { href: "/predictions", cmd: "predictions", icon: Target, desc: "Prediction markets" },
@@ -43,8 +44,8 @@ const navItems: NavItem[] = [
       { href: "/portfolio", cmd: "portfolio", icon: Wallet, desc: "Wallet & balances" },
     ],
   },
-  { href: "/names", cmd: ".clawd" },
   { href: "/agents", cmd: "agents" },
+  { href: "/clawdverse", cmd: "clawdverse" },
 ];
 
 // ═══════════════════════════════════════════════════════════════════════
@@ -119,7 +120,7 @@ function NavDropdownMenu({ item, pathname, theme }: { item: NavDropdown; pathnam
               <div className="w-1.5 h-1.5 rounded-full bg-cyan-500/50" />
             </div>
             <span className={clsx("font-mono text-[9px] uppercase tracking-wider", theme === "dark" ? "text-cyan-500/50" : "text-cyan-600/60")}>
-              ~/bankr
+              ~/suite
             </span>
           </div>
 
@@ -196,21 +197,31 @@ export function Header() {
         <div className="container mx-auto px-4">
           <div className="flex items-center justify-between h-14">
             {/* Logo */}
-            <Link href="/" className="flex items-center gap-2.5 group relative">
-              <div className="relative w-8 h-8 group-hover:scale-110 transition-transform duration-300">
-                <Image src="/logo.png" alt="Clawdmint" width={32} height={32} className="object-contain" />
-              </div>
-              <div className="hidden sm:flex items-center gap-0 relative">
-                <span className={clsx("font-mono text-[15px] font-bold tracking-[-0.02em] transition-all duration-300", theme === "dark" ? "text-white" : "text-gray-900")}>
-                  clawd
-                </span>
-                <span className={clsx("font-mono text-[15px] font-bold tracking-[-0.02em] transition-all duration-300", theme === "dark" ? "text-cyan-400 group-hover:text-cyan-300" : "text-cyan-600 group-hover:text-cyan-500")}>
-                  mint
-                </span>
-                <span className={clsx("inline-block w-[2px] h-[14px] ml-[3px] rounded-full animate-pulse", theme === "dark" ? "bg-cyan-400" : "bg-cyan-500")} />
-              </div>
-              <div className="absolute -inset-2 rounded-xl bg-cyan-500/0 group-hover:bg-cyan-500/[0.03] transition-all duration-500 pointer-events-none" />
-            </Link>
+            <div className="flex items-center gap-3">
+              <Link href="/" className="flex items-center gap-2.5 group relative">
+                <div className="relative w-8 h-8 group-hover:scale-110 transition-transform duration-300">
+                  <Image src="/logo.png" alt="Clawdmint" width={32} height={32} className="object-contain" />
+                </div>
+                <div className="hidden sm:flex items-center gap-0 relative">
+                  <span className={clsx("font-mono text-[15px] font-bold tracking-[-0.02em] transition-all duration-300", theme === "dark" ? "text-white" : "text-gray-900")}>
+                    clawd
+                  </span>
+                  <span className={clsx("font-mono text-[15px] font-bold tracking-[-0.02em] transition-all duration-300", theme === "dark" ? "text-cyan-400 group-hover:text-cyan-300" : "text-cyan-600 group-hover:text-cyan-500")}>
+                    mint
+                  </span>
+                  <span className={clsx("inline-block w-[2px] h-[14px] ml-[3px] rounded-full animate-pulse", theme === "dark" ? "bg-cyan-400" : "bg-cyan-500")} />
+                </div>
+                <div className="absolute -inset-2 rounded-xl bg-cyan-500/0 group-hover:bg-cyan-500/[0.03] transition-all duration-500 pointer-events-none" />
+              </Link>
+              <div className={clsx("hidden sm:block w-px h-6", theme === "dark" ? "bg-white/[0.08]" : "bg-gray-200")} />
+              <a href="https://app.virtuals.io/prototypes/0xbE316d2922a8c06334e337234934c6ca27652bB0" target="_blank" rel="noopener noreferrer" className="hidden sm:block hover:opacity-90 transition-opacity" title="Virtuals Protocol">
+                <Image src="/virtuals-logo.png" alt="Virtuals Protocol" width={200} height={56} className="object-contain h-[56px] w-auto" />
+              </a>
+              <div className={clsx("hidden sm:block w-px h-6", theme === "dark" ? "bg-white/[0.08]" : "bg-gray-200")} />
+              <a href="https://agdp.io/" target="_blank" rel="noopener noreferrer" className="hidden sm:block hover:opacity-90 transition-opacity" title="aGDP.io">
+                <Image src="/cdp-logo.png" alt="aGDP" width={72} height={22} className="object-contain h-[22px] w-auto" />
+              </a>
+            </div>
 
             {/* Desktop Nav */}
             <nav className={clsx(

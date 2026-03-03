@@ -5,6 +5,7 @@ import { Providers } from "@/components/providers";
 import { Header } from "@/components/header";
 import { Footer } from "@/components/footer";
 import { FloatingIcons } from "@/components/floating-icons";
+import { MiniAppInit } from "@/components/miniapp-init";
 
 const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
 const jetbrains = JetBrains_Mono({ subsets: ["latin"], variable: "--font-mono", weight: ["400", "500", "600", "700"] });
@@ -52,7 +53,22 @@ export const metadata: Metadata = {
     apple: "/logo.png",
   },
   other: {
-    "base:app_id": "69450eefd19763ca26ddc4fd",
+    "base:app_id": "698643078dcaa0daf5755ffd",
+    "virtual-protocol-site-verification": "4c21499c6ab22e12a55ddbb5f39584f7",
+    "fc:miniapp": JSON.stringify({
+      version: "next",
+      imageUrl: `${APP_URL}/og.png`,
+      button: {
+        title: "Launch Clawdmint",
+        action: {
+          type: "launch_miniapp",
+          name: "Clawdmint",
+          url: APP_URL,
+          splashImageUrl: `${APP_URL}/mascot.png`,
+          splashBackgroundColor: "#050810",
+        },
+      },
+    }),
   },
 };
 
@@ -65,6 +81,7 @@ export default function RootLayout({
     <html lang="en" className="dark" suppressHydrationWarning>
         <body className={`${inter.variable} ${jetbrains.variable} font-sans antialiased min-h-screen transition-colors duration-300`}>
         <Providers>
+          <MiniAppInit />
           <FloatingIcons />
           <div className="flex flex-col min-h-screen relative z-10">
             <Header />

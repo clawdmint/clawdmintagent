@@ -716,7 +716,8 @@ function AgentChat({
   const [input, setInput] = useState("");
   const [sending, setSending] = useState(false);
   const [loadingChat, setLoadingChat] = useState(false);
-  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const chatScrollRef = useRef<HTMLDivElement>(null);
+  const initialLoadDone = useRef(false);
 
   // Load messages
   useEffect(() => {
@@ -750,9 +751,15 @@ function AgentChat({
     return () => clearInterval(interval);
   }, [collectionAddress]);
 
-  // Auto-scroll
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    if (!initialLoadDone.current && messages.length > 0) {
+      initialLoadDone.current = true;
+      return;
+    }
+    if (initialLoadDone.current && chatScrollRef.current) {
+      const el = chatScrollRef.current;
+      el.scrollTop = el.scrollHeight;
+    }
   }, [messages]);
 
   const sendMessage = async () => {
@@ -836,7 +843,7 @@ function AgentChat({
           theme === "dark" ? "border-white/[0.06]" : "border-gray-200"
         )}>
           {/* Messages */}
-          <div className={clsx(
+          <div ref={chatScrollRef} className={clsx(
             "h-72 overflow-y-auto p-4 space-y-3",
             theme === "dark" ? "scrollbar-dark" : "scrollbar-light"
           )}>
@@ -917,7 +924,7 @@ function AgentChat({
                 </div>
               ))
             )}
-            <div ref={messagesEndRef} />
+            
           </div>
 
           {/* Input */}

@@ -1,5 +1,8 @@
 import { NextResponse } from "next/server";
 
+export const dynamic = "force-dynamic";
+export const maxDuration = 30;
+
 // ═══════════════════════════════════════════════════════════════════════
 // BankrScreener Token API v2
 // Multi-source: Clanker (Bankr filter + core tokens) + DexScreener
@@ -161,9 +164,13 @@ const CACHE_TTL = 25_000; // 25 seconds
 // Fetch a single page from Clanker (max 20 per request)
 async function fetchClankerPage(params: URLSearchParams): Promise<{ tokens: ClankerToken[]; cursor: string | null }> {
   try {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 10000); // 10s timeout per page
     const res = await fetch(`${CLANKER_API}?${params.toString()}`, {
       headers: { Accept: "application/json" },
+      signal: controller.signal,
     });
+    clearTimeout(timer);
     if (!res.ok) {
       console.error("Clanker API error:", res.status);
       return { tokens: [], cursor: null };
@@ -314,9 +321,13 @@ async function fetchDexScreenerData(addresses: string[]): Promise<Map<string, De
   await Promise.all(
     chunks.map(async (chunk) => {
       try {
+        const controller = new AbortController();
+        const timer = setTimeout(() => controller.abort(), 10000); // 10s timeout
         const res = await fetch(`${DEXSCREENER_API}/${chunk.join(",")}`, {
           headers: { Accept: "application/json" },
+          signal: controller.signal,
         });
+        clearTimeout(timer);
         if (!res.ok) return;
         const json = await res.json();
         const pairs: DexPair[] = json.pairs || [];

@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback } from "react";
 import { clsx } from "clsx";
 import { useTheme } from "@/components/theme-provider";
 import { BankrGate } from "@/components/bankr-gate";
+import { fetchWithRetry, getErrorMessage } from "@/lib/fetch-retry";
 import Link from "next/link";
 import {
   Wallet, Key, Eye, EyeOff, RefreshCw, AlertTriangle,
@@ -129,11 +130,15 @@ export default function PortfolioPage() {
     setActiveAction(action);
 
     try {
-      const res = await fetch("/api/portfolio", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ apiKey, action, ...extra }),
-      });
+      const res = await fetchWithRetry(
+        "/api/portfolio",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ apiKey, action, ...extra }),
+        },
+        { retries: 1, timeoutMs: 120000 }
+      );
       const json = await res.json();
 
       if (json.success) {
@@ -141,9 +146,9 @@ export default function PortfolioPage() {
       } else {
         setError(json.error || "Something went wrong");
       }
-    } catch (e) {
-      setError("Network error — check your connection");
-      console.error(e);
+    } catch (e: unknown) {
+      setError(getErrorMessage(e));
+      console.error("Portfolio fetch error:", e);
     } finally {
       setLoading(false);
       setActiveAction(null);

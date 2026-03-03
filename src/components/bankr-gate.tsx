@@ -5,29 +5,16 @@ import { useAccount, useReadContracts } from "wagmi";
 import { useWallet } from "./wallet-context";
 import { useTheme } from "./theme-provider";
 import { clsx } from "clsx";
-import { Lock, Zap, Shield, Wallet, ExternalLink, Coins } from "lucide-react";
+import { Lock, Zap, Shield, Wallet } from "lucide-react";
 
 // ═══════════════════════════════════════════════════════════════════════
 // BANKR GATE
-// Requires: 100,000,000 $CLAWDMINT tokens OR 10 ClawdmintAgents NFTs
+// Requires: 10 ClawdmintAgents NFTs
 // ═══════════════════════════════════════════════════════════════════════
 
-const CLAWDMINT_TOKEN = "0x6845307b66427164fE68F6734f0411D4434bcb07" as `0x${string}`;
 const AGENTS_NFT = (process.env["NEXT_PUBLIC_AGENTS_CONTRACT"] || "0x8641aa95cb2913bde395cdc8d802404d6eeecd0a") as `0x${string}`;
 
-const REQUIRED_TOKEN_AMOUNT = BigInt("100000000000000000000000000"); // 100M with 18 decimals
 const REQUIRED_NFT_COUNT = 10;
-
-// Minimal ERC20 ABI for balanceOf
-const ERC20_ABI = [
-  {
-    inputs: [{ name: "account", type: "address" }],
-    name: "balanceOf",
-    outputs: [{ name: "", type: "uint256" }],
-    stateMutability: "view",
-    type: "function",
-  },
-] as const;
 
 // Minimal ERC721 ABI for balanceOf
 const ERC721_ABI = [
@@ -50,15 +37,9 @@ export function BankrGate({ children }: BankrGateProps) {
   const { address } = useAccount();
   const [unlocked, setUnlocked] = useState(false);
 
-  // Read token + NFT balances
+  // Read NFT balance
   const { data, isLoading } = useReadContracts({
     contracts: [
-      {
-        address: CLAWDMINT_TOKEN,
-        abi: ERC20_ABI,
-        functionName: "balanceOf",
-        args: address ? [address] : undefined,
-      },
       {
         address: AGENTS_NFT,
         abi: ERC721_ABI,
@@ -78,13 +59,10 @@ export function BankrGate({ children }: BankrGateProps) {
       return;
     }
 
-    const tokenBalance = data[0]?.result as bigint | undefined;
-    const nftBalance = data[1]?.result as bigint | undefined;
-
-    const hasTokens = tokenBalance !== undefined && tokenBalance >= REQUIRED_TOKEN_AMOUNT;
+    const nftBalance = data[0]?.result as bigint | undefined;
     const hasNFTs = nftBalance !== undefined && nftBalance >= BigInt(REQUIRED_NFT_COUNT);
 
-    setUnlocked(hasTokens || hasNFTs);
+    setUnlocked(hasNFTs);
   }, [data, isLoading, address]);
 
   // If unlocked, render children directly
@@ -93,11 +71,7 @@ export function BankrGate({ children }: BankrGateProps) {
   }
 
   // Format balances for display
-  const tokenBalance = data?.[0]?.result as bigint | undefined;
-  const nftBalance = data?.[1]?.result as bigint | undefined;
-  const displayTokenBalance = tokenBalance
-    ? (Number(tokenBalance) / 1e18).toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g, ",")
-    : "0";
+  const nftBalance = data?.[0]?.result as bigint | undefined;
   const displayNftBalance = nftBalance ? Number(nftBalance).toString() : "0";
 
   return (
@@ -130,40 +104,12 @@ export function BankrGate({ children }: BankrGateProps) {
                 BANKR Access Required
               </h2>
               <p className="font-mono text-xs text-gray-500 mb-8 leading-relaxed">
-                This section is exclusively available to Clawdmint holders.
+                This section is exclusively available to Clawdmint Agents NFT holders.
                 <br />Connect your wallet to verify access.
               </p>
 
               {/* Requirements */}
               <div className="space-y-3 mb-8">
-                <div className={clsx(
-                  "flex items-center gap-3 px-4 py-3 rounded-xl border text-left",
-                  authenticated && tokenBalance !== undefined && tokenBalance >= REQUIRED_TOKEN_AMOUNT
-                    ? "bg-emerald-500/10 border-emerald-500/30"
-                    : "bg-white/[0.02] border-white/[0.06]"
-                )}>
-                  <Coins className={clsx("w-5 h-5 shrink-0",
-                    authenticated && tokenBalance !== undefined && tokenBalance >= REQUIRED_TOKEN_AMOUNT
-                      ? "text-emerald-400" : "text-gray-600"
-                  )} />
-                  <div className="flex-1 min-w-0">
-                    <div className="font-mono text-xs text-white font-medium">100,000,000 $CLAWDMINT</div>
-                    <div className="font-mono text-[10px] text-gray-500">
-                      {authenticated ? `Your balance: ${displayTokenBalance}` : "Connect wallet to check"}
-                    </div>
-                  </div>
-                  {authenticated && tokenBalance !== undefined && tokenBalance >= REQUIRED_TOKEN_AMOUNT && (
-                    <Zap className="w-4 h-4 text-emerald-400 shrink-0" />
-                  )}
-                </div>
-
-                {/* OR divider */}
-                <div className="flex items-center gap-3">
-                  <div className="flex-1 h-px bg-white/[0.06]" />
-                  <span className="font-mono text-[10px] text-gray-600">OR</span>
-                  <div className="flex-1 h-px bg-white/[0.06]" />
-                </div>
-
                 <div className={clsx(
                   "flex items-center gap-3 px-4 py-3 rounded-xl border text-left",
                   authenticated && nftBalance !== undefined && nftBalance >= BigInt(REQUIRED_NFT_COUNT)
@@ -202,10 +148,6 @@ export function BankrGate({ children }: BankrGateProps) {
                   <div className="flex gap-2">
                     <a href="/mint" className="flex-1 py-2.5 rounded-xl bg-cyan-500/10 border border-cyan-500/20 font-mono text-[11px] text-cyan-400 hover:bg-cyan-500/20 transition-all text-center flex items-center justify-center gap-1.5">
                       Mint NFTs
-                    </a>
-                    <a href={`https://dexscreener.com/base/${CLAWDMINT_TOKEN}`} target="_blank" rel="noopener noreferrer"
-                      className="flex-1 py-2.5 rounded-xl bg-white/[0.03] border border-white/[0.06] font-mono text-[11px] text-gray-400 hover:text-white transition-all text-center flex items-center justify-center gap-1.5">
-                      Buy $CLAWDMINT <ExternalLink className="w-3 h-3" />
                     </a>
                   </div>
                 </div>
