@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback } from "react";
 import { clsx } from "clsx";
 import { useTheme } from "@/components/theme-provider";
-import { BankrGate } from "@/components/bankr-gate";
+
 import { fetchWithRetry, getErrorMessage } from "@/lib/fetch-retry";
 import Link from "next/link";
 import {
@@ -161,7 +161,6 @@ export default function PortfolioPage() {
   };
 
   return (
-    <BankrGate>
       <div className={clsx("min-h-screen transition-colors duration-300", theme === "dark" ? "bg-[#050810]" : "bg-gray-50")}>
       {/* Scanline */}
       <div className="fixed inset-0 pointer-events-none z-0 opacity-[0.015]"
@@ -423,6 +422,5 @@ export default function PortfolioPage() {
         )}
       </div>
     </div>
-    </BankrGate>
   );
 }

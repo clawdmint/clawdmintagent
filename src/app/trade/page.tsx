@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback, useRef } from "react";
 import { clsx } from "clsx";
 import { useTheme } from "@/components/theme-provider";
-import { BankrGate } from "@/components/bankr-gate";
+
 import { fetchWithRetry, getErrorMessage } from "@/lib/fetch-retry";
 import Link from "next/link";
 import {
@@ -596,7 +596,6 @@ export default function TradePage() {
   const canTrade = connected && amount && parseFloat(amount) > 0 && fromToken.symbol !== toToken.symbol;
 
   return (
-    <BankrGate>
     <div className={clsx("min-h-screen transition-colors duration-300", theme === "dark" ? "bg-[#050810]" : "bg-gray-50")}>
       {/* Scanline */}
       <div
@@ -1009,6 +1008,5 @@ export default function TradePage() {
         />
       )}
     </div>
-    </BankrGate>
   );
 }

@@ -12,7 +12,7 @@ import {
   ArrowRight, Sparkles, ShoppingCart, Eye,
 } from "lucide-react";
 import Link from "next/link";
-import { BankrGate } from "@/components/bankr-gate";
+
 import { fetchWithRetry, getErrorMessage } from "@/lib/fetch-retry";
 import type { ScreenerToken } from "@/app/api/screener/tokens/route";
 
@@ -1023,7 +1023,6 @@ export default function BankrScreenerPage() {
   const newTokens = tokens.filter((t) => getAgeMins(t.deployedAt) < 60).length;
 
   return (
-    <BankrGate>
     <div className={clsx("min-h-screen transition-colors duration-300", theme === "dark" ? "bg-[#050810]" : "bg-gray-50")}>
       {/* Scanline */}
       <div className="fixed inset-0 pointer-events-none z-0 opacity-[0.015]"
@@ -1462,6 +1461,5 @@ export default function BankrScreenerPage() {
           watchlist={watchlist} onToggleWatchlist={handleToggleWatchlist} />
       )}
     </div>
-    </BankrGate>
   );
 }
