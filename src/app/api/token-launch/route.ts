@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { prisma } from "@/lib/db";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -41,6 +42,7 @@ export async function POST(request: Request) {
           feeRecipientType,
           feeRecipientValue,
           simulateOnly,
+          launcherAddress,
         } = body;
 
         if (!tokenName || typeof tokenName !== "string" || tokenName.length < 1 || tokenName.length > 100) {
@@ -84,12 +86,34 @@ export async function POST(request: Request) {
         const data = await res.json().catch(() => ({}));
 
         if (!res.ok) {
-          const errMsg =
-            data.error || data.message || `Bankr API error (${res.status})`;
-          return NextResponse.json(
-            { success: false, error: errMsg },
-            { status: res.status }
-          );
+          const errMsg = data.error || data.message || `Bankr API error (${res.status})`;
+          return NextResponse.json({ success: false, error: errMsg }, { status: res.status });
+        }
+
+        // Save to DB (non-blocking — don't let DB errors break the response)
+        if (data.tokenAddress && !simulateOnly) {
+          try {
+            await prisma.tokenLaunch.create({
+              data: {
+                tokenName: tokenName.trim(),
+                tokenSymbol: (tokenSymbol?.trim() || tokenName.trim().slice(0, 4)).toUpperCase(),
+                tokenAddress: data.tokenAddress,
+                poolId: data.poolId || null,
+                txHash: data.txHash || null,
+                description: description?.trim() || null,
+                imageUrl: image || null,
+                websiteUrl: websiteUrl?.trim() || null,
+                tweetUrl: tweetUrl?.trim() || null,
+                chain: data.chain || "base",
+                launcherAddress: (launcherAddress || feeRecipientValue).toLowerCase(),
+                feeRecipient: feeRecipientValue.toLowerCase(),
+                feeDistribution: data.feeDistribution ? JSON.stringify(data.feeDistribution) : null,
+                simulated: false,
+              },
+            });
+          } catch (dbErr) {
+            console.error("Failed to save token launch to DB:", dbErr);
+          }
         }
 
         return NextResponse.json({
@@ -149,9 +173,86 @@ export async function POST(request: Request) {
         });
       }
 
+      case "history": {
+        const { walletAddress } = body;
+        if (!walletAddress) {
+          return NextResponse.json(
+            { success: false, error: "walletAddress is required" },
+            { status: 400 }
+          );
+        }
+
+        const launches = await prisma.tokenLaunch.findMany({
+          where: { launcherAddress: walletAddress.toLowerCase() },
+          orderBy: { createdAt: "desc" },
+          take: 50,
+        });
+
+        return NextResponse.json({
+          success: true,
+          launches: launches.map((l) => ({
+            id: l.id,
+            tokenName: l.tokenName,
+            tokenSymbol: l.tokenSymbol,
+            tokenAddress: l.tokenAddress,
+            txHash: l.txHash,
+            chain: l.chain,
+            description: l.description,
+            imageUrl: l.imageUrl,
+            websiteUrl: l.websiteUrl,
+            createdAt: l.createdAt.toISOString(),
+            feeDistribution: l.feeDistribution ? JSON.parse(l.feeDistribution) : null,
+          })),
+        });
+      }
+
+      case "recent": {
+        const limit = Math.min(parseInt(body.limit || "20"), 50);
+        const launches = await prisma.tokenLaunch.findMany({
+          where: { simulated: false },
+          orderBy: { createdAt: "desc" },
+          take: limit,
+        });
+
+        return NextResponse.json({
+          success: true,
+          launches: launches.map((l) => ({
+            id: l.id,
+            tokenName: l.tokenName,
+            tokenSymbol: l.tokenSymbol,
+            tokenAddress: l.tokenAddress,
+            txHash: l.txHash,
+            chain: l.chain,
+            imageUrl: l.imageUrl,
+            launcherAddress: l.launcherAddress,
+            createdAt: l.createdAt.toISOString(),
+          })),
+          total: launches.length,
+        });
+      }
+
+      case "stats": {
+        const [totalLaunches, recentLaunches, uniqueLaunchers] = await Promise.all([
+          prisma.tokenLaunch.count({ where: { simulated: false } }),
+          prisma.tokenLaunch.count({
+            where: { simulated: false, createdAt: { gte: new Date(Date.now() - 24 * 60 * 60 * 1000) } },
+          }),
+          prisma.tokenLaunch.groupBy({ by: ["launcherAddress"], where: { simulated: false } }),
+        ]);
+
+        return NextResponse.json({
+          success: true,
+          stats: {
+            totalLaunches,
+            recentLaunches24h: recentLaunches,
+            uniqueLaunchers: uniqueLaunchers.length,
+          },
+        });
+      }
+
       default:
         return NextResponse.json(
-          { success: false, error: "Unknown action. Supported: deploy, simulate" },
+          { success: false, error: "Unknown action. Supported: deploy, simulate, history, recent, stats" },
           { status: 400 }
         );
     }

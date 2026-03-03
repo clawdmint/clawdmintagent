@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { prisma } from "@/lib/db";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 30;
@@ -155,7 +156,7 @@ interface CacheEntry {
   timestamp: number;
 }
 const cache = new Map<string, CacheEntry>();
-const CACHE_TTL = 25_000; // 25 seconds
+const CACHE_TTL = 12_000; // 12 seconds for faster refresh
 
 // ═══════════════════════════════════════════════════════════════════════
 // DATA FETCHERS
@@ -215,19 +216,17 @@ async function fetchBankrTokens(limit: number, sortBy = "market-cap", sort = "de
   return allTokens;
 }
 
-// Fetch newest tokens from ALL Clanker (not just Bankr) for New Pairs view
+// Fetch newest tokens — no socialInterface filter for broader coverage
 async function fetchNewestTokens(limit: number): Promise<ClankerToken[]> {
   const allTokens: ClankerToken[] = [];
   const seen = new Set<string>();
   let cursor: string | undefined;
-  // Fetch up to 8 pages (160 tokens) to get enough after deduplication
   const maxPages = Math.max(Math.ceil(limit / 20), 8);
 
   for (let page = 0; page < maxPages; page++) {
     if (allTokens.length >= limit) break;
 
     const params = new URLSearchParams({
-      socialInterface: "Bankr",
       includeMarket: "true",
       includeUser: "true",
       sort: "desc",
@@ -238,7 +237,6 @@ async function fetchNewestTokens(limit: number): Promise<ClankerToken[]> {
 
     const result = await fetchClankerPage(params);
     
-    // Deduplicate by contract_address (Clanker returns dupes)
     for (const token of result.tokens) {
       const addr = token.contract_address?.toLowerCase();
       if (addr && !seen.has(addr)) {
@@ -251,6 +249,34 @@ async function fetchNewestTokens(limit: number): Promise<ClankerToken[]> {
     if (!cursor || result.tokens.length === 0) break;
   }
   return allTokens.slice(0, limit);
+}
+
+// Fetch platform-launched tokens from our DB and convert to ClankerToken shape
+async function fetchPlatformLaunches(limit: number): Promise<ClankerToken[]> {
+  try {
+    const launches = await prisma.tokenLaunch.findMany({
+      where: { simulated: false },
+      orderBy: { createdAt: "desc" },
+      take: limit,
+    });
+
+    return launches.map((l, i) => ({
+      id: -1 * (i + 1),
+      created_at: l.createdAt.toISOString(),
+      contract_address: l.tokenAddress,
+      name: l.tokenName,
+      symbol: l.tokenSymbol,
+      description: l.description || undefined,
+      img_url: l.imageUrl || undefined,
+      deployed_at: l.createdAt.toISOString(),
+      tx_hash: l.txHash || undefined,
+      msg_sender: l.launcherAddress,
+      chain_id: 8453,
+      tags: { knownInterfaceDeployer: true },
+    }));
+  } catch {
+    return [];
+  }
 }
 
 // Fetch core tokens individually from Clanker (by search query)
@@ -555,8 +581,23 @@ export async function GET(request: Request) {
       // ─── SEARCH MODE ───
       allClankerTokens = await fetchSearchResults(query, limit);
     } else if (sortBy === "deployed-at") {
-      // ─── NEW PAIRS MODE: Fetch newest tokens from all Clanker ───
-      allClankerTokens = await fetchNewestTokens(Math.min(limit, 200));
+      // ─── NEW PAIRS MODE: Clanker newest + platform launches ───
+      const [clankerNewest, platformLaunches] = await Promise.all([
+        fetchNewestTokens(Math.min(limit, 200)),
+        fetchPlatformLaunches(50),
+      ]);
+      
+      const seen = new Set<string>();
+      allClankerTokens = [];
+      // Platform launches first (guaranteed fresh)
+      for (const token of platformLaunches) {
+        const addr = token.contract_address?.toLowerCase();
+        if (addr && !seen.has(addr)) { seen.add(addr); allClankerTokens.push(token); }
+      }
+      for (const token of clankerNewest) {
+        const addr = token.contract_address?.toLowerCase();
+        if (addr && !seen.has(addr)) { seen.add(addr); allClankerTokens.push(token); }
+      }
     } else {
       // ─── MAIN MODE: Bankr tokens + Core tokens ───
       const [bankrTokens, coreTokens] = await Promise.all([

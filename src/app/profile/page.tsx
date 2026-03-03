@@ -17,6 +17,7 @@ import {
   Hash,
   AtSign,
   Loader2,
+  Rocket,
 } from "lucide-react";
 
 const chainId = parseInt(process.env.NEXT_PUBLIC_CHAIN_ID || "8453");
@@ -30,6 +31,20 @@ interface ProfileData {
   total_spent_wei: string;
   unique_collections: number;
   total_transactions: number;
+  total_launches: number;
+}
+
+interface TokenLaunchRecord {
+  id: string;
+  tokenName: string;
+  tokenSymbol: string;
+  tokenAddress: string;
+  txHash: string | null;
+  chain: string;
+  description: string | null;
+  imageUrl: string | null;
+  websiteUrl: string | null;
+  createdAt: string;
 }
 
 interface MintRecord {
@@ -56,6 +71,7 @@ export default function ProfilePage() {
 
   const [profile, setProfile] = useState<ProfileData | null>(null);
   const [mints, setMints] = useState<MintRecord[]>([]);
+  const [tokenLaunches, setTokenLaunches] = useState<TokenLaunchRecord[]>([]);
   const [loading, setLoading] = useState(false);
   const [clawdName, setClawdName] = useState<string | null>(null);
   const [clawdNames, setClawdNames] = useState<Array<{ tokenId: bigint; name: string }>>([]);
@@ -63,13 +79,17 @@ export default function ProfilePage() {
 
   // Fetch profile data
   useEffect(() => {
-    if (!address) { setProfile(null); setMints([]); return; }
+    if (!address) { setProfile(null); setMints([]); setTokenLaunches([]); return; }
     async function fetchProfile() {
       setLoading(true);
       try {
         const res = await fetch(`/api/profile/${address}`);
         const data = await res.json();
-        if (data.success) { setProfile(data.profile); setMints(data.mints); }
+        if (data.success) {
+          setProfile(data.profile);
+          setMints(data.mints);
+          setTokenLaunches(data.tokenLaunches || []);
+        }
       } catch { /* ignore */ }
       setLoading(false);
     }
@@ -215,8 +235,8 @@ export default function ProfilePage() {
             {[
               { value: profile.total_nfts.toString(), label: "NFTs", icon: Package },
               { value: profile.unique_collections.toString(), label: "Collections", icon: Hash },
+              { value: (profile.total_launches || 0).toString(), label: "Launches", icon: Rocket },
               { value: totalSpent === "0" ? "—" : `${totalSpent} ETH`, label: "Spent", icon: Coins },
-              { value: clawdNames.length.toString(), label: ".clawd", icon: AtSign },
             ].map((s) => (
               <div key={s.label} className="text-center">
                 <div className="text-base font-bold">{s.value}</div>
@@ -253,6 +273,78 @@ export default function ProfilePage() {
                 <AtSign className="w-3.5 h-3.5" />
                 {n.name}.clawd
               </Link>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Token Launches */}
+      {tokenLaunches.length > 0 && (
+        <div className="mb-6">
+          <div className={clsx(
+            "text-xs font-semibold uppercase tracking-[0.15em] mb-3 flex items-center gap-2",
+            theme === "dark" ? "text-gray-600" : "text-gray-400"
+          )}>
+            <Rocket className="w-3.5 h-3.5" /> Token Launches
+          </div>
+          <div className="space-y-2">
+            {tokenLaunches.map((launch) => (
+              <div
+                key={launch.id}
+                className={clsx(
+                  "flex items-center gap-3 p-3 rounded-xl border transition-colors",
+                  theme === "dark"
+                    ? "bg-white/[0.01] border-white/[0.05] hover:bg-white/[0.03]"
+                    : "bg-white border-gray-200 hover:bg-gray-50"
+                )}
+              >
+                <div className={clsx(
+                  "w-12 h-12 rounded-xl flex items-center justify-center font-mono text-sm font-bold shrink-0",
+                  theme === "dark" ? "bg-cyan-500/10 text-cyan-400" : "bg-cyan-50 text-cyan-600"
+                )}>
+                  {launch.tokenSymbol.slice(0, 4)}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="font-semibold text-sm truncate">
+                    {launch.tokenName} <span className={clsx("font-mono text-xs", theme === "dark" ? "text-gray-600" : "text-gray-400")}>${launch.tokenSymbol}</span>
+                  </div>
+                  <div className={clsx("text-xs font-mono truncate", theme === "dark" ? "text-gray-600" : "text-gray-400")}>
+                    {launch.tokenAddress.slice(0, 6)}...{launch.tokenAddress.slice(-4)} · {launch.chain}
+                  </div>
+                </div>
+                <div className="shrink-0 text-right">
+                  <div className={clsx("text-[11px]", theme === "dark" ? "text-gray-700" : "text-gray-400")}>
+                    {new Date(launch.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
+                  </div>
+                </div>
+                <div className="flex items-center gap-1 shrink-0">
+                  <a
+                    href={`https://dexscreener.com/base/${launch.tokenAddress}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className={clsx(
+                      "p-1.5 rounded-lg transition-colors text-[10px] font-mono font-bold",
+                      theme === "dark" ? "text-cyan-400 hover:bg-cyan-500/10" : "text-cyan-600 hover:bg-cyan-50"
+                    )}
+                    title="DexScreener"
+                  >
+                    DEX
+                  </a>
+                  {launch.txHash && (
+                    <a
+                      href={`${explorerUrl}/tx/${launch.txHash}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className={clsx(
+                        "p-1.5 rounded-lg transition-colors",
+                        theme === "dark" ? "text-gray-600 hover:text-gray-400 hover:bg-white/[0.04]" : "text-gray-300 hover:text-gray-500 hover:bg-gray-100"
+                      )}
+                    >
+                      <ExternalLink className="w-3.5 h-3.5" />
+                    </a>
+                  )}
+                </div>
+              </div>
             ))}
           </div>
         </div>

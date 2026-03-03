@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { clsx } from "clsx";
 import { useTheme } from "@/components/theme-provider";
 import { useWallet } from "@/components/wallet-context";
@@ -30,24 +30,15 @@ interface DeployResult {
 
 interface LaunchRecord {
   id: string;
-  name: string;
-  symbol: string;
+  name?: string;
+  tokenName?: string;
+  symbol?: string;
+  tokenSymbol?: string;
   tokenAddress: string;
   txHash?: string;
-  timestamp: number;
-  simulated: boolean;
-}
-
-function getLaunchHistory(): LaunchRecord[] {
-  if (typeof window === "undefined") return [];
-  try { return JSON.parse(localStorage.getItem("clawdmint_launches") || "[]"); } catch { return []; }
-}
-
-function addLaunchRecord(record: LaunchRecord) {
-  const history = getLaunchHistory();
-  history.unshift(record);
-  if (history.length > 30) history.length = 30;
-  localStorage.setItem("clawdmint_launches", JSON.stringify(history));
+  timestamp?: number;
+  createdAt?: string;
+  simulated?: boolean;
 }
 
 export default function LaunchPage() {
@@ -69,10 +60,34 @@ export default function LaunchPage() {
   const [result, setResult] = useState<DeployResult | null>(null);
   const [error, setError] = useState("");
   const [copied, setCopied] = useState("");
-  const [history, setHistory] = useState<LaunchRecord[]>(() => getLaunchHistory());
+  const [history, setHistory] = useState<LaunchRecord[]>([]);
   const [showHistory, setShowHistory] = useState(false);
+  const [stats, setStats] = useState<{ totalLaunches: number; recentLaunches24h: number; uniqueLaunchers: number } | null>(null);
 
   const effectiveFeeValue = useOwnWallet ? (address || "") : feeValue;
+
+  // Fetch launch history from DB when wallet connects
+  useEffect(() => {
+    if (!address) { setHistory([]); return; }
+    fetch("/api/token-launch", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "history", walletAddress: address }),
+    }).then(r => r.json()).then(d => {
+      if (d.success) setHistory(d.launches.map((l: LaunchRecord) => ({ ...l, timestamp: new Date(l.createdAt || 0).getTime() })));
+    }).catch(() => {});
+  }, [address]);
+
+  // Fetch platform stats
+  useEffect(() => {
+    fetch("/api/token-launch", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "stats" }),
+    }).then(r => r.json()).then(d => {
+      if (d.success) setStats(d.stats);
+    }).catch(() => {});
+  }, []);
 
   const copyToClip = useCallback((text: string, key: string) => {
     navigator.clipboard.writeText(text);
@@ -126,6 +141,7 @@ export default function LaunchPage() {
           tweetUrl: tweetUrl.trim() || undefined,
           feeRecipientType: useOwnWallet ? "wallet" : feeType,
           feeRecipientValue: effectiveFeeValue,
+          launcherAddress: address,
         }),
       }, { timeoutMs: 60000 });
       const data = await res.json();
@@ -140,8 +156,7 @@ export default function LaunchPage() {
           timestamp: Date.now(),
           simulated: false,
         };
-        addLaunchRecord(record);
-        setHistory(getLaunchHistory());
+        setHistory((prev) => [record, ...prev]);
       } else {
         setError(data.error || "Deploy failed");
       }
@@ -207,12 +222,12 @@ export default function LaunchPage() {
                 <div key={h.id} className={clsx("flex items-center justify-between px-3 py-2 rounded-lg border", isDark ? "border-white/[0.04] bg-white/[0.01]" : "border-gray-100 bg-gray-50")}>
                   <div className="flex items-center gap-3">
                     <div className={clsx("w-8 h-8 rounded-lg flex items-center justify-center font-mono text-xs font-bold", isDark ? "bg-cyan-500/10 text-cyan-400" : "bg-cyan-50 text-cyan-600")}>
-                      {h.symbol.slice(0, 3)}
+                      {(h.tokenSymbol || h.symbol || "?").slice(0, 3)}
                     </div>
                     <div>
-                      <div className="font-mono text-xs font-medium">{h.name} <span className={isDark ? "text-gray-600" : "text-gray-400"}>({h.symbol})</span></div>
+                      <div className="font-mono text-xs font-medium">{h.tokenName || h.name} <span className={isDark ? "text-gray-600" : "text-gray-400"}>({h.tokenSymbol || h.symbol})</span></div>
                       <div className={clsx("font-mono text-[10px]", isDark ? "text-gray-700" : "text-gray-400")}>
-                        {new Date(h.timestamp).toLocaleDateString()} {h.simulated && "· simulated"}
+                        {new Date(h.createdAt || h.timestamp || 0).toLocaleDateString()} {h.simulated && "· simulated"}
                       </div>
                     </div>
                   </div>
@@ -545,6 +560,26 @@ export default function LaunchPage() {
                 ))}
               </div>
             </div>
+
+            {/* Platform Stats */}
+            {stats && (
+              <div className={clsx("rounded-2xl border p-4", isDark ? "bg-[#0a0d14] border-white/[0.06]" : "bg-white border-gray-200")}>
+                <div className="grid grid-cols-3 gap-3 text-center">
+                  <div>
+                    <div className="font-mono text-lg font-bold text-cyan-400">{stats.totalLaunches}</div>
+                    <div className={clsx("font-mono text-[9px] uppercase", isDark ? "text-gray-600" : "text-gray-400")}>Total Launches</div>
+                  </div>
+                  <div>
+                    <div className="font-mono text-lg font-bold text-emerald-400">{stats.recentLaunches24h}</div>
+                    <div className={clsx("font-mono text-[9px] uppercase", isDark ? "text-gray-600" : "text-gray-400")}>Last 24h</div>
+                  </div>
+                  <div>
+                    <div className="font-mono text-lg font-bold text-purple-400">{stats.uniqueLaunchers}</div>
+                    <div className={clsx("font-mono text-[9px] uppercase", isDark ? "text-gray-600" : "text-gray-400")}>Launchers</div>
+                  </div>
+                </div>
+              </div>
+            )}
 
             {/* Powered by */}
             <div className={clsx("rounded-xl border px-4 py-3 flex items-center justify-center gap-2", isDark ? "border-white/[0.04] bg-white/[0.01]" : "border-gray-100 bg-gray-50")}>

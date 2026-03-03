@@ -211,3 +211,35 @@ model WhitelistEntry {
   
   @@index([walletAddress])
 }
+
+// ═══════════════════════════════════════════════════════════════════════
+// TOKEN LAUNCHES (via Bankr Partner API)
+// ═══════════════════════════════════════════════════════════════════════
+
+model TokenLaunch {
+  id              String    @id @default(cuid())
+  
+  tokenName       String
+  tokenSymbol     String
+  tokenAddress    String    @unique
+  poolId          String?
+  txHash          String?
+  
+  description     String?
+  imageUrl        String?
+  websiteUrl      String?
+  tweetUrl        String?
+  chain           String    @default("base")
+  
+  launcherAddress String
+  feeRecipient    String
+  feeDistribution String?   // JSON — fee breakdown from Bankr
+  
+  simulated       Boolean   @default(false)
+  
+  createdAt       DateTime  @default(now())
+  
+  @@index([launcherAddress])
+  @@index([tokenAddress])
+  @@index([createdAt])
+}

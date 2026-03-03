@@ -58,6 +58,18 @@ export async function GET(
       },
     });
 
+    // Fetch token launches for this wallet
+    const tokenLaunches = await prisma.tokenLaunch.findMany({
+      where: {
+        launcherAddress: {
+          equals: normalizedAddress,
+          mode: "insensitive",
+        },
+        simulated: false,
+      },
+      orderBy: { createdAt: "desc" },
+    });
+
     // Aggregate stats
     const totalNfts = mints.reduce((sum, m) => sum + m.quantity, 0);
     const totalSpentWei = mints.reduce((sum, m) => sum + BigInt(m.totalPaid || "0"), BigInt(0));
@@ -71,6 +83,7 @@ export async function GET(
         total_spent_wei: totalSpentWei.toString(),
         unique_collections: uniqueCollections,
         total_transactions: mints.length,
+        total_launches: tokenLaunches.length,
       },
       mints: mints.map((m) => ({
         id: m.id,
@@ -91,6 +104,18 @@ export async function GET(
           agent_name: m.collection.agent.name,
           agent_avatar: m.collection.agent.avatarUrl,
         },
+      })),
+      tokenLaunches: tokenLaunches.map((l) => ({
+        id: l.id,
+        tokenName: l.tokenName,
+        tokenSymbol: l.tokenSymbol,
+        tokenAddress: l.tokenAddress,
+        txHash: l.txHash,
+        chain: l.chain,
+        description: l.description,
+        imageUrl: l.imageUrl,
+        websiteUrl: l.websiteUrl,
+        createdAt: l.createdAt.toISOString(),
       })),
     });
   } catch (error) {
