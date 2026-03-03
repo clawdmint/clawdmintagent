@@ -1226,24 +1226,40 @@ export default function BankrScreenerPage() {
               </div>
             ) : (
               /* ─── TABLE VIEW ─── */
-              <div className="overflow-x-auto">
-                <table className="w-full">
+              <div className="overflow-x-hidden">
+                <table className="w-full table-fixed">
+                  <colgroup>
+                    <col className="w-[32px]" />
+                    <col className="w-[32px]" />
+                    <col />
+                    <col className="w-[72px]" />
+                    <col className="w-[44px] hidden sm:table-column" />
+                    <col className="w-[80px] hidden xl:table-column" />
+                    <col className="w-[52px] hidden lg:table-column" />
+                    <col className="w-[64px] hidden xl:table-column" />
+                    <col className="w-[56px] hidden md:table-column" />
+                    <col className="w-[56px]" />
+                    <col className="w-[56px] hidden lg:table-column" />
+                    <col className="w-[56px]" />
+                    <col className="w-[60px] hidden xl:table-column" />
+                    <col className="w-[68px] hidden lg:table-column" />
+                  </colgroup>
                   <thead>
                     <tr className="border-b border-cyan-500/10 text-[10px] text-gray-500 uppercase tracking-wider">
-                      <th className="text-left pl-4 pr-1 py-3 font-medium w-6"></th>
-                      <th className="text-left pr-2 py-3 font-medium w-6">#</th>
+                      <th className="text-left pl-4 pr-1 py-3 font-medium"></th>
+                      <th className="text-left pr-2 py-3 font-medium">#</th>
                       <th className="text-left px-2 py-3 font-medium">Token</th>
                       <th className="text-right px-2 py-3 font-medium">Price</th>
-                      <th className="text-center px-2 py-3 font-medium hidden sm:table-cell">Age</th>
-                      <th className="text-center px-2 py-3 font-medium hidden lg:table-cell">Buy/Sell</th>
-                      <th className="text-right px-2 py-3 font-medium hidden md:table-cell">Txns</th>
-                      <th className="text-right px-2 py-3 font-medium hidden lg:table-cell">Volume</th>
-                      <th className="text-right px-2 py-3 font-medium hidden sm:table-cell">5M</th>
-                      <th className="text-right px-2 py-3 font-medium">1H</th>
-                      <th className="text-right px-2 py-3 font-medium hidden md:table-cell">6H</th>
-                      <th className="text-right px-2 py-3 font-medium">24H</th>
-                      <th className="text-right px-2 py-3 font-medium hidden lg:table-cell">Liq</th>
-                      <th className="text-right px-2 pr-4 py-3 font-medium hidden md:table-cell">MCap</th>
+                      <th className="text-center px-1 py-3 font-medium hidden sm:table-cell">Age</th>
+                      <th className="text-center px-1 py-3 font-medium hidden xl:table-cell">Buy/Sell</th>
+                      <th className="text-right px-1 py-3 font-medium hidden lg:table-cell">Txns</th>
+                      <th className="text-right px-1 py-3 font-medium hidden xl:table-cell">Vol</th>
+                      <th className="text-right px-1 py-3 font-medium hidden md:table-cell">5M</th>
+                      <th className="text-right px-1 py-3 font-medium">1H</th>
+                      <th className="text-right px-1 py-3 font-medium hidden lg:table-cell">6H</th>
+                      <th className="text-right px-1 py-3 font-medium">24H</th>
+                      <th className="text-right px-1 py-3 font-medium hidden xl:table-cell">Liq</th>
+                      <th className="text-right px-1 pr-4 py-3 font-medium hidden lg:table-cell">MCap</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -1279,41 +1295,19 @@ export default function BankrScreenerPage() {
                             </div>
                           </td>
                           {/* Token */}
-                          <td className="px-2 py-3">
-                            <div className="flex items-center gap-2.5">
+                          <td className="px-2 py-3 overflow-hidden">
+                            <div className="flex items-center gap-2 min-w-0">
                               <TokenImage src={token.imageUrl} symbol={token.symbol} />
-                              <div className="min-w-0">
-                                <div className="flex items-center gap-1 flex-wrap">
-                                  <span className="font-mono text-xs font-semibold text-white truncate max-w-[100px]">{token.symbol}</span>
-                                  <span className="font-mono text-[10px] text-gray-600">/{token.pair}</span>
+                              <div className="min-w-0 flex-1">
+                                <div className="flex items-center gap-1 overflow-hidden">
+                                  <span className="font-mono text-xs font-semibold text-white truncate">{token.symbol}</span>
+                                  <span className="font-mono text-[10px] text-gray-600 shrink-0">/{token.pair}</span>
                                   {token.isCore && <CoreBadge />}
                                   {token.isVerified && <VerifiedBadge />}
-                                  <McapBadge marketCap={token.marketCap} />
                                   <AgeBadge deployedAt={token.deployedAt} />
-                                  {token.warnings.length > 0 && <AlertTriangle className="w-3 h-3 text-yellow-500/60 shrink-0" />}
-                                  {!token.hasLiquidity && !token.isCore && <span className="font-mono text-[7px] text-red-400/60 px-1 py-0.5 rounded bg-red-500/10 border border-red-500/20">LOW LIQ</span>}
-                                  {/* Inline social icons */}
-                                  {(token.socials?.length > 0 || token.website) && (
-                                    <span className="flex items-center gap-0.5 ml-0.5">
-                                      {token.website && (
-                                        <a href={token.website} target="_blank" rel="noopener noreferrer"
-                                          onClick={(e) => e.stopPropagation()}
-                                          className="text-gray-600 hover:text-cyan-400 transition-colors" title="Website">
-                                          <Globe className="w-3 h-3" />
-                                        </a>
-                                      )}
-                                      {token.socials?.slice(0, 3).map((s) => (
-                                        <a key={s.platform} href={s.url} target="_blank" rel="noopener noreferrer"
-                                          onClick={(e) => e.stopPropagation()}
-                                          className={clsx("transition-colors", getSocialColor(s.platform))}
-                                          title={getSocialLabel(s.platform)}>
-                                          {getSocialIcon(s.platform)}
-                                        </a>
-                                      ))}
-                                    </span>
-                                  )}
+                                  {!token.hasLiquidity && !token.isCore && <span className="font-mono text-[7px] text-red-400/60 px-1 py-0.5 rounded bg-red-500/10 border border-red-500/20 shrink-0">LOW LIQ</span>}
                                 </div>
-                                <div className="font-mono text-[10px] text-gray-600 truncate max-w-[140px]">{token.name}</div>
+                                <div className="font-mono text-[10px] text-gray-600 truncate">{token.name}</div>
                               </div>
                             </div>
                           </td>
@@ -1322,41 +1316,41 @@ export default function BankrScreenerPage() {
                             <span className="font-mono text-xs text-white tabular-nums">{fmtPrice(token.priceUsd)}</span>
                           </td>
                           {/* Age */}
-                          <td className="px-2 py-3 text-center hidden sm:table-cell">
+                          <td className="px-1 py-3 text-center hidden sm:table-cell">
                             <span className="font-mono text-[11px] text-gray-400 tabular-nums">{fmtAge(token.deployedAt)}</span>
                           </td>
                           {/* Buy/Sell */}
-                          <td className="px-2 py-3 hidden lg:table-cell">
+                          <td className="px-1 py-3 hidden xl:table-cell">
                             <BuySellBar buys={token.buysH1} sells={token.sellsH1} />
                           </td>
                           {/* Txns */}
-                          <td className="px-2 py-3 text-right hidden md:table-cell">
+                          <td className="px-1 py-3 text-right hidden lg:table-cell">
                             <span className="font-mono text-xs text-gray-300 tabular-nums">
                               {token.txns24h !== null ? fmtCompact(token.txns24h) : "—"}
                             </span>
                           </td>
                           {/* Volume */}
-                          <td className="px-2 py-3 text-right hidden lg:table-cell">
+                          <td className="px-1 py-3 text-right hidden xl:table-cell">
                             <span className="font-mono text-xs text-gray-300 tabular-nums">
                               {token.volume24h !== null ? `$${fmtCompact(token.volume24h)}` : "—"}
                             </span>
                           </td>
                           {/* 5M */}
-                          <td className="px-2 py-3 text-right hidden sm:table-cell"><PriceChangeCell value={token.priceChange5m} /></td>
+                          <td className="px-1 py-3 text-right hidden md:table-cell"><PriceChangeCell value={token.priceChange5m} /></td>
                           {/* 1H */}
-                          <td className="px-2 py-3 text-right"><PriceChangeCell value={token.priceChange1h} /></td>
+                          <td className="px-1 py-3 text-right"><PriceChangeCell value={token.priceChange1h} /></td>
                           {/* 6H */}
-                          <td className="px-2 py-3 text-right hidden md:table-cell"><PriceChangeCell value={token.priceChange6h} /></td>
+                          <td className="px-1 py-3 text-right hidden lg:table-cell"><PriceChangeCell value={token.priceChange6h} /></td>
                           {/* 24H */}
-                          <td className="px-2 py-3 text-right"><PriceChangeCell value={token.priceChange24h} /></td>
+                          <td className="px-1 py-3 text-right"><PriceChangeCell value={token.priceChange24h} /></td>
                           {/* Liquidity */}
-                          <td className="px-2 py-3 text-right hidden lg:table-cell">
+                          <td className="px-1 py-3 text-right hidden xl:table-cell">
                             <span className="font-mono text-xs text-gray-300 tabular-nums">
                               {token.liquidity !== null ? `$${fmtCompact(token.liquidity)}` : "—"}
                             </span>
                           </td>
                           {/* MCap */}
-                          <td className="px-2 pr-4 py-3 text-right hidden md:table-cell">
+                          <td className="px-1 pr-4 py-3 text-right hidden lg:table-cell">
                             <span className="font-mono text-xs text-gray-300 tabular-nums">
                               {token.marketCap !== null ? `$${fmtCompact(token.marketCap)}` : "—"}
                             </span>
