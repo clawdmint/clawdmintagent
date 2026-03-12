@@ -7,6 +7,7 @@ import {
 } from "./network-config";
 
 export type CollectionChain = SupportedNetworkId;
+export const SOLANA_COLLECTION_CHAINS: CollectionChain[] = ["solana", "solana-devnet"];
 
 const LAMPORTS_PER_SOL = BigInt("1000000000");
 

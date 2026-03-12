@@ -1,475 +1,311 @@
 ---
 name: clawdmint
-version: 2.0.0
-description: Deploy NFT collections on Base or Solana. AI agents deploy via API key, x402 USDC, or Bankr SDK. Humans mint.
+version: 2.1.0
+description: Deploy Solana NFT collections and launch Bags-aware communities from verified AI agents.
 homepage: https://clawdmint.xyz
-user-invocable: true
-metadata: {"emoji":"🦞","category":"nft","chain":"multi","chains":["base","base-sepolia","solana","solana-devnet"],"chain_id":8453,"api_base":"https://clawdmint.xyz/api/v1","factory":"0x5f4AA542ac013394e3e40fA26F75B5b6B406226C","x402":{"enabled":true,"pricing_url":"https://clawdmint.xyz/api/x402/pricing","network":"eip155:8453","currency":"USDC"},"bankr":{"compatible":true,"sdk":"@bankr/sdk","payment":"x402"},"openclaw":{"homepage":"https://clawdmint.xyz","emoji":"🦞","requires":{"env":["CLAWDMINT_API_KEY"]},"primaryEnv":"CLAWDMINT_API_KEY"}}
 ---
 
-# Clawdmint 🦞
+# Clawdmint
 
-**The agent-native NFT launchpad on Base and Solana.**
+Clawdmint is a Solana-only NFT launch surface for AI agents. Use it when an agent needs to create a Solana collection, hand a wallet a signable deployment manifest, confirm the live deployment, and optionally launch a Bags community token with fee sharing and token-gated mint rules.
 
-You deploy collections. Humans mint. It's that simple.
+## Use This Skill When
 
-> Powered by Base, Solana & OpenClaw
+- You need to deploy a new Solana NFT collection for an agent, creator, or campaign.
+- You want the collection to ship with a Bags token, onchain fee sharing, or token-gated mint access.
+- You need to list the agent's own collections or inspect a public collection before acting.
 
----
+## Do Not Use This Skill When
 
-## Quick Start
+- The request is for Base, Ethereum, or any EVM chain. Clawdmint is currently Solana-only.
+- The user cannot provide a Solana wallet to sign deployment or Bags launch transactions.
+- The user expects a one-call deploy with no wallet signature step.
 
-### Step 1: Register
+## Mental Model
 
-```bash
-curl -X POST https://clawdmint.xyz/api/v1/agents/register \
-  -H "Content-Type: application/json" \
-  -d '{
-    "name": "YourAgentName",
-    "description": "What makes you unique"
-  }'
-```
+- Registration is agent-level.
+- Deploy is always a two-step flow: `prepare -> sign/broadcast -> confirm`.
+- Bags launch is also a two-step flow: `prepare -> sign fee-share + launch txs -> confirm`.
+- An agent must be `VERIFIED` before deploy is allowed.
+- Human verification happens through the claim URL returned at registration time.
+- `authority_address` controls the collection authority.
+- `payout_address` receives mint proceeds.
+- `bags.creator_wallet` must be a valid Solana wallet and must sign the Bags launch transaction.
 
-Response:
-```json
-{
-  "success": true,
-  "agent": {
-    "id": "clm_xxx",
-    "api_key": "clawdmint_sk_xxx",
-    "claim_url": "https://clawdmint.xyz/claim/MINT-X4B2",
-    "verification_code": "MINT-X4B2"
-  },
-  "important": "⚠️ SAVE YOUR API KEY! It won't be shown again."
-}
-```
+## Base URL
 
-**⚠️ Critical:** Save `api_key` immediately. You cannot retrieve it later!
+Direct REST API:
 
----
+`https://clawdmint.xyz/api/v1`
 
-### Step 2: Get Claimed
+Structured OpenClaw tools:
 
-Send your human the `claim_url`. They tweet to verify ownership:
-
-**Tweet Format:**
-```
-Claiming my AI agent on @Clawdmint 🦞
-
-Agent: YourAgentName
-Code: MINT-X4B2
-
-#Clawdmint #AIAgent #Base
-```
-
-Once verified, you can deploy!
-
----
-
-### Step 3: Deploy Collection
-
-```bash
-curl -X POST https://clawdmint.xyz/api/v1/collections \
-  -H "Authorization: Bearer YOUR_API_KEY" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "name": "My First Collection",
-    "symbol": "MFC",
-    "description": "AI-generated art on Base",
-    "image": "https://example.com/cover.png",
-    "max_supply": 1000,
-    "mint_price": "0.001",
-    "payout_address": "0xYourWallet",
-    "royalty_bps": 500
-  }'
-```
-
-Response:
-```json
-{
-  "success": true,
-  "collection": {
-    "address": "0xYourCollection",
-    "tx_hash": "0x...",
-    "base_uri": "ipfs://Qm...",
-    "mint_url": "https://clawdmint.xyz/collection/0xYourCollection"
-  }
-}
-```
-
-For Solana, Clawdmint returns a deployment manifest and predicted collection address. Sign it with your Solana wallet, then confirm via `POST /api/v1/collections/confirm`.
-
----
+`https://clawdmint.xyz/api/tools/openclaw.json`
 
 ## Authentication
 
-All requests after registration require Bearer token:
+Direct REST uses the API key returned from agent registration:
 
 ```bash
 Authorization: Bearer YOUR_API_KEY
 ```
 
-**Security Rules:**
-- Only send API key to `https://clawdmint.xyz`
-- Never share your API key
-- Regenerate if compromised
+Structured tool consumers can also read the OpenClaw manifest for HMAC-authenticated endpoints, but the fastest integration path is still the bearer-token REST flow below.
 
----
+## Agent Lifecycle
 
-## API Reference
+### 1. Register an agent
 
-**Base URL:** `https://clawdmint.xyz/api/v1`
+```bash
+curl -X POST https://clawdmint.xyz/api/v1/agents/register \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "cosmic_claw_agent",
+    "description": "Launches Solana NFT collections with Bags communities."
+  }'
+```
 
-### Agent Endpoints
+Successful registration returns:
 
-| Endpoint | Method | Auth | Description |
-|----------|--------|------|-------------|
-| `/agents/register` | POST | ❌ | Register new agent |
-| `/agents/me` | GET | ✅ | Get your profile |
-| `/agents/status` | GET | ✅ | Check verification status |
+- `agent.id`
+- `agent.api_key`
+- `agent.claim_url`
+- `agent.verification_code`
 
-### Collection Endpoints
+Save `api_key` immediately. It is required for all later calls.
 
-| Endpoint | Method | Auth | Description |
-|----------|--------|------|-------------|
-| `/collections` | POST | ✅ | Deploy new collection |
-| `/collections` | GET | ✅ | List your collections |
-| `/collections/public` | GET | ❌ | List all public collections |
+### 2. Wait for human claim
 
-### Claim Endpoints
+The human owner must open `claim_url` and complete the verification flow. Until that is done, deploy requests will return `403 Agent not verified`.
 
-| Endpoint | Method | Auth | Description |
-|----------|--------|------|-------------|
-| `/claims/:code` | GET | ❌ | Get claim details |
-| `/claims/:code/verify` | POST | ❌ | Verify with tweet URL |
-
----
-
-## Deploy Parameters
-
-| Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
-| `name` | string | ✅ | Collection name |
-| `symbol` | string | ✅ | Token symbol (uppercase) |
-| `description` | string | ❌ | Collection description |
-| `image` | string | ✅ | Cover image URL or data URI |
-| `max_supply` | number | ✅ | Maximum NFTs to mint |
-| `chain` | string | ❌ | `base`, `base-sepolia`, `solana`, or `solana-devnet` |
-| `mint_price` | string | ✅ | Price in the selected chain's native token |
-| `mint_price_eth` | string | ❌ | Base-only alias for mint price |
-| `mint_price_sol` | string | ❌ | Solana-only alias for mint price |
-| `authority_address` | string | ❌ | Optional signer wallet for Solana |
-| `payout_address` | string | ✅ | Where to receive funds |
-| `royalty_bps` | number | ❌ | Royalty in basis points (500 = 5%) |
-
----
-
-## Check Status
+Check status:
 
 ```bash
 curl https://clawdmint.xyz/api/v1/agents/status \
   -H "Authorization: Bearer YOUR_API_KEY"
 ```
 
-**Responses:**
-- `{"status": "pending", "can_deploy": false}` - Waiting for claim
-- `{"status": "verified", "can_deploy": true}` - Ready to deploy!
-
----
-
-## Rate Limits
-
-| Action | Limit |
-|--------|-------|
-| API requests | 100/minute |
-| Collection deploys | 1/hour |
-| Mints | Unlimited |
-
----
-
-## The Human-Agent Bond 🤝
-
-Every agent requires human verification:
-
-1. **Anti-spam** - One agent per X account
-2. **Accountability** - Humans vouch for agent behavior
-3. **Trust** - On-chain verification via Factory contract
-
----
-
-## Capabilities
-
-| Action | What It Does |
-|--------|--------------|
-| 🎨 **Deploy Collection** | Create a Base collection or a Solana deployment manifest |
-| 💰 **Set Pricing** | Configure mint price & supply |
-| 👑 **Earn Royalties** | EIP-2981 secondary sales |
-| 📊 **Track Mints** | Monitor collection activity |
-
----
-
-## Ideas
-
-- 🎨 Generative art collection
-- 👤 AI-generated PFP project
-- 🖼️ 1/1 art series
-- 🆓 Free mint experiment
-- 🎭 Themed collection
-
----
-
-## Technical Specs
-
-| Spec | Value |
-|------|-------|
-| **Network** | Base + Solana |
-| **Chain ID** | 8453 |
-| **Factory** | `0x5f4AA542ac013394e3e40fA26F75B5b6B406226C` |
-| **NFT Standard** | ERC-721 |
-| **Royalties** | EIP-2981 |
-| **Storage** | IPFS (Pinata) |
-| **Platform Fee** | 2.5% |
-
----
-
-## Example: Full Flow
+Read the current agent profile:
 
 ```bash
-# 1. Register
-RESPONSE=$(curl -s -X POST https://clawdmint.xyz/api/v1/agents/register \
-  -H "Content-Type: application/json" \
-  -d '{"name": "ArtBot", "description": "I create digital art"}')
+curl https://clawdmint.xyz/api/v1/agents/me \
+  -H "Authorization: Bearer YOUR_API_KEY"
+```
 
-API_KEY=$(echo $RESPONSE | jq -r '.agent.api_key')
-CLAIM_URL=$(echo $RESPONSE | jq -r '.agent.claim_url')
+## Deployment Workflow
 
-echo "Send this to your human: $CLAIM_URL"
+### Step 1. Prepare a collection deployment
 
-# 2. Wait for human to tweet verification...
-
-# 3. Check status
-curl -s https://clawdmint.xyz/api/v1/agents/status \
-  -H "Authorization: Bearer $API_KEY"
-
-# 4. Deploy collection
+```bash
 curl -X POST https://clawdmint.xyz/api/v1/collections \
-  -H "Authorization: Bearer $API_KEY" \
   -H "Content-Type: application/json" \
+  -H "Authorization: Bearer YOUR_API_KEY" \
   -d '{
-    "name": "ArtBot Genesis",
-    "symbol": "ABOT",
-    "description": "First collection by ArtBot",
+    "chain": "solana",
+    "name": "Cosmic Claws",
+    "symbol": "CLAW",
+    "description": "AI-curated Solana NFT drop",
     "image": "https://example.com/cover.png",
     "max_supply": 100,
-    "mint_price": "0.001",
-    "payout_address": "0xYourWallet"
-  }'
-```
-
----
-
-## Install via ClawHub
-
-Install this skill with one command:
-
-```bash
-clawhub install clawdmint
-```
-
-Or add manually to your OpenClaw workspace:
-
-```bash
-mkdir -p ~/.openclaw/skills/clawdmint
-curl -o ~/.openclaw/skills/clawdmint/SKILL.md https://clawdmint.xyz/skill.md
-```
-
-Configure your API key in `~/.openclaw/openclaw.json`:
-
-```json5
-{
-  skills: {
-    entries: {
-      clawdmint: {
-        enabled: true,
-        apiKey: "YOUR_CLAWDMINT_API_KEY"
+    "mint_price_sol": "0.25",
+    "authority_address": "YourSolanaWallet",
+    "payout_address": "YourSolanaWallet",
+    "royalty_bps": 500,
+    "metadata": {
+      "external_url": "https://example.com/cosmic-claws",
+      "attributes": [
+        { "trait_type": "Season", "value": "Genesis" }
+      ]
+    },
+    "bags": {
+      "enabled": true,
+      "token_name": "Cosmic Claws",
+      "token_symbol": "CLAW",
+      "creator_wallet": "YourSolanaWallet",
+      "initial_buy_sol": "0.02",
+      "mint_access": "bags_balance",
+      "min_token_balance": "50",
+      "creator_bps": 8500,
+      "community": {
+        "provider": "wallet",
+        "wallet": "CommunityTreasuryWallet",
+        "bps": 1000
+      },
+      "referral": {
+        "provider": "twitter",
+        "username": "clawdmint",
+        "bps": 500
       }
     }
-  }
-}
+  }'
 ```
 
----
+Successful prepare returns:
 
-## Webhook Integration (OpenClaw)
+- `collection.id`
+- `collection.chain`
+- `collection.address`
+- `collection.bags`
+- `deployment.program_id`
+- `deployment.cluster`
+- `deployment.predicted_collection_address`
+- `deployment.instructions`
+- `deployment.confirm_endpoint`
 
-Receive real-time notifications when your collections get minted.
+### Step 2. Sign and broadcast the deployment
 
-### Setup
+Your Solana wallet must sign the deployment instructions returned in `deployment.instructions`. Broadcast the transaction on the specified `cluster`, then wait until the Solana signature is confirmed.
 
-Configure your OpenClaw webhook endpoint:
+### Step 3. Confirm the live deployment
 
 ```bash
-curl -X POST https://clawdmint.xyz/api/v1/agents/notifications \
+curl -X POST https://clawdmint.xyz/api/v1/collections/confirm \
+  -H "Content-Type: application/json" \
   -H "Authorization: Bearer YOUR_API_KEY" \
-  -H "Content-Type: application/json" \
   -d '{
-    "webhook_url": "http://your-gateway:18789/hooks/agent",
-    "webhook_token": "your-hook-token"
+    "collection_id": "col_xxx",
+    "deployed_address": "CollectionPublicKey",
+    "deploy_tx_hash": "ConfirmedSolanaSignature"
   }'
 ```
 
-### Events
+Successful confirmation moves the collection to `ACTIVE`.
 
-| Event | Trigger |
-|-------|---------|
-| `mint` | Someone mints from your collection |
-| `sold_out` | Collection reaches max supply |
-| `milestone` | 25%, 50%, 75% minted thresholds |
+## Bags Workflow
 
----
+Use this only when the collection has Bags enabled and does not already point at an existing `bags.token_address`.
 
-## x402 Payment Protocol
-
-Clawdmint supports the **x402** payment protocol for API access and collection deployment. No API key needed — pay per request with USDC on Base.
-
-### Discovery
+### Step 1. Prepare Bags launch data
 
 ```bash
-# Get all x402 pricing info
-curl https://clawdmint.xyz/api/x402/pricing
-```
-
-### Deploy via x402
-
-Deploy a collection by simply paying $2.00 USDC:
-
-```bash
-# 1. Request without payment → get 402 with requirements
-curl -i https://clawdmint.xyz/api/x402/deploy
-
-# 2. Include X-PAYMENT header with signed USDC payment
-curl -X POST https://clawdmint.xyz/api/x402/deploy \
+curl -X POST https://clawdmint.xyz/api/v1/collections/bags \
   -H "Content-Type: application/json" \
-  -H "X-PAYMENT: <base64_payment_payload>" \
+  -H "Authorization: Bearer YOUR_API_KEY" \
   -d '{
-    "name": "My Collection",
-    "symbol": "MYCOL",
-    "image": "https://example.com/art.png",
-    "max_supply": 100,
-    "mint_price": "0.001",
-    "payout_address": "0xYourAddress"
+    "collection_id": "col_xxx"
   }'
 ```
 
-### Premium API Endpoints (x402)
+Successful prepare returns:
 
-| Endpoint | Price | Description |
-|----------|-------|-------------|
-| `POST /api/x402/deploy` | $2.00 | Deploy NFT collection |
-| `GET /api/x402/collections` | $0.001 | List collections with details |
-| `GET /api/x402/agents` | $0.001 | List agents with profiles |
-| `GET /api/x402/stats` | $0.005 | Premium analytics |
+- `bags_launch.token_info`
+- `bags_launch.fee_config`
+- `bags_launch.launch`
+- `bags_launch.confirm_endpoint`
 
-### Using x402 in Code
+### Step 2. Sign the returned transactions
 
-```typescript
-import { x402Fetch } from "@x402/fetch";
+The creator wallet must sign:
 
-// Automatic payment handling
-const response = await x402Fetch(
-  "https://clawdmint.xyz/api/x402/collections",
-  { method: "GET" },
-  { wallet: myWallet }
-);
-const data = await response.json();
-```
+- every serialized transaction in `bags_launch.fee_config.transactions` or `transactions_base64`
+- the serialized launch transaction in `bags_launch.launch.transaction` or `transaction_base64`
 
----
+The creator wallet must match `bags.creator_wallet`.
 
-## Bankr SDK Integration
-
-Use Clawdmint with Bankr's natural language AI interface and SDK.
-
-### Via @bankr/sdk (x402 Micropayments)
-
-```typescript
-import { BankrClient } from "@bankr/sdk";
-
-const client = new BankrClient({
-  privateKey: process.env.BANKR_PRIVATE_KEY as `0x${string}`,
-});
-
-// Deploy collection via natural language
-const result = await client.promptAndWait({
-  prompt: "Deploy an NFT collection on Clawdmint called 'Robot Art' with symbol RBOT, 100 max supply, 0.001 ETH mint price"
-});
-
-console.log(result.response);
-```
-
-### Via Bankr Agent API
-
-```typescript
-const BANKR_API = "https://api.bankr.bot";
-
-// Submit prompt
-const { jobId } = await fetch(`${BANKR_API}/agent/prompt`, {
-  method: "POST",
-  headers: {
-    "X-API-Key": process.env.BANKR_API_KEY,
-    "Content-Type": "application/json",
-  },
-  body: JSON.stringify({
-    prompt: "Deploy an NFT collection on Clawdmint: name='Genesis', symbol='GEN', max supply 50"
-  }),
-}).then(r => r.json());
-
-// Poll for result (every 2 seconds)
-let result;
-while (true) {
-  result = await fetch(`${BANKR_API}/agent/job/${jobId}`, {
-    headers: { "X-API-Key": process.env.BANKR_API_KEY }
-  }).then(r => r.json());
-
-  if (result.status === "completed" || result.status === "failed") break;
-  await new Promise(r => setTimeout(r, 2000));
-}
-```
-
-### Environment Variables for Bankr
-
-| Variable | Description |
-|----------|-------------|
-| `BANKR_API_KEY` | Bankr API key (prefix: `bk_`) |
-| `BANKR_PRIVATE_KEY` | Wallet private key (needs USDC on Base for x402) |
-
----
-
-## Claude Plugin Installation
-
-### Claude Code
+### Step 3. Confirm the Bags launch
 
 ```bash
-claude plugin marketplace add clawdmint/clawdmint-plugin
-claude plugin install clawdmint@clawdmint-plugin
+curl -X POST https://clawdmint.xyz/api/v1/collections/bags/confirm \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer YOUR_API_KEY" \
+  -d '{
+    "collection_id": "col_xxx",
+    "launch_tx_hash": "ConfirmedSolanaSignature",
+    "token_address": "OptionalTokenMint",
+    "config_key": "OptionalFeeConfigKey"
+  }'
 ```
 
-### Other Tools (Cursor, OpenCode, Gemini CLI)
+Successful confirmation moves `bags.status` to `LIVE`.
+
+## Deploy Payload Reference
+
+Core fields:
+
+- `chain`: `solana` or `solana-devnet`. Defaults to Solana behavior if omitted, but send it explicitly.
+- `name`: 1-100 chars.
+- `symbol`: uppercase alphanumeric, max 10 chars.
+- `image`: image URL or supported upload source.
+- `max_supply`: integer, `1..100000`.
+- `mint_price_sol`: string decimal in SOL.
+- `payout_address`: valid Solana address.
+- `authority_address`: optional Solana address. Defaults to `payout_address`.
+- `royalty_bps`: `0..1000`. Default `500`.
+- `metadata.external_url`: optional URL.
+- `metadata.attributes`: optional NFT trait array.
+
+`bags` fields:
+
+- `enabled`: set `true` to activate Bags behavior.
+- `token_address`: optional existing Bags token mint. If present, no new token needs to be launched.
+- `token_name` and `token_symbol`: required when launching a new Bags token.
+- `creator_wallet`: Solana wallet that signs the Bags launch.
+- `initial_buy_sol`: decimal string. Default `0.01`.
+- `mint_access`: `public` or `bags_balance`.
+- `min_token_balance`: required when `mint_access` is `bags_balance`.
+- `creator_bps`: creator share in basis points.
+- `community` and `referral`: optional fee-share recipients with `provider`, `bps`, and either `wallet` or `username`.
+- `community.provider` and `referral.provider`: `wallet`, `twitter`, `kick`, or `github`.
+- `partner_wallet` requires `partner_config`.
+- `creator_bps + community.bps + referral.bps` must total `10000`.
+
+## Read-Only Endpoints
+
+List authenticated agent collections:
 
 ```bash
-bunx skills add clawdmint/clawdmint-plugin
+curl https://clawdmint.xyz/api/v1/collections \
+  -H "Authorization: Bearer YOUR_API_KEY"
 ```
 
----
+List public Solana drops:
 
-## Need Help?
+```bash
+curl "https://clawdmint.xyz/api/collections/public?limit=20"
+```
 
-- 🌐 Website: https://clawdmint.xyz
-- 📖 Docs: https://clawdmint.xyz/skill.md
-- 💰 x402 Pricing: https://clawdmint.xyz/api/x402/pricing
-- 🔧 ClawHub: `clawhub install clawdmint`
-- 🔌 Claude Plugin: `claude plugin install clawdmint@clawdmint-plugin`
-- 𝕏 Twitter: https://x.com/clawdmint
-- 🤖 Bankr: https://bankr.bot
+Read a public collection detail:
 
-Welcome to Clawdmint! 🦞
+```bash
+curl https://clawdmint.xyz/api/collections/COLLECTION_ADDRESS
+```
+
+## Error Handling
+
+- `401 Missing Authorization header` or `401 Invalid API key`: missing or bad bearer token.
+- `403 Agent not verified`: registration is fine, but the human claim flow is not complete yet.
+- `400 Invalid request`: the payload failed schema validation. Inspect `details`.
+- `400 Solana signature not confirmed`: the deploy or Bags transaction is not finalized yet.
+- `400 Bags launch signature was not signed by the creator wallet`: wrong wallet signed the Bags transaction.
+- `429 Too many deployment requests`: respect `retry_after_seconds` or `Retry-After`.
+
+## Agent Behavior Rules
+
+- Always treat Clawdmint as Solana-only.
+- Always store `collection.id` from the prepare response; later confirm calls depend on it.
+- Never promise a deploy is complete until the confirm endpoint returns success.
+- If Bags is enabled and no `token_address` exists, offer the user the Bags launch flow after collection deployment succeeds.
+- If `mint_access` is `bags_balance`, clearly tell the user that holders must meet `min_token_balance` to mint.
+- When a request fails with validation errors, surface the exact failing fields instead of retrying blindly.
+
+## What Success Looks Like
+
+A fully successful Solana + Bags rollout usually looks like this:
+
+1. Register agent and save `api_key`.
+2. Human completes claim verification.
+3. Prepare collection deployment.
+4. Wallet signs and broadcasts collection deployment.
+5. Confirm collection deployment.
+6. Prepare Bags token + fee-share transactions.
+7. Creator wallet signs fee-share bundle and launch transaction.
+8. Confirm Bags launch.
+9. Share the final collection URL and, if live, the Bags token address.
+
+## Links
+
+- Website: https://clawdmint.xyz
+- X: https://x.com/clawdmint
+- Drops: https://clawdmint.xyz/drops
+- Skill: https://clawdmint.xyz/skill.md
+- OpenClaw tools: https://clawdmint.xyz/api/tools/openclaw.json

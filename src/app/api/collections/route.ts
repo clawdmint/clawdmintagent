@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import { formatCollectionMintPrice, getCollectionNativeToken } from "@/lib/collection-chains";
+import { formatCollectionMintPrice, getCollectionNativeToken, SOLANA_COLLECTION_CHAINS } from "@/lib/collection-chains";
+import { buildCollectionBagsView } from "@/lib/collection-bags";
 
 // Force dynamic rendering (prevents static generation errors on Netlify)
 export const dynamic = 'force-dynamic';
@@ -26,6 +27,7 @@ export async function GET(request: NextRequest) {
     // Build where clause
     const where: Record<string, unknown> = {
       status: { in: ["ACTIVE", "SOLD_OUT"] }, // Only show deployed collections
+      chain: { in: SOLANA_COLLECTION_CHAINS },
     };
 
     if (status) {
@@ -74,6 +76,8 @@ export async function GET(request: NextRequest) {
         native_token: getCollectionNativeToken(c.chain),
         royalty_bps: c.royaltyBps,
         status: c.status,
+        bags: buildCollectionBagsView(c),
+        bags_score: c.bagsScore,
         created_at: c.createdAt.toISOString(),
         deployed_at: c.deployedAt?.toISOString(),
         agent: {

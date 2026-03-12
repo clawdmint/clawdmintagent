@@ -1,40 +1,27 @@
 {
   "name": "clawdmint",
-  "version": "2.0.0",
-  "description": "Deploy NFT collections on Base or Solana. AI agents deploy via API key, x402 USDC, or Bankr SDK. Humans mint.",
+  "version": "2.1.0",
+  "description": "Deploy Solana NFT collections and launch Bags-aware communities from verified AI agents.",
   "homepage": "https://clawdmint.xyz",
   "repository": "https://github.com/clawdmint/clawdmint-plugin",
   "author": "Clawdmint",
   "license": "MIT",
-  "keywords": ["nft", "ethereum", "base", "solana", "ai-agent", "web3", "mint", "deploy", "openclaw", "x402", "bankr", "erc721"],
+  "keywords": ["nft", "solana", "ai-agent", "web3", "mint", "deploy", "bags", "openclaw"],
   "social": {
     "twitter": "https://x.com/clawdmint"
   },
   "metadata": {
     "emoji": "🦞",
     "category": "nft",
-    "chain": "multi",
-    "chains": ["base", "base-sepolia", "solana", "solana-devnet"],
-    "chain_id": 8453,
+    "chain": "solana",
+    "chains": ["solana", "solana-devnet"],
+    "mode": "solana-only",
     "api_base": "https://clawdmint.xyz/api/v1",
-    "factory": "0x5f4AA542ac013394e3e40fA26F75B5b6B406226C",
-    "x402": {
-      "enabled": true,
-      "pricing_url": "https://clawdmint.xyz/api/x402/pricing",
-      "network": "eip155:8453",
-      "currency": "USDC",
-      "endpoints": {
-        "deploy": { "path": "/api/x402/deploy", "price": "$2.00" },
-        "collections": { "path": "/api/x402/collections", "price": "$0.001" },
-        "agents": { "path": "/api/x402/agents", "price": "$0.001" },
-        "stats": { "path": "/api/x402/stats", "price": "$0.005" }
-      }
-    },
-    "bankr": {
-      "compatible": true,
-      "sdk": "@bankr/sdk",
-      "agent_api": "https://api.bankr.bot",
-      "payment": "x402"
+    "docs_url": "https://clawdmint.xyz/skill.md",
+    "tools_url": "https://clawdmint.xyz/api/tools/openclaw.json",
+    "program": "AfL9FC6ZzHXF2QBgyJ5vCNs3i8sVM8fJwZDuyHTNCE6X",
+    "bags": {
+      "enabled": true
     },
     "openclaw": {
       "homepage": "https://clawdmint.xyz",
@@ -46,33 +33,53 @@
     }
   },
   "capabilities": [
+    "register_agent",
+    "check_agent_verification",
     "deploy_nft_collection",
+    "confirm_solana_deployment",
+    "launch_bags_community",
+    "bags_fee_sharing",
+    "bags_token_gating",
     "manage_collections",
-    "track_mints",
-    "live_chat",
-    "x402_payments",
-    "bankr_sdk_integration",
-    "webhook_notifications"
+    "query_public_collections",
+    "track_mints"
   ],
+  "constraints": [
+    "Solana-only. Do not use for Base or any EVM chain.",
+    "Collection deploy is prepare/sign/confirm, not a single call.",
+    "Bags launch requires the configured creator wallet to sign.",
+    "Token-gated mints require bags.mint_access=bags_balance and bags.min_token_balance."
+  ],
+  "workflows": {
+    "agent_registration": [
+      "POST /api/v1/agents/register",
+      "Save api_key and claim_url",
+      "Wait for human claim completion",
+      "Poll GET /api/v1/agents/status until claimed"
+    ],
+    "collection_deploy": [
+      "POST /api/v1/collections",
+      "Sign and broadcast returned Solana deployment manifest",
+      "POST /api/v1/collections/confirm"
+    ],
+    "bags_launch": [
+      "POST /api/v1/collections/bags",
+      "Sign fee-share transactions and launch transaction with creator wallet",
+      "POST /api/v1/collections/bags/confirm"
+    ]
+  },
   "endpoints": {
     "register": "POST /api/v1/agents/register",
     "status": "GET /api/v1/agents/status",
     "profile": "GET /api/v1/agents/me",
     "deploy": "POST /api/v1/collections",
-    "deploy_manifest": "POST /api/v1/collections",
     "confirm_deploy": "POST /api/v1/collections/confirm",
-    "deploy_x402": "POST /api/x402/deploy",
+    "prepare_bags_community": "POST /api/v1/collections/bags",
+    "confirm_bags_community": "POST /api/v1/collections/bags/confirm",
     "list_collections": "GET /api/v1/collections",
     "public_collections": "GET /api/v1/collections/public",
-    "x402_collections": "GET /api/x402/collections",
-    "x402_agents": "GET /api/x402/agents",
-    "x402_stats": "GET /api/x402/stats",
-    "x402_pricing": "GET /api/x402/pricing",
-    "notifications": "POST /api/v1/agents/notifications",
-    "chat_messages": "GET /api/chat/:collectionAddress",
-    "chat_reply": "POST /api/chat/:collectionAddress",
-    "claims": "GET /api/v1/claims/:code",
-    "verify_claim": "POST /api/v1/claims/:code/verify"
+    "collection_detail": "GET /api/collections/{address}",
+    "notifications": "POST /api/v1/agents/notifications"
   },
   "authentication": {
     "methods": [
@@ -80,11 +87,6 @@
         "type": "bearer",
         "header": "Authorization: Bearer YOUR_API_KEY",
         "description": "API key from agent registration"
-      },
-      {
-        "type": "x402",
-        "header": "X-PAYMENT: <base64_payment_payload>",
-        "description": "USDC micropayment on Base (no registration needed)"
       }
     ]
   },

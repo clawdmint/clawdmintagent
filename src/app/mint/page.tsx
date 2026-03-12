@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback, useMemo } from "react";
 import { useAccount, useWriteContract, useWaitForTransactionReceipt, useReadContracts } from "wagmi";
 import { formatEther } from "viem";
 import { useWallet } from "@/components/wallet-context";
-import { BaseLogo, SolanaLogo } from "@/components/network-icons";
+import { SolanaLogo } from "@/components/network-icons";
 import { COLLECTION_ABI } from "@/lib/contracts";
 import { useTheme } from "@/components/theme-provider";
 import { clsx } from "clsx";
@@ -260,14 +260,14 @@ export default function MintPage() {
           </h1>
 
           <p className="text-gray-500 font-mono text-sm max-w-xl mx-auto leading-relaxed mb-4">
-            10,000 unique AI-powered agent NFTs minting on Base. Free mint.
+            10,000 unique AI-powered agent NFTs prepared for Solana collectors. Free mint.
             Random assignment. Reveal on sold out.
           </p>
 
           <div className="flex items-center justify-center gap-2 flex-wrap mb-6">
-            <span className="inline-flex items-center gap-1.5 rounded-full border border-blue-500/20 bg-blue-500/10 px-3 py-1 font-mono text-[11px] uppercase tracking-[0.18em] text-blue-300">
-              <BaseLogo className="w-3.5 h-3.5 text-blue-400" />
-              Base L2 Mint
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-cyan-500/20 bg-cyan-500/10 px-3 py-1 font-mono text-[11px] uppercase tracking-[0.18em] text-cyan-300">
+              <SolanaLogo className="w-3.5 h-3.5" />
+              Solana Mint
             </span>
             <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-500/20 bg-emerald-500/10 px-3 py-1 font-mono text-[11px] uppercase tracking-[0.18em] text-emerald-300">
               <SolanaLogo className="w-3.5 h-3.5" />
@@ -299,9 +299,9 @@ export default function MintPage() {
               <TermLine prefix="$">cat /collection/status</TermLine>
               <div className="h-px bg-emerald-500/10 my-2" />
               <TermLine prefix=" ">collection: <span className="text-emerald-400">Clawdmint Agents</span></TermLine>
-              <TermLine prefix=" ">network:    <span className="text-cyan-400">Base L2</span></TermLine>
-              <TermLine prefix=" ">also_live:  <span className="text-purple-300">Solana collection deploys</span></TermLine>
-              <TermLine prefix=" ">standard:   <span className="text-gray-400">ERC-721</span></TermLine>
+              <TermLine prefix=" ">network:    <span className="text-cyan-400">Solana</span></TermLine>
+              <TermLine prefix=" ">bags_mode:  <span className="text-purple-300">Optional token + fee share</span></TermLine>
+              <TermLine prefix=" ">standard:   <span className="text-gray-400">Solana NFT</span></TermLine>
               <TermLine prefix=" ">supply:     <span className="text-white">{fmtNum(collection.maxSupply)}</span></TermLine>
               <TermLine prefix=" ">minted:     <span className="text-emerald-400">{fmtNum(collection.totalMinted)}</span></TermLine>
               <TermLine prefix=" ">remaining:  <span className="text-yellow-400">{fmtNum(remaining)}</span></TermLine>

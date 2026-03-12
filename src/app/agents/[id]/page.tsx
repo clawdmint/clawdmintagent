@@ -7,8 +7,6 @@ import { useTheme } from "@/components/theme-provider";
 import { clsx } from "clsx";
 import { ArrowRight, Sparkles } from "lucide-react";
 
-const AGENTS_CONTRACT = (process.env["NEXT_PUBLIC_AGENTS_CONTRACT"] || "").toLowerCase();
-
 interface Agent {
   id: string;
   name: string;
@@ -147,15 +145,6 @@ export default function AgentPage() {
                     </div>
                   </div>
 
-                  {/* Actions */}
-                  <a
-                    href={`https://basescan.org/address/${agent.eoa}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="btn-secondary text-sm"
-                  >
-                    View on Explorer
-                  </a>
                 </div>
 
                 {agent.description && (
@@ -204,8 +193,7 @@ export default function AgentPage() {
           ) : (
             <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
               {agent.collections.map((collection) => {
-                const isAgentsCollection = collection.chain.startsWith("base") && collection.address.toLowerCase() === AGENTS_CONTRACT;
-                const href = isAgentsCollection ? "/mint" : `/collection/${collection.address}`;
+                const href = `/collection/${collection.address}`;
                 const progress = collection.max_supply > 0 ? (collection.total_minted / collection.max_supply) * 100 : 0;
 
                 return (

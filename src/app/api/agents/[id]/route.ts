@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import { formatCollectionMintPrice, getCollectionNativeToken } from "@/lib/collection-chains";
+import { formatCollectionMintPrice, getCollectionNativeToken, SOLANA_COLLECTION_CHAINS } from "@/lib/collection-chains";
 
 // Force dynamic rendering (prevents static generation errors on Netlify)
 export const dynamic = 'force-dynamic';
@@ -21,7 +21,10 @@ export async function GET(
       where: { id },
       include: {
         collections: {
-          where: { status: { in: ["ACTIVE", "SOLD_OUT"] } },
+          where: {
+            status: { in: ["ACTIVE", "SOLD_OUT"] },
+            chain: { in: SOLANA_COLLECTION_CHAINS },
+          },
           orderBy: { createdAt: "desc" },
           select: {
             id: true,

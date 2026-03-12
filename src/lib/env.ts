@@ -42,6 +42,7 @@ export function getClientEnv() {
     solanaCluster: getEnv("NEXT_PUBLIC_SOLANA_CLUSTER", "mainnet-beta"),
     solanaRpcUrl: getEnv("NEXT_PUBLIC_SOLANA_RPC_URL", ""),
     solanaCollectionProgramId: getEnv("NEXT_PUBLIC_SOLANA_COLLECTION_PROGRAM_ID", ""),
+    bagsAppUrl: getEnv("NEXT_PUBLIC_BAGS_APP_URL", "https://bags.fm"),
     factoryAddress: getEnv("NEXT_PUBLIC_FACTORY_ADDRESS", ""),
     alchemyId: getEnv("NEXT_PUBLIC_ALCHEMY_ID", ""),
     walletConnectId: getEnv("NEXT_PUBLIC_WALLET_CONNECT_ID", ""),
@@ -102,6 +103,8 @@ export function getServerEnv() {
     // External APIs
     twitterBearerToken: getEnv("TWITTER_BEARER_TOKEN", ""),
     basescanApiKey: getEnv("BASESCAN_API_KEY", ""),
+    bagsApiKey: getEnv("BAGS_API_KEY", ""),
+    bagsApiBaseUrl: getEnv("BAGS_API_BASE_URL", "https://public-api-v2.bags.fm"),
     
     // Environment
     nodeEnv: getEnv("NODE_ENV", "development"),
@@ -187,6 +190,10 @@ export function validateEnv(forProduction = false): EnvValidationResult {
 
   if (hasSolanaConfig && !solanaProgramId) {
     warnings.push("SOLANA_COLLECTION_PROGRAM_ID not set - Solana collection deploys will fail");
+  }
+
+  if (!process.env["BAGS_API_KEY"]) {
+    warnings.push("BAGS_API_KEY not set - Bags token launch and analytics features will be disabled");
   }
   
   const hmacSecret = process.env["AGENT_HMAC_SECRET"];

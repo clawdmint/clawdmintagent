@@ -2,7 +2,7 @@
 
 import React, { createContext, useContext, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { usePrivy } from "@privy-io/react-auth";
-import { useAccount, useConnect, useDisconnect, type Connector } from "wagmi";
+import { useAccount, useDisconnect } from "wagmi";
 import { getAppNetworkFamily, truncateAddress, type NetworkFamily } from "@/lib/network-config";
 import { useNetworkPreference } from "./network-context";
 
@@ -44,7 +44,7 @@ const WalletContext = createContext<WalletState>({
 
 export const useWallet = () => useContext(WalletContext);
 
-function getPhantomProvider(): PhantomProvider | null {
+export function getPhantomProvider(): PhantomProvider | null {
   if (typeof window === "undefined") {
     return null;
   }
@@ -188,19 +188,19 @@ function useSolanaWalletState() {
  */
 export function PrivyWalletProvider({ children }: { children: React.ReactNode }) {
   const { networkFamily } = useNetworkPreference();
-  const { ready: privyReady, authenticated: privyAuthenticated, user, login, logout } = usePrivy();
-  const { address: wagmiAddress, isConnected: wagmiConnected } = useAccount();
+  const { ready: privyReady, user, logout } = usePrivy();
+  const { address: wagmiAddress } = useAccount();
   const { solanaReady, solanaAddress, solanaDisplayAddress, solanaConnected, solanaAvailable, connectSolana, disconnectSolana } = useSolanaWalletState();
 
   const evmAddress = wagmiAddress || (user?.wallet?.address as `0x${string}` | undefined);
-  const address = networkFamily === "solana"
-    ? solanaAddress || evmAddress
-    : evmAddress || solanaAddress;
-  const authenticated = privyAuthenticated || wagmiConnected || solanaConnected;
-  const isConnected = wagmiConnected || solanaConnected || privyAuthenticated;
-  const displayAddress = networkFamily === "solana"
-    ? solanaDisplayAddress || truncateAddress(evmAddress)
-    : truncateAddress(evmAddress) || solanaDisplayAddress;
+  const address = solanaAddress;
+  const authenticated = solanaConnected;
+  const isConnected = solanaConnected;
+  const displayAddress = solanaDisplayAddress;
+
+  const handleLogin = useCallback(() => {
+    void connectSolana();
+  }, [connectSolana]);
 
   const stableLogout = useCallback(async () => {
     await Promise.allSettled([
@@ -218,11 +218,11 @@ export function PrivyWalletProvider({ children }: { children: React.ReactNode })
       isConnected,
       evmAddress,
       solanaAddress,
-      evmConnected: wagmiConnected,
+      evmConnected: false,
       solanaConnected,
       solanaAvailable,
       networkFamily,
-      login,
+      login: handleLogin,
       logout: stableLogout,
       connectSolana,
       disconnectSolana,
@@ -236,11 +236,10 @@ export function PrivyWalletProvider({ children }: { children: React.ReactNode })
       isConnected,
       evmAddress,
       solanaAddress,
-      wagmiConnected,
       solanaConnected,
       solanaAvailable,
       networkFamily,
-      login,
+      handleLogin,
       stableLogout,
       connectSolana,
       disconnectSolana,
@@ -256,8 +255,7 @@ export function PrivyWalletProvider({ children }: { children: React.ReactNode })
  */
 export function FallbackWalletProvider({ children }: { children: React.ReactNode }) {
   const { networkFamily } = useNetworkPreference();
-  const { address, isConnected } = useAccount();
-  const { connectors, connect } = useConnect();
+  const { address } = useAccount();
   const { disconnect } = useDisconnect();
   const [mounted, setMounted] = useState(false);
   const { solanaReady, solanaAddress, solanaDisplayAddress, solanaConnected, solanaAvailable, connectSolana, disconnectSolana } = useSolanaWalletState();
@@ -266,21 +264,12 @@ export function FallbackWalletProvider({ children }: { children: React.ReactNode
     setMounted(true);
   }, []);
 
-  const primaryAddress = networkFamily === "solana"
-    ? solanaAddress || address
-    : address || solanaAddress;
-  const displayAddress = networkFamily === "solana"
-    ? solanaDisplayAddress || truncateAddress(address)
-    : truncateAddress(address) || solanaDisplayAddress;
+  const primaryAddress = solanaAddress;
+  const displayAddress = solanaDisplayAddress;
 
   const handleLogin = useCallback(() => {
-    // Try injected connector first (MetaMask, etc.), then first available
-    const injected = connectors.find((c: Connector) => c.id === "injected" || c.id === "metaMask");
-    const connector = injected || connectors[0];
-    if (connector) {
-      connect({ connector });
-    }
-  }, [connectors, connect]);
+    void connectSolana();
+  }, [connectSolana]);
 
   const handleLogout = useCallback(async () => {
     disconnect();
@@ -290,13 +279,13 @@ export function FallbackWalletProvider({ children }: { children: React.ReactNode
   const value = useMemo<WalletState>(
     () => ({
       ready: mounted && solanaReady,
-      authenticated: isConnected || solanaConnected,
+      authenticated: solanaConnected,
       address: primaryAddress,
       displayAddress,
-      isConnected: isConnected || solanaConnected,
+      isConnected: solanaConnected,
       evmAddress: address,
       solanaAddress,
-      evmConnected: isConnected,
+      evmConnected: false,
       solanaConnected,
       solanaAvailable,
       networkFamily,
@@ -308,7 +297,6 @@ export function FallbackWalletProvider({ children }: { children: React.ReactNode
     [
       mounted,
       solanaReady,
-      isConnected,
       solanaConnected,
       primaryAddress,
       displayAddress,

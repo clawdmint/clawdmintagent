@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { isSupportedWalletAddress, normalizeWalletAddress } from "@/lib/network-config";
-import { formatCollectionMintPrice, getCollectionNativeToken } from "@/lib/collection-chains";
+import { formatCollectionMintPrice, getCollectionNativeToken, SOLANA_COLLECTION_CHAINS } from "@/lib/collection-chains";
 
 // Force dynamic rendering
 export const dynamic = 'force-dynamic';
@@ -34,6 +34,9 @@ export async function GET(
         minterAddress: {
           equals: normalizedAddress,
           mode: "insensitive",
+        },
+        collection: {
+          chain: { in: SOLANA_COLLECTION_CHAINS },
         },
       },
       orderBy: { mintedAt: "desc" },
@@ -68,6 +71,7 @@ export async function GET(
           mode: "insensitive",
         },
         simulated: false,
+        chain: { in: SOLANA_COLLECTION_CHAINS },
       },
       orderBy: { createdAt: "desc" },
     });

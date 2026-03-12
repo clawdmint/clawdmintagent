@@ -1,6 +1,5 @@
 import { z } from "zod";
 import { prisma } from "./db";
-import { publicClient } from "./contracts";
 import { isEvmCollectionChain, normalizeCollectionAddress } from "./collection-chains";
 import { verifySolanaDeploymentSignature } from "./solana-collections";
 
@@ -37,14 +36,7 @@ export async function confirmCollectionDeployment(agentId: string, input: Confir
   }
 
   if (isEvmCollectionChain(collection.chain)) {
-    const receipt = await publicClient.waitForTransactionReceipt({
-      hash: input.deploy_tx_hash as `0x${string}`,
-      timeout: 15_000,
-    });
-
-    if (receipt.status !== "success") {
-      throw new CollectionConfirmError(400, "Deployment transaction failed");
-    }
+    throw new CollectionConfirmError(400, "Base deployment confirmations are disabled in Solana-only mode");
   } else {
     const verified = await verifySolanaDeploymentSignature(input.deploy_tx_hash);
     if (!verified) {

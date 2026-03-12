@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createHash } from "crypto";
 import { prisma } from "@/lib/db";
+import { SOLANA_COLLECTION_CHAINS } from "@/lib/collection-chains";
 
 // Force dynamic rendering (prevents static generation errors on Netlify)
 export const dynamic = 'force-dynamic';
@@ -33,7 +34,10 @@ export async function GET(request: NextRequest) {
       where: { hmacKeyHash: hashApiKey(apiKey) },
       include: {
         collections: {
-          where: { status: { in: ["ACTIVE", "SOLD_OUT"] } },
+          where: {
+            status: { in: ["ACTIVE", "SOLD_OUT"] },
+            chain: { in: SOLANA_COLLECTION_CHAINS },
+          },
           select: {
             id: true,
             address: true,
@@ -43,9 +47,6 @@ export async function GET(request: NextRequest) {
             totalMinted: true,
             status: true,
           },
-        },
-        _count: {
-          select: { collections: true },
         },
       },
     });
@@ -65,7 +66,7 @@ export async function GET(request: NextRequest) {
         description: agent.description,
         status: agent.status,
         can_deploy: agent.status === "VERIFIED" && agent.deployEnabled,
-        collections_count: agent._count.collections,
+        collections_count: agent.collections.length,
         collections: agent.collections,
         created_at: agent.createdAt.toISOString(),
         verified_at: agent.verifiedAt?.toISOString(),

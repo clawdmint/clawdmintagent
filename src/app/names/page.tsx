@@ -392,7 +392,7 @@ export default function NamesPage() {
         "text-center pb-8 text-[11px]",
         theme === "dark" ? "text-gray-700" : "text-gray-300"
       )}>
-        ERC-721 on Base &middot; Permanent &middot; Transferable
+        Onchain identity &middot; Permanent &middot; Transferable
         {NAMES_ADDRESS && (
           <>
             {" "}&middot;{" "}

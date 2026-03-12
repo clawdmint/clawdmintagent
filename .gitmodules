@@ -1,0 +1,3 @@
+[submodule "clawdmint-plugin"]
+	path = clawdmint-plugin
+	url = https://github.com/clawdmint/clawdmint-plugin.git

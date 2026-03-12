@@ -1,11 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import { COLLECTION_ABI, getPublicClient } from "@/lib/contracts";
 import {
   formatCollectionMintPrice,
   getCollectionNativeToken,
   isEvmCollectionChain,
+  SOLANA_COLLECTION_CHAINS,
 } from "@/lib/collection-chains";
+import { buildCollectionBagsView } from "@/lib/collection-bags";
+import { fetchBagsCollectionAnalytics, isBagsConfigured } from "@/lib/bags";
 
 export const dynamic = "force-dynamic";
 
@@ -47,35 +49,71 @@ export async function GET(
       );
     }
 
+    if (!SOLANA_COLLECTION_CHAINS.includes(collection.chain as (typeof SOLANA_COLLECTION_CHAINS)[number])) {
+      return NextResponse.json(
+        { success: false, error: "Collection not found" },
+        { status: 404 }
+      );
+    }
+
     const onchain = await fetchOnchainData(collection.address, collection.chain);
+    let bagsCollection = collection;
+
+    if (collection.bagsStatus === "LIVE" && collection.bagsTokenAddress && isBagsConfigured()) {
+      try {
+        const analytics = await fetchBagsCollectionAnalytics(collection.bagsTokenAddress);
+        bagsCollection = {
+          ...collection,
+          bagsLifetimeFees: analytics.lifetimeFeesLamports,
+          bagsClaimedFees: analytics.claimedFeesLamports,
+          bagsScore: analytics.score,
+          bagsAnalyticsUpdatedAt: new Date(),
+        };
+
+        await prisma.collection.update({
+          where: { id: collection.id },
+          data: {
+            bagsLifetimeFees: analytics.lifetimeFeesLamports,
+            bagsClaimedFees: analytics.claimedFeesLamports,
+            bagsScore: analytics.score,
+            bagsAnalyticsUpdatedAt: new Date(),
+          },
+        });
+      } catch (error) {
+        console.warn("[Bags] Collection analytics refresh failed:", error);
+      }
+    }
+
     return NextResponse.json({
       success: true,
       collection: {
-        id: collection.id,
-        address: collection.address,
-        chain: collection.chain,
-        native_token: getCollectionNativeToken(collection.chain),
-        name: collection.name,
-        symbol: collection.symbol,
-        description: collection.description,
-        image_url: collection.imageUrl,
-        base_uri: collection.baseUri,
-        max_supply: collection.maxSupply,
-        total_minted: collection.totalMinted,
-        mint_price_raw: collection.mintPrice,
-        mint_price_native: formatCollectionMintPrice(collection.mintPrice, collection.chain),
-        royalty_bps: collection.royaltyBps,
-        payout_address: collection.payoutAddress,
-        status: collection.status,
-        deployed_at: collection.deployedAt?.toISOString(),
-        deploy_tx_hash: collection.deployTxHash,
+        id: bagsCollection.id,
+        address: bagsCollection.address,
+        chain: bagsCollection.chain,
+        native_token: getCollectionNativeToken(bagsCollection.chain),
+        name: bagsCollection.name,
+        symbol: bagsCollection.symbol,
+        description: bagsCollection.description,
+        image_url: bagsCollection.imageUrl,
+        base_uri: bagsCollection.baseUri,
+        max_supply: bagsCollection.maxSupply,
+        total_minted: bagsCollection.totalMinted,
+        mint_price_raw: bagsCollection.mintPrice,
+        mint_price_native: formatCollectionMintPrice(bagsCollection.mintPrice, bagsCollection.chain),
+        royalty_bps: bagsCollection.royaltyBps,
+        payout_address: bagsCollection.payoutAddress,
+        authority_address: bagsCollection.authorityAddress,
+        status: bagsCollection.status,
+        deployed_at: bagsCollection.deployedAt?.toISOString(),
+        deploy_tx_hash: bagsCollection.deployTxHash,
+        bags: buildCollectionBagsView(bagsCollection),
         agent: {
-          id: collection.agent.id,
-          name: collection.agent.name,
-          description: collection.agent.description,
-          avatar_url: collection.agent.avatarUrl,
-          eoa: collection.agent.eoa,
-          x_handle: collection.agent.xHandle,
+          id: bagsCollection.agent.id,
+          name: bagsCollection.agent.name,
+          description: bagsCollection.agent.description,
+          avatar_url: bagsCollection.agent.avatarUrl,
+          eoa: bagsCollection.agent.eoa,
+          x_handle: bagsCollection.agent.xHandle,
         },
         onchain,
       },
@@ -94,34 +132,5 @@ async function fetchOnchainData(contractAddress: string, chain: string) {
     return null;
   }
 
-  try {
-    const client = getPublicClient();
-    const addr = contractAddress as `0x${string}`;
-    const [totalMinted, remainingSupply, isSoldOut] = await Promise.all([
-      client.readContract({
-        address: addr,
-        abi: COLLECTION_ABI,
-        functionName: "totalMinted",
-      }),
-      client.readContract({
-        address: addr,
-        abi: COLLECTION_ABI,
-        functionName: "remainingSupply",
-      }),
-      client.readContract({
-        address: addr,
-        abi: COLLECTION_ABI,
-        functionName: "isSoldOut",
-      }),
-    ]);
-
-    return {
-      total_minted: (totalMinted as bigint).toString(),
-      remaining: (remainingSupply as bigint).toString(),
-      is_sold_out: isSoldOut as boolean,
-    };
-  } catch (error) {
-    console.error("Failed to fetch on-chain data for", contractAddress, error);
-    return null;
-  }
+  return null;
 }

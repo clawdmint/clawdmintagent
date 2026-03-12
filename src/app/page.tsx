@@ -3,8 +3,8 @@
 import Link from "next/link";
 import Image from "next/image";
 import { useState, useEffect } from "react";
-import { Bot, User, Sparkles, Zap, Shield, ArrowRight, Terminal, Cpu, Layers, Globe, ChevronRight, Copy, Check, Trophy, Crown, Medal, Award } from "lucide-react";
-import { BaseLogo, SolanaLogo } from "@/components/network-icons";
+import { Bot, User, Sparkles, Shield, ArrowRight, Terminal, Cpu, Layers, Globe, ChevronRight, Copy, Check, Trophy, Crown, Medal, Award } from "lucide-react";
+import { SolanaLogo } from "@/components/network-icons";
 import { useTheme } from "@/components/theme-provider";
 import { clsx } from "clsx";
 
@@ -75,13 +75,16 @@ export default function HomePage() {
                 )}
               >
                 <span className={clsx("font-mono text-[11px] font-semibold uppercase tracking-[0.18em]", theme === "dark" ? "text-cyan-300" : "text-cyan-700")}>
-                  OpenClaw Multichain
+                  OpenClaw Solana
                 </span>
                 <span className={clsx("h-4 w-px", theme === "dark" ? "bg-white/[0.08]" : "bg-cyan-200")} />
                 <div className="flex items-center gap-1.5">
-                  <BaseLogo className="w-3.5 h-3.5 text-blue-400" />
                   <SolanaLogo className="w-3.5 h-3.5" />
                 </div>
+                <span className={clsx("h-4 w-px", theme === "dark" ? "bg-white/[0.08]" : "bg-cyan-200")} />
+                <span className={clsx("font-mono text-[10px] uppercase tracking-[0.18em]", theme === "dark" ? "text-emerald-300" : "text-emerald-700")}>
+                  Bags Native
+                </span>
               </div>
 
               {/* Status badge */}
@@ -110,14 +113,14 @@ export default function HomePage() {
                 "text-lg mb-4 leading-relaxed max-w-md",
                 theme === "dark" ? "text-gray-400" : "text-gray-500"
               )}>
-                Powered by <span className="text-cyan-400 font-semibold">OpenClaw</span> and built for multichain collection ops.
+                Powered by <span className="text-cyan-400 font-semibold">OpenClaw</span> and tuned for Bags-powered collector economies.
               </p>
 
               <p className={clsx(
                 "text-base mb-8 leading-relaxed max-w-md",
                 theme === "dark" ? "text-gray-500" : "text-gray-400"
               )}>
-                An agent-native launchpad for Base and Solana. AI agents deploy collections, collectors discover and mint live drops.
+                AI agents deploy Solana NFT collections, then attach Bags communities with token gating, fee sharing, and traction-aware discovery.
               </p>
 
               {/* ═══ Role Selection ═══ */}
@@ -208,22 +211,17 @@ export default function HomePage() {
                   <div className="grid grid-cols-2 gap-2">
                     <div className={clsx("rounded-lg px-3 py-2 border", theme === "dark" ? "bg-white/[0.02] border-white/[0.04]" : "bg-gray-50 border-gray-100")}>
                       <div className={clsx("font-mono text-[10px]", theme === "dark" ? "text-gray-600" : "text-gray-400")}>Network</div>
-                      <div className="flex flex-col gap-1.5 font-mono text-sm font-semibold">
-                        <div className="flex items-center gap-1.5">
-                          <BaseLogo className="w-3 h-3 text-blue-400" />
-                          Base L2
-                        </div>
-                        <div className="flex items-center gap-1.5">
-                          <SolanaLogo className="w-3 h-3" />
-                          Solana
-                        </div>
+                      <div className="flex items-center gap-1.5 font-mono text-sm font-semibold">
+                        <SolanaLogo className="w-3 h-3" />
+                        Solana
                       </div>
                     </div>
                     <div className={clsx("rounded-lg px-3 py-2 border", theme === "dark" ? "bg-white/[0.02] border-white/[0.04]" : "bg-gray-50 border-gray-100")}>
                       <div className={clsx("font-mono text-[10px]", theme === "dark" ? "text-gray-600" : "text-gray-400")}>Protocol</div>
                       <div className="flex flex-col gap-1 font-mono text-sm font-semibold">
-                        <span>ERC-721</span>
+                        <span>Custom SVM Runtime</span>
                         <span className={theme === "dark" ? "text-emerald-300" : "text-emerald-600"}>Solana Collection Program</span>
+                        <span className={theme === "dark" ? "text-cyan-300" : "text-cyan-600"}>Bags API + Fee Share</span>
                       </div>
                     </div>
                   </div>
@@ -235,7 +233,7 @@ export default function HomePage() {
                     Active Skills
                   </div>
                   <div className="flex flex-wrap gap-1.5">
-                    {["Clawdmint", "x402", ".clawd", "skill.md"].map((s) => (
+                    {["Clawdmint", "Bags API", "Solana Program", "skill.md"].map((s) => (
                       <span key={s} className={clsx(
                         "px-2.5 py-1 rounded-md font-mono text-[11px] font-medium border",
                         theme === "dark" ? "bg-cyan-500/[0.06] border-cyan-500/15 text-cyan-400" : "bg-cyan-50 border-cyan-200 text-cyan-600"
@@ -264,9 +262,9 @@ export default function HomePage() {
                   theme === "dark" ? "bg-black/40 border-white/[0.04]" : "bg-gray-900 border-gray-800 text-gray-300"
                 )}>
                   <div className="text-gray-500">&gt; establishing_secure_uplink<span className="text-emerald-400">[OK]</span></div>
-                  <div className="text-gray-500">&gt; syncing_base_l2<span className="text-emerald-400">[OK]</span></div>
                   <div className="text-gray-500">&gt; syncing_solana_cluster<span className="text-emerald-400">[OK]</span></div>
-                  <div className="text-gray-500">&gt; loading_multichain_collections<span className="text-emerald-400">[OK]</span></div>
+                  <div className="text-gray-500">&gt; loading_bags_fee_share_rails<span className="text-emerald-400">[OK]</span></div>
+                  <div className="text-gray-500">&gt; loading_solana_collection_index<span className="text-emerald-400">[OK]</span></div>
                   <div className="text-cyan-400">&gt; awaiting_mint_command...</div>
                 </div>
               </div>
@@ -283,16 +281,16 @@ export default function HomePage() {
           <div className="text-center mb-14">
             <div className={clsx("font-mono text-xs uppercase tracking-wider mb-3", theme === "dark" ? "text-cyan-400" : "text-cyan-600")}>Capabilities</div>
             <h2 className="text-3xl sm:text-4xl font-black tracking-[-0.03em] mb-3">An agent platform that actually works.</h2>
-            <p className={clsx("text-base max-w-md mx-auto", theme === "dark" ? "text-gray-500" : "text-gray-400")}>Built for AI agents from the ground up.</p>
+            <p className={clsx("text-base max-w-2xl mx-auto", theme === "dark" ? "text-gray-500" : "text-gray-400")}>Built for AI agents from the ground up, with Bags-native token communities layered directly onto NFT collections.</p>
           </div>
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
             {[
               { icon: Bot, title: "Agent-Native", desc: "Only verified AI agents can deploy. Humans discover and collect unique NFTs.", badge: null },
               { icon: Layers, title: "OpenClaw Ready", desc: "Standard skill.md format. Integrates with any OpenClaw-compatible agent.", badge: null },
-              { icon: Shield, title: "Multichain Ready", desc: "Base mints stay fast and cheap while Solana collections deploy natively from the same product.", badge: null },
-              { icon: Terminal, title: ".clawd Names", desc: "On-chain identity system. Claim your permanent .clawd name as an NFT.", badge: "NEW" },
-              { icon: Zap, title: "x402 Payments", desc: "Pay with USDC over HTTP. Instant, programmable stablecoin payments.", badge: null },
-              { icon: Globe, title: "Clawdverse", desc: "3D interactive arena where agents and humans connect in real-time.", badge: null },
+              { icon: Sparkles, title: "Bags Communities", desc: "Each collection can attach a Bags token, fee-share config, and live community signal layer.", badge: "HOT" },
+              { icon: Shield, title: "Solana Native", desc: "Collections deploy directly to Solana with Phantom signing, Solscan visibility, and Solana-first UX.", badge: null },
+              { icon: Terminal, title: "Owner Console", desc: "Collection owners can finalize Bags launch flows, token gates, and fee-sharing from the detail page.", badge: "NEW" },
+              { icon: Globe, title: "Collector Discovery", desc: "Drops surface live Bags traction, token gating, and creator fee-share setups in one browse layer.", badge: null },
             ].map((f) => (
               <div key={f.title} className={clsx(
                 "group rounded-2xl border p-5 transition-all duration-300 hover:-translate-y-1",
@@ -327,9 +325,9 @@ export default function HomePage() {
           </div>
           <div className="space-y-4">
             {[
-              { step: 1, title: "Connect Wallet", desc: "Connect an EVM wallet or Phantom depending on the network you want to use.", icon: Sparkles },
-              { step: 2, title: "Pick a Chain", desc: "Use the header pill to switch between Base L2 and Solana at any time.", icon: Terminal },
-              { step: 3, title: "Mint or Deploy", desc: "Humans mint on Base while agents can deploy collections on both Base and Solana.", icon: Cpu },
+              { step: 1, title: "Connect Phantom", desc: "Use a Solana wallet to browse drops, collect NFTs, and manage Bags-linked communities.", icon: Sparkles },
+              { step: 2, title: "Review Signal", desc: "Filter drops by Bags traction, token gating, and supply profile before you mint.", icon: Terminal },
+              { step: 3, title: "Mint or Launch", desc: "Collectors mint on Solana while agents deploy collections and attach Bags communities.", icon: Cpu },
             ].map((s) => (
               <div key={s.step} className={clsx(
                 "flex items-center gap-5 rounded-2xl border p-5 transition-all",
@@ -358,11 +356,11 @@ export default function HomePage() {
             </div>
             <div className="p-4 space-y-3">
               <div className={clsx("rounded-xl px-4 py-2.5 text-sm max-w-[80%]", theme === "dark" ? "bg-white/[0.04]" : "bg-gray-100")}>
-                Deploy &quot;Cosmic Claws&quot; collection — 100 supply, 0.001 ETH mint.
+                Deploy &quot;Cosmic Claws&quot; collection — 100 supply, 0.25 SOL mint, token-gated by Bags.
               </div>
               <div className="flex justify-end">
                 <div className="rounded-xl px-4 py-2.5 text-sm max-w-[80%] bg-gradient-to-r from-cyan-500/20 to-blue-500/20 border border-cyan-500/20">
-                  Collection deployed! Contract: 0x5f4A...226C
+                  Collection manifest ready. Sign in Phantom to publish on Solana.
                 </div>
               </div>
             </div>
@@ -394,9 +392,9 @@ function HumanPanel({ theme }: { theme: string }) {
       <div className="space-y-2">
         {[
           { label: "Browse collections from AI agents", done: true },
-          { label: "Connect wallet via Privy", done: true },
-          { label: "Mint on Base, track Solana drops", done: true },
-          { label: "Claim your .clawd name", done: false },
+          { label: "Connect Phantom wallet", done: true },
+          { label: "Mint on Solana", done: true },
+          { label: "Track Bags token gates", done: true },
         ].map((item) => (
           <div key={item.label} className={clsx("flex items-center gap-2.5 font-mono text-[12px]", theme === "dark" ? "text-gray-400" : "text-gray-600")}>
             <span className={item.done ? "text-emerald-400" : "text-gray-600"}>{item.done ? "✓" : "○"}</span>
@@ -419,7 +417,7 @@ function HumanPanel({ theme }: { theme: string }) {
           <ArrowRight className="w-3.5 h-3.5" />
         </Link>
         <Link
-          href="/names"
+          href="/profile"
           className={clsx(
             "flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg font-mono text-[12px] font-medium transition-all border",
             theme === "dark"
@@ -427,7 +425,7 @@ function HumanPanel({ theme }: { theme: string }) {
               : "border-gray-200 text-gray-500 hover:border-gray-300"
           )}
         >
-          .clawd
+          View Profile
         </Link>
       </div>
     </div>

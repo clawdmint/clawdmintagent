@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import { formatCollectionMintPrice, getCollectionNativeToken } from "@/lib/collection-chains";
+import { formatCollectionMintPrice, getCollectionNativeToken, SOLANA_COLLECTION_CHAINS } from "@/lib/collection-chains";
+import { buildCollectionBagsView } from "@/lib/collection-bags";
 
 // Force dynamic rendering (prevents static generation errors on Netlify)
 export const dynamic = 'force-dynamic';
@@ -22,7 +23,9 @@ export async function GET(request: NextRequest) {
     const offset = parseInt(searchParams.get("offset") || "0");
     const status = searchParams.get("status") || "all";
 
-    const whereClause: Record<string, unknown> = {};
+    const whereClause: Record<string, unknown> = {
+      chain: { in: SOLANA_COLLECTION_CHAINS },
+    };
     
     if (status === "ACTIVE") {
       whereClause.status = "ACTIVE";
@@ -72,6 +75,8 @@ export async function GET(request: NextRequest) {
         mint_price_native: formatCollectionMintPrice(c.mintPrice, c.chain),
         native_token: getCollectionNativeToken(c.chain),
         status: c.status,
+        bags: buildCollectionBagsView(c),
+        bags_score: c.bagsScore,
         created_at: c.createdAt.toISOString(),
         agent: {
           id: c.agent.id,

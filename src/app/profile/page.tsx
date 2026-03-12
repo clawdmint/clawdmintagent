@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import { formatEther } from "viem";
 import Link from "next/link";
 import { clsx } from "clsx";
 import {
@@ -12,19 +11,16 @@ import {
   Package,
   Coins,
   Hash,
-  AtSign,
   Loader2,
   Rocket,
 } from "lucide-react";
-import { BaseLogo, SolanaLogo } from "@/components/network-icons";
+import { SolanaLogo } from "@/components/network-icons";
 import { useWallet } from "@/components/wallet-context";
-import { reverseResolveAddress, getUserNames } from "@/lib/clawd-names";
 import {
   getAddressExplorerUrl,
   getDexScreenerTokenUrl,
   getNetworkFromValue,
   getTransactionExplorerUrl,
-  isEvmAddress,
 } from "@/lib/network-config";
 import { formatCollectionMintPrice, getCollectionNativeToken } from "@/lib/collection-chains";
 import { useTheme } from "@/components/theme-provider";
@@ -73,37 +69,27 @@ interface MintRecord {
 }
 
 function ChainBadge({ chain, theme }: { chain: string; theme: string }) {
-  const network = getNetworkFromValue(chain);
-
   return (
     <span className={clsx(
       "inline-flex items-center gap-1.5 rounded-full border px-2 py-1 font-mono text-[10px] uppercase tracking-[0.18em]",
-      network.family === "solana"
-        ? theme === "dark"
-          ? "border-emerald-500/20 bg-emerald-500/10 text-emerald-300"
-          : "border-emerald-200 bg-emerald-50 text-emerald-700"
-        : theme === "dark"
-          ? "border-blue-500/20 bg-blue-500/10 text-blue-300"
-          : "border-blue-200 bg-blue-50 text-blue-700"
+      theme === "dark"
+        ? "border-emerald-500/20 bg-emerald-500/10 text-emerald-300"
+        : "border-emerald-200 bg-emerald-50 text-emerald-700"
     )}>
-      {network.family === "solana"
-        ? <SolanaLogo className="w-3.5 h-3.5" />
-        : <BaseLogo className="w-3.5 h-3.5 text-current" />}
-      {network.shortLabel}
+      <SolanaLogo className="w-3.5 h-3.5" />
+      {getNetworkFromValue(chain).shortLabel}
     </span>
   );
 }
 
 export default function ProfilePage() {
   const { theme } = useTheme();
-  const { address, isConnected, login, logout, displayAddress, connectSolana, solanaAvailable } = useWallet();
+  const { address, isConnected, logout, displayAddress, connectSolana, solanaAvailable } = useWallet();
 
   const [profile, setProfile] = useState<ProfileData | null>(null);
   const [mints, setMints] = useState<MintRecord[]>([]);
   const [tokenLaunches, setTokenLaunches] = useState<TokenLaunchRecord[]>([]);
   const [loading, setLoading] = useState(false);
-  const [clawdName, setClawdName] = useState<string | null>(null);
-  const [clawdNames, setClawdNames] = useState<Array<{ tokenId: bigint; name: string }>>([]);
   const [copied, setCopied] = useState(false);
 
   useEffect(() => {
@@ -136,23 +122,6 @@ export default function ProfilePage() {
     void fetchProfile();
   }, [address]);
 
-  useEffect(() => {
-    if (!address) {
-      setClawdName(null);
-      setClawdNames([]);
-      return;
-    }
-
-    if (!isEvmAddress(address)) {
-      setClawdName(null);
-      setClawdNames([]);
-      return;
-    }
-
-    void reverseResolveAddress(address).then(setClawdName);
-    void getUserNames(address).then(setClawdNames);
-  }, [address]);
-
   const copyAddress = useCallback(() => {
     if (!address) return;
 
@@ -182,29 +151,20 @@ export default function ProfilePage() {
           </div>
           <h1 className="text-xl font-bold mb-2">Connect to view profile</h1>
           <p className={clsx("text-sm mb-6", theme === "dark" ? "text-gray-500" : "text-gray-400")}>
-            Connect your wallet to see your on-chain identity and minted NFTs.
+            Connect your Phantom wallet to see your Solana profile, minted NFTs, and Bags-linked launches.
           </p>
-          <div className="flex flex-col sm:flex-row gap-3 justify-center">
-            <button
-              onClick={login}
-              className="px-6 py-3 bg-gradient-to-r from-cyan-500 to-blue-600 rounded-xl text-sm font-semibold text-white hover:shadow-lg hover:shadow-cyan-500/20 transition-all inline-flex items-center justify-center gap-2"
-            >
-              <BaseLogo className="w-4 h-4 text-blue-100" />
-              Connect Base
-            </button>
-            <button
-              onClick={handleConnectSolana}
-              className={clsx(
-                "px-6 py-3 rounded-xl text-sm font-semibold transition-all border flex items-center justify-center gap-2",
-                theme === "dark"
-                  ? "border-emerald-500/25 bg-emerald-500/10 text-emerald-300 hover:bg-emerald-500/15"
-                  : "border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100"
-              )}
-            >
-              <SolanaLogo className="w-4 h-4" />
-              {solanaAvailable ? "Connect Solana" : "Install Phantom"}
-            </button>
-          </div>
+          <button
+            onClick={handleConnectSolana}
+            className={clsx(
+              "px-6 py-3 rounded-xl text-sm font-semibold transition-all border inline-flex items-center justify-center gap-2",
+              theme === "dark"
+                ? "border-emerald-500/25 bg-emerald-500/10 text-emerald-300 hover:bg-emerald-500/15"
+                : "border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100"
+            )}
+          >
+            <SolanaLogo className="w-4 h-4" />
+            {solanaAvailable ? "Connect Phantom" : "Install Phantom"}
+          </button>
         </div>
       </div>
     );
@@ -218,11 +178,11 @@ export default function ProfilePage() {
     );
   }
 
-  const totalSpent = profile?.total_spent_wei === "0" || !profile?.total_spent_wei
-    ? "0"
-    : parseFloat(formatEther(BigInt(profile.total_spent_wei))).toFixed(4);
+  const totalSpent = profile?.total_spent_wei
+    ? formatCollectionMintPrice(profile.total_spent_wei, "solana")
+    : "0";
   const connectedNetwork = address ? getNetworkFromValue(address) : null;
-  const spentLabel = isEvmAddress(address) && totalSpent !== "0" ? `${totalSpent} ETH` : "-";
+  const spentLabel = totalSpent !== "0" ? `${totalSpent} SOL` : "-";
 
   return (
     <div className="container mx-auto px-4 py-8 max-w-3xl">
@@ -237,16 +197,10 @@ export default function ProfilePage() {
               "bg-gradient-to-br from-cyan-500/20 to-purple-500/20",
               theme === "dark" ? "text-cyan-400" : "text-cyan-600"
             )}>
-              {clawdName ? clawdName.charAt(0).toUpperCase() : isEvmAddress(address) ? address?.slice(2, 4).toUpperCase() : address?.slice(0, 2).toUpperCase()}
+              {address?.slice(0, 2).toUpperCase()}
             </div>
 
             <div className="min-w-0">
-              {clawdName && (
-                <div className="text-lg font-bold bg-gradient-to-r from-cyan-400 to-blue-400 bg-clip-text text-transparent mb-0.5">
-                  {clawdName}
-                </div>
-              )}
-
               {connectedNetwork && <ChainBadge chain={connectedNetwork.id} theme={theme} />}
 
               <div className="flex items-center gap-2 mt-2">
@@ -315,34 +269,6 @@ export default function ProfilePage() {
           </div>
         )}
       </div>
-
-      {clawdNames.length > 0 && (
-        <div className="mb-6">
-          <div className={clsx(
-            "text-xs font-semibold uppercase tracking-[0.15em] mb-3",
-            theme === "dark" ? "text-gray-600" : "text-gray-400"
-          )}>
-            Names
-          </div>
-          <div className="flex flex-wrap gap-2">
-            {clawdNames.map((name) => (
-              <Link
-                key={name.tokenId.toString()}
-                href="/names"
-                className={clsx(
-                  "inline-flex items-center gap-1.5 px-3 py-2 rounded-xl border text-sm font-medium transition-all",
-                  theme === "dark"
-                    ? "bg-cyan-500/[0.04] border-cyan-500/15 text-cyan-400 hover:bg-cyan-500/[0.08]"
-                    : "bg-cyan-50/60 border-cyan-200/60 text-cyan-600 hover:bg-cyan-50"
-                )}
-              >
-                <AtSign className="w-3.5 h-3.5" />
-                {name.name}.clawd
-              </Link>
-            ))}
-          </div>
-        </div>
-      )}
 
       {tokenLaunches.length > 0 && (
         <div className="mb-6">

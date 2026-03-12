@@ -1,6 +1,6 @@
 "use client";
 
-import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
+import React, { createContext, useCallback, useContext, useEffect, useMemo } from "react";
 import {
   getAppNetworkFamily,
   getPreferredNetworkForFamily,
@@ -29,18 +29,15 @@ const NetworkPreferenceContext = createContext<NetworkPreferenceState>({
 });
 
 export function NetworkProvider({ children }: { children: React.ReactNode }) {
-  const [networkFamily, setNetworkFamilyState] = useState<NetworkFamily>(defaultNetworkFamily);
-
   useEffect(() => {
     const storedFamily = window.localStorage.getItem(STORAGE_KEY);
-    if (storedFamily === "evm" || storedFamily === "solana") {
-      setNetworkFamilyState(storedFamily);
+    if (storedFamily !== "solana") {
+      window.localStorage.setItem(STORAGE_KEY, "solana");
     }
   }, []);
 
-  const setNetworkFamily = useCallback((family: NetworkFamily) => {
-    setNetworkFamilyState(family);
-    window.localStorage.setItem(STORAGE_KEY, family);
+  const setNetworkFamily = useCallback((_family: NetworkFamily) => {
+    window.localStorage.setItem(STORAGE_KEY, "solana");
   }, []);
 
   const value = useMemo<NetworkPreferenceState>(() => {
@@ -48,13 +45,13 @@ export function NetworkProvider({ children }: { children: React.ReactNode }) {
     const solanaNetwork = getPreferredNetworkForFamily("solana");
 
     return {
-      networkFamily,
-      activeNetwork: networkFamily === "solana" ? solanaNetwork : baseNetwork,
+      networkFamily: "solana",
+      activeNetwork: solanaNetwork,
       baseNetwork,
       solanaNetwork,
       setNetworkFamily,
     };
-  }, [networkFamily, setNetworkFamily]);
+  }, [setNetworkFamily]);
 
   return (
     <NetworkPreferenceContext.Provider value={value}>

@@ -5,14 +5,11 @@ import { useEffect, useState } from "react";
 import { clsx } from "clsx";
 import { ArrowRight } from "lucide-react";
 import { useTheme } from "./theme-provider";
-import { BaseLogo, SolanaLogo } from "./network-icons";
-import { getAppNetwork } from "@/lib/network-config";
+import { SolanaLogo } from "./network-icons";
 
 export function Footer() {
   const { theme } = useTheme();
   const [stats, setStats] = useState({ agents: 0, minted: 0 });
-  const appNetwork = getAppNetwork();
-  const supportedChainsLabel = "Base + Solana";
 
   useEffect(() => {
     fetch("/api/stats")
@@ -29,23 +26,21 @@ export function Footer() {
     <footer className="mt-auto">
       <section className={clsx("border-t", theme === "dark" ? "border-white/[0.04]" : "border-gray-100")}>
         <div className="container mx-auto px-4 py-20 text-center">
-          <h2 className="text-3xl sm:text-4xl font-black tracking-[-0.03em] mb-4">
-            Ready to enter the agent economy?
+          <h2 className="mb-4 text-3xl font-black tracking-[-0.03em] sm:text-4xl">
+            Ready to launch on Solana?
           </h2>
-          <p className={clsx("text-base max-w-md mx-auto mb-8", theme === "dark" ? "text-gray-500" : "text-gray-400")}>
-            Zero setup - OpenClaw Agent pre-installed. Connect, deploy, mint.
+          <p className={clsx("mx-auto mb-8 max-w-md text-base", theme === "dark" ? "text-gray-500" : "text-gray-400")}>
+            Connect Phantom, browse live drops, and activate Bags-powered NFT communities.
           </p>
           <Link
             href="/drops"
             className={clsx(
-              "inline-flex items-center gap-2 px-6 py-3 rounded-xl text-sm font-semibold transition-all hover:-translate-y-0.5",
-              theme === "dark"
-                ? "bg-white text-black hover:bg-gray-200"
-                : "bg-gray-900 text-white hover:bg-gray-800"
+              "inline-flex items-center gap-2 rounded-xl px-6 py-3 text-sm font-semibold transition-all hover:-translate-y-0.5",
+              theme === "dark" ? "bg-white text-black hover:bg-gray-200" : "bg-gray-900 text-white hover:bg-gray-800"
             )}
           >
-            Start Minting
-            <ArrowRight className="w-4 h-4" />
+            Explore Solana Drops
+            <ArrowRight className="h-4 w-4" />
           </Link>
         </div>
       </section>
@@ -54,18 +49,18 @@ export function Footer() {
         <div className="container mx-auto px-4 py-6">
           <div className="flex flex-wrap items-center justify-center gap-8 font-mono text-xs">
             <div className="flex items-center gap-2">
-              <span className={theme === "dark" ? "text-gray-600" : "text-gray-400"}>Agent Status</span>
-              <span className="flex items-center gap-1.5 text-emerald-400 font-semibold">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                Active
+              <span className={theme === "dark" ? "text-gray-600" : "text-gray-400"}>Network</span>
+              <span className="flex items-center gap-1.5 font-semibold text-emerald-400">
+                <SolanaLogo className="h-3 w-3" />
+                Solana
               </span>
             </div>
-            <div className={clsx("w-px h-4", theme === "dark" ? "bg-white/[0.06]" : "bg-gray-200")} />
+            <div className={clsx("h-4 w-px", theme === "dark" ? "bg-white/[0.06]" : "bg-gray-200")} />
             <div className="flex items-center gap-2">
               <span className={theme === "dark" ? "text-gray-600" : "text-gray-400"}>Verified Agents</span>
               <span className={clsx("font-semibold", theme === "dark" ? "text-white" : "text-gray-900")}>{stats.agents}</span>
             </div>
-            <div className={clsx("w-px h-4 hidden sm:block", theme === "dark" ? "bg-white/[0.06]" : "bg-gray-200")} />
+            <div className={clsx("hidden h-4 w-px sm:block", theme === "dark" ? "bg-white/[0.06]" : "bg-gray-200")} />
             <div className="flex items-center gap-2">
               <span className={theme === "dark" ? "text-gray-600" : "text-gray-400"}>NFTs Minted</span>
               <span className={clsx("font-semibold", theme === "dark" ? "text-white" : "text-gray-900")}>{stats.minted}</span>
@@ -77,38 +72,26 @@ export function Footer() {
       <div className={clsx("border-t", theme === "dark" ? "border-white/[0.04]" : "border-gray-100")}>
         <div className="container mx-auto px-4 py-12">
           <div className="flex flex-col items-center gap-8">
-            <p className={clsx("text-sm text-center max-w-lg leading-relaxed", theme === "dark" ? "text-gray-500" : "text-gray-400")}>
-              Clawdmint is an agent-native launchpad where AI agents deploy and humans mint.
-              Built with OpenClaw across {supportedChainsLabel}.
+            <p className={clsx("max-w-lg text-center text-sm leading-relaxed", theme === "dark" ? "text-gray-500" : "text-gray-400")}>
+              Clawdmint is now focused on Solana-native NFT deployment and Bags-aware collector discovery for AI agents.
             </p>
 
             <div className="flex flex-wrap items-center justify-center gap-6 text-xs font-medium">
               {[
                 { href: "/drops", label: "Drops" },
                 { href: "/agents", label: "Agents" },
-                { href: "/names", label: ".clawd" },
-                { href: "/clawdverse", label: "Clawdverse" },
+                { href: "/profile", label: "Profile" },
                 { href: "/skill.md", label: "skill.md", external: true },
               ].map((link) => (
                 <Link
                   key={link.href}
                   href={link.href}
-                  {...(link.external ? { target: "_blank" } : {})}
+                  {...(link.external ? { target: "_blank", rel: "noopener noreferrer" } : {})}
                   className={clsx("transition-colors", theme === "dark" ? "text-gray-500 hover:text-white" : "text-gray-400 hover:text-gray-900")}
                 >
                   {link.label}
                 </Link>
               ))}
-              {appNetwork.family === "evm" && (
-                <a
-                  href="https://basescan.org/address/0x5f4AA542ac013394e3e40fA26F75B5b6B406226C"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className={clsx("transition-colors font-mono", theme === "dark" ? "text-gray-600 hover:text-white" : "text-gray-400 hover:text-gray-900")}
-                >
-                  Contract
-                </a>
-              )}
               <a
                 href="https://x.com/clawdmint"
                 target="_blank"
@@ -120,7 +103,7 @@ export function Footer() {
             </div>
 
             <div className="pt-4">
-              <span className={clsx("font-mono text-5xl sm:text-7xl font-black tracking-[-0.05em] select-none", theme === "dark" ? "text-white/[0.03]" : "text-gray-100")}>
+              <span className={clsx("select-none font-mono text-5xl font-black tracking-[-0.05em] sm:text-7xl", theme === "dark" ? "text-white/[0.03]" : "text-gray-100")}>
                 CLAWDMINT
               </span>
             </div>
@@ -131,12 +114,11 @@ export function Footer() {
               </span>
               <span className={theme === "dark" ? "text-gray-800" : "text-gray-200"}>|</span>
               <div className={clsx("flex items-center gap-1.5", theme === "dark" ? "text-gray-700" : "text-gray-300")}>
-                <BaseLogo className="w-3 h-3 text-blue-400" />
-                <SolanaLogo className="w-3 h-3" />
-                {supportedChainsLabel}
+                <SolanaLogo className="h-3 w-3" />
+                Solana
               </div>
               <span className={theme === "dark" ? "text-gray-800" : "text-gray-200"}>|</span>
-              <span className={theme === "dark" ? "text-gray-700" : "text-gray-300"}>OpenClaw</span>
+              <span className={theme === "dark" ? "text-gray-700" : "text-gray-300"}>OpenClaw + Bags</span>
             </div>
           </div>
         </div>

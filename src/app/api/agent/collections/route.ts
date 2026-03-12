@@ -1,18 +1,20 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { verifyHmacAuth } from "@/lib/auth";
-import { FACTORY_ABI, FACTORY_ADDRESS_GETTER, getChain } from "@/lib/contracts";
 import {
   DeployCollectionSchema,
   prepareCollectionAssets,
 } from "@/lib/collection-deploy";
 import {
+  buildCollectionBagsView,
+  prepareCollectionBagsRecord,
+} from "@/lib/collection-bags";
+import {
   formatCollectionMintPrice,
   getCollectionNativeToken,
-  isEvmCollectionChain,
+  SOLANA_COLLECTION_CHAINS,
 } from "@/lib/collection-chains";
 import { buildSolanaDeploymentManifest } from "@/lib/solana-collections";
-import { encodeFunctionData } from "viem";
 
 export const dynamic = "force-dynamic";
 
@@ -49,11 +51,20 @@ export async function POST(request: NextRequest) {
     }
 
     const assets = await prepareCollectionAssets(data, agent.name);
+    const bagsRecord = prepareCollectionBagsRecord({
+      input: data.bags,
+      chain: assets.chain,
+      authorityAddress: assets.authorityAddress,
+      payoutAddress: data.payout_address,
+      collectionName: data.name,
+      collectionSymbol: data.symbol,
+    });
     const collection = await prisma.collection.create({
       data: {
         agentId: agent.id,
         agentEoa: agent.eoa,
         chain: assets.chain,
+        authorityAddress: bagsRecord.authorityAddress,
         name: data.name,
         symbol: data.symbol,
         description: data.description,
@@ -63,74 +74,55 @@ export async function POST(request: NextRequest) {
         mintPrice: assets.mintPriceRaw,
         royaltyBps: data.royalty_bps,
         payoutAddress: data.payout_address,
+        bagsStatus: bagsRecord.bagsStatus,
+        bagsTokenAddress: bagsRecord.bagsTokenAddress,
+        bagsTokenName: bagsRecord.bagsTokenName,
+        bagsTokenSymbol: bagsRecord.bagsTokenSymbol,
+        bagsMintAccess: bagsRecord.bagsMintAccess,
+        bagsMinTokenBalance: bagsRecord.bagsMinTokenBalance,
+        bagsFeeConfig: bagsRecord.bagsFeeConfig,
+        bagsCreatorWallet: bagsRecord.bagsCreatorWallet,
+        bagsInitialBuyLamports: bagsRecord.bagsInitialBuyLamports,
         status: "PENDING_SIGNATURE",
         address: `pending_${Date.now()}`,
         deployTxHash: "pending",
       },
     });
+    const bags = buildCollectionBagsView(collection);
 
-    let deployment: Record<string, unknown>;
+    const manifest = buildSolanaDeploymentManifest({
+      authority: assets.authorityAddress,
+      payoutAddress: data.payout_address,
+      collectionId: collection.id,
+      name: data.name,
+      symbol: data.symbol,
+      baseUri: assets.baseUri,
+      maxSupply: data.max_supply,
+      mintPriceLamports: BigInt(assets.mintPriceRaw),
+      royaltyBps: data.royalty_bps,
+    });
 
-    if (isEvmCollectionChain(assets.chain)) {
-      const calldata = encodeFunctionData({
-        abi: FACTORY_ABI,
-        functionName: "deployCollection",
-        args: [{
-          name: data.name,
-          symbol: data.symbol,
-          baseURI: assets.baseUri,
-          maxSupply: BigInt(data.max_supply),
-          mintPrice: BigInt(assets.mintPriceRaw),
-          payoutAddress: data.payout_address as `0x${string}`,
-          royaltyBps: BigInt(data.royalty_bps),
-        }],
-      });
-
-      deployment = {
-        mode: "agent_sign",
-        factory_address: FACTORY_ADDRESS_GETTER(),
-        chain_id: getChain().id,
-        chain_name: getChain().name,
-        calldata,
-        instructions: [
-          "1. Sign and broadcast the factory deployCollection call",
-          "2. Wait for Base confirmation",
-          "3. Call POST /api/agent/collections/confirm with collection_id, deployed_address, and deploy_tx_hash",
-        ],
-      };
-    } else {
-      const manifest = buildSolanaDeploymentManifest({
-        authority: assets.authorityAddress,
-        payoutAddress: data.payout_address,
-        collectionId: collection.id,
-        name: data.name,
-        symbol: data.symbol,
-        baseUri: assets.baseUri,
-        maxSupply: data.max_supply,
-        mintPriceLamports: BigInt(assets.mintPriceRaw),
-        royaltyBps: data.royalty_bps,
-      });
-
-      deployment = {
-        mode: "agent_sign",
-        program_id: manifest.program_id,
-        cluster: manifest.cluster,
-        authority: manifest.authority,
-        predicted_collection_address: manifest.collection_address,
-        instructions: manifest.instructions,
-        instructions_text: [
-          "1. Build a Solana transaction from the returned instruction list",
-          "2. Sign with authority_address on the configured Solana cluster",
-          "3. Call POST /api/agent/collections/confirm with collection_id, deployed_address, and deploy_tx_hash",
-        ],
-      };
-    }
+    const deployment: Record<string, unknown> = {
+      mode: "agent_sign",
+      program_id: manifest.program_id,
+      cluster: manifest.cluster,
+      authority: manifest.authority,
+      predicted_collection_address: manifest.collection_address,
+      instructions: manifest.instructions,
+      confirm_endpoint: "/api/agent/collections/confirm",
+      instructions_text: [
+        "1. Build a Solana transaction from the returned instruction list",
+        "2. Sign with authority_address on the configured Solana cluster",
+        "3. Call POST /api/agent/collections/confirm with collection_id, deployed_address, and deploy_tx_hash",
+      ],
+    };
 
     return NextResponse.json({
       success: true,
       collection: {
         id: collection.id,
         chain: collection.chain,
+        address: manifest.collection_address,
         name: collection.name,
         symbol: collection.symbol,
         max_supply: collection.maxSupply,
@@ -141,6 +133,7 @@ export async function POST(request: NextRequest) {
         image_url: assets.imageHttpUrl,
         base_uri: assets.baseUri,
         status: collection.status,
+        bags,
       },
       deployment,
       metadata: {
@@ -151,6 +144,14 @@ export async function POST(request: NextRequest) {
         image: assets.imageHttpUrl,
         total_tokens: data.max_supply,
       },
+      bags_community: bags
+        ? {
+            status: bags.status,
+            launch_required: !bags.token_address,
+            prepare_endpoint: !bags.token_address ? "/api/agent/collections/bags" : null,
+            confirm_endpoint: !bags.token_address ? "/api/agent/collections/bags/confirm" : null,
+          }
+        : null,
     });
   } catch (error) {
     console.error("Collection deployment error:", error);
@@ -166,7 +167,10 @@ export async function GET(request: NextRequest) {
     }
 
     const collections = await prisma.collection.findMany({
-      where: { agentId: auth.agentId },
+      where: {
+        agentId: auth.agentId,
+        chain: { in: SOLANA_COLLECTION_CHAINS },
+      },
       orderBy: { createdAt: "desc" },
     });
 
@@ -184,6 +188,7 @@ export async function GET(request: NextRequest) {
         mint_price_native: formatCollectionMintPrice(c.mintPrice, c.chain),
         native_token: getCollectionNativeToken(c.chain),
         status: c.status,
+        bags: buildCollectionBagsView(c),
         created_at: c.createdAt.toISOString(),
         deployed_at: c.deployedAt?.toISOString(),
       })),

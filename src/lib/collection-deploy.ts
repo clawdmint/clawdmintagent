@@ -8,6 +8,7 @@ import {
 } from "@/lib/ipfs";
 import {
   getCollectionNativeToken,
+  isSolanaCollectionChain,
   normalizeCollectionAddress,
   normalizeCollectionChain,
   parseCollectionMintPrice,
@@ -19,6 +20,10 @@ import {
   isSupportedWalletAddress,
   normalizeWalletAddress,
 } from "@/lib/network-config";
+import {
+  BagsCollectionConfigSchema,
+  refineBagsCollectionInput,
+} from "@/lib/collection-bags";
 
 const NATIVE_AMOUNT_REGEX = /^\d+\.?\d*$/;
 
@@ -27,6 +32,16 @@ export function refineDeployCollectionInput(
   ctx: z.RefinementCtx
 ) {
   const chain = normalizeCollectionChain(data.chain);
+
+  if (!isSolanaCollectionChain(chain)) {
+    ctx.addIssue({
+      path: ["chain"],
+      code: z.ZodIssueCode.custom,
+      message: "Clawdmint is currently running in Solana-only mode",
+    });
+    return;
+  }
+
   const mintPrice = resolveMintPriceInput(chain, data);
 
   if (!mintPrice) {
@@ -52,6 +67,12 @@ export function refineDeployCollectionInput(
       message: `Invalid ${getCollectionNativeToken(chain)} authority address`,
     });
   }
+
+  refineBagsCollectionInput(data.bags, ctx, {
+    chain,
+    authorityAddress: data.authority_address,
+    payoutAddress: data.payout_address,
+  });
 }
 
 export const BaseDeployCollectionSchema = z.object({
@@ -71,6 +92,7 @@ export const BaseDeployCollectionSchema = z.object({
   authority_address: z.string().optional(),
   payout_address: z.string(),
   royalty_bps: z.number().int().min(0).max(1000).default(500),
+  bags: BagsCollectionConfigSchema,
   metadata: z
     .object({
       external_url: z.string().url().optional(),

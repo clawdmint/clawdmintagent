@@ -78,7 +78,7 @@ export function normalizeWalletAddress(value?: string | null): string {
 }
 
 export function getAppNetworkFamily(): NetworkFamily {
-  return process.env["NEXT_PUBLIC_NETWORK_FAMILY"] === "solana" ? "solana" : "evm";
+  return process.env["NEXT_PUBLIC_NETWORK_FAMILY"] === "evm" ? "evm" : "solana";
 }
 
 export function getAppNetworkId(): SupportedNetworkId {

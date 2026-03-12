@@ -1,15 +1,16 @@
 "use client";
 
-import { useEffect, useState, useRef } from "react";
+import { useCallback, useEffect, useState, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useWriteContract, useWaitForTransactionReceipt } from "wagmi";
-import { useWallet } from "@/components/wallet-context";
+import { getPhantomProvider, useWallet } from "@/components/wallet-context";
 import Link from "next/link";
 import Image from "next/image";
+import { Connection, Transaction, VersionedTransaction, clusterApiUrl } from "@solana/web3.js";
 import { COLLECTION_ABI } from "@/lib/contracts";
 import { useTheme } from "@/components/theme-provider";
 import { clsx } from "clsx";
-import { Bot, ExternalLink, ArrowLeft, Minus, Plus, Sparkles, CheckCircle, ShoppingBag, Share2, Link2, Check, MessageSquare, Send, ChevronDown, ChevronUp } from "lucide-react";
+import { Bot, ExternalLink, ArrowLeft, Minus, Plus, Sparkles, CheckCircle, ShoppingBag, Share2, Link2, Check, MessageSquare, Send, ChevronDown, ChevronUp, Coins, Lock, TrendingUp, Users, Loader2, ShieldCheck } from "lucide-react";
 import {
   formatCollectionMintPrice,
   getCollectionNativeToken,
@@ -19,9 +20,46 @@ import {
   getAddressExplorerUrl,
   getNetworkFromValue,
   getTransactionExplorerUrl,
+  isSolanaAddress,
 } from "@/lib/network-config";
 import { NetworkLogo } from "@/components/network-icons";
+import { getClientEnv } from "@/lib/env";
+import { buildCollectionOwnerAuthMessage } from "@/lib/collection-owner-auth";
 const AGENTS_CONTRACT = (process.env["NEXT_PUBLIC_AGENTS_CONTRACT"] || "").toLowerCase();
+
+interface BagsFeeShare {
+  label: string;
+  provider: string;
+  bps: number;
+  wallet?: string | null;
+  username?: string | null;
+}
+
+interface BagsAnalytics {
+  lifetime_fees_lamports: string | null;
+  lifetime_fees_sol: string | null;
+  claimed_fees_lamports: string | null;
+  claimed_fees_sol: string | null;
+  score: number;
+  updated_at: string | null;
+}
+
+interface BagsConfig {
+  enabled: boolean;
+  status: string;
+  token_address: string | null;
+  token_name: string | null;
+  token_symbol: string | null;
+  token_metadata: string | null;
+  launch_tx_hash: string | null;
+  config_key: string | null;
+  mint_access: "public" | "bags_balance";
+  min_token_balance: string | null;
+  creator_wallet: string | null;
+  initial_buy_sol: string | null;
+  fee_shares: BagsFeeShare[];
+  analytics: BagsAnalytics | null;
+}
 
 interface Collection {
   id: string;
@@ -39,9 +77,11 @@ interface Collection {
   mint_price_native: string;
   royalty_bps: number;
   payout_address: string;
+  authority_address?: string | null;
   status: string;
   deployed_at: string;
   deploy_tx_hash: string;
+  bags?: BagsConfig | null;
   agent: {
     id: string;
     name: string;
@@ -55,6 +95,60 @@ interface Collection {
     remaining: string;
     is_sold_out: boolean;
   };
+}
+
+interface OwnerBagsLaunchPayload {
+  success: boolean;
+  error?: string;
+  collection?: Collection;
+  bags_launch?: {
+    token_info: {
+      token_mint: string;
+      token_metadata?: string | null;
+      token_launch?: string | null;
+      ipfs?: string | null;
+      metadata_uri?: string | null;
+    };
+    fee_config: {
+      config_key: string;
+      transactions: string[];
+      transactions_base64: string[];
+      transaction_bundle_ids: string[];
+    };
+    launch: {
+      wallet: string;
+      transaction: string;
+      transaction_base64: string;
+      initial_buy_lamports: string;
+    };
+    confirm_endpoint: string;
+  };
+}
+
+function bytesToBase64(bytes: Uint8Array): string {
+  let binary = "";
+  for (let index = 0; index < bytes.length; index += 1) {
+    binary += String.fromCharCode(bytes[index]);
+  }
+  return window.btoa(binary);
+}
+
+function base64ToBytes(value: string): Uint8Array {
+  const binary = window.atob(value);
+  const bytes = new Uint8Array(binary.length);
+  for (let index = 0; index < binary.length; index += 1) {
+    bytes[index] = binary.charCodeAt(index);
+  }
+  return bytes;
+}
+
+function deserializeSolanaTransaction(serializedBase64: string): Transaction | VersionedTransaction {
+  const bytes = base64ToBytes(serializedBase64);
+  try {
+    return VersionedTransaction.deserialize(bytes);
+  } catch {
+    return Transaction.from(bytes);
+  }
 }
 
 function PrivyConnectButton() {
@@ -82,12 +176,24 @@ export default function CollectionPage() {
     }
   }, [address, router]);
 
-  const { address: userAddress, isConnected } = useWallet();
+  const { address: userAddress, solanaAddress, isConnected, connectSolana, solanaAvailable } = useWallet();
   
   const [collection, setCollection] = useState<Collection | null>(null);
   const [loading, setLoading] = useState(true);
   const [quantity, setQuantity] = useState(1);
   const [isMinting, setIsMinting] = useState(false);
+  const [isLaunchingBags, setIsLaunchingBags] = useState(false);
+  const [bagsOwnerStep, setBagsOwnerStep] = useState("");
+  const [bagsOwnerError, setBagsOwnerError] = useState("");
+  const [bagsOwnerSuccess, setBagsOwnerSuccess] = useState("");
+  const [bagsOwnerLaunchTx, setBagsOwnerLaunchTx] = useState<string | null>(null);
+  const [eligibility, setEligibility] = useState<{
+    eligible: boolean;
+    balance?: string;
+    required?: string | null;
+    reason?: string;
+  } | null>(null);
+  const [eligibilityLoading, setEligibilityLoading] = useState(false);
 
   const { writeContract, data: txHash, isPending: isWritePending } = useWriteContract();
   
@@ -95,24 +201,59 @@ export default function CollectionPage() {
     hash: txHash,
   });
 
-  useEffect(() => {
-    async function fetchCollection() {
-      try {
-        const res = await fetch(`/api/collections/${address}`);
-        const data = await res.json();
-        if (data.success) {
-          setCollection(data.collection);
-        }
-      } catch (error) {
-        console.error("Failed to fetch collection:", error);
-      } finally {
-        setLoading(false);
+  const loadCollection = useCallback(async () => {
+    try {
+      const res = await fetch(`/api/collections/${address}`);
+      const data = await res.json();
+      if (data.success) {
+        setCollection(data.collection);
       }
-    }
-    if (address) {
-      fetchCollection();
+    } catch (error) {
+      console.error("Failed to fetch collection:", error);
+    } finally {
+      setLoading(false);
     }
   }, [address]);
+
+  useEffect(() => {
+    if (address) {
+      void loadCollection();
+    }
+  }, [address, loadCollection]);
+
+  useEffect(() => {
+    if (!collection?.bags || collection.bags.mint_access !== "bags_balance" || !solanaAddress || !isSolanaAddress(solanaAddress)) {
+      setEligibility(null);
+      return;
+    }
+
+    let cancelled = false;
+    setEligibilityLoading(true);
+    fetch(`/api/collections/${address}/eligibility?wallet=${solanaAddress}`)
+      .then((res) => res.json())
+      .then((data) => {
+        if (!cancelled && data.success) {
+          setEligibility({
+            eligible: Boolean(data.eligible),
+            balance: data.balance,
+            required: data.required,
+            reason: data.reason,
+          });
+        }
+      })
+      .catch((error) => {
+        console.error("Failed to load Bags eligibility:", error);
+      })
+      .finally(() => {
+        if (!cancelled) {
+          setEligibilityLoading(false);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [address, collection?.bags, solanaAddress]);
 
   // Track if we've already recorded this transaction
   const [recordedTxHash, setRecordedTxHash] = useState<string | null>(null);
@@ -141,12 +282,7 @@ export default function CollectionPage() {
         const mintData = await mintRes.json();
         console.log("Mint recorded:", mintData);
 
-        // Refresh collection data
-        const res = await fetch(`/api/collections/${address}`);
-        const data = await res.json();
-        if (data.success) {
-          setCollection(data.collection);
-        }
+        await loadCollection();
       } catch (error) {
         console.error("Failed to record mint:", error);
       } finally {
@@ -156,7 +292,7 @@ export default function CollectionPage() {
     
     recordMint();
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isSuccess, txHash]);
+  }, [isSuccess, txHash, loadCollection]);
 
   const handleMint = async () => {
     if (!collection || !isConnected || !isEvmCollectionChain(collection.chain)) return;
@@ -179,6 +315,140 @@ export default function CollectionPage() {
       setIsMinting(false);
     }
   };
+
+  const signOwnerAuth = useCallback(
+    async (action: "prepare_bags" | "confirm_bags", launchTxHash?: string) => {
+      if (!collection?.bags?.creator_wallet || !solanaAddress) {
+        throw new Error("Connect the configured Solana owner wallet first");
+      }
+
+      const provider = getPhantomProvider();
+      if (!provider?.signMessage) {
+        throw new Error("Phantom message signing is unavailable");
+      }
+
+      const timestamp = Date.now();
+      const message = buildCollectionOwnerAuthMessage({
+        action,
+        collectionAddress: collection.address,
+        wallet: solanaAddress,
+        timestamp,
+        launchTxHash,
+      });
+      const response = await provider.signMessage(new TextEncoder().encode(message), "utf8");
+      const signatureBytes = response instanceof Uint8Array ? response : response.signature;
+
+      return {
+        wallet: solanaAddress,
+        timestamp,
+        signature: bytesToBase64(signatureBytes),
+      };
+    },
+    [collection?.address, collection?.bags?.creator_wallet, solanaAddress]
+  );
+
+  const signAndBroadcastSolanaTransaction = useCallback(
+    async (connection: Connection, serializedBase64: string) => {
+      const provider = getPhantomProvider();
+      if (!provider?.signTransaction) {
+        throw new Error("Phantom transaction signing is unavailable");
+      }
+
+      const transaction = deserializeSolanaTransaction(serializedBase64);
+      const signedTransaction = (await provider.signTransaction(
+        transaction as Transaction | VersionedTransaction
+      )) as Transaction | VersionedTransaction;
+
+      const signature = await connection.sendRawTransaction(signedTransaction.serialize(), {
+        skipPreflight: false,
+        maxRetries: 3,
+      });
+
+      await connection.confirmTransaction(signature, "confirmed");
+      return signature;
+    },
+    []
+  );
+
+  const handleBagsOwnerLaunch = useCallback(async () => {
+    if (!collection?.bags?.creator_wallet) {
+      return;
+    }
+
+    if (!solanaAddress || solanaAddress !== collection.bags.creator_wallet) {
+      if (!solanaAvailable) {
+        window.open("https://phantom.app/download", "_blank", "noopener,noreferrer");
+      } else {
+        await connectSolana();
+      }
+      return;
+    }
+
+    setIsLaunchingBags(true);
+    setBagsOwnerError("");
+    setBagsOwnerSuccess("");
+    setBagsOwnerLaunchTx(null);
+
+    try {
+      setBagsOwnerStep("Authorizing owner session...");
+      const ownerAuth = await signOwnerAuth("prepare_bags");
+      const prepareResponse = await fetch(`/api/collections/${collection.address}/bags`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(ownerAuth),
+      });
+      const preparePayload = (await prepareResponse.json()) as OwnerBagsLaunchPayload;
+      if (!prepareResponse.ok || !preparePayload.success || !preparePayload.bags_launch) {
+        throw new Error(preparePayload.error || "Failed to prepare Bags launch");
+      }
+
+      const { solanaCluster, solanaRpcUrl } = getClientEnv();
+      const connection = new Connection(
+        solanaRpcUrl || clusterApiUrl(solanaCluster === "devnet" ? "devnet" : "mainnet-beta"),
+        "confirmed"
+      );
+      const feeConfigTransactions = preparePayload.bags_launch.fee_config.transactions_base64 || [];
+
+      for (let index = 0; index < feeConfigTransactions.length; index += 1) {
+        setBagsOwnerStep(`Signing fee share transaction ${index + 1} of ${feeConfigTransactions.length}...`);
+        await signAndBroadcastSolanaTransaction(connection, feeConfigTransactions[index]);
+      }
+
+      setBagsOwnerStep("Launching Bags community token...");
+      const launchSignature = await signAndBroadcastSolanaTransaction(
+        connection,
+        preparePayload.bags_launch.launch.transaction_base64
+      );
+      setBagsOwnerLaunchTx(launchSignature);
+
+      setBagsOwnerStep("Finalizing Bags analytics and token gate...");
+      const confirmAuth = await signOwnerAuth("confirm_bags", launchSignature);
+      const confirmResponse = await fetch(preparePayload.bags_launch.confirm_endpoint, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ...confirmAuth,
+          launch_tx_hash: launchSignature,
+          token_address: preparePayload.bags_launch.token_info.token_mint,
+          config_key: preparePayload.bags_launch.fee_config.config_key,
+        }),
+      });
+      const confirmPayload = (await confirmResponse.json()) as { success: boolean; error?: string };
+      if (!confirmResponse.ok || !confirmPayload.success) {
+        throw new Error(confirmPayload.error || "Failed to confirm Bags launch");
+      }
+
+      await loadCollection();
+      setBagsOwnerSuccess("Bags community is now live. Fee sharing, token gating, and Bags analytics are active.");
+      setBagsOwnerStep("");
+    } catch (error) {
+      console.error("Bags owner launch failed:", error);
+      setBagsOwnerError(error instanceof Error ? error.message : "Failed to launch Bags community");
+      setBagsOwnerStep("");
+    } finally {
+      setIsLaunchingBags(false);
+    }
+  }, [collection, connectSolana, loadCollection, signAndBroadcastSolanaTransaction, signOwnerAuth, solanaAddress, solanaAvailable]);
 
   if (loading) {
     return (
@@ -241,6 +511,16 @@ export default function CollectionPage() {
   const remaining = collection.onchain?.remaining || (collection.max_supply - collection.total_minted).toString();
   const totalMinted = collection.onchain?.total_minted || collection.total_minted.toString();
   const progress = (parseInt(totalMinted) / collection.max_supply) * 100;
+  const bags = collection.bags;
+  const bagsAppUrl = process.env["NEXT_PUBLIC_BAGS_APP_URL"] || "https://bags.fm";
+  const bagsChainValue = (process.env["NEXT_PUBLIC_SOLANA_CLUSTER"] || "mainnet-beta") === "devnet" ? "solana-devnet" : "solana";
+  const bagsTokenUrl = bags?.token_address ? `${bagsAppUrl}/${bags.token_address}` : null;
+  const bagsIsTokenGated = bags?.mint_access === "bags_balance";
+  const showBagsPanel = Boolean(bags?.enabled);
+  const needsBagsOwnerLaunch = Boolean(showBagsPanel && bags?.status !== "LIVE");
+  const isBagsOwner = Boolean(bags?.creator_wallet && solanaAddress && bags.creator_wallet === solanaAddress);
+  const needsOwnerWalletConnection = Boolean(needsBagsOwnerLaunch && !isBagsOwner);
+  const bagsLaunchExplorerUrl = bagsOwnerLaunchTx ? getTransactionExplorerUrl(bagsOwnerLaunchTx, bagsChainValue) : null;
 
   return (
     <div className="min-h-screen relative noise">
@@ -452,6 +732,204 @@ export default function CollectionPage() {
                   </>
                 )}
 
+                {showBagsPanel && (
+                  <div className={clsx(
+                    "rounded-2xl border p-4 space-y-3",
+                    theme === "dark" ? "border-white/[0.06] bg-white/[0.03]" : "border-gray-200 bg-gray-50"
+                  )}>
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="flex items-center gap-2">
+                        <Coins className="w-4 h-4 text-cyan-500" />
+                        <span className="font-medium">Bags Community</span>
+                      </div>
+                      <div className="flex items-center gap-2 flex-wrap justify-end">
+                        <span className={clsx(
+                          "rounded-full px-2.5 py-1 font-mono text-[10px] uppercase tracking-[0.18em]",
+                          theme === "dark" ? "bg-cyan-500/10 text-cyan-300" : "bg-cyan-50 text-cyan-700"
+                        )}>
+                          {bags?.status}
+                        </span>
+                        {bagsIsTokenGated && (
+                          <span className={clsx(
+                            "rounded-full px-2.5 py-1 font-mono text-[10px] uppercase tracking-[0.18em]",
+                            theme === "dark" ? "bg-emerald-500/10 text-emerald-300" : "bg-emerald-50 text-emerald-700"
+                          )}>
+                            Token gated
+                          </span>
+                        )}
+                      </div>
+                    </div>
+
+                    {bags?.token_address ? (
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between gap-3">
+                          <span className={theme === "dark" ? "text-gray-400" : "text-gray-500"}>
+                            {bags.token_symbol || "BAGS"} token
+                          </span>
+                          <a
+                            href={bagsTokenUrl || "#"}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-cyan-500 hover:underline font-mono inline-flex items-center gap-1"
+                          >
+                            {bags.token_address.slice(0, 6)}...{bags.token_address.slice(-4)}
+                            <ExternalLink className="w-3 h-3" />
+                          </a>
+                        </div>
+                        {bags.analytics && (
+                          <div className="grid grid-cols-3 gap-3">
+                            <div className={clsx("rounded-xl px-3 py-2", theme === "dark" ? "bg-white/[0.03]" : "bg-white")}>
+                              <p className={clsx("text-[10px] uppercase font-mono", theme === "dark" ? "text-gray-500" : "text-gray-400")}>Fees</p>
+                              <p className="font-semibold">{bags.analytics.lifetime_fees_sol || "0"} SOL</p>
+                            </div>
+                            <div className={clsx("rounded-xl px-3 py-2", theme === "dark" ? "bg-white/[0.03]" : "bg-white")}>
+                              <p className={clsx("text-[10px] uppercase font-mono", theme === "dark" ? "text-gray-500" : "text-gray-400")}>Claimed</p>
+                              <p className="font-semibold">{bags.analytics.claimed_fees_sol || "0"} SOL</p>
+                            </div>
+                            <div className={clsx("rounded-xl px-3 py-2", theme === "dark" ? "bg-white/[0.03]" : "bg-white")}>
+                              <p className={clsx("text-[10px] uppercase font-mono", theme === "dark" ? "text-gray-500" : "text-gray-400")}>Signal</p>
+                              <p className="font-semibold">{bags.analytics.score.toFixed(2)}</p>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    ) : (
+                      <p className={clsx("text-sm leading-relaxed", theme === "dark" ? "text-gray-400" : "text-gray-600")}>
+                        This collection is configured for a Bags-native community token. The agent still needs to sign the Bags launch flow to make the token live.
+                      </p>
+                    )}
+
+                    {bagsIsTokenGated && (
+                      <div className={clsx(
+                        "rounded-2xl border px-4 py-3",
+                        eligibility?.eligible
+                          ? theme === "dark"
+                            ? "border-emerald-500/20 bg-emerald-500/10"
+                            : "border-emerald-200 bg-emerald-50"
+                          : theme === "dark"
+                            ? "border-orange-500/20 bg-orange-500/10"
+                            : "border-orange-200 bg-orange-50"
+                      )}>
+                        <div className="flex items-start gap-3">
+                          <Lock className={clsx(
+                            "w-4 h-4 mt-0.5",
+                            eligibility?.eligible ? "text-emerald-400" : "text-orange-400"
+                          )} />
+                          <div className="space-y-1">
+                            <p className="font-medium">
+                              Hold at least {bags?.min_token_balance} {bags?.token_symbol || "BAGS"} to mint
+                            </p>
+                            <p className={clsx("text-sm", theme === "dark" ? "text-gray-400" : "text-gray-600")}>
+                              {eligibilityLoading
+                                ? "Checking your Solana balance..."
+                                : eligibility?.reason || "Connect your Solana wallet to check access."}
+                            </p>
+                            {eligibility && (
+                              <p className={clsx("text-xs font-mono", theme === "dark" ? "text-gray-500" : "text-gray-500")}>
+                                Balance: {eligibility.balance || "0"} / Required: {eligibility.required || bags?.min_token_balance}
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {needsBagsOwnerLaunch && (
+                      <div className={clsx(
+                        "rounded-2xl border p-4 space-y-3",
+                        theme === "dark" ? "border-cyan-500/20 bg-cyan-500/10" : "border-cyan-200 bg-cyan-50"
+                      )}>
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="space-y-1">
+                            <div className="flex items-center gap-2">
+                              <ShieldCheck className="w-4 h-4 text-cyan-500" />
+                              <span className="font-medium">Owner Console</span>
+                            </div>
+                            <p className={clsx("text-sm leading-relaxed", theme === "dark" ? "text-gray-300" : "text-gray-700")}>
+                              Launch the Bags token, activate onchain fee sharing, and turn on token-gated collector access from this page.
+                            </p>
+                            {bags?.creator_wallet && (
+                              <p className={clsx("text-xs font-mono", theme === "dark" ? "text-gray-400" : "text-gray-600")}>
+                                Creator wallet: {bags.creator_wallet.slice(0, 6)}...{bags.creator_wallet.slice(-4)}
+                              </p>
+                            )}
+                          </div>
+                          <span className={clsx(
+                            "rounded-full px-2.5 py-1 font-mono text-[10px] uppercase tracking-[0.18em]",
+                            theme === "dark" ? "bg-white/[0.06] text-cyan-200" : "bg-white text-cyan-700"
+                          )}>
+                            Bags Launch
+                          </span>
+                        </div>
+
+                        <button
+                          onClick={() => void handleBagsOwnerLaunch()}
+                          disabled={isLaunchingBags}
+                          className="w-full btn-primary text-base py-3 flex items-center justify-center gap-2"
+                        >
+                          {isLaunchingBags ? <Loader2 className="w-4 h-4 relative z-10 animate-spin" /> : <Coins className="w-4 h-4 relative z-10" />}
+                          <span className="relative z-10">
+                            {isLaunchingBags
+                              ? bagsOwnerStep || "Launching Bags community..."
+                              : !solanaAddress
+                                ? "Connect Solana Owner Wallet"
+                                : needsOwnerWalletConnection
+                                  ? "Switch to Creator Wallet"
+                                  : "Launch Bags Community"}
+                          </span>
+                        </button>
+
+                        {!isLaunchingBags && !isBagsOwner && (
+                          <p className={clsx("text-xs", theme === "dark" ? "text-gray-400" : "text-gray-600")}>
+                            Connect the configured Phantom wallet to finalize Bags fee share config and token launch.
+                          </p>
+                        )}
+
+                        {bagsOwnerStep && !isLaunchingBags && (
+                          <p className={clsx("text-xs", theme === "dark" ? "text-gray-400" : "text-gray-600")}>
+                            {bagsOwnerStep}
+                          </p>
+                        )}
+
+                        {bagsOwnerError && (
+                          <div className={clsx(
+                            "rounded-xl border px-3 py-2 text-sm",
+                            theme === "dark" ? "border-red-500/20 bg-red-500/10 text-red-200" : "border-red-200 bg-red-50 text-red-700"
+                          )}>
+                            {bagsOwnerError}
+                          </div>
+                        )}
+
+                        {bagsOwnerSuccess && (
+                          <div className={clsx(
+                            "rounded-xl border px-3 py-2 text-sm",
+                            theme === "dark" ? "border-emerald-500/20 bg-emerald-500/10 text-emerald-200" : "border-emerald-200 bg-emerald-50 text-emerald-700"
+                          )}>
+                            <p>{bagsOwnerSuccess}</p>
+                            {bagsLaunchExplorerUrl && (
+                              <a
+                                href={bagsLaunchExplorerUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="mt-2 inline-flex items-center gap-1 font-mono text-xs text-cyan-500 hover:underline"
+                              >
+                                View launch transaction
+                                <ExternalLink className="w-3 h-3" />
+                              </a>
+                            )}
+                          </div>
+                        )}
+
+                        {!solanaAvailable && (
+                          <p className={clsx("text-xs", theme === "dark" ? "text-orange-300" : "text-orange-700")}>
+                            Phantom is required for Bags owner actions.
+                          </p>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )}
+
                 {/* Mint Button */}
                 {!isConnected ? (
                   <PrivyConnectButton />
@@ -590,6 +1068,54 @@ export default function CollectionPage() {
                   </span>
                 </div>
               </div>
+
+              {showBagsPanel && (
+                <div className={clsx("glass-card space-y-4", theme === "light" && "bg-white/80")}>
+                  <div className="flex items-center gap-2">
+                    <TrendingUp className="w-5 h-5 text-cyan-500" />
+                    <h3 className="text-heading-sm">Bags Layer</h3>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className={clsx("rounded-2xl border p-3", theme === "dark" ? "border-white/[0.06] bg-white/[0.03]" : "border-gray-200 bg-gray-50")}>
+                      <p className={clsx("text-[10px] uppercase font-mono mb-1", theme === "dark" ? "text-gray-500" : "text-gray-400")}>Mint access</p>
+                      <p className="font-semibold">{bagsIsTokenGated ? "Bags balance gate" : "Public mint"}</p>
+                    </div>
+                    <div className={clsx("rounded-2xl border p-3", theme === "dark" ? "border-white/[0.06] bg-white/[0.03]" : "border-gray-200 bg-gray-50")}>
+                      <p className={clsx("text-[10px] uppercase font-mono mb-1", theme === "dark" ? "text-gray-500" : "text-gray-400")}>Initial buy</p>
+                      <p className="font-semibold">{bags?.initial_buy_sol || "0"} SOL</p>
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2">
+                      <Users className="w-4 h-4 text-cyan-500" />
+                      <span className="font-medium">Onchain fee sharing</span>
+                    </div>
+                    <div className="space-y-2">
+                      {bags?.fee_shares.map((feeShare) => (
+                        <div
+                          key={`${feeShare.label}-${feeShare.bps}`}
+                          className={clsx(
+                            "rounded-2xl border px-4 py-3 flex items-center justify-between gap-3",
+                            theme === "dark" ? "border-white/[0.06] bg-white/[0.03]" : "border-gray-200 bg-gray-50"
+                          )}
+                        >
+                          <div>
+                            <p className="font-medium capitalize">{feeShare.label}</p>
+                            <p className={clsx("text-xs font-mono", theme === "dark" ? "text-gray-500" : "text-gray-500")}>
+                              {feeShare.provider === "wallet"
+                                ? `${feeShare.wallet?.slice(0, 6)}...${feeShare.wallet?.slice(-4)}`
+                                : `${feeShare.provider}:${feeShare.username}`}
+                            </p>
+                          </div>
+                          <span className="text-lg font-semibold">{(feeShare.bps / 100).toFixed(2)}%</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              )}
 
               {/* NFT Marketplaces */}
               {isEvmCollection && (

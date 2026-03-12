@@ -8,6 +8,12 @@ interface PhantomProvider {
   publicKey?: PhantomPublicKeyLike | null;
   connect: (options?: { onlyIfTrusted?: boolean }) => Promise<{ publicKey: PhantomPublicKeyLike }>;
   disconnect: () => Promise<void>;
+  signMessage?: (
+    message: Uint8Array,
+    display?: "utf8" | "hex"
+  ) => Promise<{ signature: Uint8Array } | Uint8Array>;
+  signTransaction?: <T>(transaction: T) => Promise<T>;
+  signAllTransactions?: <T>(transactions: T[]) => Promise<T[]>;
   on?: (event: "connect" | "disconnect" | "accountChanged", handler: (...args: unknown[]) => void) => void;
   off?: (event: "connect" | "disconnect" | "accountChanged", handler: (...args: unknown[]) => void) => void;
 }

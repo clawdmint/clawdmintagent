@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
+import { SOLANA_COLLECTION_CHAINS } from "@/lib/collection-chains";
 
 // Force dynamic rendering (prevents static generation errors on Netlify)
 export const dynamic = 'force-dynamic';
@@ -22,12 +23,16 @@ export async function GET(request: NextRequest) {
     // Get active collections count (status: ACTIVE or SOLD_OUT)
     const collectionsCount = await prisma.collection.count({
       where: { 
-        status: { in: ["ACTIVE", "SOLD_OUT"] }
+        status: { in: ["ACTIVE", "SOLD_OUT"] },
+        chain: { in: SOLANA_COLLECTION_CHAINS },
       },
     });
 
     // Get total NFTs minted (sum of totalMinted across all collections)
     const mintedResult = await prisma.collection.aggregate({
+      where: {
+        chain: { in: SOLANA_COLLECTION_CHAINS },
+      },
       _sum: { totalMinted: true },
     });
     const totalMinted = mintedResult._sum.totalMinted || 0;
@@ -39,6 +44,11 @@ export async function GET(request: NextRequest) {
       // Get recent mints
       const recentMints = await prisma.mint.findMany({
         take: 10,
+        where: {
+          collection: {
+            chain: { in: SOLANA_COLLECTION_CHAINS },
+          },
+        },
         orderBy: { mintedAt: "desc" },
         include: {
           collection: {
@@ -58,7 +68,10 @@ export async function GET(request: NextRequest) {
       // Get recently deployed collections
       const recentDeploys = await prisma.collection.findMany({
         take: 5,
-        where: { status: { in: ["ACTIVE", "SOLD_OUT"] } },
+        where: {
+          status: { in: ["ACTIVE", "SOLD_OUT"] },
+          chain: { in: SOLANA_COLLECTION_CHAINS },
+        },
         orderBy: { deployedAt: "desc" },
         select: {
           name: true,
@@ -113,6 +126,7 @@ export async function GET(request: NextRequest) {
       const trendingCollections = await prisma.collection.findMany({
         where: {
           status: { in: ["ACTIVE", "SOLD_OUT"] },
+          chain: { in: SOLANA_COLLECTION_CHAINS },
           mints: {
             some: { mintedAt: { gte: sevenDaysAgo } },
           },

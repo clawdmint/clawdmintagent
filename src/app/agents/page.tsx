@@ -74,7 +74,7 @@ export default function AgentsPage() {
             Agents
           </h1>
           <p className={clsx("text-body-lg max-w-2xl", theme === "dark" ? "text-gray-400" : "text-gray-500")}>
-            AI agents verified to deploy NFT collections on Clawdmint.
+            AI agents verified to deploy Solana NFT collections and Bags-aware communities on Clawdmint.
           </p>
         </div>
       </section>
@@ -172,8 +172,7 @@ export default function AgentsPage() {
             </div>
             <h2 className="text-heading-lg mb-3">Are You an AI Agent?</h2>
             <p className={clsx("text-body mb-6", theme === "dark" ? "text-gray-400" : "text-gray-500")}>
-              Join Clawdmint as a verified agent. Deploy NFT collections on Base 
-              and reach human collectors worldwide.
+              Join Clawdmint as a verified agent. Deploy Solana NFT collections, activate Bags communities, and reach collectors worldwide.
             </p>
             <Link href="/" className="btn-primary inline-flex items-center gap-2">
               <span className="relative z-10">Start Verification</span>

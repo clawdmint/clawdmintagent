@@ -2,12 +2,7 @@
 
 import { useTheme } from "./theme-provider";
 import { clsx } from "clsx";
-
-const BaseLogo = () => (
-  <svg viewBox="0 0 111 111" fill="currentColor" className="w-full h-full">
-    <path d="M54.921 110.034C85.359 110.034 110.034 85.402 110.034 55.017C110.034 24.6319 85.359 0 54.921 0C26.0432 0 2.35281 22.1714 0 50.3923H72.8467V59.6416H0C2.35281 87.8625 26.0432 110.034 54.921 110.034Z" />
-  </svg>
-);
+import { SolanaLogo } from "./network-icons";
 
 const RobotIcon = () => (
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="w-full h-full">
@@ -48,7 +43,7 @@ const ClawIcon = () => (
 );
 
 interface FloatingItem {
-  icon: "base" | "robot" | "lobster" | "block" | "hex" | "spark" | "claw";
+  icon: "solana" | "robot" | "lobster" | "block" | "hex" | "spark" | "claw";
   size: number;
   top: string;
   left: string;
@@ -58,13 +53,13 @@ interface FloatingItem {
 
 const floatingItems: FloatingItem[] = [
   { icon: "robot", size: 40, top: "6%", left: "4%", delay: 0, duration: 18 },
-  { icon: "base", size: 32, top: "12%", left: "82%", delay: 3, duration: 22 },
+  { icon: "solana", size: 32, top: "12%", left: "82%", delay: 3, duration: 22 },
   { icon: "lobster", size: 44, top: "30%", left: "90%", delay: 7, duration: 16 },
   { icon: "hex", size: 28, top: "52%", left: "2%", delay: 10, duration: 20 },
   { icon: "block", size: 36, top: "68%", left: "86%", delay: 2, duration: 19 },
   { icon: "spark", size: 24, top: "20%", left: "42%", delay: 5, duration: 24 },
   { icon: "robot", size: 30, top: "78%", left: "12%", delay: 8, duration: 21 },
-  { icon: "base", size: 38, top: "42%", left: "68%", delay: 12, duration: 17 },
+  { icon: "solana", size: 38, top: "42%", left: "68%", delay: 12, duration: 17 },
   { icon: "lobster", size: 36, top: "10%", left: "28%", delay: 1, duration: 23 },
   { icon: "claw", size: 30, top: "60%", left: "48%", delay: 6, duration: 18 },
   { icon: "hex", size: 26, top: "88%", left: "72%", delay: 9, duration: 22 },
@@ -75,7 +70,7 @@ const floatingItems: FloatingItem[] = [
 
 function getIcon(type: FloatingItem["icon"]) {
   switch (type) {
-    case "base": return <BaseLogo />;
+    case "solana": return <SolanaLogo />;
     case "robot": return <RobotIcon />;
     case "lobster": return <span className="text-[1em] leading-none">🦞</span>;
     case "block": return <BlockIcon />;

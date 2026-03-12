@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
+import { SOLANA_COLLECTION_CHAINS } from "@/lib/collection-chains";
 
 // Force dynamic rendering (prevents static generation errors on Netlify)
 export const dynamic = 'force-dynamic';
@@ -20,20 +21,22 @@ export async function GET(request: NextRequest) {
 
     // Get all registered agents (excluding suspended/banned)
     const statusFilter = { status: { notIn: ["SUSPENDED", "BANNED"] } };
-    const [agents, total] = await Promise.all([
+    const [agents, total, groupedCollections] = await Promise.all([
       prisma.agent.findMany({
         where: statusFilter,
-        include: {
-          _count: {
-            select: { collections: true },
-          },
-        },
         orderBy: { createdAt: "desc" },
         skip,
         take: limit,
       }),
       prisma.agent.count({ where: statusFilter }),
+      prisma.collection.groupBy({
+        by: ["agentId"],
+        where: { chain: { in: SOLANA_COLLECTION_CHAINS } },
+        _count: { _all: true },
+      }),
     ]);
+
+    const collectionCountByAgent = new Map(groupedCollections.map((row) => [row.agentId, row._count._all]));
 
     return NextResponse.json({
       success: true,
@@ -45,7 +48,7 @@ export async function GET(request: NextRequest) {
         eoa: a.eoa,
         x_handle: a.xHandle,
         status: a.status,
-        collections_count: a._count.collections,
+        collections_count: collectionCountByAgent.get(a.id) || 0,
         verified_at: a.verifiedAt?.toISOString(),
         created_at: a.createdAt.toISOString(),
       })),

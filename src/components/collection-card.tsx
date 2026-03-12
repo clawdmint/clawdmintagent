@@ -5,11 +5,8 @@ import { useRef, useCallback } from "react";
 import { useTheme } from "./theme-provider";
 import { clsx } from "clsx";
 import { Bot } from "lucide-react";
-import { formatCollectionMintPrice, getCollectionNativeToken, isEvmCollectionChain } from "@/lib/collection-chains";
-import { getNetworkFromValue } from "@/lib/network-config";
-import { BaseLogo, SolanaLogo } from "./network-icons";
-
-const AGENTS_CONTRACT = (process.env["NEXT_PUBLIC_AGENTS_CONTRACT"] || "").toLowerCase();
+import { formatCollectionMintPrice, getCollectionNativeToken } from "@/lib/collection-chains";
+import { SolanaLogo } from "./network-icons";
 
 interface CollectionCardProps {
   collection: {
@@ -25,6 +22,14 @@ interface CollectionCardProps {
     mint_price_raw?: string;
     mint_price_native?: string;
     status: string;
+    bags_score?: number;
+    bags?: {
+      enabled: boolean;
+      status: string;
+      token_address: string | null;
+      token_symbol: string | null;
+      mint_access: "public" | "bags_balance";
+    } | null;
     agent: {
       id: string;
       name: string;
@@ -38,10 +43,10 @@ export function CollectionCard({ collection }: CollectionCardProps) {
   const cardRef = useRef<HTMLDivElement>(null);
   const progress = (collection.total_minted / collection.max_supply) * 100;
   const isSoldOut = collection.status === "SOLD_OUT" || collection.total_minted >= collection.max_supply;
-  const isAgentsCollection = isEvmCollectionChain(collection.chain) && collection.address.toLowerCase() === AGENTS_CONTRACT;
   const mintPrice = collection.mint_price_native || formatCollectionMintPrice(collection.mint_price_raw || "0", collection.chain);
   const nativeToken = getCollectionNativeToken(collection.chain);
-  const network = getNetworkFromValue(collection.chain);
+  const bagsLive = Boolean(collection.bags?.enabled && collection.bags.status === "LIVE" && collection.bags.token_address);
+  const tokenGated = collection.bags?.mint_access === "bags_balance";
 
   // 3D tilt effect on mouse move
   const handleMouseMove = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
@@ -64,7 +69,7 @@ export function CollectionCard({ collection }: CollectionCardProps) {
   }, []);
 
   return (
-    <Link href={isAgentsCollection ? "/mint" : `/collection/${collection.address}`}>
+    <Link href={`/collection/${collection.address}`}>
       <div
         ref={cardRef}
         onMouseMove={handleMouseMove}
@@ -124,8 +129,24 @@ export function CollectionCard({ collection }: CollectionCardProps) {
               ? "bg-black/50 text-white"
               : "bg-white/80 text-gray-900"
           )}>
-            {isAgentsCollection || parseFloat(mintPrice) === 0 ? "Free" : `${mintPrice} ${nativeToken}`}
+            {parseFloat(mintPrice) === 0 ? "Free" : `${mintPrice} ${nativeToken}`}
           </div>
+
+          {(bagsLive || tokenGated) && (
+            <div className="absolute left-3 right-3 top-14 flex flex-wrap gap-2">
+              {bagsLive && (
+                <span className="inline-flex items-center gap-1 rounded-full bg-black/55 px-2.5 py-1 font-mono text-[10px] uppercase tracking-[0.18em] text-cyan-200 backdrop-blur-md">
+                  <SolanaLogo className="h-3 w-3" />
+                  Bags
+                </span>
+              )}
+              {tokenGated && (
+                <span className="inline-flex items-center gap-1 rounded-full bg-black/55 px-2.5 py-1 font-mono text-[10px] uppercase tracking-[0.18em] text-emerald-200 backdrop-blur-md">
+                  Gate
+                </span>
+              )}
+            </div>
+          )}
 
           {/* Bottom info overlay - appears on image */}
           <div className="absolute bottom-0 left-0 right-0 p-4">
@@ -172,18 +193,12 @@ export function CollectionCard({ collection }: CollectionCardProps) {
           <div className="flex items-center justify-between gap-3 mb-2">
             <span className={clsx(
               "inline-flex items-center gap-1.5 rounded-full border px-2 py-1 font-mono text-[10px] uppercase tracking-[0.18em]",
-              network.family === "solana"
-                ? theme === "dark"
-                  ? "border-emerald-500/20 bg-emerald-500/10 text-emerald-300"
-                  : "border-emerald-200 bg-emerald-50 text-emerald-700"
-                : theme === "dark"
-                  ? "border-blue-500/20 bg-blue-500/10 text-blue-300"
-                  : "border-blue-200 bg-blue-50 text-blue-700"
+              theme === "dark"
+                ? "border-emerald-500/20 bg-emerald-500/10 text-emerald-300"
+                : "border-emerald-200 bg-emerald-50 text-emerald-700"
             )}>
-              {network.family === "solana"
-                ? <SolanaLogo className="w-3.5 h-3.5" />
-                : <BaseLogo className="w-3.5 h-3.5 text-current" />}
-              {network.shortLabel}
+              <SolanaLogo className="w-3.5 h-3.5" />
+              Solana
             </span>
 
             <span className={clsx(
@@ -193,6 +208,37 @@ export function CollectionCard({ collection }: CollectionCardProps) {
               ${collection.symbol}
             </span>
           </div>
+
+          {(bagsLive || tokenGated) && (
+            <div className="mb-2 flex items-center justify-between gap-3">
+              <div className="flex flex-wrap gap-2">
+                {bagsLive && (
+                  <span className={clsx(
+                    "inline-flex items-center gap-1 rounded-full px-2 py-1 font-mono text-[10px]",
+                    theme === "dark" ? "bg-cyan-500/10 text-cyan-300" : "bg-cyan-50 text-cyan-700"
+                  )}>
+                    {collection.bags?.token_symbol || "BAGS"}
+                  </span>
+                )}
+                {tokenGated && (
+                  <span className={clsx(
+                    "inline-flex items-center gap-1 rounded-full px-2 py-1 font-mono text-[10px]",
+                    theme === "dark" ? "bg-emerald-500/10 text-emerald-300" : "bg-emerald-50 text-emerald-700"
+                  )}>
+                    Token gated
+                  </span>
+                )}
+              </div>
+              {bagsLive && typeof collection.bags_score === "number" && collection.bags_score > 0 && (
+                <span className={clsx(
+                  "font-mono text-[10px]",
+                  theme === "dark" ? "text-cyan-300" : "text-cyan-700"
+                )}>
+                  Signal {collection.bags_score.toFixed(2)}
+                </span>
+              )}
+            </div>
+          )}
 
           <div className="flex items-center justify-between">
             {/* Agent */}
