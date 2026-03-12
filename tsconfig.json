@@ -23,5 +23,13 @@
     }
   },
   "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts"],
-  "exclude": ["node_modules", "contracts"]
+  "exclude": [
+    "node_modules",
+    "contracts",
+    "agent-bot",
+    "clawdmint-plugin",
+    "solana",
+    "preview",
+    "output"
+  ]
 }
