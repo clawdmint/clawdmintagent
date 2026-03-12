@@ -9,6 +9,7 @@ import { PrivyProvider } from "@privy-io/react-auth";
 import { useState, useEffect, Component, type ReactNode } from "react";
 import { ThemeProvider } from "./theme-provider";
 import { PrivyWalletProvider, FallbackWalletProvider } from "./wallet-context";
+import { NetworkProvider } from "./network-context";
 
 // Error boundary to catch Privy initialization failures gracefully
 class PrivyErrorBoundary extends Component<
@@ -125,33 +126,35 @@ export function Providers({ children }: { children: React.ReactNode }) {
   if (privyEnabled) {
     return (
       <ThemeProvider>
-        <PrivyErrorBoundary onError={() => setPrivyError(true)}>
-          <PrivyProvider
-            appId={PRIVY_APP_ID}
-            config={{
-              appearance: {
-                theme: theme,
-                accentColor: "#06b6d4",
-                logo: "https://clawdmint.xyz/logo.png",
-              },
-              embeddedWallets: {
-                ethereum: {
-                  createOnLogin: "users-without-wallets",
+        <NetworkProvider>
+          <PrivyErrorBoundary onError={() => setPrivyError(true)}>
+            <PrivyProvider
+              appId={PRIVY_APP_ID}
+              config={{
+                appearance: {
+                  theme: theme,
+                  accentColor: "#06b6d4",
+                  logo: "https://clawdmint.xyz/logo.png",
                 },
-              },
-              defaultChain: targetChain,
-              supportedChains: [targetChain],
-            }}
-          >
-            <QueryClientProvider client={queryClient}>
-              <PrivyWagmiProvider config={privyWagmiConfig}>
-                <PrivyWalletProvider>
-                  {children}
-                </PrivyWalletProvider>
-              </PrivyWagmiProvider>
-            </QueryClientProvider>
-          </PrivyProvider>
-        </PrivyErrorBoundary>
+                embeddedWallets: {
+                  ethereum: {
+                    createOnLogin: "users-without-wallets",
+                  },
+                },
+                defaultChain: targetChain,
+                supportedChains: [targetChain],
+              }}
+            >
+              <QueryClientProvider client={queryClient}>
+                <PrivyWagmiProvider config={privyWagmiConfig}>
+                  <PrivyWalletProvider>
+                    {children}
+                  </PrivyWalletProvider>
+                </PrivyWagmiProvider>
+              </QueryClientProvider>
+            </PrivyProvider>
+          </PrivyErrorBoundary>
+        </NetworkProvider>
       </ThemeProvider>
     );
   }
@@ -159,13 +162,15 @@ export function Providers({ children }: { children: React.ReactNode }) {
   // Fallback: during SSR/build, when Privy App ID is not set, or when Privy fails
   return (
     <ThemeProvider>
-      <BaseWagmiProvider config={fallbackWagmiConfig}>
-        <QueryClientProvider client={queryClient}>
-          <FallbackWalletProvider>
-            {children}
-          </FallbackWalletProvider>
-        </QueryClientProvider>
-      </BaseWagmiProvider>
+      <NetworkProvider>
+        <BaseWagmiProvider config={fallbackWagmiConfig}>
+          <QueryClientProvider client={queryClient}>
+            <FallbackWalletProvider>
+              {children}
+            </FallbackWalletProvider>
+          </QueryClientProvider>
+        </BaseWagmiProvider>
+      </NetworkProvider>
     </ThemeProvider>
   );
 }

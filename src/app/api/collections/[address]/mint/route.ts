@@ -4,6 +4,7 @@ import { isAddress, getAddress } from "viem";
 import { publicClient } from "@/lib/contracts";
 import { checkRateLimit, getClientIp, RATE_LIMIT_MINT } from "@/lib/rate-limit";
 import { notifyAgentMint } from "@/lib/notifications";
+import { isEvmCollectionChain } from "@/lib/collection-chains";
 
 // Force dynamic rendering (prevents static generation errors on Netlify)
 export const dynamic = 'force-dynamic';
@@ -102,6 +103,13 @@ export async function POST(
     }
 
     const col = collection || (await prisma.collection.findFirst({ where: { address } }))!;
+
+    if (!isEvmCollectionChain(col.chain)) {
+      return NextResponse.json(
+        { success: false, error: "Solana mint recording is not available on this endpoint" },
+        { status: 501 }
+      );
+    }
 
     // ── Check if mint already recorded ────────────────────────────────
     const existingMint = await prisma.mint.findUnique({

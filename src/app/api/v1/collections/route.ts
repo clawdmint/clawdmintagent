@@ -1,43 +1,29 @@
 import { NextRequest, NextResponse } from "next/server";
-import { z } from "zod";
 import { createHash } from "crypto";
 import { prisma } from "@/lib/db";
-import { uploadImage, uploadJson, ipfsToHttp } from "@/lib/ipfs";
-import { parseEther } from "viem";
 import { deployCollectionOnChain, getDeployerBalance } from "@/lib/contracts";
-import { checkRateLimit, getClientIp, RATE_LIMIT_DEPLOY } from "@/lib/rate-limit";
+import {
+  DeployCollectionSchema,
+  prepareCollectionAssets,
+} from "@/lib/collection-deploy";
+import {
+  formatCollectionMintPrice,
+  getCollectionNativeToken,
+  isEvmCollectionChain,
+  normalizeCollectionAddress,
+} from "@/lib/collection-chains";
+import { buildSolanaDeploymentManifest } from "@/lib/solana-collections";
+import { checkRateLimit, RATE_LIMIT_DEPLOY } from "@/lib/rate-limit";
+import { getAddressExplorerUrl } from "@/lib/network-config";
 
-// SECURITY: Hash API key for database lookup
 function hashApiKey(apiKey: string): string {
   return createHash("sha256").update(apiKey).digest("hex");
 }
 
-// Force dynamic rendering (prevents static generation errors on Netlify)
-export const dynamic = 'force-dynamic';
-
-// ═══════════════════════════════════════════════════════════════════════
-// SCHEMA
-// ═══════════════════════════════════════════════════════════════════════
-
-const DeploySchema = z.object({
-  name: z.string().min(1).max(100),
-  symbol: z.string().min(1).max(10).regex(/^[A-Z0-9]+$/, "Symbol must be uppercase alphanumeric"),
-  description: z.string().max(1000).optional(),
-  image: z.string(), // URL or data URI
-  max_supply: z.number().int().min(1).max(100000),
-  mint_price_eth: z.string().regex(/^\d+\.?\d*$/, "Invalid ETH amount"),
-  payout_address: z.string().regex(/^0x[a-fA-F0-9]{40}$/, "Invalid address"),
-  royalty_bps: z.number().int().min(0).max(1000).default(500),
-});
-
-// ═══════════════════════════════════════════════════════════════════════
-// POST /api/v1/collections
-// Deploy a new collection (requires auth)
-// ═══════════════════════════════════════════════════════════════════════
+export const dynamic = "force-dynamic";
 
 export async function POST(request: NextRequest) {
   try {
-    // Get API key
     const authHeader = request.headers.get("Authorization");
     if (!authHeader?.startsWith("Bearer ")) {
       return NextResponse.json(
@@ -47,52 +33,38 @@ export async function POST(request: NextRequest) {
     }
 
     const apiKey = authHeader.replace("Bearer ", "");
-
-    // SECURITY: Find agent by hashed API key
     const agent = await prisma.agent.findFirst({
       where: { hmacKeyHash: hashApiKey(apiKey) },
     });
 
     if (!agent) {
-      return NextResponse.json(
-        { success: false, error: "Invalid API key" },
-        { status: 401 }
-      );
+      return NextResponse.json({ success: false, error: "Invalid API key" }, { status: 401 });
     }
 
     if (agent.status !== "VERIFIED" || !agent.deployEnabled) {
       return NextResponse.json(
-        { 
-          success: false, 
-          error: "Agent not verified",
-          hint: "Complete the claim process first"
-        },
+        { success: false, error: "Agent not verified", hint: "Complete the claim process first" },
         { status: 403 }
       );
     }
 
-    // SECURITY: Rate limit deployments (10 per hour per agent)
     const deployRateLimit = checkRateLimit(`deploy:${agent.id}`, RATE_LIMIT_DEPLOY);
     if (!deployRateLimit.allowed) {
       return NextResponse.json(
-        { 
-          success: false, 
+        {
+          success: false,
           error: "Too many deployment requests. Please try again later.",
           retry_after_seconds: deployRateLimit.retryAfterSeconds,
         },
-        { 
+        {
           status: 429,
-          headers: {
-            "Retry-After": String(deployRateLimit.retryAfterSeconds || 60),
-          }
+          headers: { "Retry-After": String(deployRateLimit.retryAfterSeconds || 60) },
         }
       );
     }
 
-    // Parse body
     const body = await request.json();
-    const validation = DeploySchema.safeParse(body);
-    
+    const validation = DeployCollectionSchema.safeParse(body);
     if (!validation.success) {
       return NextResponse.json(
         { success: false, error: "Invalid request", details: validation.error.errors },
@@ -101,105 +73,95 @@ export async function POST(request: NextRequest) {
     }
 
     const data = validation.data;
+    const assets = await prepareCollectionAssets(data, agent.name);
 
-    let imageUrl = data.image;
-    let baseUri = "";
-
-    // Try IPFS upload, fallback to direct URL in development
-    const isPinataConfigured = process.env["PINATA_JWT"] && process.env["PINATA_JWT"].length > 100;
-    
-    if (isPinataConfigured) {
-      // Upload image to IPFS
-      console.log("Uploading image to IPFS...");
-      const imageUpload = await uploadImage(data.image, `${data.symbol}-cover`);
-      if (!imageUpload.success) {
-        console.warn("IPFS upload failed, using direct URL:", imageUpload.error);
-        // Fallback to direct URL
-        imageUrl = data.image;
-        baseUri = data.image;
-      } else {
-        imageUrl = `ipfs://${imageUpload.cid}`;
-
-        // Upload metadata
-        console.log("Uploading metadata to IPFS...");
-        const metadata = {
-          name: data.name,
-          description: data.description || `${data.name} - Deployed by ${agent.name} on Clawdmint`,
-          image: imageUrl,
-          external_link: `https://clawdmint.xyz/agent/${agent.name}`,
-          seller_fee_basis_points: data.royalty_bps,
-          fee_recipient: data.payout_address,
-        };
-
-        const metadataUpload = await uploadJson(metadata, `${data.symbol}-metadata`);
-        if (!metadataUpload.success) {
-          console.warn("Metadata upload failed:", metadataUpload.error);
-          baseUri = imageUrl;
-        } else {
-          baseUri = `ipfs://${metadataUpload.cid}/`;
-        }
+    if (isEvmCollectionChain(assets.chain)) {
+      const deployerBalance = await getDeployerBalance();
+      if (parseFloat(deployerBalance) < 0.001) {
+        return NextResponse.json(
+          {
+            success: false,
+            error: "Insufficient deployer balance",
+            hint: "Platform deployer needs ETH for gas fees",
+          },
+          { status: 503 }
+        );
       }
-    } else {
-      // No IPFS - use direct URLs (dev mode)
-      console.log("IPFS not configured, using direct URLs");
-      imageUrl = data.image;
-      baseUri = data.image;
-    }
-    const mintPriceWei = parseEther(data.mint_price_eth);
-
-    // Helper to convert IPFS or keep HTTP URLs
-    const toHttpUrl = (url: string) => url.startsWith("ipfs://") ? ipfsToHttp(url) : url;
-
-    // Check deployer balance first
-    const deployerBalance = await getDeployerBalance();
-    console.log("[Deploy] Deployer balance:", deployerBalance, "ETH");
-    
-    if (parseFloat(deployerBalance) < 0.001) {
-      return NextResponse.json(
-        { 
-          success: false, 
-          error: "Insufficient deployer balance",
-          hint: "Platform deployer needs ETH for gas fees"
-        },
-        { status: 503 }
-      );
     }
 
-    // Create collection record (pending deployment)
     const collection = await prisma.collection.create({
       data: {
         agentId: agent.id,
         agentEoa: agent.eoa,
+        chain: assets.chain,
         name: data.name,
         symbol: data.symbol,
         description: data.description,
-        imageUrl: toHttpUrl(imageUrl),
-        baseUri,
+        imageUrl: assets.imageHttpUrl,
+        baseUri: assets.baseUri,
         maxSupply: data.max_supply,
-        mintPrice: mintPriceWei.toString(),
+        mintPrice: assets.mintPriceRaw,
         royaltyBps: data.royalty_bps,
         payoutAddress: data.payout_address,
-        status: "DEPLOYING",
-        address: `pending_${Date.now()}`, // Placeholder until deployment
+        status: isEvmCollectionChain(assets.chain) ? "DEPLOYING" : "PENDING_SIGNATURE",
+        address: `pending_${Date.now()}`,
         deployTxHash: "pending",
       },
     });
 
-    // Deploy on-chain!
-    console.log("[Deploy] Starting on-chain deployment for collection:", collection.id);
-    
+    if (!isEvmCollectionChain(assets.chain)) {
+      const manifest = buildSolanaDeploymentManifest({
+        authority: assets.authorityAddress,
+        payoutAddress: data.payout_address,
+        collectionId: collection.id,
+        name: data.name,
+        symbol: data.symbol,
+        baseUri: assets.baseUri,
+        maxSupply: data.max_supply,
+        mintPriceLamports: BigInt(assets.mintPriceRaw),
+        royaltyBps: data.royalty_bps,
+      });
+
+      return NextResponse.json({
+        success: true,
+        collection: {
+          id: collection.id,
+          chain: collection.chain,
+          address: manifest.collection_address,
+          name: collection.name,
+          symbol: collection.symbol,
+          max_supply: collection.maxSupply,
+          mint_price_native: assets.mintPriceInput,
+          mint_price_raw: assets.mintPriceRaw,
+          native_token: assets.nativeToken,
+          image_url: assets.imageHttpUrl,
+          base_uri: assets.baseUri,
+          status: collection.status,
+        },
+        deployment: {
+          mode: "agent_sign",
+          program_id: manifest.program_id,
+          cluster: manifest.cluster,
+          authority: manifest.authority,
+          predicted_collection_address: manifest.collection_address,
+          instructions: manifest.instructions,
+          confirm_endpoint: "/api/v1/collections/confirm",
+        },
+        message: "Solana deployment manifest prepared. Sign and confirm to activate the collection.",
+      });
+    }
+
     const deployResult = await deployCollectionOnChain({
       name: data.name,
       symbol: data.symbol,
-      baseURI: baseUri,
+      baseURI: assets.baseUri,
       maxSupply: BigInt(data.max_supply),
-      mintPrice: mintPriceWei,
+      mintPrice: BigInt(assets.mintPriceRaw),
       payoutAddress: data.payout_address as `0x${string}`,
       royaltyBps: data.royalty_bps,
     });
 
     if (!deployResult.success || !deployResult.collectionAddress) {
-      // Update collection status to failed
       await prisma.collection.update({
         where: { id: collection.id },
         data: {
@@ -209,8 +171,8 @@ export async function POST(request: NextRequest) {
       });
 
       return NextResponse.json(
-        { 
-          success: false, 
+        {
+          success: false,
           error: `On-chain deployment failed: ${deployResult.error}`,
           tx_hash: deployResult.txHash,
         },
@@ -218,56 +180,45 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Update collection with real address
+    const normalizedAddress = normalizeCollectionAddress(deployResult.collectionAddress, assets.chain);
     await prisma.collection.update({
       where: { id: collection.id },
       data: {
-        address: deployResult.collectionAddress.toLowerCase(),
+        address: normalizedAddress,
         status: "ACTIVE",
         deployedAt: new Date(),
         deployTxHash: deployResult.txHash!,
       },
     });
 
-    const appUrl = process.env["NEXT_PUBLIC_APP_URL"] || "https://clawdmint.xyz";
-    const explorerUrl = process.env["NEXT_PUBLIC_CHAIN_ID"] === "8453" 
-      ? "https://basescan.org" 
-      : "https://sepolia.basescan.org";
-
     return NextResponse.json({
       success: true,
       collection: {
         id: collection.id,
-        address: deployResult.collectionAddress,
+        chain: collection.chain,
+        address: normalizedAddress,
         name: collection.name,
         symbol: collection.symbol,
         max_supply: collection.maxSupply,
-        mint_price_eth: data.mint_price_eth,
-        mint_url: `${appUrl}/collection/${deployResult.collectionAddress}`,
-        image_url: toHttpUrl(imageUrl),
-        base_uri: baseUri,
+        mint_price_native: assets.mintPriceInput,
+        mint_price_raw: assets.mintPriceRaw,
+        native_token: assets.nativeToken,
+        mint_url: `${process.env["NEXT_PUBLIC_APP_URL"] || "https://clawdmint.xyz"}/collection/${normalizedAddress}`,
+        image_url: assets.imageHttpUrl,
+        base_uri: assets.baseUri,
         tx_hash: deployResult.txHash,
-        explorer_url: `${explorerUrl}/address/${deployResult.collectionAddress}`,
+        explorer_url: getAddressExplorerUrl(normalizedAddress, collection.chain),
       },
-      message: "Collection deployed on-chain successfully! 🦞",
+      message: "Collection deployed on-chain successfully!",
     });
   } catch (error) {
     console.error("Deploy error:", error);
-    return NextResponse.json(
-      { success: false, error: "Deployment failed" },
-      { status: 500 }
-    );
+    return NextResponse.json({ success: false, error: "Deployment failed" }, { status: 500 });
   }
 }
 
-// ═══════════════════════════════════════════════════════════════════════
-// GET /api/v1/collections
-// List agent's collections (requires auth)
-// ═══════════════════════════════════════════════════════════════════════
-
 export async function GET(request: NextRequest) {
   try {
-    // Get API key
     const authHeader = request.headers.get("Authorization");
     if (!authHeader?.startsWith("Bearer ")) {
       return NextResponse.json(
@@ -277,17 +228,12 @@ export async function GET(request: NextRequest) {
     }
 
     const apiKey = authHeader.replace("Bearer ", "");
-
-    // SECURITY: Find agent by hashed API key
     const agent = await prisma.agent.findFirst({
       where: { hmacKeyHash: hashApiKey(apiKey) },
     });
 
     if (!agent) {
-      return NextResponse.json(
-        { success: false, error: "Invalid API key" },
-        { status: 401 }
-      );
+      return NextResponse.json({ success: false, error: "Invalid API key" }, { status: 401 });
     }
 
     const collections = await prisma.collection.findMany({
@@ -300,11 +246,14 @@ export async function GET(request: NextRequest) {
       collections: collections.map((c) => ({
         id: c.id,
         address: c.address,
+        chain: c.chain,
         name: c.name,
         symbol: c.symbol,
         max_supply: c.maxSupply,
         total_minted: c.totalMinted,
-        mint_price_wei: c.mintPrice,
+        mint_price_raw: c.mintPrice,
+        mint_price_native: formatCollectionMintPrice(c.mintPrice, c.chain),
+        native_token: getCollectionNativeToken(c.chain),
         status: c.status,
         created_at: c.createdAt.toISOString(),
       })),

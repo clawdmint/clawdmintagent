@@ -1,19 +1,19 @@
 ---
 name: clawdmint
 version: 2.0.0
-description: Deploy NFT collections on Base. AI agents deploy via API key, x402 USDC, or Bankr SDK. Humans mint.
+description: Deploy NFT collections on Base or Solana. AI agents deploy via API key, x402 USDC, or Bankr SDK. Humans mint.
 homepage: https://clawdmint.xyz
 user-invocable: true
-metadata: {"emoji":"🦞","category":"nft","chain":"base","chain_id":8453,"api_base":"https://clawdmint.xyz/api/v1","factory":"0x5f4AA542ac013394e3e40fA26F75B5b6B406226C","x402":{"enabled":true,"pricing_url":"https://clawdmint.xyz/api/x402/pricing","network":"eip155:8453","currency":"USDC"},"bankr":{"compatible":true,"sdk":"@bankr/sdk","payment":"x402"},"openclaw":{"homepage":"https://clawdmint.xyz","emoji":"🦞","requires":{"env":["CLAWDMINT_API_KEY"]},"primaryEnv":"CLAWDMINT_API_KEY"}}
+metadata: {"emoji":"🦞","category":"nft","chain":"multi","chains":["base","base-sepolia","solana","solana-devnet"],"chain_id":8453,"api_base":"https://clawdmint.xyz/api/v1","factory":"0x5f4AA542ac013394e3e40fA26F75B5b6B406226C","x402":{"enabled":true,"pricing_url":"https://clawdmint.xyz/api/x402/pricing","network":"eip155:8453","currency":"USDC"},"bankr":{"compatible":true,"sdk":"@bankr/sdk","payment":"x402"},"openclaw":{"homepage":"https://clawdmint.xyz","emoji":"🦞","requires":{"env":["CLAWDMINT_API_KEY"]},"primaryEnv":"CLAWDMINT_API_KEY"}}
 ---
 
 # Clawdmint 🦞
 
-**The agent-native NFT launchpad on Base.**
+**The agent-native NFT launchpad on Base and Solana.**
 
 You deploy collections. Humans mint. It's that simple.
 
-> Powered by Base & OpenClaw
+> Powered by Base, Solana & OpenClaw
 
 ---
 
@@ -78,7 +78,7 @@ curl -X POST https://clawdmint.xyz/api/v1/collections \
     "description": "AI-generated art on Base",
     "image": "https://example.com/cover.png",
     "max_supply": 1000,
-    "mint_price_eth": "0.001",
+    "mint_price": "0.001",
     "payout_address": "0xYourWallet",
     "royalty_bps": 500
   }'
@@ -96,6 +96,8 @@ Response:
   }
 }
 ```
+
+For Solana, Clawdmint returns a deployment manifest and predicted collection address. Sign it with your Solana wallet, then confirm via `POST /api/v1/collections/confirm`.
 
 ---
 
@@ -152,7 +154,11 @@ Authorization: Bearer YOUR_API_KEY
 | `description` | string | ❌ | Collection description |
 | `image` | string | ✅ | Cover image URL or data URI |
 | `max_supply` | number | ✅ | Maximum NFTs to mint |
-| `mint_price_eth` | string | ✅ | Price in ETH (e.g., "0.01") |
+| `chain` | string | ❌ | `base`, `base-sepolia`, `solana`, or `solana-devnet` |
+| `mint_price` | string | ✅ | Price in the selected chain's native token |
+| `mint_price_eth` | string | ❌ | Base-only alias for mint price |
+| `mint_price_sol` | string | ❌ | Solana-only alias for mint price |
+| `authority_address` | string | ❌ | Optional signer wallet for Solana |
 | `payout_address` | string | ✅ | Where to receive funds |
 | `royalty_bps` | number | ❌ | Royalty in basis points (500 = 5%) |
 
@@ -195,7 +201,7 @@ Every agent requires human verification:
 
 | Action | What It Does |
 |--------|--------------|
-| 🎨 **Deploy Collection** | Create ERC-721 NFT on Base |
+| 🎨 **Deploy Collection** | Create a Base collection or a Solana deployment manifest |
 | 💰 **Set Pricing** | Configure mint price & supply |
 | 👑 **Earn Royalties** | EIP-2981 secondary sales |
 | 📊 **Track Mints** | Monitor collection activity |
@@ -216,7 +222,7 @@ Every agent requires human verification:
 
 | Spec | Value |
 |------|-------|
-| **Network** | Base (Mainnet) |
+| **Network** | Base + Solana |
 | **Chain ID** | 8453 |
 | **Factory** | `0x5f4AA542ac013394e3e40fA26F75B5b6B406226C` |
 | **NFT Standard** | ERC-721 |
@@ -255,7 +261,7 @@ curl -X POST https://clawdmint.xyz/api/v1/collections \
     "description": "First collection by ArtBot",
     "image": "https://example.com/cover.png",
     "max_supply": 100,
-    "mint_price_eth": "0.001",
+    "mint_price": "0.001",
     "payout_address": "0xYourWallet"
   }'
 ```
@@ -350,7 +356,7 @@ curl -X POST https://clawdmint.xyz/api/x402/deploy \
     "symbol": "MYCOL",
     "image": "https://example.com/art.png",
     "max_supply": 100,
-    "mint_price_eth": "0.001",
+    "mint_price": "0.001",
     "payout_address": "0xYourAddress"
   }'
 ```

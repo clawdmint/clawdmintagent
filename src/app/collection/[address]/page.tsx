@@ -2,8 +2,7 @@
 
 import { useEffect, useState, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { useAccount, useWriteContract, useWaitForTransactionReceipt } from "wagmi";
-import { formatEther } from "viem";
+import { useWriteContract, useWaitForTransactionReceipt } from "wagmi";
 import { useWallet } from "@/components/wallet-context";
 import Link from "next/link";
 import Image from "next/image";
@@ -11,17 +10,24 @@ import { COLLECTION_ABI } from "@/lib/contracts";
 import { useTheme } from "@/components/theme-provider";
 import { clsx } from "clsx";
 import { Bot, ExternalLink, ArrowLeft, Minus, Plus, Sparkles, CheckCircle, ShoppingBag, Share2, Link2, Check, MessageSquare, Send, ChevronDown, ChevronUp } from "lucide-react";
-
-// Get chain info from environment
-const chainId = parseInt(process.env["NEXT_PUBLIC_CHAIN_ID"] || "8453");
-const isMainnet = chainId === 8453;
-const explorerUrl = isMainnet ? "https://basescan.org" : "https://sepolia.basescan.org";
-const chainName = isMainnet ? "Base" : "Base Sepolia";
+import {
+  formatCollectionMintPrice,
+  getCollectionNativeToken,
+  isEvmCollectionChain,
+} from "@/lib/collection-chains";
+import {
+  getAddressExplorerUrl,
+  getNetworkFromValue,
+  getTransactionExplorerUrl,
+} from "@/lib/network-config";
+import { NetworkLogo } from "@/components/network-icons";
 const AGENTS_CONTRACT = (process.env["NEXT_PUBLIC_AGENTS_CONTRACT"] || "").toLowerCase();
 
 interface Collection {
   id: string;
   address: string;
+  chain: string;
+  native_token: string;
   name: string;
   symbol: string;
   description: string;
@@ -29,8 +35,8 @@ interface Collection {
   base_uri: string;
   max_supply: number;
   total_minted: number;
-  mint_price_wei: string;
-  mint_price_eth: string;
+  mint_price_raw: string;
+  mint_price_native: string;
   royalty_bps: number;
   payout_address: string;
   status: string;
@@ -75,8 +81,8 @@ export default function CollectionPage() {
       router.replace("/mint");
     }
   }, [address, router]);
-  
-  const { address: userAddress, isConnected } = useAccount();
+
+  const { address: userAddress, isConnected } = useWallet();
   
   const [collection, setCollection] = useState<Collection | null>(null);
   const [loading, setLoading] = useState(true);
@@ -128,7 +134,7 @@ export default function CollectionPage() {
             minter_address: userAddress,
             quantity,
             tx_hash: txHash,
-            total_paid: (BigInt(collection.mint_price_wei) * BigInt(quantity)).toString(),
+            total_paid: (BigInt(collection.mint_price_raw) * BigInt(quantity)).toString(),
           }),
         });
         
@@ -153,12 +159,12 @@ export default function CollectionPage() {
   }, [isSuccess, txHash]);
 
   const handleMint = async () => {
-    if (!collection || !isConnected) return;
+    if (!collection || !isConnected || !isEvmCollectionChain(collection.chain)) return;
     
     setIsMinting(true);
     
     try {
-      const mintPrice = BigInt(collection.mint_price_wei);
+      const mintPrice = BigInt(collection.mint_price_raw);
       const totalCost = mintPrice * BigInt(quantity);
 
       writeContract({
@@ -223,8 +229,14 @@ export default function CollectionPage() {
     );
   }
 
-  const mintPriceEth = formatEther(BigInt(collection.mint_price_wei));
-  const totalCost = parseFloat(mintPriceEth) * quantity;
+  const network = getNetworkFromValue(collection.chain);
+  const chainName = network.label;
+  const explorerUrl = getAddressExplorerUrl(collection.address, collection.chain);
+  const txExplorerUrl = txHash ? getTransactionExplorerUrl(txHash, collection.chain) : null;
+  const isEvmCollection = isEvmCollectionChain(collection.chain);
+  const nativeToken = collection.native_token || getCollectionNativeToken(collection.chain);
+  const mintPriceNative = collection.mint_price_native || formatCollectionMintPrice(collection.mint_price_raw, collection.chain);
+  const totalCost = parseFloat(mintPriceNative || "0") * quantity;
   const isSoldOut = collection.onchain?.is_sold_out || collection.status === "SOLD_OUT";
   const remaining = collection.onchain?.remaining || (collection.max_supply - collection.total_minted).toString();
   const totalMinted = collection.onchain?.total_minted || collection.total_minted.toString();
@@ -393,11 +405,11 @@ export default function CollectionPage() {
                 <div className="flex items-center justify-between">
                   <span className={clsx("text-body-sm", theme === "dark" ? "text-gray-400" : "text-gray-500")}>Mint Price</span>
                   <span className="text-heading-lg">
-                    {parseFloat(mintPriceEth) === 0 ? "Free" : `${mintPriceEth} ETH`}
+                    {parseFloat(mintPriceNative) === 0 ? "Free" : `${mintPriceNative} ${nativeToken}`}
                   </span>
                 </div>
 
-                {!isSoldOut && (
+                {!isSoldOut && isEvmCollection && (
                   <>
                     {/* Quantity selector */}
                     <div className="flex items-center justify-between">
@@ -434,7 +446,7 @@ export default function CollectionPage() {
                     )}>
                       <span className={theme === "dark" ? "text-gray-400" : "text-gray-500"}>Total</span>
                       <span className="text-2xl font-bold">
-                        {totalCost === 0 ? "Free" : `${totalCost.toFixed(4)} ETH`}
+                        {totalCost === 0 ? "Free" : `${totalCost.toFixed(4)} ${nativeToken}`}
                       </span>
                     </div>
                   </>
@@ -443,6 +455,10 @@ export default function CollectionPage() {
                 {/* Mint Button */}
                 {!isConnected ? (
                   <PrivyConnectButton />
+                ) : !isEvmCollection ? (
+                  <button disabled className="w-full btn-primary text-lg py-4 opacity-50 cursor-not-allowed">
+                    Solana mint UI coming soon
+                  </button>
                 ) : isSoldOut ? (
                   <button disabled className="w-full btn-primary text-lg py-4 opacity-50 cursor-not-allowed">
                     Sold Out
@@ -528,7 +544,7 @@ export default function CollectionPage() {
                         </div>
                         
                         <a
-                          href={`${explorerUrl}/tx/${txHash}`}
+                          href={txExplorerUrl || "#"}
                           target="_blank"
                           rel="noopener noreferrer"
                           className="inline-flex items-center gap-2 px-5 py-2.5 bg-emerald-500/30 hover:bg-emerald-500/40 border border-emerald-500/30 rounded-xl text-emerald-200 text-sm font-medium transition-all hover:scale-105 hover:shadow-lg hover:shadow-emerald-500/20"
@@ -548,7 +564,7 @@ export default function CollectionPage() {
                 <div className="flex justify-between">
                   <span className={theme === "dark" ? "text-gray-500" : "text-gray-400"}>Contract</span>
                   <a
-                    href={`${explorerUrl}/address/${collection.address}`}
+                    href={explorerUrl}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="text-cyan-500 hover:underline font-mono inline-flex items-center gap-1"
@@ -563,16 +579,20 @@ export default function CollectionPage() {
                 </div>
                 <div className="flex justify-between">
                   <span className={theme === "dark" ? "text-gray-500" : "text-gray-400"}>Chain</span>
-                  <span className="text-blue-500 flex items-center gap-1">
-                    <svg className="w-3.5 h-3.5" viewBox="0 0 111 111" fill="none">
-                      <path d="M54.921 110.034C85.359 110.034 110.034 85.402 110.034 55.017C110.034 24.6319 85.359 0 54.921 0C26.0432 0 2.35281 22.1714 0 50.3923H72.8467V59.6416H0C2.35281 87.8625 26.0432 110.034 54.921 110.034Z" fill="currentColor"/>
-                    </svg>
+                  <span className={clsx(
+                    "flex items-center gap-1",
+                    network.family === "solana"
+                      ? theme === "dark" ? "text-emerald-300" : "text-emerald-700"
+                      : "text-blue-500"
+                  )}>
+                    <NetworkLogo family={network.family} className="w-3.5 h-3.5" />
                     {chainName}
                   </span>
                 </div>
               </div>
 
               {/* NFT Marketplaces */}
+              {isEvmCollection && (
               <div className={clsx("glass-card", theme === "light" && "bg-white/80")}>
                 <div className="flex items-center gap-2 mb-4">
                   <ShoppingBag className="w-5 h-5 text-cyan-500" />
@@ -582,7 +602,7 @@ export default function CollectionPage() {
                   {/* OpenSea */}
                   <a
                     href={
-                      isMainnet
+                      network.id === "base"
                         ? `https://opensea.io/assets/base/${collection.address}`
                         : `https://testnets.opensea.io/assets/base-sepolia/${collection.address}`
                     }
@@ -602,7 +622,7 @@ export default function CollectionPage() {
                   </a>
 
                   {/* Zora (Base optimized) */}
-                  {isMainnet && (
+                  {network.id === "base" && (
                     <a
                       href={`https://zora.co/collect/base:${collection.address}`}
                       target="_blank"
@@ -640,7 +660,7 @@ export default function CollectionPage() {
                   </a>
 
                   {/* Element */}
-                  {isMainnet && (
+                  {network.id === "base" && (
                     <a
                       href={`https://element.market/collections/base-${collection.address}`}
                       target="_blank"
@@ -660,9 +680,15 @@ export default function CollectionPage() {
                   )}
                 </div>
               </div>
+              )}
 
               {/* Share */}
-              <ShareSection address={collection.address} name={collection.name} theme={theme} />
+              <ShareSection
+                address={collection.address}
+                chain={collection.chain}
+                name={collection.name}
+                theme={theme}
+              />
             </div>
           </div>
 
@@ -995,11 +1021,22 @@ function formatChatTime(dateStr: string): string {
   return date.toLocaleDateString("en-US", { month: "short", day: "numeric" });
 }
 
-function ShareSection({ address, name, theme }: { address: string; name: string; theme: string }) {
+function ShareSection({
+  address,
+  chain,
+  name,
+  theme,
+}: {
+  address: string;
+  chain: string;
+  name: string;
+  theme: string;
+}) {
   const [copied, setCopied] = useState(false);
   const appUrl = process.env["NEXT_PUBLIC_APP_URL"] || "https://clawdmint.xyz";
   const shareUrl = `${appUrl}/collection/${address}`;
-  const shareText = `Check out "${name}" on Clawdmint - minted by an AI agent on Base!`;
+  const networkName = getNetworkFromValue(chain).label;
+  const shareText = `Check out "${name}" on Clawdmint - deployed by an AI agent on ${networkName}!`;
 
   const copyLink = async () => {
     try {

@@ -14,12 +14,12 @@ const APP_URL = process.env["NEXT_PUBLIC_APP_URL"] || "https://clawdmint.xyz";
 
 export const metadata: Metadata = {
   title: "Clawdmint | Where AI Agents Deploy. Humans Mint.",
-  description: "The first agent-native NFT launch platform. AI agents deploy collections, humans mint NFTs. Built on Base, powered by OpenClaw.",
-  keywords: ["NFT", "AI Agent", "Web3", "Base", "Ethereum", "Mint", "Deploy", "OpenClaw"],
+  description: "An agent-native launch platform for collections, tokens, and onchain tools. AI agents deploy, humans mint. Powered by OpenClaw.",
+  keywords: ["NFT", "AI Agent", "Web3", "Base", "Solana", "Ethereum", "Mint", "Deploy", "OpenClaw"],
   metadataBase: new URL(APP_URL),
   openGraph: {
     title: "Clawdmint | Where AI Agents Deploy. Humans Mint.",
-    description: "The first agent-native NFT launch platform on Base. AI agents deploy, humans mint.",
+    description: "An agent-native launch platform where AI agents deploy and humans mint.",
     type: "website",
     locale: "en_US",
     siteName: "Clawdmint",
@@ -29,14 +29,14 @@ export const metadata: Metadata = {
         url: `${APP_URL}/api/og`,
         width: 1200,
         height: 630,
-        alt: "Clawdmint - Agent-Native NFT Launchpad on Base",
+        alt: "Clawdmint - Agent-Native Launch Platform",
       },
     ],
   },
   twitter: {
     card: "summary_large_image",
     title: "Clawdmint",
-    description: "Where AI Agents Deploy. Humans Mint. Built on Base.",
+    description: "Where AI Agents Deploy. Humans Mint.",
     site: "@clawdmint",
     creator: "@clawdmint",
     images: [
@@ -54,7 +54,6 @@ export const metadata: Metadata = {
   },
   other: {
     "base:app_id": "698643078dcaa0daf5755ffd",
-    "virtual-protocol-site-verification": "4c21499c6ab22e12a55ddbb5f39584f7",
     "fc:miniapp": JSON.stringify({
       version: "next",
       imageUrl: `${APP_URL}/og.png`,

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
+import { formatCollectionMintPrice, getCollectionNativeToken } from "@/lib/collection-chains";
 
 // Force dynamic rendering (prevents static generation errors on Netlify)
 export const dynamic = 'force-dynamic';
@@ -25,6 +26,7 @@ export async function GET(
           select: {
             id: true,
             address: true,
+            chain: true,
             name: true,
             symbol: true,
             imageUrl: true,
@@ -58,12 +60,15 @@ export async function GET(
         collections: agent.collections.map((c) => ({
           id: c.id,
           address: c.address,
+          chain: c.chain,
           name: c.name,
           symbol: c.symbol,
           image_url: c.imageUrl,
           max_supply: c.maxSupply,
           total_minted: c.totalMinted,
-          mint_price_wei: c.mintPrice,
+          mint_price_raw: c.mintPrice,
+          mint_price_native: formatCollectionMintPrice(c.mintPrice, c.chain),
+          native_token: getCollectionNativeToken(c.chain),
           status: c.status,
           created_at: c.createdAt.toISOString(),
         })),

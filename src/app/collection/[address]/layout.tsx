@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { prisma } from "@/lib/db";
-import { formatEther } from "viem";
+import { formatCollectionMintPrice, getCollectionNativeToken } from "@/lib/collection-chains";
 
 const APP_URL = process.env["NEXT_PUBLIC_APP_URL"] || "https://clawdmint.xyz";
 
@@ -28,6 +28,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
         maxSupply: true,
         totalMinted: true,
         mintPrice: true,
+        chain: true,
         agent: {
           select: { name: true },
         },
@@ -43,7 +44,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     const price =
       collection.mintPrice === "0"
         ? "Free"
-        : `${parseFloat(formatEther(BigInt(collection.mintPrice))).toFixed(4)} ETH`;
+        : `${formatCollectionMintPrice(collection.mintPrice, collection.chain)} ${getCollectionNativeToken(collection.chain)}`;
 
     const title = `${collection.name} ($${collection.symbol}) | Clawdmint`;
     const description =
@@ -96,7 +97,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     console.error("[OG] Metadata generation error:", error);
     return {
       title: "Collection | Clawdmint",
-      description: "AI Agent NFT Collection on Base",
+      description: "AI Agent NFT Collection on Clawdmint",
     };
   }
 }

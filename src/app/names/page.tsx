@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import { useWriteContract, useWaitForTransactionReceipt } from "wagmi";
 import { useTheme } from "@/components/theme-provider";
 import { useWallet } from "@/components/wallet-context";
+import { isEvmAddress } from "@/lib/network-config";
 import {
   CLAWD_NAMES_ABI,
   validateName,
@@ -50,7 +51,7 @@ export default function NamesPage() {
   const [totalRegistered, setTotalRegistered] = useState(0);
 
   const fetchMyNames = useCallback(async () => {
-    if (!address || !NAMES_ADDRESS) return;
+    if (!address || !NAMES_ADDRESS || !isEvmAddress(address)) return;
     setLoadingNames(true);
     try {
       const names = await getUserNames(address);

@@ -2,10 +2,12 @@
 
 import Link from "next/link";
 import { useRef, useCallback } from "react";
-import { formatEther } from "viem";
 import { useTheme } from "./theme-provider";
 import { clsx } from "clsx";
 import { Bot } from "lucide-react";
+import { formatCollectionMintPrice, getCollectionNativeToken, isEvmCollectionChain } from "@/lib/collection-chains";
+import { getNetworkFromValue } from "@/lib/network-config";
+import { BaseLogo, SolanaLogo } from "./network-icons";
 
 const AGENTS_CONTRACT = (process.env["NEXT_PUBLIC_AGENTS_CONTRACT"] || "").toLowerCase();
 
@@ -13,13 +15,15 @@ interface CollectionCardProps {
   collection: {
     id: string;
     address: string;
+    chain: string;
     name: string;
     symbol: string;
     description?: string;
     image_url?: string;
     max_supply: number;
     total_minted: number;
-    mint_price_wei: string;
+    mint_price_raw?: string;
+    mint_price_native?: string;
     status: string;
     agent: {
       id: string;
@@ -34,8 +38,10 @@ export function CollectionCard({ collection }: CollectionCardProps) {
   const cardRef = useRef<HTMLDivElement>(null);
   const progress = (collection.total_minted / collection.max_supply) * 100;
   const isSoldOut = collection.status === "SOLD_OUT" || collection.total_minted >= collection.max_supply;
-  const isAgentsCollection = collection.address.toLowerCase() === AGENTS_CONTRACT;
-  const mintPriceEth = formatEther(BigInt(collection.mint_price_wei));
+  const isAgentsCollection = isEvmCollectionChain(collection.chain) && collection.address.toLowerCase() === AGENTS_CONTRACT;
+  const mintPrice = collection.mint_price_native || formatCollectionMintPrice(collection.mint_price_raw || "0", collection.chain);
+  const nativeToken = getCollectionNativeToken(collection.chain);
+  const network = getNetworkFromValue(collection.chain);
 
   // 3D tilt effect on mouse move
   const handleMouseMove = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
@@ -118,7 +124,7 @@ export function CollectionCard({ collection }: CollectionCardProps) {
               ? "bg-black/50 text-white"
               : "bg-white/80 text-gray-900"
           )}>
-            {isAgentsCollection || parseFloat(mintPriceEth) === 0 ? "Free" : `${mintPriceEth} ETH`}
+            {isAgentsCollection || parseFloat(mintPrice) === 0 ? "Free" : `${mintPrice} ${nativeToken}`}
           </div>
 
           {/* Bottom info overlay - appears on image */}
@@ -163,6 +169,31 @@ export function CollectionCard({ collection }: CollectionCardProps) {
             {collection.name}
           </h3>
 
+          <div className="flex items-center justify-between gap-3 mb-2">
+            <span className={clsx(
+              "inline-flex items-center gap-1.5 rounded-full border px-2 py-1 font-mono text-[10px] uppercase tracking-[0.18em]",
+              network.family === "solana"
+                ? theme === "dark"
+                  ? "border-emerald-500/20 bg-emerald-500/10 text-emerald-300"
+                  : "border-emerald-200 bg-emerald-50 text-emerald-700"
+                : theme === "dark"
+                  ? "border-blue-500/20 bg-blue-500/10 text-blue-300"
+                  : "border-blue-200 bg-blue-50 text-blue-700"
+            )}>
+              {network.family === "solana"
+                ? <SolanaLogo className="w-3.5 h-3.5" />
+                : <BaseLogo className="w-3.5 h-3.5 text-current" />}
+              {network.shortLabel}
+            </span>
+
+            <span className={clsx(
+              "text-caption font-mono flex-shrink-0",
+              theme === "dark" ? "text-gray-600" : "text-gray-400"
+            )}>
+              ${collection.symbol}
+            </span>
+          </div>
+
           <div className="flex items-center justify-between">
             {/* Agent */}
             <div className="flex items-center gap-2 min-w-0">
@@ -184,13 +215,6 @@ export function CollectionCard({ collection }: CollectionCardProps) {
                 {collection.agent.name}
               </span>
             </div>
-
-            <span className={clsx(
-              "text-caption font-mono flex-shrink-0",
-              theme === "dark" ? "text-gray-600" : "text-gray-400"
-            )}>
-              ${collection.symbol}
-            </span>
           </div>
         </div>
       </div>

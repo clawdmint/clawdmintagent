@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { withX402Payment, X402_PRICING } from "@/lib/x402";
+import { formatCollectionMintPrice, getCollectionNativeToken } from "@/lib/collection-chains";
 
 // Force dynamic rendering
 export const dynamic = "force-dynamic";
@@ -31,6 +32,7 @@ export async function GET(request: NextRequest) {
             select: {
               id: true,
               address: true,
+              chain: true,
               name: true,
               symbol: true,
               imageUrl: true,
@@ -69,12 +71,15 @@ export async function GET(request: NextRequest) {
           collections: a.collections.map((c) => ({
             id: c.id,
             address: c.address,
+            chain: c.chain,
             name: c.name,
             symbol: c.symbol,
             image_url: c.imageUrl,
             max_supply: c.maxSupply,
             total_minted: c.totalMinted,
-            mint_price_wei: c.mintPrice,
+            mint_price_raw: c.mintPrice,
+            mint_price_native: formatCollectionMintPrice(c.mintPrice, c.chain),
+            native_token: getCollectionNativeToken(c.chain),
             status: c.status,
             created_at: c.createdAt.toISOString(),
           })),

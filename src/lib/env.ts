@@ -4,6 +4,8 @@
  * All secrets are read dynamically at runtime
  */
 
+import { getAddressExplorerUrl, getExplorerBaseUrl, getTransactionExplorerUrl } from "./network-config";
+
 // ═══════════════════════════════════════════════════════════════════════════════
 // DYNAMIC ENV READER (prevents webpack inlining)
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -33,8 +35,13 @@ export function requireEnv(key: string): string {
 // ═══════════════════════════════════════════════════════════════════════════════
 
 export function getClientEnv() {
+  const networkFamily = getEnv("NEXT_PUBLIC_NETWORK_FAMILY", "evm");
   return {
-    chainId: parseInt(getEnv("NEXT_PUBLIC_CHAIN_ID", "8453")),
+    networkFamily,
+    chainId: networkFamily === "solana" ? 0 : parseInt(getEnv("NEXT_PUBLIC_CHAIN_ID", "8453")),
+    solanaCluster: getEnv("NEXT_PUBLIC_SOLANA_CLUSTER", "mainnet-beta"),
+    solanaRpcUrl: getEnv("NEXT_PUBLIC_SOLANA_RPC_URL", ""),
+    solanaCollectionProgramId: getEnv("NEXT_PUBLIC_SOLANA_COLLECTION_PROGRAM_ID", ""),
     factoryAddress: getEnv("NEXT_PUBLIC_FACTORY_ADDRESS", ""),
     alchemyId: getEnv("NEXT_PUBLIC_ALCHEMY_ID", ""),
     walletConnectId: getEnv("NEXT_PUBLIC_WALLET_CONNECT_ID", ""),
@@ -45,10 +52,18 @@ export function getClientEnv() {
 
 // Derived values
 export function isMainnet(): boolean {
+  if (getEnv("NEXT_PUBLIC_NETWORK_FAMILY", "evm") === "solana") {
+    return getEnv("NEXT_PUBLIC_SOLANA_CLUSTER", "mainnet-beta") !== "devnet";
+  }
+
   return parseInt(getEnv("NEXT_PUBLIC_CHAIN_ID", "8453")) === 8453;
 }
 
 export function isTestnet(): boolean {
+  if (getEnv("NEXT_PUBLIC_NETWORK_FAMILY", "evm") === "solana") {
+    return getEnv("NEXT_PUBLIC_SOLANA_CLUSTER", "mainnet-beta") === "devnet";
+  }
+
   return parseInt(getEnv("NEXT_PUBLIC_CHAIN_ID", "8453")) === 84532;
 }
 
@@ -98,6 +113,7 @@ export function getServerEnv() {
     x402FacilitatorUrl: getEnv("X402_FACILITATOR_URL", ""),
     cdpApiKeyId: getEnv("CDP_API_KEY_ID", ""),
     cdpApiKeySecret: getEnv("CDP_API_KEY_SECRET", ""),
+    solanaCollectionProgramId: getEnv("SOLANA_COLLECTION_PROGRAM_ID", ""),
   };
 }
 
@@ -114,17 +130,18 @@ export interface EnvValidationResult {
 export function validateEnv(forProduction = false): EnvValidationResult {
   const missing: string[] = [];
   const warnings: string[] = [];
+  const networkFamily = process.env["NEXT_PUBLIC_NETWORK_FAMILY"] || "evm";
   
   // Required for all environments
-  const requiredClient = [
-    "NEXT_PUBLIC_CHAIN_ID",
-    "NEXT_PUBLIC_APP_URL",
-  ];
+  const requiredClient = ["NEXT_PUBLIC_APP_URL"];
+  if (networkFamily === "solana") {
+    requiredClient.push("NEXT_PUBLIC_SOLANA_CLUSTER");
+  } else {
+    requiredClient.push("NEXT_PUBLIC_CHAIN_ID");
+  }
   
   // Required for production
   const requiredProd = [
-    "NEXT_PUBLIC_FACTORY_ADDRESS",
-    "NEXT_PUBLIC_ALCHEMY_ID",
     "NEXT_PUBLIC_WALLET_CONNECT_ID",
     "DEPLOYER_PRIVATE_KEY",
     "TREASURY_ADDRESS",
@@ -132,6 +149,9 @@ export function validateEnv(forProduction = false): EnvValidationResult {
     "AGENT_HMAC_SECRET",
     "AGENT_JWT_SECRET",
   ];
+  if (networkFamily !== "solana") {
+    requiredProd.push("NEXT_PUBLIC_FACTORY_ADDRESS", "NEXT_PUBLIC_ALCHEMY_ID");
+  }
   
   // Check required using bracket notation
   for (const key of requiredClient) {
@@ -156,6 +176,18 @@ export function validateEnv(forProduction = false): EnvValidationResult {
   if (!process.env["PINATA_JWT"] && !process.env["PINATA_API_KEY"]) {
     warnings.push("Pinata not configured - IPFS uploads will fail");
   }
+
+  const solanaProgramId =
+    process.env["SOLANA_COLLECTION_PROGRAM_ID"] ||
+    process.env["NEXT_PUBLIC_SOLANA_COLLECTION_PROGRAM_ID"];
+  const hasSolanaConfig =
+    Boolean(process.env["NEXT_PUBLIC_SOLANA_CLUSTER"]) ||
+    Boolean(process.env["NEXT_PUBLIC_SOLANA_RPC_URL"]) ||
+    Boolean(solanaProgramId);
+
+  if (hasSolanaConfig && !solanaProgramId) {
+    warnings.push("SOLANA_COLLECTION_PROGRAM_ID not set - Solana collection deploys will fail");
+  }
   
   const hmacSecret = process.env["AGENT_HMAC_SECRET"];
   if (hmacSecret && hmacSecret.length < 32) {
@@ -177,6 +209,17 @@ export function validateEnv(forProduction = false): EnvValidationResult {
  * Get RPC URL for the configured chain
  */
 export function getRpcUrl(): string {
+  if (getEnv("NEXT_PUBLIC_NETWORK_FAMILY", "evm") === "solana") {
+    const customSolanaRpc = getEnv("NEXT_PUBLIC_SOLANA_RPC_URL", "");
+    if (customSolanaRpc) {
+      return customSolanaRpc;
+    }
+
+    return getEnv("NEXT_PUBLIC_SOLANA_CLUSTER", "mainnet-beta") === "devnet"
+      ? "https://api.devnet.solana.com"
+      : "https://api.mainnet-beta.solana.com";
+  }
+
   const alchemyId = getEnv("NEXT_PUBLIC_ALCHEMY_ID", "");
   const chainId = parseInt(getEnv("NEXT_PUBLIC_CHAIN_ID", "8453"));
   
@@ -195,23 +238,35 @@ export function getRpcUrl(): string {
  * Get block explorer URL
  */
 export function getExplorerUrl(): string {
-  return isMainnet() 
-    ? "https://basescan.org"
-    : "https://sepolia.basescan.org";
+  if (getEnv("NEXT_PUBLIC_NETWORK_FAMILY", "evm") === "solana") {
+    return getExplorerBaseUrl(getEnv("NEXT_PUBLIC_SOLANA_CLUSTER", "mainnet-beta"));
+  }
+
+  return getExplorerBaseUrl(getEnv("NEXT_PUBLIC_CHAIN_ID", "8453"));
 }
 
 /**
  * Get explorer URL for address
  */
 export function getAddressUrl(address: string): string {
-  return `${getExplorerUrl()}/address/${address}`;
+  return getAddressExplorerUrl(
+    address,
+    getEnv("NEXT_PUBLIC_NETWORK_FAMILY", "evm") === "solana"
+      ? getEnv("NEXT_PUBLIC_SOLANA_CLUSTER", "mainnet-beta")
+      : getEnv("NEXT_PUBLIC_CHAIN_ID", "8453")
+  );
 }
 
 /**
  * Get explorer URL for transaction
  */
 export function getTxUrl(txHash: string): string {
-  return `${getExplorerUrl()}/tx/${txHash}`;
+  return getTransactionExplorerUrl(
+    txHash,
+    getEnv("NEXT_PUBLIC_NETWORK_FAMILY", "evm") === "solana"
+      ? getEnv("NEXT_PUBLIC_SOLANA_CLUSTER", "mainnet-beta")
+      : getEnv("NEXT_PUBLIC_CHAIN_ID", "8453")
+  );
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════

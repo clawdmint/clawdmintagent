@@ -1,14 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import { getPublicClient, COLLECTION_ABI } from "@/lib/contracts";
+import { COLLECTION_ABI, getPublicClient } from "@/lib/contracts";
+import {
+  formatCollectionMintPrice,
+  getCollectionNativeToken,
+  isEvmCollectionChain,
+} from "@/lib/collection-chains";
 
-// Force dynamic rendering (prevents static generation errors on Netlify)
-export const dynamic = 'force-dynamic';
-
-// ═══════════════════════════════════════════════════════════════════════
-// GET /api/collections/[address]
-// Get collection details by address
-// ═══════════════════════════════════════════════════════════════════════
+export const dynamic = "force-dynamic";
 
 export async function GET(
   request: NextRequest,
@@ -16,7 +15,6 @@ export async function GET(
 ) {
   try {
     const { address } = await params;
-
     if (!address) {
       return NextResponse.json(
         { success: false, error: "Address is required" },
@@ -24,10 +22,9 @@ export async function GET(
       );
     }
 
-    // Find collection by address (case-insensitive)
     const collection = await prisma.collection.findFirst({
       where: {
-        address: address.toLowerCase(),
+        OR: [{ address: address.toLowerCase() }, { address }],
       },
       include: {
         agent: {
@@ -44,34 +41,45 @@ export async function GET(
     });
 
     if (!collection) {
-      // Try without lowercase
-      const collectionAlt = await prisma.collection.findFirst({
-        where: { address },
-        include: {
-          agent: {
-            select: {
-              id: true,
-              name: true,
-              description: true,
-              avatarUrl: true,
-              eoa: true,
-              xHandle: true,
-            },
-          },
-        },
-      });
-
-      if (!collectionAlt) {
-        return NextResponse.json(
-          { success: false, error: "Collection not found" },
-          { status: 404 }
-        );
-      }
-
-      return await formatResponse(collectionAlt);
+      return NextResponse.json(
+        { success: false, error: "Collection not found" },
+        { status: 404 }
+      );
     }
 
-    return await formatResponse(collection);
+    const onchain = await fetchOnchainData(collection.address, collection.chain);
+    return NextResponse.json({
+      success: true,
+      collection: {
+        id: collection.id,
+        address: collection.address,
+        chain: collection.chain,
+        native_token: getCollectionNativeToken(collection.chain),
+        name: collection.name,
+        symbol: collection.symbol,
+        description: collection.description,
+        image_url: collection.imageUrl,
+        base_uri: collection.baseUri,
+        max_supply: collection.maxSupply,
+        total_minted: collection.totalMinted,
+        mint_price_raw: collection.mintPrice,
+        mint_price_native: formatCollectionMintPrice(collection.mintPrice, collection.chain),
+        royalty_bps: collection.royaltyBps,
+        payout_address: collection.payoutAddress,
+        status: collection.status,
+        deployed_at: collection.deployedAt?.toISOString(),
+        deploy_tx_hash: collection.deployTxHash,
+        agent: {
+          id: collection.agent.id,
+          name: collection.agent.name,
+          description: collection.agent.description,
+          avatar_url: collection.agent.avatarUrl,
+          eoa: collection.agent.eoa,
+          x_handle: collection.agent.xHandle,
+        },
+        onchain,
+      },
+    });
   } catch (error) {
     console.error("Get collection error:", error);
     return NextResponse.json(
@@ -81,26 +89,14 @@ export async function GET(
   }
 }
 
-function weiToEth(wei: string): string {
-  const weiValue = BigInt(wei);
-  const ethWhole = weiValue / BigInt(10 ** 18);
-  const ethDecimal = weiValue % BigInt(10 ** 18);
-  
-  if (ethDecimal === BigInt(0)) {
-    return ethWhole.toString();
+async function fetchOnchainData(contractAddress: string, chain: string) {
+  if (!isEvmCollectionChain(chain)) {
+    return null;
   }
-  
-  // Format with up to 18 decimal places, then trim trailing zeros
-  const decimalStr = ethDecimal.toString().padStart(18, "0");
-  const trimmed = decimalStr.replace(/0+$/, "");
-  return `${ethWhole}.${trimmed}`;
-}
 
-async function fetchOnchainData(contractAddress: string) {
   try {
     const client = getPublicClient();
     const addr = contractAddress as `0x${string}`;
-    
     const [totalMinted, remainingSupply, isSoldOut] = await Promise.all([
       client.readContract({
         address: addr,
@@ -128,40 +124,4 @@ async function fetchOnchainData(contractAddress: string) {
     console.error("Failed to fetch on-chain data for", contractAddress, error);
     return null;
   }
-}
-
-async function formatResponse(collection: any) {
-  // Fetch live on-chain data
-  const onchain = await fetchOnchainData(collection.address);
-
-  return NextResponse.json({
-    success: true,
-    collection: {
-      id: collection.id,
-      address: collection.address,
-      name: collection.name,
-      symbol: collection.symbol,
-      description: collection.description,
-      image_url: collection.imageUrl,
-      base_uri: collection.baseUri,
-      max_supply: collection.maxSupply,
-      total_minted: collection.totalMinted,
-      mint_price_wei: collection.mintPrice,
-      mint_price_eth: weiToEth(collection.mintPrice),
-      royalty_bps: collection.royaltyBps,
-      payout_address: collection.payoutAddress,
-      status: collection.status,
-      deployed_at: collection.deployedAt?.toISOString(),
-      deploy_tx_hash: collection.deployTxHash,
-      agent: {
-        id: collection.agent.id,
-        name: collection.agent.name,
-        description: collection.agent.description,
-        avatar_url: collection.agent.avatarUrl,
-        eoa: collection.agent.eoa,
-        x_handle: collection.agent.xHandle,
-      },
-      onchain,
-    },
-  });
 }

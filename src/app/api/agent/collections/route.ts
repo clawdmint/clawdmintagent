@@ -1,67 +1,36 @@
 import { NextRequest, NextResponse } from "next/server";
-import { z } from "zod";
 import { prisma } from "@/lib/db";
 import { verifyHmacAuth } from "@/lib/auth";
-import { uploadImage, uploadJson, ipfsToHttp, CollectionMetadata, NFTMetadata } from "@/lib/ipfs";
-import { parseEther, FACTORY_ADDRESS_GETTER, publicClient, FACTORY_ABI, getChain } from "@/lib/contracts";
-import { encodeFunctionData, parseAbi } from "viem";
+import { FACTORY_ABI, FACTORY_ADDRESS_GETTER, getChain } from "@/lib/contracts";
+import {
+  DeployCollectionSchema,
+  prepareCollectionAssets,
+} from "@/lib/collection-deploy";
+import {
+  formatCollectionMintPrice,
+  getCollectionNativeToken,
+  isEvmCollectionChain,
+} from "@/lib/collection-chains";
+import { buildSolanaDeploymentManifest } from "@/lib/solana-collections";
+import { encodeFunctionData } from "viem";
 
-// Force dynamic rendering (prevents static generation errors on Netlify)
-export const dynamic = 'force-dynamic';
-
-// ═══════════════════════════════════════════════════════════════════════
-// SCHEMA
-// ═══════════════════════════════════════════════════════════════════════
-
-const DeployCollectionSchema = z.object({
-  name: z.string().min(1).max(100),
-  symbol: z.string().min(1).max(10).regex(/^[A-Z0-9]+$/, "Symbol must be uppercase alphanumeric"),
-  description: z.string().max(1000).optional(),
-  image: z.string(), // data URL, https URL, or ipfs:// URL
-  max_supply: z.number().int().min(1).max(100000),
-  mint_price_eth: z.string().regex(/^\d+\.?\d*$/, "Invalid ETH amount"),
-  payout_address: z.string().regex(/^0x[a-fA-F0-9]{40}$/, "Invalid address"),
-  royalty_bps: z.number().int().min(0).max(1000).default(500), // Max 10%
-  metadata: z.object({
-    external_url: z.string().url().optional(),
-    attributes: z.array(z.object({
-      trait_type: z.string(),
-      value: z.union([z.string(), z.number()]),
-    })).optional(),
-  }).optional(),
-});
-
-// ═══════════════════════════════════════════════════════════════════════
-// POST /api/agent/collections
-// Deploy a new NFT collection
-// ═══════════════════════════════════════════════════════════════════════
+export const dynamic = "force-dynamic";
 
 export async function POST(request: NextRequest) {
   try {
-    // Get raw body for HMAC verification
     const bodyText = await request.text();
-    
-    // Verify agent authentication
     const auth = await verifyHmacAuth(request, bodyText);
     if (!auth.success) {
-      return NextResponse.json(
-        { error: auth.error || "Authentication failed" },
-        { status: 401 }
-      );
+      return NextResponse.json({ error: auth.error || "Authentication failed" }, { status: 401 });
     }
 
-    // Parse body
     let body;
     try {
       body = JSON.parse(bodyText);
     } catch {
-      return NextResponse.json(
-        { error: "Invalid JSON body" },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
     }
 
-    // Validate input
     const validation = DeployCollectionSchema.safeParse(body);
     if (!validation.success) {
       return NextResponse.json(
@@ -71,175 +40,129 @@ export async function POST(request: NextRequest) {
     }
 
     const data = validation.data;
-
-    // Get agent
     const agent = await prisma.agent.findUnique({
       where: { id: auth.agentId },
     });
 
     if (!agent || agent.status !== "VERIFIED" || !agent.deployEnabled) {
-      return NextResponse.json(
-        { error: "Agent not authorized to deploy" },
-        { status: 403 }
-      );
+      return NextResponse.json({ error: "Agent not authorized to deploy" }, { status: 403 });
     }
 
-    // Step 1: Upload collection image to IPFS
-    console.log("Uploading collection image...");
-    const imageUpload = await uploadImage(data.image, `${data.symbol}-cover`);
-    if (!imageUpload.success) {
-      return NextResponse.json(
-        { error: `Image upload failed: ${imageUpload.error}` },
-        { status: 500 }
-      );
-    }
-    const imageUrl = `ipfs://${imageUpload.cid}`;
-
-    // Step 2: Create and upload metadata
-    console.log("Creating metadata...");
-    
-    // Collection metadata
-    const collectionMeta: CollectionMetadata = {
-      name: data.name,
-      description: data.description || `${data.name} - Deployed by ${agent.name} on Clawdmint`,
-      image: imageUrl,
-      external_link: data.metadata?.external_url,
-      seller_fee_basis_points: data.royalty_bps,
-      fee_recipient: data.payout_address,
-    };
-
-    // Generate unique metadata for each token
-    console.log(`Generating metadata for ${data.max_supply} tokens...`);
-    const tokenMetadataArray: NFTMetadata[] = [];
-    
-    for (let i = 1; i <= data.max_supply; i++) {
-      tokenMetadataArray.push({
-        name: `${data.name} #${i}`,
-        description: collectionMeta.description,
-        image: imageUrl,
-        attributes: data.metadata?.attributes || [],
-        external_url: data.metadata?.external_url,
-      });
-    }
-
-    // Upload as folder structure (collection.json + 1.json, 2.json, ...)
-    console.log("Uploading metadata folder to IPFS...");
-    const { uploadCollectionMetadata } = await import("@/lib/ipfs");
-    const folderUpload = await uploadCollectionMetadata(
-      collectionMeta,
-      tokenMetadataArray,
-      data.name
-    );
-    
-    if (!folderUpload.success) {
-      return NextResponse.json(
-        { error: `Metadata upload failed: ${folderUpload.error}` },
-        { status: 500 }
-      );
-    }
-
-    // Base URI points to the folder (with trailing slash)
-    const baseUri = folderUpload.url || `ipfs://${folderUpload.cid}/`;
-
-    // Step 3: Prepare deployment transaction data
-    // Note: The actual on-chain deployment is done by the agent's wallet
-    // This API prepares the transaction and stores the intent
-    
-    const mintPriceWei = parseEther(data.mint_price_eth);
-
-    // Create collection record in pending state
+    const assets = await prepareCollectionAssets(data, agent.name);
     const collection = await prisma.collection.create({
       data: {
         agentId: agent.id,
         agentEoa: agent.eoa,
+        chain: assets.chain,
         name: data.name,
         symbol: data.symbol,
         description: data.description,
-        imageUrl: ipfsToHttp(imageUrl),
-        baseUri,
+        imageUrl: assets.imageHttpUrl,
+        baseUri: assets.baseUri,
         maxSupply: data.max_supply,
-        mintPrice: mintPriceWei.toString(),
+        mintPrice: assets.mintPriceRaw,
         royaltyBps: data.royalty_bps,
         payoutAddress: data.payout_address,
-        status: "DEPLOYING",
-        address: "pending", // Will be updated after deployment
+        status: "PENDING_SIGNATURE",
+        address: `pending_${Date.now()}`,
         deployTxHash: "pending",
       },
     });
 
-    // Prepare the deployment calldata for the agent to sign
-    const deployParams = {
-      name: data.name,
-      symbol: data.symbol,
-      baseURI: baseUri,
-      maxSupply: BigInt(data.max_supply),
-      mintPrice: mintPriceWei,
-      payoutAddress: data.payout_address as `0x${string}`,
-      royaltyBps: BigInt(data.royalty_bps),
-    };
+    let deployment: Record<string, unknown>;
 
-    const deployCalldata = encodeFunctionData({
-      abi: FACTORY_ABI,
-      functionName: "deployCollection",
-      args: [deployParams],
-    });
+    if (isEvmCollectionChain(assets.chain)) {
+      const calldata = encodeFunctionData({
+        abi: FACTORY_ABI,
+        functionName: "deployCollection",
+        args: [{
+          name: data.name,
+          symbol: data.symbol,
+          baseURI: assets.baseUri,
+          maxSupply: BigInt(data.max_supply),
+          mintPrice: BigInt(assets.mintPriceRaw),
+          payoutAddress: data.payout_address as `0x${string}`,
+          royaltyBps: BigInt(data.royalty_bps),
+        }],
+      });
+
+      deployment = {
+        mode: "agent_sign",
+        factory_address: FACTORY_ADDRESS_GETTER(),
+        chain_id: getChain().id,
+        chain_name: getChain().name,
+        calldata,
+        instructions: [
+          "1. Sign and broadcast the factory deployCollection call",
+          "2. Wait for Base confirmation",
+          "3. Call POST /api/agent/collections/confirm with collection_id, deployed_address, and deploy_tx_hash",
+        ],
+      };
+    } else {
+      const manifest = buildSolanaDeploymentManifest({
+        authority: assets.authorityAddress,
+        payoutAddress: data.payout_address,
+        collectionId: collection.id,
+        name: data.name,
+        symbol: data.symbol,
+        baseUri: assets.baseUri,
+        maxSupply: data.max_supply,
+        mintPriceLamports: BigInt(assets.mintPriceRaw),
+        royaltyBps: data.royalty_bps,
+      });
+
+      deployment = {
+        mode: "agent_sign",
+        program_id: manifest.program_id,
+        cluster: manifest.cluster,
+        authority: manifest.authority,
+        predicted_collection_address: manifest.collection_address,
+        instructions: manifest.instructions,
+        instructions_text: [
+          "1. Build a Solana transaction from the returned instruction list",
+          "2. Sign with authority_address on the configured Solana cluster",
+          "3. Call POST /api/agent/collections/confirm with collection_id, deployed_address, and deploy_tx_hash",
+        ],
+      };
+    }
 
     return NextResponse.json({
       success: true,
       collection: {
         id: collection.id,
+        chain: collection.chain,
         name: collection.name,
         symbol: collection.symbol,
         max_supply: collection.maxSupply,
-        mint_price_eth: data.mint_price_eth,
-        mint_price_wei: mintPriceWei.toString(),
-        image_url: ipfsToHttp(imageUrl),
-        base_uri: baseUri,
+        mint_price: assets.mintPriceInput,
+        mint_price_native: assets.mintPriceInput,
+        mint_price_raw: assets.mintPriceRaw,
+        native_token: assets.nativeToken,
+        image_url: assets.imageHttpUrl,
+        base_uri: assets.baseUri,
         status: collection.status,
       },
-      deployment: {
-        factory_address: FACTORY_ADDRESS_GETTER(),
-        chain_id: getChain().id,
-        chain_name: getChain().name,
-        calldata: deployCalldata,
-        instructions: [
-          "1. The agent wallet must sign and broadcast this transaction",
-          "2. Call the factory's deployCollection function with the provided calldata",
-          "3. Once confirmed, call POST /api/agent/collections/confirm with the tx hash",
-        ],
-      },
+      deployment,
       metadata: {
-        base_uri: baseUri,
-        folder_cid: folderUpload.cid,
-        collection_json: `${baseUri}collection.json`,
-        token_metadata_example: `${baseUri}1.json`,
-        image: ipfsToHttp(imageUrl),
+        base_uri: assets.baseUri,
+        folder_cid: assets.folderCid,
+        collection_json: `${assets.baseUri}collection.json`,
+        token_metadata_example: `${assets.baseUri}1.json`,
+        image: assets.imageHttpUrl,
         total_tokens: data.max_supply,
       },
     });
   } catch (error) {
     console.error("Collection deployment error:", error);
-    return NextResponse.json(
-      { error: "Deployment failed" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "Deployment failed" }, { status: 500 });
   }
 }
 
-// ═══════════════════════════════════════════════════════════════════════
-// GET /api/agent/collections
-// Get agent's collections
-// ═══════════════════════════════════════════════════════════════════════
-
 export async function GET(request: NextRequest) {
   try {
-    // Get raw body for HMAC verification (empty for GET)
     const auth = await verifyHmacAuth(request, "");
     if (!auth.success) {
-      return NextResponse.json(
-        { error: auth.error || "Authentication failed" },
-        { status: 401 }
-      );
+      return NextResponse.json({ error: auth.error || "Authentication failed" }, { status: 401 });
     }
 
     const collections = await prisma.collection.findMany({
@@ -252,11 +175,14 @@ export async function GET(request: NextRequest) {
       collections: collections.map((c) => ({
         id: c.id,
         address: c.address,
+        chain: c.chain,
         name: c.name,
         symbol: c.symbol,
         max_supply: c.maxSupply,
         total_minted: c.totalMinted,
-        mint_price_wei: c.mintPrice,
+        mint_price_raw: c.mintPrice,
+        mint_price_native: formatCollectionMintPrice(c.mintPrice, c.chain),
+        native_token: getCollectionNativeToken(c.chain),
         status: c.status,
         created_at: c.createdAt.toISOString(),
         deployed_at: c.deployedAt?.toISOString(),
@@ -264,9 +190,6 @@ export async function GET(request: NextRequest) {
     });
   } catch (error) {
     console.error("Get collections error:", error);
-    return NextResponse.json(
-      { error: "Failed to get collections" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "Failed to get collections" }, { status: 500 });
   }
 }

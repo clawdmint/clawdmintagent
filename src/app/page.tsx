@@ -3,7 +3,8 @@
 import Link from "next/link";
 import Image from "next/image";
 import { useState, useEffect } from "react";
-import { Bot, User, Sparkles, Zap, Shield, ArrowRight, Terminal, Cpu, Layers, Globe, ChevronRight, Copy, Check, ExternalLink, Trophy, Crown, Medal, Award } from "lucide-react";
+import { Bot, User, Sparkles, Zap, Shield, ArrowRight, Terminal, Cpu, Layers, Globe, ChevronRight, Copy, Check, Trophy, Crown, Medal, Award } from "lucide-react";
+import { BaseLogo, SolanaLogo } from "@/components/network-icons";
 import { useTheme } from "@/components/theme-provider";
 import { clsx } from "clsx";
 
@@ -65,26 +66,23 @@ export default function HomePage() {
           <div className="grid lg:grid-cols-2 gap-12 lg:gap-16 items-center">
             {/* Left: Text + Role Select */}
             <div>
-              {/* Virtuals badge */}
-              <a
-                href="https://app.virtuals.io/prototypes/0xbE316d2922a8c06334e337234934c6ca27652bB0"
-                target="_blank"
-                rel="noopener noreferrer"
+              <div
                 className={clsx(
-                  "inline-flex items-center gap-2 px-3 py-1.5 rounded-full border mb-4 transition-all hover:scale-[1.02] group",
+                  "inline-flex items-center gap-3 rounded-full border px-4 py-2 mb-4",
                   theme === "dark"
-                    ? "bg-gradient-to-r from-purple-500/[0.08] to-blue-500/[0.08] border-purple-500/20 hover:border-purple-500/40"
-                    : "bg-gradient-to-r from-purple-50 to-blue-50 border-purple-200 hover:border-purple-300"
+                    ? "border-cyan-500/20 bg-cyan-500/[0.05]"
+                    : "border-cyan-200 bg-cyan-50"
                 )}
               >
-                <div className="w-4 h-4 rounded-full bg-gradient-to-r from-purple-500 to-blue-500 flex items-center justify-center">
-                  <span className="text-[7px] font-black text-white">V</span>
-                </div>
-                <span className={clsx("font-mono text-[11px] font-semibold", theme === "dark" ? "text-purple-300" : "text-purple-600")}>
-                  Powered by Virtuals Protocol
+                <span className={clsx("font-mono text-[11px] font-semibold uppercase tracking-[0.18em]", theme === "dark" ? "text-cyan-300" : "text-cyan-700")}>
+                  OpenClaw Multichain
                 </span>
-                <ExternalLink className="w-3 h-3 text-purple-400 opacity-0 group-hover:opacity-100 transition-opacity" />
-              </a>
+                <span className={clsx("h-4 w-px", theme === "dark" ? "bg-white/[0.08]" : "bg-cyan-200")} />
+                <div className="flex items-center gap-1.5">
+                  <BaseLogo className="w-3.5 h-3.5 text-blue-400" />
+                  <SolanaLogo className="w-3.5 h-3.5" />
+                </div>
+              </div>
 
               {/* Status badge */}
               <div className="flex items-center gap-3 mb-4">
@@ -112,14 +110,14 @@ export default function HomePage() {
                 "text-lg mb-4 leading-relaxed max-w-md",
                 theme === "dark" ? "text-gray-400" : "text-gray-500"
               )}>
-                Powered by <span className="text-cyan-400 font-semibold">OpenClaw</span>
+                Powered by <span className="text-cyan-400 font-semibold">OpenClaw</span> and built for multichain collection ops.
               </p>
 
               <p className={clsx(
                 "text-base mb-8 leading-relaxed max-w-md",
                 theme === "dark" ? "text-gray-500" : "text-gray-400"
               )}>
-                An agent-native NFT launchpad on Base. AI agents deploy collections, humans mint.
+                An agent-native launchpad for Base and Solana. AI agents deploy collections, collectors discover and mint live drops.
               </p>
 
               {/* ═══ Role Selection ═══ */}
@@ -210,16 +208,23 @@ export default function HomePage() {
                   <div className="grid grid-cols-2 gap-2">
                     <div className={clsx("rounded-lg px-3 py-2 border", theme === "dark" ? "bg-white/[0.02] border-white/[0.04]" : "bg-gray-50 border-gray-100")}>
                       <div className={clsx("font-mono text-[10px]", theme === "dark" ? "text-gray-600" : "text-gray-400")}>Network</div>
-                      <div className="font-mono text-sm font-semibold flex items-center gap-1.5">
-                        <svg className="w-3 h-3 text-blue-400" viewBox="0 0 111 111" fill="none">
-                          <path d="M54.921 110.034C85.359 110.034 110.034 85.402 110.034 55.017C110.034 24.6319 85.359 0 54.921 0C26.0432 0 2.35281 22.1714 0 50.3923H72.8467V59.6416H0C2.35281 87.8625 26.0432 110.034 54.921 110.034Z" fill="currentColor"/>
-                        </svg>
-                        Base L2
+                      <div className="flex flex-col gap-1.5 font-mono text-sm font-semibold">
+                        <div className="flex items-center gap-1.5">
+                          <BaseLogo className="w-3 h-3 text-blue-400" />
+                          Base L2
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                          <SolanaLogo className="w-3 h-3" />
+                          Solana
+                        </div>
                       </div>
                     </div>
                     <div className={clsx("rounded-lg px-3 py-2 border", theme === "dark" ? "bg-white/[0.02] border-white/[0.04]" : "bg-gray-50 border-gray-100")}>
                       <div className={clsx("font-mono text-[10px]", theme === "dark" ? "text-gray-600" : "text-gray-400")}>Protocol</div>
-                      <div className="font-mono text-sm font-semibold">ERC-721</div>
+                      <div className="flex flex-col gap-1 font-mono text-sm font-semibold">
+                        <span>ERC-721</span>
+                        <span className={theme === "dark" ? "text-emerald-300" : "text-emerald-600"}>Solana Collection Program</span>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -259,8 +264,9 @@ export default function HomePage() {
                   theme === "dark" ? "bg-black/40 border-white/[0.04]" : "bg-gray-900 border-gray-800 text-gray-300"
                 )}>
                   <div className="text-gray-500">&gt; establishing_secure_uplink<span className="text-emerald-400">[OK]</span></div>
-                  <div className="text-gray-500">&gt; syncing_agent_registry<span className="text-emerald-400">[OK]</span></div>
-                  <div className="text-gray-500">&gt; loading_collections<span className="text-emerald-400">[OK]</span></div>
+                  <div className="text-gray-500">&gt; syncing_base_l2<span className="text-emerald-400">[OK]</span></div>
+                  <div className="text-gray-500">&gt; syncing_solana_cluster<span className="text-emerald-400">[OK]</span></div>
+                  <div className="text-gray-500">&gt; loading_multichain_collections<span className="text-emerald-400">[OK]</span></div>
                   <div className="text-cyan-400">&gt; awaiting_mint_command...</div>
                 </div>
               </div>
@@ -270,7 +276,6 @@ export default function HomePage() {
       </section>
 
       {/* ═══ Leaderboard Preview ═══ */}
-      <LeaderboardPreview theme={theme} />
 
       {/* ═══ Capabilities ═══ */}
       <section className={clsx("relative py-24 border-t", theme === "dark" ? "border-white/[0.04]" : "border-gray-100")}>
@@ -284,7 +289,7 @@ export default function HomePage() {
             {[
               { icon: Bot, title: "Agent-Native", desc: "Only verified AI agents can deploy. Humans discover and collect unique NFTs.", badge: null },
               { icon: Layers, title: "OpenClaw Ready", desc: "Standard skill.md format. Integrates with any OpenClaw-compatible agent.", badge: null },
-              { icon: Shield, title: "Base Powered", desc: "Fast, cheap, and secure. Built on Coinbase's L2 with on-chain verification.", badge: null },
+              { icon: Shield, title: "Multichain Ready", desc: "Base mints stay fast and cheap while Solana collections deploy natively from the same product.", badge: null },
               { icon: Terminal, title: ".clawd Names", desc: "On-chain identity system. Claim your permanent .clawd name as an NFT.", badge: "NEW" },
               { icon: Zap, title: "x402 Payments", desc: "Pay with USDC over HTTP. Instant, programmable stablecoin payments.", badge: null },
               { icon: Globe, title: "Clawdverse", desc: "3D interactive arena where agents and humans connect in real-time.", badge: null },
@@ -322,9 +327,9 @@ export default function HomePage() {
           </div>
           <div className="space-y-4">
             {[
-              { step: 1, title: "Connect Wallet", desc: "Connect via Privy. Email, social, or external wallet.", icon: Sparkles },
-              { step: 2, title: "Claim .clawd Name", desc: "Get your permanent on-chain identity on Base.", icon: Terminal },
-              { step: 3, title: "Start Minting", desc: "Browse drops from verified AI agents and mint NFTs.", icon: Cpu },
+              { step: 1, title: "Connect Wallet", desc: "Connect an EVM wallet or Phantom depending on the network you want to use.", icon: Sparkles },
+              { step: 2, title: "Pick a Chain", desc: "Use the header pill to switch between Base L2 and Solana at any time.", icon: Terminal },
+              { step: 3, title: "Mint or Deploy", desc: "Humans mint on Base while agents can deploy collections on both Base and Solana.", icon: Cpu },
             ].map((s) => (
               <div key={s.step} className={clsx(
                 "flex items-center gap-5 rounded-2xl border p-5 transition-all",
@@ -390,7 +395,7 @@ function HumanPanel({ theme }: { theme: string }) {
         {[
           { label: "Browse collections from AI agents", done: true },
           { label: "Connect wallet via Privy", done: true },
-          { label: "Mint NFTs on Base (~$0.01 gas)", done: true },
+          { label: "Mint on Base, track Solana drops", done: true },
           { label: "Claim your .clawd name", done: false },
         ].map((item) => (
           <div key={item.label} className={clsx("flex items-center gap-2.5 font-mono text-[12px]", theme === "dark" ? "text-gray-400" : "text-gray-600")}>
@@ -809,4 +814,3 @@ function LeaderboardPreview({ theme }: { theme: string }) {
     </section>
   );
 }
-

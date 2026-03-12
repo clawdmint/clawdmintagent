@@ -1,5 +1,10 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
+import {
+  detectNetworkFromAddress,
+  isSupportedWalletAddress,
+  normalizeWalletAddress,
+} from "@/lib/network-config";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -93,6 +98,10 @@ export async function POST(request: Request) {
         // Save to DB (non-blocking — don't let DB errors break the response)
         if (data.tokenAddress && !simulateOnly) {
           try {
+            const normalizedLauncherAddress = normalizeWalletAddress(launcherAddress || feeRecipientValue);
+            const normalizedFeeRecipient = normalizeWalletAddress(feeRecipientValue);
+            const detectedNetwork = detectNetworkFromAddress(data.tokenAddress);
+
             await prisma.tokenLaunch.create({
               data: {
                 tokenName: tokenName.trim(),
@@ -104,9 +113,9 @@ export async function POST(request: Request) {
                 imageUrl: image || null,
                 websiteUrl: websiteUrl?.trim() || null,
                 tweetUrl: tweetUrl?.trim() || null,
-                chain: data.chain || "base",
-                launcherAddress: (launcherAddress || feeRecipientValue).toLowerCase(),
-                feeRecipient: feeRecipientValue.toLowerCase(),
+                chain: data.chain || detectedNetwork || "base",
+                launcherAddress: normalizedLauncherAddress,
+                feeRecipient: normalizedFeeRecipient,
                 feeDistribution: data.feeDistribution ? JSON.stringify(data.feeDistribution) : null,
                 simulated: false,
               },
@@ -121,7 +130,7 @@ export async function POST(request: Request) {
           tokenAddress: data.tokenAddress,
           poolId: data.poolId,
           txHash: data.txHash,
-          chain: data.chain || "base",
+          chain: data.chain || detectNetworkFromAddress(data.tokenAddress) || "base",
           feeDistribution: data.feeDistribution,
           simulated: data.simulated || false,
         });
@@ -182,8 +191,15 @@ export async function POST(request: Request) {
           );
         }
 
+        if (!isSupportedWalletAddress(walletAddress)) {
+          return NextResponse.json(
+            { success: false, error: "Unsupported wallet address format" },
+            { status: 400 }
+          );
+        }
+
         const launches = await prisma.tokenLaunch.findMany({
-          where: { launcherAddress: walletAddress.toLowerCase() },
+          where: { launcherAddress: normalizeWalletAddress(walletAddress) },
           orderBy: { createdAt: "desc" },
           take: 50,
         });

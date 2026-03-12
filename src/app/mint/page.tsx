@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback, useMemo } from "react";
 import { useAccount, useWriteContract, useWaitForTransactionReceipt, useReadContracts } from "wagmi";
 import { formatEther } from "viem";
 import { useWallet } from "@/components/wallet-context";
+import { BaseLogo, SolanaLogo } from "@/components/network-icons";
 import { COLLECTION_ABI } from "@/lib/contracts";
 import { useTheme } from "@/components/theme-provider";
 import { clsx } from "clsx";
@@ -258,10 +259,21 @@ export default function MintPage() {
             CLAWDMINT_AGENTS
           </h1>
 
-          <p className="text-gray-500 font-mono text-sm max-w-xl mx-auto leading-relaxed mb-6">
-            10,000 unique AI-powered agent NFTs on Base. Free mint.
+          <p className="text-gray-500 font-mono text-sm max-w-xl mx-auto leading-relaxed mb-4">
+            10,000 unique AI-powered agent NFTs minting on Base. Free mint.
             Random assignment. Reveal on sold out.
           </p>
+
+          <div className="flex items-center justify-center gap-2 flex-wrap mb-6">
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-blue-500/20 bg-blue-500/10 px-3 py-1 font-mono text-[11px] uppercase tracking-[0.18em] text-blue-300">
+              <BaseLogo className="w-3.5 h-3.5 text-blue-400" />
+              Base L2 Mint
+            </span>
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-500/20 bg-emerald-500/10 px-3 py-1 font-mono text-[11px] uppercase tracking-[0.18em] text-emerald-300">
+              <SolanaLogo className="w-3.5 h-3.5" />
+              Solana Deploys Live
+            </span>
+          </div>
 
           {/* Deployer link */}
           <Link
@@ -288,6 +300,7 @@ export default function MintPage() {
               <div className="h-px bg-emerald-500/10 my-2" />
               <TermLine prefix=" ">collection: <span className="text-emerald-400">Clawdmint Agents</span></TermLine>
               <TermLine prefix=" ">network:    <span className="text-cyan-400">Base L2</span></TermLine>
+              <TermLine prefix=" ">also_live:  <span className="text-purple-300">Solana collection deploys</span></TermLine>
               <TermLine prefix=" ">standard:   <span className="text-gray-400">ERC-721</span></TermLine>
               <TermLine prefix=" ">supply:     <span className="text-white">{fmtNum(collection.maxSupply)}</span></TermLine>
               <TermLine prefix=" ">minted:     <span className="text-emerald-400">{fmtNum(collection.totalMinted)}</span></TermLine>
@@ -539,9 +552,9 @@ export default function MintPage() {
           <TermLine prefix="$" color="text-cyan-400">man clawdmint-agents</TermLine>
           <div className="mt-3">
             {[
-              { q: "What are Clawdmint Agents?", a: "10,000 unique SVG NFTs on Base. Procedurally generated robots with 8+ trait categories, 6 rarity tiers, and unique classified identities." },
+              { q: "What are Clawdmint Agents?", a: "10,000 unique SVG NFTs minting on Base. Procedurally generated robots with 8+ trait categories, 6 rarity tiers, and unique classified identities." },
               { q: "How does the reveal work?", a: "Pre-reveal: all NFTs show CLASSIFIED placeholder. Post sold-out: metadata updated to reveal true traits. Then permanently frozen on-chain." },
-              { q: "What chain?", a: "Base (Ethereum L2). Gas fees < $0.01." },
+              { q: "What chain?", a: "This collection mints on Base (Ethereum L2). Clawdmint also supports Solana-native collection deploys for agent launches." },
               { q: "Max per transaction?", a: `${MAX_PER_TX} agents per tx. No per-wallet limit.` },
               { q: "What are Mythic agents?", a: "Rarest tier (0.5%). Unique 1-of-1 names from the Base ecosystem. Top-tier stats and combat modifications." },
             ].map(({ q, a }, i) => (

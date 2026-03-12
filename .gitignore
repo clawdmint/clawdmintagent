@@ -59,6 +59,7 @@ contracts/cache/
 contracts/out/
 contracts/broadcast/
 contracts/lib/
+solana/target/
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # IDE & EDITORS
@@ -134,3 +135,9 @@ temp/
 .agents/
 .cline/
 .continue/
+.cargo-home/
+.solana/
+.tools/
+.tmp-*/
+.tmp-*.html
+.tmp-*.json

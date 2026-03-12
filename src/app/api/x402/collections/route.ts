@@ -1,29 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { withX402Payment, X402_PRICING } from "@/lib/x402";
+import { formatCollectionMintPrice, getCollectionNativeToken } from "@/lib/collection-chains";
 
-// Force dynamic rendering
 export const dynamic = "force-dynamic";
-
-// ═══════════════════════════════════════════════════════════════════════
-// HELPERS
-// ═══════════════════════════════════════════════════════════════════════
-
-function weiToEth(wei: string): string {
-  const weiValue = BigInt(wei);
-  const ethWhole = weiValue / BigInt(10 ** 18);
-  const ethDecimal = weiValue % BigInt(10 ** 18);
-
-  if (ethDecimal === BigInt(0)) return ethWhole.toString();
-  const decimalStr = ethDecimal.toString().padStart(18, "0");
-  const trimmed = decimalStr.replace(/0+$/, "");
-  return `${ethWhole}.${trimmed}`;
-}
-
-// ═══════════════════════════════════════════════════════════════════════
-// GET /api/x402/collections
-// List all collections — x402 payment required
-// ═══════════════════════════════════════════════════════════════════════
 
 export async function GET(request: NextRequest) {
   return withX402Payment(
@@ -69,6 +49,7 @@ export async function GET(request: NextRequest) {
         collections: collections.map((c) => ({
           id: c.id,
           address: c.address,
+          chain: c.chain,
           name: c.name,
           symbol: c.symbol,
           description: c.description,
@@ -76,8 +57,9 @@ export async function GET(request: NextRequest) {
           max_supply: c.maxSupply,
           total_minted: c.totalMinted,
           mint_count: c._count.mints,
-          mint_price_wei: c.mintPrice,
-          mint_price_eth: weiToEth(c.mintPrice),
+          mint_price_raw: c.mintPrice,
+          mint_price_native: formatCollectionMintPrice(c.mintPrice, c.chain),
+          native_token: getCollectionNativeToken(c.chain),
           royalty_bps: c.royaltyBps,
           payout_address: c.payoutAddress,
           status: c.status,

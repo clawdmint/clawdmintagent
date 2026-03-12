@@ -2,9 +2,11 @@
 
 import { useState, useCallback, useEffect } from "react";
 import { clsx } from "clsx";
+import { BaseLogo, SolanaLogo } from "@/components/network-icons";
 import { useTheme } from "@/components/theme-provider";
 import { useWallet } from "@/components/wallet-context";
 import { fetchWithRetry, getErrorMessage } from "@/lib/fetch-retry";
+import { getTokenExplorerUrl, getTransactionExplorerUrl, getNetworkFromValue } from "@/lib/network-config";
 import Link from "next/link";
 import {
   Rocket, Zap, Globe, Image as ImageIcon, Twitter, AlertTriangle,
@@ -13,7 +15,7 @@ import {
 } from "lucide-react";
 
 const FEE_RECIPIENT_TYPES = [
-  { id: "wallet", label: "Wallet Address", placeholder: "0x...", desc: "EVM address" },
+  { id: "wallet", label: "Wallet Address", placeholder: "0x... or Solana address", desc: "EVM or Solana wallet" },
   { id: "x", label: "X / Twitter", placeholder: "@username", desc: "Resolves to Bankr wallet" },
   { id: "farcaster", label: "Farcaster", placeholder: "username.eth", desc: "Verified EVM address" },
   { id: "ens", label: "ENS", placeholder: "name.eth", desc: "Resolves to address" },
@@ -35,6 +37,7 @@ interface LaunchRecord {
   symbol?: string;
   tokenSymbol?: string;
   tokenAddress: string;
+  chain?: string;
   txHash?: string;
   timestamp?: number;
   createdAt?: string;
@@ -43,7 +46,7 @@ interface LaunchRecord {
 
 export default function LaunchPage() {
   const { theme } = useTheme();
-  const { authenticated, address, login } = useWallet();
+  const { authenticated, address, login, connectSolana, solanaConnected, solanaAvailable } = useWallet();
 
   const [tokenName, setTokenName] = useState("");
   const [tokenSymbol, setTokenSymbol] = useState("");
@@ -94,6 +97,15 @@ export default function LaunchPage() {
     setCopied(key);
     setTimeout(() => setCopied(""), 2000);
   }, []);
+
+  const handleSolanaConnect = useCallback(() => {
+    if (!solanaAvailable) {
+      window.open("https://phantom.app/download", "_blank", "noopener,noreferrer");
+      return;
+    }
+
+    void connectSolana();
+  }, [connectSolana, solanaAvailable]);
 
   const handleSimulate = useCallback(async () => {
     if (!tokenName.trim()) { setError("Token name is required"); return; }
@@ -152,6 +164,7 @@ export default function LaunchPage() {
           name: tokenName.trim(),
           symbol: tokenSymbol.trim() || tokenName.trim().slice(0, 4).toUpperCase(),
           tokenAddress: data.tokenAddress,
+          chain: data.chain,
           txHash: data.txHash,
           timestamp: Date.now(),
           simulated: false,
@@ -186,15 +199,15 @@ export default function LaunchPage() {
       <div className="relative z-10 container mx-auto px-4 py-8 max-w-4xl">
         {/* Header */}
         <div className="flex items-center justify-between mb-8">
-          <div>
-            <div className="flex items-center gap-2 mb-1">
-              <Rocket className="w-5 h-5 text-cyan-400" />
-              <h1 className="font-mono text-xl font-bold">Token Launch</h1>
+            <div>
+              <div className="flex items-center gap-2 mb-1">
+                <Rocket className="w-5 h-5 text-cyan-400" />
+                <h1 className="font-mono text-xl font-bold">Token Launch</h1>
+              </div>
+              <p className={clsx("font-mono text-xs", isDark ? "text-gray-600" : "text-gray-400")}>
+              Deploy tokens via Bankr Partner API
+              </p>
             </div>
-            <p className={clsx("font-mono text-xs", isDark ? "text-gray-600" : "text-gray-400")}>
-              Deploy tokens on Base via Bankr Partner API
-            </p>
-          </div>
           <div className="flex items-center gap-2">
             {history.length > 0 && (
               <button
@@ -232,7 +245,7 @@ export default function LaunchPage() {
                     </div>
                   </div>
                   {h.txHash && (
-                    <a href={`https://basescan.org/tx/${h.txHash}`} target="_blank" rel="noopener noreferrer" className="text-cyan-400 hover:text-cyan-300">
+                    <a href={getTransactionExplorerUrl(h.txHash, h.chain)} target="_blank" rel="noopener noreferrer" className="text-cyan-400 hover:text-cyan-300">
                       <ExternalLink className="w-3.5 h-3.5" />
                     </a>
                   )}
@@ -283,11 +296,16 @@ export default function LaunchPage() {
                     <label className={clsx("font-mono text-[10px] uppercase tracking-wider mb-1.5 block", isDark ? "text-gray-500" : "text-gray-400")}>
                       Network
                     </label>
-                    <div className={clsx("px-4 py-3 rounded-xl border font-mono text-sm flex items-center gap-2", isDark ? "bg-white/[0.02] border-white/[0.08]" : "bg-gray-50 border-gray-200")}>
-                      <svg className="w-3.5 h-3.5 text-blue-400" viewBox="0 0 111 111" fill="none">
-                        <path d="M54.921 110.034C85.359 110.034 110.034 85.402 110.034 55.017C110.034 24.6319 85.359 0 54.921 0C26.0432 0 2.35281 22.1714 0 50.3923H72.8467V59.6416H0C2.35281 87.8625 26.0432 110.034 54.921 110.034Z" fill="currentColor"/>
-                      </svg>
-                      <span className="text-blue-400">Base</span>
+                    <div className={clsx("px-4 py-3 rounded-xl border font-mono text-sm flex items-center gap-3", isDark ? "bg-white/[0.02] border-white/[0.08]" : "bg-gray-50 border-gray-200")}>
+                      <div className="inline-flex items-center gap-1.5 rounded-full border border-blue-500/20 bg-blue-500/10 px-2 py-1 text-[10px] uppercase tracking-[0.18em] text-blue-300">
+                        <BaseLogo className="w-3.5 h-3.5 text-blue-400" />
+                        Base
+                      </div>
+                      <div className={clsx("h-4 w-px", isDark ? "bg-white/[0.08]" : "bg-gray-200")} />
+                      <div className="inline-flex items-center gap-1.5 rounded-full border border-emerald-500/20 bg-emerald-500/10 px-2 py-1 text-[10px] uppercase tracking-[0.18em] text-emerald-300">
+                        <SolanaLogo className="w-3.5 h-3.5" />
+                        Solana
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -418,9 +436,22 @@ export default function LaunchPage() {
             {/* Actions */}
             <div className="flex gap-3">
               {!authenticated ? (
-                <button onClick={login} className="flex-1 py-3.5 rounded-xl font-mono text-sm font-bold bg-cyan-500/20 border border-cyan-500/30 text-cyan-400 hover:bg-cyan-500/30 transition-all flex items-center justify-center gap-2">
-                  <Wallet className="w-4 h-4" /> Connect Wallet
-                </button>
+                <>
+                  <button onClick={login} className="flex-1 py-3.5 rounded-xl font-mono text-sm font-bold bg-cyan-500/20 border border-cyan-500/30 text-cyan-400 hover:bg-cyan-500/30 transition-all flex items-center justify-center gap-2">
+                    <BaseLogo className="w-4 h-4 text-blue-400" /> Connect Base
+                  </button>
+                  <button
+                    onClick={handleSolanaConnect}
+                    className={clsx(
+                      "flex-1 py-3.5 rounded-xl font-mono text-sm font-bold border transition-all flex items-center justify-center gap-2",
+                      isDark
+                        ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-300 hover:bg-emerald-500/15"
+                        : "bg-emerald-50 border-emerald-200 text-emerald-700 hover:bg-emerald-100"
+                    )}
+                  >
+                    <SolanaLogo className="w-4 h-4" /> {solanaAvailable ? (solanaConnected ? "Solana Connected" : "Connect Solana") : "Install Phantom"}
+                  </button>
+                </>
               ) : (
                 <>
                   <button
@@ -475,7 +506,7 @@ export default function LaunchPage() {
                   {result.txHash && (
                     <div>
                       <div className={clsx("font-mono text-[10px] mb-1", isDark ? "text-gray-600" : "text-gray-400")}>Transaction</div>
-                      <a href={`https://basescan.org/tx/${result.txHash}`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 px-3 py-2 rounded-lg border font-mono text-xs text-cyan-400 hover:text-cyan-300 transition-all border-cyan-500/20 hover:border-cyan-500/40">
+                      <a href={getTransactionExplorerUrl(result.txHash, result.chain)} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 px-3 py-2 rounded-lg border font-mono text-xs text-cyan-400 hover:text-cyan-300 transition-all border-cyan-500/20 hover:border-cyan-500/40">
                         <span className="truncate">{result.txHash.slice(0, 10)}...{result.txHash.slice(-8)}</span>
                         <ExternalLink className="w-3 h-3 shrink-0" />
                       </a>
@@ -500,8 +531,8 @@ export default function LaunchPage() {
 
                   <div className="flex gap-2 pt-2">
                     {!result.simulated && (
-                      <a href={`https://basescan.org/token/${result.tokenAddress}`} target="_blank" rel="noopener noreferrer" className="flex-1 py-2 rounded-lg bg-cyan-500/10 border border-cyan-500/20 font-mono text-[11px] text-cyan-400 hover:bg-cyan-500/20 transition-all text-center">
-                        View on Basescan
+                      <a href={getTokenExplorerUrl(result.tokenAddress, result.chain)} target="_blank" rel="noopener noreferrer" className="flex-1 py-2 rounded-lg bg-cyan-500/10 border border-cyan-500/20 font-mono text-[11px] text-cyan-400 hover:bg-cyan-500/20 transition-all text-center">
+                        View on {getNetworkFromValue(result.chain).explorerName}
                       </a>
                     )}
                     <button onClick={resetForm} className={clsx("flex-1 py-2 rounded-lg border font-mono text-[11px] transition-all text-center flex items-center justify-center gap-1", isDark ? "border-white/[0.06] text-gray-500 hover:text-gray-300" : "border-gray-200 text-gray-400 hover:text-gray-600")}>

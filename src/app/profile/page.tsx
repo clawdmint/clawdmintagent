@@ -2,10 +2,7 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { formatEther } from "viem";
-import { useWallet } from "@/components/wallet-context";
-import { reverseResolveAddress, getUserNames } from "@/lib/clawd-names";
 import Link from "next/link";
-import { useTheme } from "@/components/theme-provider";
 import { clsx } from "clsx";
 import {
   Copy,
@@ -19,11 +16,18 @@ import {
   Loader2,
   Rocket,
 } from "lucide-react";
-
-const chainId = parseInt(process.env.NEXT_PUBLIC_CHAIN_ID || "8453");
-const isMainnet = chainId === 8453;
-const explorerUrl = isMainnet ? "https://basescan.org" : "https://sepolia.basescan.org";
-const NAMES_ADDRESS = process.env.NEXT_PUBLIC_CLAWD_NAMES_ADDRESS || "";
+import { BaseLogo, SolanaLogo } from "@/components/network-icons";
+import { useWallet } from "@/components/wallet-context";
+import { reverseResolveAddress, getUserNames } from "@/lib/clawd-names";
+import {
+  getAddressExplorerUrl,
+  getDexScreenerTokenUrl,
+  getNetworkFromValue,
+  getTransactionExplorerUrl,
+  isEvmAddress,
+} from "@/lib/network-config";
+import { formatCollectionMintPrice, getCollectionNativeToken } from "@/lib/collection-chains";
+import { useTheme } from "@/components/theme-provider";
 
 interface ProfileData {
   address: string;
@@ -58,16 +62,41 @@ interface MintRecord {
     name: string;
     symbol: string;
     address: string;
+    chain: string;
     image_url: string | null;
     status: string;
+    mint_price_native: string;
+    native_token: string;
     agent_name: string;
     agent_avatar: string | null;
   };
 }
 
+function ChainBadge({ chain, theme }: { chain: string; theme: string }) {
+  const network = getNetworkFromValue(chain);
+
+  return (
+    <span className={clsx(
+      "inline-flex items-center gap-1.5 rounded-full border px-2 py-1 font-mono text-[10px] uppercase tracking-[0.18em]",
+      network.family === "solana"
+        ? theme === "dark"
+          ? "border-emerald-500/20 bg-emerald-500/10 text-emerald-300"
+          : "border-emerald-200 bg-emerald-50 text-emerald-700"
+        : theme === "dark"
+          ? "border-blue-500/20 bg-blue-500/10 text-blue-300"
+          : "border-blue-200 bg-blue-50 text-blue-700"
+    )}>
+      {network.family === "solana"
+        ? <SolanaLogo className="w-3.5 h-3.5" />
+        : <BaseLogo className="w-3.5 h-3.5 text-current" />}
+      {network.shortLabel}
+    </span>
+  );
+}
+
 export default function ProfilePage() {
   const { theme } = useTheme();
-  const { address, isConnected, login, logout, displayAddress } = useWallet();
+  const { address, isConnected, login, logout, displayAddress, connectSolana, solanaAvailable } = useWallet();
 
   const [profile, setProfile] = useState<ProfileData | null>(null);
   const [mints, setMints] = useState<MintRecord[]>([]);
@@ -77,40 +106,70 @@ export default function ProfilePage() {
   const [clawdNames, setClawdNames] = useState<Array<{ tokenId: bigint; name: string }>>([]);
   const [copied, setCopied] = useState(false);
 
-  // Fetch profile data
   useEffect(() => {
-    if (!address) { setProfile(null); setMints([]); setTokenLaunches([]); return; }
+    if (!address) {
+      setProfile(null);
+      setMints([]);
+      setTokenLaunches([]);
+      return;
+    }
+
     async function fetchProfile() {
       setLoading(true);
+
       try {
         const res = await fetch(`/api/profile/${address}`);
         const data = await res.json();
+
         if (data.success) {
           setProfile(data.profile);
           setMints(data.mints);
           setTokenLaunches(data.tokenLaunches || []);
         }
-      } catch { /* ignore */ }
+      } catch {
+        // ignore
+      }
+
       setLoading(false);
     }
-    fetchProfile();
+
+    void fetchProfile();
   }, [address]);
 
-  // Fetch .clawd name
   useEffect(() => {
-    if (!address) { setClawdName(null); setClawdNames([]); return; }
-    reverseResolveAddress(address).then(setClawdName);
-    getUserNames(address).then(setClawdNames);
+    if (!address) {
+      setClawdName(null);
+      setClawdNames([]);
+      return;
+    }
+
+    if (!isEvmAddress(address)) {
+      setClawdName(null);
+      setClawdNames([]);
+      return;
+    }
+
+    void reverseResolveAddress(address).then(setClawdName);
+    void getUserNames(address).then(setClawdNames);
   }, [address]);
 
   const copyAddress = useCallback(() => {
     if (!address) return;
+
     navigator.clipboard.writeText(address);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   }, [address]);
 
-  // Not connected
+  const handleConnectSolana = useCallback(() => {
+    if (!solanaAvailable) {
+      window.open("https://phantom.app/download", "_blank", "noopener,noreferrer");
+      return;
+    }
+
+    void connectSolana();
+  }, [connectSolana, solanaAvailable]);
+
   if (!isConnected) {
     return (
       <div className="min-h-[70vh] flex items-center justify-center px-4">
@@ -125,18 +184,32 @@ export default function ProfilePage() {
           <p className={clsx("text-sm mb-6", theme === "dark" ? "text-gray-500" : "text-gray-400")}>
             Connect your wallet to see your on-chain identity and minted NFTs.
           </p>
-          <button
-            onClick={login}
-            className="px-6 py-3 bg-gradient-to-r from-cyan-500 to-blue-600 rounded-xl text-sm font-semibold text-white hover:shadow-lg hover:shadow-cyan-500/20 transition-all"
-          >
-            Connect Wallet
-          </button>
+          <div className="flex flex-col sm:flex-row gap-3 justify-center">
+            <button
+              onClick={login}
+              className="px-6 py-3 bg-gradient-to-r from-cyan-500 to-blue-600 rounded-xl text-sm font-semibold text-white hover:shadow-lg hover:shadow-cyan-500/20 transition-all inline-flex items-center justify-center gap-2"
+            >
+              <BaseLogo className="w-4 h-4 text-blue-100" />
+              Connect Base
+            </button>
+            <button
+              onClick={handleConnectSolana}
+              className={clsx(
+                "px-6 py-3 rounded-xl text-sm font-semibold transition-all border flex items-center justify-center gap-2",
+                theme === "dark"
+                  ? "border-emerald-500/25 bg-emerald-500/10 text-emerald-300 hover:bg-emerald-500/15"
+                  : "border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100"
+              )}
+            >
+              <SolanaLogo className="w-4 h-4" />
+              {solanaAvailable ? "Connect Solana" : "Install Phantom"}
+            </button>
+          </div>
         </div>
       </div>
     );
   }
 
-  // Loading
   if (loading) {
     return (
       <div className="min-h-[70vh] flex items-center justify-center">
@@ -148,39 +221,35 @@ export default function ProfilePage() {
   const totalSpent = profile?.total_spent_wei === "0" || !profile?.total_spent_wei
     ? "0"
     : parseFloat(formatEther(BigInt(profile.total_spent_wei))).toFixed(4);
+  const connectedNetwork = address ? getNetworkFromValue(address) : null;
+  const spentLabel = isEvmAddress(address) && totalSpent !== "0" ? `${totalSpent} ETH` : "-";
 
   return (
     <div className="container mx-auto px-4 py-8 max-w-3xl">
-
-      {/* Profile Card */}
       <div className={clsx(
         "rounded-2xl border p-6 sm:p-8 mb-6",
-        theme === "dark"
-          ? "bg-white/[0.02] border-white/[0.06]"
-          : "bg-white border-gray-200"
+        theme === "dark" ? "bg-white/[0.02] border-white/[0.06]" : "bg-white border-gray-200"
       )}>
-        {/* Top: Avatar + Name + Address */}
         <div className="flex items-start justify-between gap-4 mb-6">
           <div className="flex items-center gap-4 min-w-0">
-            {/* Avatar */}
             <div className={clsx(
               "w-14 h-14 rounded-2xl flex items-center justify-center text-xl font-bold shrink-0",
               "bg-gradient-to-br from-cyan-500/20 to-purple-500/20",
               theme === "dark" ? "text-cyan-400" : "text-cyan-600"
             )}>
-              {clawdName ? clawdName.charAt(0).toUpperCase() : address?.slice(2, 4).toUpperCase()}
+              {clawdName ? clawdName.charAt(0).toUpperCase() : isEvmAddress(address) ? address?.slice(2, 4).toUpperCase() : address?.slice(0, 2).toUpperCase()}
             </div>
 
             <div className="min-w-0">
-              {/* .clawd name */}
               {clawdName && (
                 <div className="text-lg font-bold bg-gradient-to-r from-cyan-400 to-blue-400 bg-clip-text text-transparent mb-0.5">
                   {clawdName}
                 </div>
               )}
 
-              {/* Address */}
-              <div className="flex items-center gap-2">
+              {connectedNetwork && <ChainBadge chain={connectedNetwork.id} theme={theme} />}
+
+              <div className="flex items-center gap-2 mt-2">
                 <span className={clsx(
                   "text-sm font-mono",
                   theme === "dark" ? "text-gray-400" : "text-gray-500"
@@ -197,7 +266,7 @@ export default function ProfilePage() {
                   {copied ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
                 </button>
                 <a
-                  href={`${explorerUrl}/address/${address}`}
+                  href={address ? getAddressExplorerUrl(address) : "#"}
                   target="_blank"
                   rel="noopener noreferrer"
                   className={clsx(
@@ -211,7 +280,6 @@ export default function ProfilePage() {
             </div>
           </div>
 
-          {/* Disconnect */}
           <button
             onClick={logout}
             className={clsx(
@@ -226,7 +294,6 @@ export default function ProfilePage() {
           </button>
         </div>
 
-        {/* Stats row */}
         {profile && (
           <div className={clsx(
             "grid grid-cols-4 gap-3 pt-5 border-t",
@@ -236,12 +303,12 @@ export default function ProfilePage() {
               { value: profile.total_nfts.toString(), label: "NFTs", icon: Package },
               { value: profile.unique_collections.toString(), label: "Collections", icon: Hash },
               { value: (profile.total_launches || 0).toString(), label: "Launches", icon: Rocket },
-              { value: totalSpent === "0" ? "—" : `${totalSpent} ETH`, label: "Spent", icon: Coins },
-            ].map((s) => (
-              <div key={s.label} className="text-center">
-                <div className="text-base font-bold">{s.value}</div>
+              { value: spentLabel, label: "Spent", icon: Coins },
+            ].map((stat) => (
+              <div key={stat.label} className="text-center">
+                <div className="text-base font-bold">{stat.value}</div>
                 <div className={clsx("text-[11px]", theme === "dark" ? "text-gray-600" : "text-gray-400")}>
-                  {s.label}
+                  {stat.label}
                 </div>
               </div>
             ))}
@@ -249,7 +316,6 @@ export default function ProfilePage() {
         )}
       </div>
 
-      {/* .clawd Names */}
       {clawdNames.length > 0 && (
         <div className="mb-6">
           <div className={clsx(
@@ -259,9 +325,9 @@ export default function ProfilePage() {
             Names
           </div>
           <div className="flex flex-wrap gap-2">
-            {clawdNames.map((n) => (
+            {clawdNames.map((name) => (
               <Link
-                key={n.tokenId.toString()}
+                key={name.tokenId.toString()}
                 href="/names"
                 className={clsx(
                   "inline-flex items-center gap-1.5 px-3 py-2 rounded-xl border text-sm font-medium transition-all",
@@ -271,14 +337,13 @@ export default function ProfilePage() {
                 )}
               >
                 <AtSign className="w-3.5 h-3.5" />
-                {n.name}.clawd
+                {name.name}.clawd
               </Link>
             ))}
           </div>
         </div>
       )}
 
-      {/* Token Launches */}
       {tokenLaunches.length > 0 && (
         <div className="mb-6">
           <div className={clsx(
@@ -308,8 +373,11 @@ export default function ProfilePage() {
                   <div className="font-semibold text-sm truncate">
                     {launch.tokenName} <span className={clsx("font-mono text-xs", theme === "dark" ? "text-gray-600" : "text-gray-400")}>${launch.tokenSymbol}</span>
                   </div>
-                  <div className={clsx("text-xs font-mono truncate", theme === "dark" ? "text-gray-600" : "text-gray-400")}>
-                    {launch.tokenAddress.slice(0, 6)}...{launch.tokenAddress.slice(-4)} · {launch.chain}
+                  <div className="flex items-center gap-2 flex-wrap mt-1">
+                    <div className={clsx("text-xs font-mono truncate", theme === "dark" ? "text-gray-600" : "text-gray-400")}>
+                      {launch.tokenAddress.slice(0, 6)}...{launch.tokenAddress.slice(-4)}
+                    </div>
+                    <ChainBadge chain={launch.chain} theme={theme} />
                   </div>
                 </div>
                 <div className="shrink-0 text-right">
@@ -319,7 +387,7 @@ export default function ProfilePage() {
                 </div>
                 <div className="flex items-center gap-1 shrink-0">
                   <a
-                    href={`https://dexscreener.com/base/${launch.tokenAddress}`}
+                    href={getDexScreenerTokenUrl(launch.tokenAddress, launch.chain)}
                     target="_blank"
                     rel="noopener noreferrer"
                     className={clsx(
@@ -332,7 +400,7 @@ export default function ProfilePage() {
                   </a>
                   {launch.txHash && (
                     <a
-                      href={`${explorerUrl}/tx/${launch.txHash}`}
+                      href={getTransactionExplorerUrl(launch.txHash, launch.chain)}
                       target="_blank"
                       rel="noopener noreferrer"
                       className={clsx(
@@ -350,7 +418,6 @@ export default function ProfilePage() {
         </div>
       )}
 
-      {/* Minted NFTs */}
       <div>
         <div className={clsx(
           "text-xs font-semibold uppercase tracking-[0.15em] mb-3",
@@ -368,10 +435,7 @@ export default function ProfilePage() {
             <p className={clsx("text-sm mb-4", theme === "dark" ? "text-gray-500" : "text-gray-400")}>
               No mints yet
             </p>
-            <Link
-              href="/drops"
-              className="inline-flex items-center gap-1 text-sm text-cyan-400 hover:underline"
-            >
+            <Link href="/drops" className="inline-flex items-center gap-1 text-sm text-cyan-400 hover:underline">
               Browse Drops <ExternalLink className="w-3 h-3" />
             </Link>
           </div>
@@ -387,7 +451,6 @@ export default function ProfilePage() {
                     : "bg-white border-gray-200 hover:bg-gray-50"
                 )}
               >
-                {/* Image */}
                 <Link href={`/collection/${mint.collection.address}`} className="shrink-0">
                   <div className={clsx(
                     "w-12 h-12 rounded-xl overflow-hidden",
@@ -401,39 +464,39 @@ export default function ProfilePage() {
                       />
                     ) : (
                       <div className="w-full h-full flex items-center justify-center text-lg opacity-40">
-                        🖼
+                        []
                       </div>
                     )}
                   </div>
                 </Link>
 
-                {/* Info */}
                 <div className="flex-1 min-w-0">
                   <Link href={`/collection/${mint.collection.address}`}>
                     <div className="font-semibold text-sm truncate hover:text-cyan-400 transition-colors">
                       {mint.collection.name}
                     </div>
                   </Link>
-                  <div className={clsx("text-xs", theme === "dark" ? "text-gray-600" : "text-gray-400")}>
-                    {mint.quantity} NFT &middot; #{mint.token_ids.join(", #")}
+                  <div className="flex items-center gap-2 flex-wrap mt-1">
+                    <div className={clsx("text-xs", theme === "dark" ? "text-gray-600" : "text-gray-400")}>
+                      {mint.quantity} NFT · #{mint.token_ids.join(", #")}
+                    </div>
+                    <ChainBadge chain={mint.collection.chain} theme={theme} />
                   </div>
                 </div>
 
-                {/* Price */}
                 <div className="shrink-0 text-right">
                   <div className={clsx("text-sm font-semibold", theme === "dark" ? "text-gray-300" : "text-gray-700")}>
                     {mint.total_paid === "0"
                       ? "Free"
-                      : `${parseFloat(formatEther(BigInt(mint.total_paid))).toFixed(4)} ETH`}
+                      : `${formatCollectionMintPrice(mint.total_paid, mint.collection.chain)} ${getCollectionNativeToken(mint.collection.chain)}`}
                   </div>
                   <div className={clsx("text-[11px]", theme === "dark" ? "text-gray-700" : "text-gray-400")}>
                     {new Date(mint.minted_at).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
                   </div>
                 </div>
 
-                {/* Basescan */}
                 <a
-                  href={`${explorerUrl}/tx/${mint.tx_hash}`}
+                  href={getTransactionExplorerUrl(mint.tx_hash, mint.collection.chain)}
                   target="_blank"
                   rel="noopener noreferrer"
                   className={clsx(

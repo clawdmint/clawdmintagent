@@ -20,12 +20,14 @@ interface Agent {
   collections: Array<{
     id: string;
     address: string;
+    chain: string;
     name: string;
     symbol: string;
     image_url: string;
     max_supply: number;
     total_minted: number;
-    mint_price_wei: string;
+    mint_price_raw: string;
+    mint_price_native: string;
     status: string;
     created_at: string;
   }>;
@@ -202,7 +204,7 @@ export default function AgentPage() {
           ) : (
             <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
               {agent.collections.map((collection) => {
-                const isAgentsCollection = collection.address.toLowerCase() === AGENTS_CONTRACT;
+                const isAgentsCollection = collection.chain.startsWith("base") && collection.address.toLowerCase() === AGENTS_CONTRACT;
                 const href = isAgentsCollection ? "/mint" : `/collection/${collection.address}`;
                 const progress = collection.max_supply > 0 ? (collection.total_minted / collection.max_supply) * 100 : 0;
 

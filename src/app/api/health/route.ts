@@ -58,22 +58,23 @@ export async function GET(request: NextRequest) {
   }
 
   // ── Admin response: full diagnostics ──────────────────────────────
-  const { validateEnv, clientEnv } = await import("@/lib/env");
+  const { validateEnv, clientEnv, getRpcUrl } = await import("@/lib/env");
   const validation = validateEnv(process.env["NODE_ENV"] === "production");
 
   // Check blockchain connection
   let chainStatus = "unknown";
   try {
-    const chainId = parseInt(process.env["NEXT_PUBLIC_CHAIN_ID"] || "8453");
-    const alchemyId = process.env["NEXT_PUBLIC_ALCHEMY_ID"];
-    const rpcUrl = chainId === 8453
-      ? (alchemyId ? `https://base-mainnet.g.alchemy.com/v2/${alchemyId}` : "https://mainnet.base.org")
-      : (alchemyId ? `https://base-sepolia.g.alchemy.com/v2/${alchemyId}` : "https://sepolia.base.org");
-    
+    const rpcUrl = getRpcUrl();
+    const isSolana = clientEnv.networkFamily === "solana";
+
     const response = await fetch(rpcUrl, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ jsonrpc: "2.0", method: "eth_blockNumber", params: [], id: 1 }),
+      body: JSON.stringify(
+        isSolana
+          ? { jsonrpc: "2.0", method: "getHealth", params: [], id: 1 }
+          : { jsonrpc: "2.0", method: "eth_blockNumber", params: [], id: 1 }
+      ),
     });
     chainStatus = response.ok ? "connected" : "error";
   } catch {
@@ -96,7 +97,9 @@ export async function GET(request: NextRequest) {
     },
 
     config: {
+      networkFamily: clientEnv.networkFamily,
       chainId: clientEnv.chainId,
+      solanaCluster: clientEnv.solanaCluster,
       network: clientEnv.isMainnet ? "mainnet" : "testnet",
       factoryDeployed: !!clientEnv.factoryAddress,
     },

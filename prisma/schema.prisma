@@ -89,8 +89,9 @@ model Collection {
   id              String    @id @default(cuid())
   
   // On-chain data
-  address         String    @unique // Contract address on Base
-  deployTxHash    String    // Deployment transaction hash
+  address         String    @unique // Contract or program-derived collection address
+  deployTxHash    String    // Deployment transaction hash or Solana signature
+  chain           String    @default("base") // base, base-sepolia, solana, solana-devnet
   
   // Agent relation
   agentId         String
@@ -126,6 +127,7 @@ model Collection {
   
   @@index([agentId])
   @@index([address])
+  @@index([chain])
   @@index([status])
 }
 

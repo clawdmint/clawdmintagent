@@ -13,7 +13,7 @@ export const dynamic = 'force-dynamic';
 const OPENCLAW_TOOLS = {
   name: "clawdmint",
   version: "2.0.0",
-  description: "Clawdmint NFT deployment tools for AI agents. Deploy NFT collections on Base. Supports API key, x402 USDC payments, and Bankr SDK.",
+  description: "Clawdmint NFT deployment tools for AI agents. Deploy NFT collections on Base or Solana. Supports API key, x402 USDC payments, and Bankr SDK.",
   baseUrl: process.env["NEXT_PUBLIC_APP_URL"] || "https://clawdmint.xyz",
   
   integrations: {
@@ -144,10 +144,16 @@ const OPENCLAW_TOOLS = {
     },
     {
       name: "deploy_collection",
-      description: "Deploy a new NFT collection. Requires verified agent authentication.",
+      description: "Deploy a new NFT collection on Base or prepare a Solana deployment manifest. Requires verified agent authentication.",
       inputSchema: {
         type: "object",
         properties: {
+          chain: {
+            type: "string",
+            description: "Target chain",
+            enum: ["base", "base-sepolia", "solana", "solana-devnet"],
+            default: "base",
+          },
           name: {
             type: "string",
             description: "Collection name",
@@ -174,15 +180,28 @@ const OPENCLAW_TOOLS = {
             minimum: 1,
             maximum: 100000,
           },
+          mint_price: {
+            type: "string",
+            description: "Mint price in the selected chain's native token",
+            pattern: "^\\d+\\.?\\d*$",
+          },
           mint_price_eth: {
             type: "string",
-            description: "Mint price in ETH (e.g., '0.01')",
+            description: "Mint price in ETH for Base deployments",
             pattern: "^\\d+\\.?\\d*$",
+          },
+          mint_price_sol: {
+            type: "string",
+            description: "Mint price in SOL for Solana deployments",
+            pattern: "^\\d+\\.?\\d*$",
+          },
+          authority_address: {
+            type: "string",
+            description: "Optional signer wallet for Solana deployments",
           },
           payout_address: {
             type: "string",
-            description: "Address to receive mint revenue",
-            pattern: "^0x[a-fA-F0-9]{40}$",
+            description: "Address to receive mint revenue on the selected chain",
           },
           royalty_bps: {
             type: "integer",
@@ -212,11 +231,38 @@ const OPENCLAW_TOOLS = {
             },
           },
         },
-        required: ["name", "symbol", "image", "max_supply", "mint_price_eth", "payout_address"],
+        required: ["name", "symbol", "image", "max_supply", "payout_address"],
       },
       endpoint: {
         method: "POST",
         path: "/api/agent/collections",
+        authentication: "required",
+      },
+    },
+    {
+      name: "confirm_collection_deployment",
+      description: "Confirm a previously signed Base or Solana collection deployment and activate it on Clawdmint.",
+      inputSchema: {
+        type: "object",
+        properties: {
+          collection_id: {
+            type: "string",
+            description: "Clawdmint collection ID returned by deploy_collection",
+          },
+          deployed_address: {
+            type: "string",
+            description: "Final contract or collection address",
+          },
+          deploy_tx_hash: {
+            type: "string",
+            description: "Deployment transaction hash on Base or signature on Solana",
+          },
+        },
+        required: ["collection_id", "deployed_address", "deploy_tx_hash"],
+      },
+      endpoint: {
+        method: "POST",
+        path: "/api/agent/collections/confirm",
         authentication: "required",
       },
     },
@@ -264,14 +310,13 @@ const OPENCLAW_TOOLS = {
     },
     {
       name: "get_collection",
-      description: "Get details of a specific collection by contract address.",
+      description: "Get details of a specific collection by Base contract address or Solana collection address.",
       inputSchema: {
         type: "object",
         properties: {
           address: {
             type: "string",
-            description: "Collection contract address",
-            pattern: "^0x[a-fA-F0-9]{40}$",
+            description: "Collection address",
           },
         },
         required: ["address"],
@@ -303,18 +348,21 @@ const OPENCLAW_TOOLS = {
       inputSchema: {
         type: "object",
         properties: {
+          chain: { type: "string", enum: ["base", "base-sepolia"], default: "base" },
           name: { type: "string", maxLength: 100 },
           symbol: { type: "string", pattern: "^[A-Z0-9]+$", maxLength: 10 },
           description: { type: "string", maxLength: 1000 },
           image: { type: "string", description: "Cover image URL or data URI" },
           max_supply: { type: "integer", minimum: 1, maximum: 100000 },
+          mint_price: { type: "string", pattern: "^\\d+\\.?\\d*$" },
           mint_price_eth: { type: "string", pattern: "^\\d+\\.?\\d*$" },
-          payout_address: { type: "string", pattern: "^0x[a-fA-F0-9]{40}$" },
+          payout_address: { type: "string" },
           royalty_bps: { type: "integer", minimum: 0, maximum: 1000, default: 500 },
           agent_name: { type: "string", description: "Optional deployer name" },
-          agent_eoa: { type: "string", pattern: "^0x[a-fA-F0-9]{40}$", description: "Optional deployer wallet" },
+          agent_eoa: { type: "string", description: "Optional deployer wallet" },
+          agent_address: { type: "string", description: "Optional generic deployer wallet" },
         },
-        required: ["name", "symbol", "image", "max_supply", "mint_price_eth", "payout_address"],
+        required: ["name", "symbol", "image", "max_supply", "payout_address"],
       },
       endpoint: {
         method: "POST",

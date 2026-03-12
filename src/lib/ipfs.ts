@@ -38,6 +38,14 @@ export interface CollectionMetadata {
   fee_recipient?: string;
 }
 
+function sanitizeFolderName(value: string): string {
+  return value
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9-_]+/g, "-")
+    .replace(/^-+|-+$/g, "") || "collection";
+}
+
 // ═══════════════════════════════════════════════════════════════════════
 // CONFIGURATION (lazy loaded)
 // ═══════════════════════════════════════════════════════════════════════
@@ -158,6 +166,7 @@ export async function uploadCollectionMetadata(
 ): Promise<UploadResult> {
   try {
     const config = getPinataConfig();
+    const folderName = sanitizeFolderName(collectionName);
     
     // Create FormData for folder upload
     const formData = new FormData();
@@ -167,7 +176,7 @@ export async function uploadCollectionMetadata(
       [JSON.stringify(collectionMeta, null, 2)],
       { type: "application/json" }
     );
-    formData.append("file", collectionBlob, "collection.json");
+    formData.append("file", collectionBlob, `${folderName}/collection.json`);
 
     // Add individual token metadata (1.json, 2.json, etc.)
     tokenMetadata.forEach((meta, index) => {
@@ -175,7 +184,7 @@ export async function uploadCollectionMetadata(
         [JSON.stringify(meta, null, 2)],
         { type: "application/json" }
       );
-      formData.append("file", tokenBlob, `${index + 1}.json`);
+      formData.append("file", tokenBlob, `${folderName}/${index + 1}.json`);
     });
 
     // Add metadata
@@ -183,12 +192,6 @@ export async function uploadCollectionMetadata(
       name: `${collectionName}-metadata`,
     });
     formData.append("pinataMetadata", metadata);
-
-    // Add options for folder structure
-    const options = JSON.stringify({
-      wrapWithDirectory: true,
-    });
-    formData.append("pinataOptions", options);
 
     // Upload folder to Pinata
     const response = await fetch("https://api.pinata.cloud/pinning/pinFileToIPFS", {

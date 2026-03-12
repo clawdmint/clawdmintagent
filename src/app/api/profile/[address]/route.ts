@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import { isAddress } from "viem";
+import { isSupportedWalletAddress, normalizeWalletAddress } from "@/lib/network-config";
+import { formatCollectionMintPrice, getCollectionNativeToken } from "@/lib/collection-chains";
 
 // Force dynamic rendering
 export const dynamic = 'force-dynamic';
@@ -18,14 +19,14 @@ export async function GET(
     const { address } = await params;
 
     // Validate address
-    if (!address || !isAddress(address)) {
+    if (!address || !isSupportedWalletAddress(address)) {
       return NextResponse.json(
         { success: false, error: "Invalid wallet address" },
         { status: 400 }
       );
     }
 
-    const normalizedAddress = address.toLowerCase();
+    const normalizedAddress = normalizeWalletAddress(address);
 
     // Get all mints for this wallet
     const mints = await prisma.mint.findMany({
@@ -42,6 +43,7 @@ export async function GET(
             name: true,
             symbol: true,
             address: true,
+            chain: true,
             imageUrl: true,
             mintPrice: true,
             maxSupply: true,
@@ -99,8 +101,11 @@ export async function GET(
           name: m.collection.name,
           symbol: m.collection.symbol,
           address: m.collection.address,
+          chain: m.collection.chain,
           image_url: m.collection.imageUrl,
           status: m.collection.status,
+          mint_price_native: formatCollectionMintPrice(m.collection.mintPrice, m.collection.chain),
+          native_token: getCollectionNativeToken(m.collection.chain),
           agent_name: m.collection.agent.name,
           agent_avatar: m.collection.agent.avatarUrl,
         },

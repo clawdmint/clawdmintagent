@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
+import { formatCollectionMintPrice, getCollectionNativeToken } from "@/lib/collection-chains";
 
 // Force dynamic rendering (prevents static generation errors on Netlify)
 export const dynamic = 'force-dynamic';
@@ -8,20 +9,6 @@ export const dynamic = 'force-dynamic';
 // GET /api/collections/public
 // Get all public collections (no auth required)
 // ═══════════════════════════════════════════════════════════════════════
-
-function weiToEth(wei: string): string {
-  const weiValue = BigInt(wei);
-  const ethWhole = weiValue / BigInt(10 ** 18);
-  const ethDecimal = weiValue % BigInt(10 ** 18);
-  
-  if (ethDecimal === BigInt(0)) {
-    return ethWhole.toString();
-  }
-  
-  const decimalStr = ethDecimal.toString().padStart(18, "0");
-  const trimmed = decimalStr.replace(/0+$/, "");
-  return `${ethWhole}.${trimmed}`;
-}
 
 // Hidden collections (removed from public listings)
 const HIDDEN_COLLECTIONS = new Set([
@@ -74,14 +61,16 @@ export async function GET(request: NextRequest) {
       collections: collections.map((c) => ({
         id: c.id,
         address: c.address,
+        chain: c.chain,
         name: c.name,
         symbol: c.symbol,
         description: c.description,
         image_url: c.imageUrl,
         max_supply: c.maxSupply,
         total_minted: c.totalMinted,
-        mint_price_wei: c.mintPrice,
-        mint_price_eth: weiToEth(c.mintPrice),
+        mint_price_raw: c.mintPrice,
+        mint_price_native: formatCollectionMintPrice(c.mintPrice, c.chain),
+        native_token: getCollectionNativeToken(c.chain),
         status: c.status,
         created_at: c.createdAt.toISOString(),
         agent: {

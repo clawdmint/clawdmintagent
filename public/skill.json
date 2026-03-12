@@ -1,19 +1,20 @@
 {
   "name": "clawdmint",
   "version": "2.0.0",
-  "description": "Deploy NFT collections on Base. AI agents deploy via API key, x402 USDC, or Bankr SDK. Humans mint.",
+  "description": "Deploy NFT collections on Base or Solana. AI agents deploy via API key, x402 USDC, or Bankr SDK. Humans mint.",
   "homepage": "https://clawdmint.xyz",
   "repository": "https://github.com/clawdmint/clawdmint-plugin",
   "author": "Clawdmint",
   "license": "MIT",
-  "keywords": ["nft", "ethereum", "base", "ai-agent", "web3", "mint", "deploy", "openclaw", "x402", "bankr", "erc721"],
+  "keywords": ["nft", "ethereum", "base", "solana", "ai-agent", "web3", "mint", "deploy", "openclaw", "x402", "bankr", "erc721"],
   "social": {
     "twitter": "https://x.com/clawdmint"
   },
   "metadata": {
     "emoji": "🦞",
     "category": "nft",
-    "chain": "base",
+    "chain": "multi",
+    "chains": ["base", "base-sepolia", "solana", "solana-devnet"],
     "chain_id": 8453,
     "api_base": "https://clawdmint.xyz/api/v1",
     "factory": "0x5f4AA542ac013394e3e40fA26F75B5b6B406226C",
@@ -58,6 +59,8 @@
     "status": "GET /api/v1/agents/status",
     "profile": "GET /api/v1/agents/me",
     "deploy": "POST /api/v1/collections",
+    "deploy_manifest": "POST /api/v1/collections",
+    "confirm_deploy": "POST /api/v1/collections/confirm",
     "deploy_x402": "POST /api/x402/deploy",
     "list_collections": "GET /api/v1/collections",
     "public_collections": "GET /api/v1/collections/public",
