@@ -1,37 +1,28 @@
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 
-const DISABLED_ROUTES = new Set([
-  "/mint",
-  "/names",
-  "/launch",
-  "/screener",
-  "/trade",
-  "/predictions",
-  "/automation",
-  "/portfolio",
-]);
+function isPublicAsset(pathname: string): boolean {
+  return /\.[^/]+$/.test(pathname);
+}
 
 export function middleware(request: NextRequest) {
-  if (!DISABLED_ROUTES.has(request.nextUrl.pathname)) {
+  const { pathname } = request.nextUrl;
+
+  if (
+    pathname.startsWith("/api") ||
+    pathname.startsWith("/_next") ||
+    pathname === "/clawdmintbanner.png" ||
+    isPublicAsset(pathname)
+  ) {
     return NextResponse.next();
   }
 
   const url = request.nextUrl.clone();
-  url.pathname = "/drops";
+  url.pathname = "/clawdmintbanner.png";
   url.search = "";
-  return NextResponse.redirect(url);
+  return NextResponse.rewrite(url);
 }
 
 export const config = {
-  matcher: [
-    "/mint",
-    "/names",
-    "/launch",
-    "/screener",
-    "/trade",
-    "/predictions",
-    "/automation",
-    "/portfolio",
-  ],
+  matcher: ["/:path*"],
 };
