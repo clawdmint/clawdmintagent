@@ -35,7 +35,7 @@ export function requireEnv(key: string): string {
 // ═══════════════════════════════════════════════════════════════════════════════
 
 export function getClientEnv() {
-  const networkFamily = getEnv("NEXT_PUBLIC_NETWORK_FAMILY", "evm");
+  const networkFamily = getEnv("NEXT_PUBLIC_NETWORK_FAMILY", "solana");
   return {
     networkFamily,
     chainId: networkFamily === "solana" ? 0 : parseInt(getEnv("NEXT_PUBLIC_CHAIN_ID", "8453")),
@@ -53,7 +53,7 @@ export function getClientEnv() {
 
 // Derived values
 export function isMainnet(): boolean {
-  if (getEnv("NEXT_PUBLIC_NETWORK_FAMILY", "evm") === "solana") {
+  if (getEnv("NEXT_PUBLIC_NETWORK_FAMILY", "solana") === "solana") {
     return getEnv("NEXT_PUBLIC_SOLANA_CLUSTER", "mainnet-beta") !== "devnet";
   }
 
@@ -61,7 +61,7 @@ export function isMainnet(): boolean {
 }
 
 export function isTestnet(): boolean {
-  if (getEnv("NEXT_PUBLIC_NETWORK_FAMILY", "evm") === "solana") {
+  if (getEnv("NEXT_PUBLIC_NETWORK_FAMILY", "solana") === "solana") {
     return getEnv("NEXT_PUBLIC_SOLANA_CLUSTER", "mainnet-beta") === "devnet";
   }
 
@@ -133,7 +133,7 @@ export interface EnvValidationResult {
 export function validateEnv(forProduction = false): EnvValidationResult {
   const missing: string[] = [];
   const warnings: string[] = [];
-  const networkFamily = process.env["NEXT_PUBLIC_NETWORK_FAMILY"] || "evm";
+  const networkFamily = process.env["NEXT_PUBLIC_NETWORK_FAMILY"] || "solana";
   
   // Required for all environments
   const requiredClient = ["NEXT_PUBLIC_APP_URL"];
@@ -192,6 +192,21 @@ export function validateEnv(forProduction = false): EnvValidationResult {
     warnings.push("SOLANA_COLLECTION_PROGRAM_ID not set - Solana collection deploys will fail");
   }
 
+  const solanaCluster = process.env["NEXT_PUBLIC_SOLANA_CLUSTER"] || "mainnet-beta";
+  const solanaRpcUrl = process.env["NEXT_PUBLIC_SOLANA_RPC_URL"] || "";
+  if (solanaRpcUrl) {
+    const rpcLooksDevnet = /devnet/i.test(solanaRpcUrl);
+    const rpcLooksMainnet = /mainnet/i.test(solanaRpcUrl);
+
+    if (solanaCluster === "devnet" && rpcLooksMainnet) {
+      warnings.push("NEXT_PUBLIC_SOLANA_CLUSTER is devnet but NEXT_PUBLIC_SOLANA_RPC_URL points to mainnet");
+    }
+
+    if (solanaCluster === "mainnet-beta" && rpcLooksDevnet) {
+      warnings.push("NEXT_PUBLIC_SOLANA_CLUSTER is mainnet-beta but NEXT_PUBLIC_SOLANA_RPC_URL points to devnet");
+    }
+  }
+
   if (!process.env["BAGS_API_KEY"]) {
     warnings.push("BAGS_API_KEY not set - Bags token launch and analytics features will be disabled");
   }
@@ -216,7 +231,7 @@ export function validateEnv(forProduction = false): EnvValidationResult {
  * Get RPC URL for the configured chain
  */
 export function getRpcUrl(): string {
-  if (getEnv("NEXT_PUBLIC_NETWORK_FAMILY", "evm") === "solana") {
+  if (getEnv("NEXT_PUBLIC_NETWORK_FAMILY", "solana") === "solana") {
     const customSolanaRpc = getEnv("NEXT_PUBLIC_SOLANA_RPC_URL", "");
     if (customSolanaRpc) {
       return customSolanaRpc;
@@ -245,7 +260,7 @@ export function getRpcUrl(): string {
  * Get block explorer URL
  */
 export function getExplorerUrl(): string {
-  if (getEnv("NEXT_PUBLIC_NETWORK_FAMILY", "evm") === "solana") {
+  if (getEnv("NEXT_PUBLIC_NETWORK_FAMILY", "solana") === "solana") {
     return getExplorerBaseUrl(getEnv("NEXT_PUBLIC_SOLANA_CLUSTER", "mainnet-beta"));
   }
 
@@ -258,7 +273,7 @@ export function getExplorerUrl(): string {
 export function getAddressUrl(address: string): string {
   return getAddressExplorerUrl(
     address,
-    getEnv("NEXT_PUBLIC_NETWORK_FAMILY", "evm") === "solana"
+    getEnv("NEXT_PUBLIC_NETWORK_FAMILY", "solana") === "solana"
       ? getEnv("NEXT_PUBLIC_SOLANA_CLUSTER", "mainnet-beta")
       : getEnv("NEXT_PUBLIC_CHAIN_ID", "8453")
   );
@@ -270,7 +285,7 @@ export function getAddressUrl(address: string): string {
 export function getTxUrl(txHash: string): string {
   return getTransactionExplorerUrl(
     txHash,
-    getEnv("NEXT_PUBLIC_NETWORK_FAMILY", "evm") === "solana"
+    getEnv("NEXT_PUBLIC_NETWORK_FAMILY", "solana") === "solana"
       ? getEnv("NEXT_PUBLIC_SOLANA_CLUSTER", "mainnet-beta")
       : getEnv("NEXT_PUBLIC_CHAIN_ID", "8453")
   );

@@ -5,6 +5,7 @@ import {
   DeployCollectionSchema,
   prepareCollectionAssets,
 } from "@/lib/collection-deploy";
+import { getUploadErrorMessage } from "@/lib/ipfs";
 import {
   buildCollectionBagsView,
   prepareCollectionBagsRecord,
@@ -155,7 +156,13 @@ export async function POST(request: NextRequest) {
     });
   } catch (error) {
     console.error("Collection deployment error:", error);
-    return NextResponse.json({ error: "Deployment failed" }, { status: 500 });
+    return NextResponse.json(
+      {
+        error: "Deployment failed",
+        details: getUploadErrorMessage(error, "Unknown deployment error"),
+      },
+      { status: 500 }
+    );
   }
 }
 

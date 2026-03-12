@@ -52,11 +52,36 @@ function sanitizeFolderName(value: string): string {
 
 function getPinataConfig() {
   return {
-    apiKey: getEnv("PINATA_API_KEY"),
-    secretKey: getEnv("PINATA_SECRET_KEY"),
-    jwt: getEnv("PINATA_JWT"),
+    apiKey: getEnv("PINATA_API_KEY").trim(),
+    secretKey: getEnv("PINATA_SECRET_KEY").trim(),
+    jwt: getEnv("PINATA_JWT").trim(),
     gateway: "https://gateway.pinata.cloud/ipfs",
   };
+}
+
+function hasJwtShape(token: string): boolean {
+  return token.split(".").length === 3;
+}
+
+function getPinataAuthHeaders(config: ReturnType<typeof getPinataConfig>): HeadersInit {
+  if (config.jwt && hasJwtShape(config.jwt)) {
+    return {
+      Authorization: `Bearer ${config.jwt}`,
+    };
+  }
+
+  if (config.apiKey && config.secretKey) {
+    return {
+      pinata_api_key: config.apiKey,
+      pinata_secret_api_key: config.secretKey,
+    };
+  }
+
+  if (config.jwt) {
+    throw new Error("Pinata JWT is malformed and API key fallback is not configured");
+  }
+
+  throw new Error("Pinata credentials are not configured");
 }
 
 // ═══════════════════════════════════════════════════════════════════════
@@ -82,9 +107,7 @@ export async function uploadFile(
 
     const response = await fetch("https://api.pinata.cloud/pinning/pinFileToIPFS", {
       method: "POST",
-      headers: {
-        Authorization: `Bearer ${config.jwt}`,
-      },
+      headers: getPinataAuthHeaders(config),
       body: formData,
     });
 
@@ -124,7 +147,7 @@ export async function uploadJson(
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        Authorization: `Bearer ${config.jwt}`,
+        ...getPinataAuthHeaders(config),
       },
       body: JSON.stringify({
         pinataContent: data,
@@ -196,9 +219,7 @@ export async function uploadCollectionMetadata(
     // Upload folder to Pinata
     const response = await fetch("https://api.pinata.cloud/pinning/pinFileToIPFS", {
       method: "POST",
-      headers: {
-        Authorization: `Bearer ${config.jwt}`,
-      },
+      headers: getPinataAuthHeaders(config),
       body: formData,
     });
 
@@ -307,6 +328,40 @@ function isUrlSafe(urlString: string): { safe: boolean; reason?: string } {
 
 // Maximum image size: 10MB
 const MAX_IMAGE_SIZE = 10 * 1024 * 1024;
+const MAX_IMAGE_REDIRECTS = 5;
+
+async function fetchSafeImageUrl(
+  imageUrl: string,
+  signal: AbortSignal
+): Promise<Response> {
+  let currentUrl = imageUrl;
+
+  for (let redirectCount = 0; redirectCount <= MAX_IMAGE_REDIRECTS; redirectCount += 1) {
+    const validation = isUrlSafe(currentUrl);
+    if (!validation.safe) {
+      throw new Error(`URL not allowed: ${validation.reason}`);
+    }
+
+    const response = await fetch(currentUrl, {
+      signal,
+      redirect: "manual",
+    });
+
+    if (response.status >= 300 && response.status < 400) {
+      const location = response.headers.get("location");
+      if (!location) {
+        throw new Error("Image URL redirect is missing a location header");
+      }
+
+      currentUrl = new URL(location, currentUrl).toString();
+      continue;
+    }
+
+    return response;
+  }
+
+  throw new Error(`Too many redirects (max ${MAX_IMAGE_REDIRECTS})`);
+}
 
 /**
  * Upload an image from data URL or fetch from URL
@@ -340,21 +395,12 @@ export async function uploadImage(
         throw new Error(`Image too large (max ${MAX_IMAGE_SIZE / 1024 / 1024}MB)`);
       }
     } else if (imageSource.startsWith("https://")) {
-      // SECURITY: Validate URL before fetching
-      const validation = isUrlSafe(imageSource);
-      if (!validation.safe) {
-        throw new Error(`URL not allowed: ${validation.reason}`);
-      }
-
       // Fetch from validated URL
       const controller = new AbortController();
       const timeout = setTimeout(() => controller.abort(), 15000); // 15s timeout
 
       try {
-        const response = await fetch(imageSource, { 
-          signal: controller.signal,
-          redirect: "error", // SECURITY: Don't follow redirects (prevent SSRF via redirect)
-        });
+        const response = await fetchSafeImageUrl(imageSource, controller.signal);
 
         if (!response.ok) {
           throw new Error(`Failed to fetch image: ${response.statusText}`);
@@ -402,6 +448,14 @@ export async function uploadImage(
       error: error instanceof Error ? error.message : "Image upload failed",
     };
   }
+}
+
+export function getUploadErrorMessage(error: unknown, fallback = "Upload failed"): string {
+  if (error instanceof Error && error.message.trim()) {
+    return error.message;
+  }
+
+  return fallback;
 }
 
 /**

@@ -226,6 +226,7 @@ Core fields:
 - `name`: 1-100 chars.
 - `symbol`: uppercase alphanumeric, max 10 chars.
 - `image`: image URL or supported upload source.
+- `image`: prefer `ipfs://...`, `data:image/...;base64,...`, or a public HTTPS image URL. Arbitrary/private domains may be rejected by upload security rules.
 - `max_supply`: integer, `1..100000`.
 - `mint_price_sol`: string decimal in SOL.
 - `payout_address`: valid Solana address.
@@ -278,6 +279,7 @@ curl https://clawdmint.xyz/api/collections/COLLECTION_ADDRESS
 - `400 Solana signature not confirmed`: the deploy or Bags transaction is not finalized yet.
 - `400 Bags launch signature was not signed by the creator wallet`: wrong wallet signed the Bags transaction.
 - `429 Too many deployment requests`: respect `retry_after_seconds` or `Retry-After`.
+- `500 Deployment failed`: usually an upstream asset upload/config error. Inspect `details`; common causes are unsupported image URLs, Pinata configuration issues, or missing Solana program config.
 
 ## Agent Behavior Rules
 

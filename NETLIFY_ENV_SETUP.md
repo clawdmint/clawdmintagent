@@ -28,6 +28,7 @@ These are safe to expose (bundled in client-side code).
 
 | Key | Scope | Secret | Example Value |
 |-----|-------|--------|---------------|
+| `NEXT_PUBLIC_NETWORK_FAMILY` | All | No | `solana` |
 | `NEXT_PUBLIC_CHAIN_ID` | All | No | `8453` |
 | `NEXT_PUBLIC_FACTORY_ADDRESS` | All | No | `0x5f4AA542ac013394e3e40fA26F75B5b6B406226C` |
 | `NEXT_PUBLIC_ALCHEMY_ID` | All | No | `your_alchemy_api_key` |
@@ -36,6 +37,10 @@ These are safe to expose (bundled in client-side code).
 | `NEXT_PUBLIC_APP_NAME` | All | No | `Clawdmint` |
 | `NEXT_PUBLIC_PRIVY_APP_ID` | All | No | `your_privy_app_id` |
 | `NEXT_PUBLIC_CLAWD_NAMES_ADDRESS` | All | No | `0xdc61D611Cb3D2700710E1eE3aeEBb2bF02C85Db7` |
+| `NEXT_PUBLIC_SOLANA_CLUSTER` | All | No | `devnet` or `mainnet-beta` |
+| `NEXT_PUBLIC_SOLANA_RPC_URL` | All | No | `https://api.devnet.solana.com` |
+| `NEXT_PUBLIC_SOLANA_COLLECTION_PROGRAM_ID` | All | No | `YourProgramId` |
+| `NEXT_PUBLIC_BAGS_APP_URL` | All | No | `https://bags.fm` |
 
 ---
 
@@ -63,6 +68,7 @@ These are safe to expose (bundled in client-side code).
 | `PINATA_API_KEY` | Functions | ✅ YES | Pinata API key |
 | `PINATA_SECRET_KEY` | Functions | ✅ YES | Pinata secret key |
 | `PINATA_JWT` | Functions | ✅ YES | Pinata JWT token |
+| `SOLANA_COLLECTION_PROGRAM_ID` | Functions | No | Solana collection program id |
 
 ### Authentication
 
@@ -79,6 +85,28 @@ These are safe to expose (bundled in client-side code).
 |-----|-------|--------|-------------|
 | `TWITTER_BEARER_TOKEN` | Functions | ✅ YES | For tweet verification |
 | `BASESCAN_API_KEY` | Functions | ✅ YES | For contract verification |
+| `BAGS_API_KEY` | Functions | ✅ YES | Bags API access key |
+| `BAGS_API_BASE_URL` | Functions | No | Usually `https://public-api-v2.bags.fm` |
+
+---
+
+## Solana Notes
+
+- Set `NEXT_PUBLIC_NETWORK_FAMILY=solana` for this deployment.
+- `NEXT_PUBLIC_SOLANA_CLUSTER` and `NEXT_PUBLIC_SOLANA_RPC_URL` must point to the same network.
+- Use one of these exact pairs:
+
+```text
+Devnet:
+NEXT_PUBLIC_SOLANA_CLUSTER=devnet
+NEXT_PUBLIC_SOLANA_RPC_URL=https://api.devnet.solana.com
+
+Mainnet:
+NEXT_PUBLIC_SOLANA_CLUSTER=mainnet-beta
+NEXT_PUBLIC_SOLANA_RPC_URL=https://api.mainnet-beta.solana.com
+```
+
+- `SOLANA_COLLECTION_PROGRAM_ID` and `NEXT_PUBLIC_SOLANA_COLLECTION_PROGRAM_ID` should usually be identical.
 
 ---
 
@@ -111,14 +139,22 @@ NEXT_PUBLIC_CHAIN_ID=8453
 NEXT_PUBLIC_FACTORY_ADDRESS=0x5f4AA542ac013394e3e40fA26F75B5b6B406226C
 NEXT_PUBLIC_ALCHEMY_ID=
 NEXT_PUBLIC_WALLET_CONNECT_ID=
+NEXT_PUBLIC_NETWORK_FAMILY=solana
 NEXT_PUBLIC_APP_URL=https://clawdmint.xyz
 NEXT_PUBLIC_APP_NAME=Clawdmint
+NEXT_PUBLIC_SOLANA_CLUSTER=devnet
+NEXT_PUBLIC_SOLANA_RPC_URL=https://api.devnet.solana.com
+NEXT_PUBLIC_SOLANA_COLLECTION_PROGRAM_ID=
 DATABASE_URL=
 DEPLOYER_PRIVATE_KEY=
 TREASURY_ADDRESS=
 PINATA_API_KEY=
 PINATA_SECRET_KEY=
 PINATA_JWT=
+SOLANA_COLLECTION_PROGRAM_ID=
 AGENT_HMAC_SECRET=
 AGENT_JWT_SECRET=
+BAGS_API_KEY=
+BAGS_API_BASE_URL=https://public-api-v2.bags.fm
+NEXT_PUBLIC_BAGS_APP_URL=https://bags.fm
 ```
