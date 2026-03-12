@@ -102,6 +102,7 @@ export async function POST(
         name: claim.agent.name,
         status: "VERIFIED",
         can_deploy: true,
+        wallet_address: claim.agent.solanaWalletAddress,
       },
     });
   } catch (error) {

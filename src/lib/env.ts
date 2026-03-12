@@ -99,6 +99,7 @@ export function getServerEnv() {
     // Auth secrets (sensitive)
     agentHmacSecret: getEnv("AGENT_HMAC_SECRET", ""),
     agentJwtSecret: getEnv("AGENT_JWT_SECRET", ""),
+    agentWalletEncryptionKey: getEnv("AGENT_WALLET_ENCRYPTION_KEY", ""),
     
     // External APIs
     twitterBearerToken: getEnv("TWITTER_BEARER_TOKEN", ""),
@@ -214,6 +215,15 @@ export function validateEnv(forProduction = false): EnvValidationResult {
   const hmacSecret = process.env["AGENT_HMAC_SECRET"];
   if (hmacSecret && hmacSecret.length < 32) {
     warnings.push("AGENT_HMAC_SECRET should be at least 32 characters");
+  }
+
+  const walletEncryptionKey = process.env["AGENT_WALLET_ENCRYPTION_KEY"];
+  if (!walletEncryptionKey && !process.env["AGENT_HMAC_SECRET"]) {
+    warnings.push("AGENT_WALLET_ENCRYPTION_KEY not set - agent wallet encryption will fall back to AGENT_HMAC_SECRET");
+  }
+
+  if (walletEncryptionKey && walletEncryptionKey.length < 32) {
+    warnings.push("AGENT_WALLET_ENCRYPTION_KEY should be at least 32 characters");
   }
   
   return {

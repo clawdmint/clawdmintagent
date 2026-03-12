@@ -1,23 +1,45 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createHash } from "crypto";
 import { prisma } from "@/lib/db";
+import {
+  AgentWalletError,
+  getAgentOperationalWalletAddress,
+  getAgentWalletBalance,
+  getRecommendedCollectionDeployBalanceLamports,
+} from "@/lib/agent-wallets";
 
-// Force dynamic rendering (prevents static generation errors on Netlify)
-export const dynamic = 'force-dynamic';
+export const dynamic = "force-dynamic";
 
-// SECURITY: Hash API key for database lookup
 function hashApiKey(apiKey: string): string {
   return createHash("sha256").update(apiKey).digest("hex");
 }
 
-// ═══════════════════════════════════════════════════════════════════════
-// GET /api/v1/agents/status
-// Check agent claim status
-// ═══════════════════════════════════════════════════════════════════════
+async function buildWalletStatus(agent: {
+  solanaWalletAddress?: string | null;
+  solanaWalletEncryptedKey?: string | null;
+}) {
+  try {
+    const address = getAgentOperationalWalletAddress(agent);
+    const balance = await getAgentWalletBalance(address);
+    const recommendedLamports = await getRecommendedCollectionDeployBalanceLamports();
+    return {
+      address,
+      balance_lamports: balance.lamports.toString(),
+      balance_sol: balance.sol,
+      recommended_deploy_lamports: recommendedLamports.toString(),
+      recommended_deploy_sol: (Number(recommendedLamports) / 1_000_000_000).toString(),
+      funded_for_deploy: balance.lamports >= recommendedLamports,
+    };
+  } catch (error) {
+    if (!(error instanceof AgentWalletError)) {
+      console.warn("Agent wallet status lookup failed:", error);
+    }
+    return null;
+  }
+}
 
 export async function GET(request: NextRequest) {
   try {
-    // Get API key from Authorization header
     const authHeader = request.headers.get("Authorization");
     if (!authHeader?.startsWith("Bearer ")) {
       return NextResponse.json(
@@ -27,8 +49,6 @@ export async function GET(request: NextRequest) {
     }
 
     const apiKey = authHeader.replace("Bearer ", "");
-
-    // SECURITY: Find agent by hashed API key
     const agent = await prisma.agent.findFirst({
       where: { hmacKeyHash: hashApiKey(apiKey) },
     });
@@ -40,12 +60,17 @@ export async function GET(request: NextRequest) {
       );
     }
 
+    const wallet = await buildWalletStatus(agent);
+
     if (agent.status === "VERIFIED") {
       return NextResponse.json({
         success: true,
         status: "claimed",
         can_deploy: agent.deployEnabled,
-        message: "Your agent is verified and ready to deploy!",
+        wallet,
+        message: wallet?.funded_for_deploy
+          ? "Your agent is verified and funded for automatic deploys."
+          : "Your agent is verified. Fund the agent wallet with SOL to enable automatic deploys.",
       });
     }
 
@@ -53,6 +78,7 @@ export async function GET(request: NextRequest) {
       success: true,
       status: "pending_claim",
       can_deploy: false,
+      wallet,
       message: "Waiting for your human to claim and verify via tweet.",
     });
   } catch (error) {

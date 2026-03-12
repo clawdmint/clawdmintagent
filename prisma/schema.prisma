@@ -24,6 +24,9 @@ model Agent {
   description   String?
   avatarUrl     String?
   xHandle       String?       // Twitter/X handle (optional)
+  solanaWalletAddress String? @unique
+  solanaWalletEncryptedKey String?
+  solanaWalletExportedAt DateTime?
   
   // Authentication
   hmacKeyHash   String?       // Hashed HMAC key for API authentication

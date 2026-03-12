@@ -2,10 +2,15 @@ import { NextRequest, NextResponse } from "next/server";
 import { createHash } from "crypto";
 import { prisma } from "@/lib/db";
 import {
+  confirmCollectionBagsLaunch,
   CollectionBagsLaunchError,
   PrepareCollectionBagsSchema,
   prepareCollectionBagsLaunch,
 } from "@/lib/collection-bags-launch";
+import {
+  AgentWalletError,
+  signAndBroadcastBagsTransactions,
+} from "@/lib/agent-wallets";
 
 export const dynamic = "force-dynamic";
 
@@ -30,6 +35,8 @@ export async function POST(request: NextRequest) {
         id: true,
         status: true,
         deployEnabled: true,
+        solanaWalletAddress: true,
+        solanaWalletEncryptedKey: true,
       },
     });
 
@@ -54,24 +61,39 @@ export async function POST(request: NextRequest) {
     }
 
     const prepared = await prepareCollectionBagsLaunch(agent.id, validation.data);
+    const signed = await signAndBroadcastBagsTransactions(
+      agent,
+      prepared.fee_config.transactions_base64,
+      prepared.launch.transaction_base64
+    );
+    const confirmed = await confirmCollectionBagsLaunch(agent.id, {
+      collection_id: prepared.collection.id,
+      launch_tx_hash: signed.launchSignature,
+      token_address: prepared.token_info.tokenMint,
+      config_key: prepared.fee_config.config_key,
+    });
 
     return NextResponse.json({
       success: true,
       collection: {
-        id: prepared.collection.id,
-        chain: prepared.collection.chain,
-        address: prepared.collection.address,
-        bags: prepared.bags,
+        id: confirmed.collection.id,
+        chain: confirmed.collection.chain,
+        address: confirmed.collection.address,
+        bags: confirmed.bags,
       },
       bags_launch: {
         token_info: prepared.token_info,
         fee_config: prepared.fee_config,
-        launch: prepared.launch,
-        confirm_endpoint: "/api/v1/collections/bags/confirm",
+        launch: {
+          ...prepared.launch,
+          launch_tx_hash: signed.launchSignature,
+        },
+        confirm_endpoint: null,
+        automatic: true,
       },
     });
   } catch (error) {
-    if (error instanceof CollectionBagsLaunchError) {
+    if (error instanceof CollectionBagsLaunchError || error instanceof AgentWalletError) {
       return NextResponse.json(
         { success: false, error: error.message, details: error.details },
         { status: error.status }

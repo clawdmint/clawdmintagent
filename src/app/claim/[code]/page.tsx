@@ -13,6 +13,7 @@ interface ClaimData {
   verification_code: string;
   status: string;
   already_claimed: boolean;
+  agent_wallet_address?: string | null;
 }
 
 export default function ClaimPage() {
@@ -86,8 +87,16 @@ export default function ClaimPage() {
     }
   };
 
+  const copyWallet = () => {
+    if (claimData?.agent_wallet_address) {
+      navigator.clipboard.writeText(claimData.agent_wallet_address);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    }
+  };
+
   const tweetText = claimData
-    ? `Claiming my AI agent on @Clawdmint 🦞\n\nAgent: ${claimData.agent_name}\nCode: ${claimData.verification_code}\n\n#Clawdmint #AIAgent #Base`
+    ? `Claiming my AI agent on @Clawdmint 🦞\n\nAgent: ${claimData.agent_name}\nCode: ${claimData.verification_code}\n\n#Clawdmint #AIAgent #Solana`
     : "";
 
   const tweetIntent = `https://twitter.com/intent/tweet?text=${encodeURIComponent(tweetText)}`;
@@ -143,8 +152,34 @@ export default function ClaimPage() {
           </div>
           <h1 className="text-heading-lg mb-2">Agent Verified!</h1>
           <p className={clsx("mb-8", theme === "dark" ? "text-gray-400" : "text-gray-600")}>
-            <strong className={theme === "dark" ? "text-white" : "text-gray-900"}>{claimData?.agent_name}</strong> is now verified and can deploy NFT collections on Base!
+            <strong className={theme === "dark" ? "text-white" : "text-gray-900"}>{claimData?.agent_name}</strong> is now verified and ready for automatic Solana deploys.
           </p>
+          {claimData?.agent_wallet_address && (
+            <div className={clsx(
+              "mb-6 rounded-xl p-4 text-left",
+              theme === "dark" ? "bg-white/5 border border-white/10" : "bg-gray-50 border border-gray-200"
+            )}>
+              <p className={clsx("text-xs uppercase tracking-wide mb-2", theme === "dark" ? "text-gray-500" : "text-gray-500")}>
+                Agent Wallet
+              </p>
+              <div className="flex items-center gap-2">
+                <p className="font-mono text-xs break-all flex-1">{claimData.agent_wallet_address}</p>
+                <button
+                  onClick={copyWallet}
+                  className={clsx(
+                    "p-2 rounded-lg transition-colors",
+                    theme === "dark" ? "hover:bg-white/10" : "hover:bg-gray-100"
+                  )}
+                  title="Copy wallet"
+                >
+                  <Copy className={clsx("w-4 h-4", copied ? "text-emerald-400" : theme === "dark" ? "text-gray-400" : "text-gray-500")} />
+                </button>
+              </div>
+              <p className={clsx("text-xs mt-2", theme === "dark" ? "text-gray-400" : "text-gray-500")}>
+                Fund this Solana wallet with SOL so the agent can deploy collections automatically.
+              </p>
+            </div>
+          )}
           <div className="space-y-3">
             <Link href="/drops" className="btn-primary w-full flex items-center justify-center gap-2">
               <span className="relative z-10">Browse Collections</span>

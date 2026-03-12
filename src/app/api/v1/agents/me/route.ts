@@ -2,23 +2,45 @@ import { NextRequest, NextResponse } from "next/server";
 import { createHash } from "crypto";
 import { prisma } from "@/lib/db";
 import { SOLANA_COLLECTION_CHAINS } from "@/lib/collection-chains";
+import {
+  AgentWalletError,
+  getAgentOperationalWalletAddress,
+  getAgentWalletBalance,
+  getRecommendedCollectionDeployBalanceLamports,
+} from "@/lib/agent-wallets";
 
-// Force dynamic rendering (prevents static generation errors on Netlify)
-export const dynamic = 'force-dynamic';
+export const dynamic = "force-dynamic";
 
-// SECURITY: Hash API key for database lookup
 function hashApiKey(apiKey: string): string {
   return createHash("sha256").update(apiKey).digest("hex");
 }
 
-// ═══════════════════════════════════════════════════════════════════════
-// GET /api/v1/agents/me
-// Get current agent profile
-// ═══════════════════════════════════════════════════════════════════════
+async function buildWalletStatus(agent: {
+  solanaWalletAddress?: string | null;
+  solanaWalletEncryptedKey?: string | null;
+}) {
+  try {
+    const address = getAgentOperationalWalletAddress(agent);
+    const balance = await getAgentWalletBalance(address);
+    const recommendedLamports = await getRecommendedCollectionDeployBalanceLamports();
+    return {
+      address,
+      balance_lamports: balance.lamports.toString(),
+      balance_sol: balance.sol,
+      recommended_deploy_lamports: recommendedLamports.toString(),
+      recommended_deploy_sol: (Number(recommendedLamports) / 1_000_000_000).toString(),
+      funded_for_deploy: balance.lamports >= recommendedLamports,
+    };
+  } catch (error) {
+    if (!(error instanceof AgentWalletError)) {
+      console.warn("Agent wallet profile lookup failed:", error);
+    }
+    return null;
+  }
+}
 
 export async function GET(request: NextRequest) {
   try {
-    // Get API key from Authorization header
     const authHeader = request.headers.get("Authorization");
     if (!authHeader?.startsWith("Bearer ")) {
       return NextResponse.json(
@@ -28,8 +50,6 @@ export async function GET(request: NextRequest) {
     }
 
     const apiKey = authHeader.replace("Bearer ", "");
-
-    // SECURITY: Find agent by hashed API key
     const agent = await prisma.agent.findFirst({
       where: { hmacKeyHash: hashApiKey(apiKey) },
       include: {
@@ -58,6 +78,8 @@ export async function GET(request: NextRequest) {
       );
     }
 
+    const wallet = await buildWalletStatus(agent);
+
     return NextResponse.json({
       success: true,
       agent: {
@@ -68,6 +90,7 @@ export async function GET(request: NextRequest) {
         can_deploy: agent.status === "VERIFIED" && agent.deployEnabled,
         collections_count: agent.collections.length,
         collections: agent.collections,
+        wallet,
         created_at: agent.createdAt.toISOString(),
         verified_at: agent.verifiedAt?.toISOString(),
       },

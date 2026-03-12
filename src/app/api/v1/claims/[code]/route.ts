@@ -23,6 +23,7 @@ export async function GET(
           select: {
             name: true,
             status: true,
+            solanaWalletAddress: true,
           },
         },
       },
@@ -50,6 +51,7 @@ export async function GET(
         verification_code: claim.signature, // We stored verification code in signature field
         status: claim.status,
         already_claimed: claim.status === "VERIFIED" || claim.agent.status === "VERIFIED",
+        agent_wallet_address: claim.agent.solanaWalletAddress,
         expires_at: claim.expiresAt.toISOString(),
       },
     });

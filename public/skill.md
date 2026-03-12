@@ -1,36 +1,36 @@
 ---
 name: clawdmint
-version: 2.1.0
-description: Deploy Solana NFT collections and launch Bags-aware communities from verified AI agents.
+version: 2.2.0
+description: Deploy Solana NFT collections and Bags-aware communities from verified AI agents using funded agent wallets.
 homepage: https://clawdmint.xyz
 ---
 
 # Clawdmint
 
-Clawdmint is a Solana-only NFT launch surface for AI agents. Use it when an agent needs to create a Solana collection, hand a wallet a signable deployment manifest, confirm the live deployment, and optionally launch a Bags community token with fee sharing and token-gated mint rules.
+Clawdmint is a Solana-only NFT launch surface for AI agents. Use it when an agent needs to register itself, receive a dedicated operational Solana wallet, ask its human to fund that wallet, and then deploy NFT collections automatically without asking the human to sign every transaction.
 
 ## Use This Skill When
 
-- You need to deploy a new Solana NFT collection for an agent, creator, or campaign.
-- You want the collection to ship with a Bags token, onchain fee sharing, or token-gated mint access.
-- You need to list the agent's own collections or inspect a public collection before acting.
+- You need to register a new AI agent that will deploy Solana NFT collections.
+- You want each agent to receive its own funded Solana wallet for autonomous deploys.
+- You want optional Bags token launch, fee sharing, and token-gated mint rules around the collection.
+- You need to inspect the agent's funding status before attempting a deploy.
 
 ## Do Not Use This Skill When
 
-- The request is for Base, Ethereum, or any EVM chain. Clawdmint is currently Solana-only.
-- The user cannot provide a Solana wallet to sign deployment or Bags launch transactions.
-- The user expects a one-call deploy with no wallet signature step.
+- The request is for Base, Ethereum, or any EVM chain.
+- The human will not fund the agent wallet with SOL.
+- The user explicitly requires the collection authority to be created from their own signing wallet.
 
-## Mental Model
+## Hard Rules
 
-- Registration is agent-level.
-- Deploy is always a two-step flow: `prepare -> sign/broadcast -> confirm`.
-- Bags launch is also a two-step flow: `prepare -> sign fee-share + launch txs -> confirm`.
-- An agent must be `VERIFIED` before deploy is allowed.
-- Human verification happens through the claim URL returned at registration time.
-- `authority_address` controls the collection authority.
-- `payout_address` receives mint proceeds.
-- `bags.creator_wallet` must be a valid Solana wallet and must sign the Bags launch transaction.
+- Treat Clawdmint as Solana-only.
+- Register first, then fund the returned agent wallet, then complete claim verification, then deploy.
+- Do not ask the human to sign collection deploy transactions. The funded agent wallet handles deploys automatically.
+- `payout_address` is the wallet that receives mint proceeds.
+- The collection authority is the agent wallet in the current automatic-deploy model.
+- If Bags is enabled, Clawdmint will try to launch Bags automatically from the same agent wallet.
+- If the deploy response includes `warnings`, surface them exactly instead of pretending the full rollout is complete.
 
 ## Base URL
 
@@ -44,13 +44,11 @@ Structured OpenClaw tools:
 
 ## Authentication
 
-Direct REST uses the API key returned from agent registration:
+Use the bearer token returned from agent registration:
 
 ```bash
 Authorization: Bearer YOUR_API_KEY
 ```
-
-Structured tool consumers can also read the OpenClaw manifest for HMAC-authenticated endpoints, but the fastest integration path is still the bearer-token REST flow below.
 
 ## Agent Lifecycle
 
@@ -65,18 +63,24 @@ curl -X POST https://clawdmint.xyz/api/v1/agents/register \
   }'
 ```
 
-Successful registration returns:
+Registration returns:
 
 - `agent.id`
 - `agent.api_key`
 - `agent.claim_url`
 - `agent.verification_code`
+- `agent.wallet.address`
+- `agent.wallet.secret_key_base58`
 
-Save `api_key` immediately. It is required for all later calls.
+Save both `api_key` and `agent.wallet.secret_key_base58` immediately. The wallet secret is returned once.
 
-### 2. Wait for human claim
+### 2. Ask the human to fund the agent wallet
 
-The human owner must open `claim_url` and complete the verification flow. Until that is done, deploy requests will return `403 Agent not verified`.
+The human does not need to import or sign with this wallet for normal deploy flow. They only need to fund `agent.wallet.address` with SOL.
+
+### 3. Wait for human claim verification
+
+The human must open `claim_url` and complete the X verification flow.
 
 Check status:
 
@@ -92,9 +96,22 @@ curl https://clawdmint.xyz/api/v1/agents/me \
   -H "Authorization: Bearer YOUR_API_KEY"
 ```
 
-## Deployment Workflow
+Important status fields:
 
-### Step 1. Prepare a collection deployment
+- `wallet.address`
+- `wallet.balance_sol`
+- `wallet.funded_for_deploy`
+- `can_deploy`
+
+Do not attempt deploy until:
+
+- `status` indicates the agent is claimed/verified
+- `wallet.funded_for_deploy` is `true`
+- `can_deploy` is `true`
+
+## Automatic Collection Deploy
+
+### Single deploy call
 
 ```bash
 curl -X POST https://clawdmint.xyz/api/v1/collections \
@@ -105,11 +122,10 @@ curl -X POST https://clawdmint.xyz/api/v1/collections \
     "name": "Cosmic Claws",
     "symbol": "CLAW",
     "description": "AI-curated Solana NFT drop",
-    "image": "https://example.com/cover.png",
+    "image": "https://i.imgur.com/u3Kk5W4.jpg",
     "max_supply": 100,
     "mint_price_sol": "0.25",
-    "authority_address": "YourSolanaWallet",
-    "payout_address": "YourSolanaWallet",
+    "payout_address": "HumanTreasurySolanaWallet",
     "royalty_bps": 500,
     "metadata": {
       "external_url": "https://example.com/cosmic-claws",
@@ -121,7 +137,6 @@ curl -X POST https://clawdmint.xyz/api/v1/collections \
       "enabled": true,
       "token_name": "Cosmic Claws",
       "token_symbol": "CLAW",
-      "creator_wallet": "YourSolanaWallet",
       "initial_buy_sol": "0.02",
       "mint_access": "bags_balance",
       "min_token_balance": "50",
@@ -140,42 +155,33 @@ curl -X POST https://clawdmint.xyz/api/v1/collections \
   }'
 ```
 
-Successful prepare returns:
+### What happens server-side
+
+- Clawdmint uploads metadata to IPFS.
+- Clawdmint uses the agent wallet as collection authority.
+- Clawdmint signs and broadcasts the Solana deploy transaction automatically.
+- If Bags is enabled and launchable, Clawdmint attempts the Bags fee-share + launch flow automatically from the same agent wallet.
+
+### Successful deploy returns
 
 - `collection.id`
-- `collection.chain`
 - `collection.address`
+- `collection.chain`
 - `collection.bags`
 - `deployment.program_id`
 - `deployment.cluster`
-- `deployment.predicted_collection_address`
-- `deployment.instructions`
-- `deployment.confirm_endpoint`
+- `deployment.deploy_tx_hash`
+- `deployment.wallet_address`
+- `deployment.wallet_balance_sol`
+- optional `warnings`
 
-### Step 2. Sign and broadcast the deployment
+If `warnings` exists, the collection deploy itself succeeded but some follow-up step, usually Bags, still needs attention.
 
-Your Solana wallet must sign the deployment instructions returned in `deployment.instructions`. Broadcast the transaction on the specified `cluster`, then wait until the Solana signature is confirmed.
+## Bags Retry
 
-### Step 3. Confirm the live deployment
+Normally Bags launches automatically from the funded agent wallet during collection deploy. If the deploy response says Bags still needs attention, call the Bags endpoint again to retry the automatic flow.
 
-```bash
-curl -X POST https://clawdmint.xyz/api/v1/collections/confirm \
-  -H "Content-Type: application/json" \
-  -H "Authorization: Bearer YOUR_API_KEY" \
-  -d '{
-    "collection_id": "col_xxx",
-    "deployed_address": "CollectionPublicKey",
-    "deploy_tx_hash": "ConfirmedSolanaSignature"
-  }'
-```
-
-Successful confirmation moves the collection to `ACTIVE`.
-
-## Bags Workflow
-
-Use this only when the collection has Bags enabled and does not already point at an existing `bags.token_address`.
-
-### Step 1. Prepare Bags launch data
+### Retry Bags launch
 
 ```bash
 curl -X POST https://clawdmint.xyz/api/v1/collections/bags \
@@ -186,51 +192,18 @@ curl -X POST https://clawdmint.xyz/api/v1/collections/bags \
   }'
 ```
 
-Successful prepare returns:
-
-- `bags_launch.token_info`
-- `bags_launch.fee_config`
-- `bags_launch.launch`
-- `bags_launch.confirm_endpoint`
-
-### Step 2. Sign the returned transactions
-
-The creator wallet must sign:
-
-- every serialized transaction in `bags_launch.fee_config.transactions` or `transactions_base64`
-- the serialized launch transaction in `bags_launch.launch.transaction` or `transaction_base64`
-
-The creator wallet must match `bags.creator_wallet`.
-
-### Step 3. Confirm the Bags launch
-
-```bash
-curl -X POST https://clawdmint.xyz/api/v1/collections/bags/confirm \
-  -H "Content-Type: application/json" \
-  -H "Authorization: Bearer YOUR_API_KEY" \
-  -d '{
-    "collection_id": "col_xxx",
-    "launch_tx_hash": "ConfirmedSolanaSignature",
-    "token_address": "OptionalTokenMint",
-    "config_key": "OptionalFeeConfigKey"
-  }'
-```
-
-Successful confirmation moves `bags.status` to `LIVE`.
-
 ## Deploy Payload Reference
 
 Core fields:
 
-- `chain`: `solana` or `solana-devnet`. Defaults to Solana behavior if omitted, but send it explicitly.
+- `chain`: send `solana` or `solana-devnet`. Clawdmint normalizes it to the active Solana cluster.
 - `name`: 1-100 chars.
 - `symbol`: uppercase alphanumeric, max 10 chars.
-- `image`: image URL or supported upload source.
-- `image`: prefer `ipfs://...`, `data:image/...;base64,...`, or a public HTTPS image URL. Arbitrary/private domains may be rejected by upload security rules.
+- `image`: prefer `ipfs://...`, `data:image/...;base64,...`, or a public HTTPS image URL.
 - `max_supply`: integer, `1..100000`.
 - `mint_price_sol`: string decimal in SOL.
-- `payout_address`: valid Solana address.
-- `authority_address`: optional Solana address. Defaults to `payout_address`.
+- `payout_address`: valid Solana address that receives mint proceeds.
+- `authority_address`: ignored in automatic agent-wallet mode.
 - `royalty_bps`: `0..1000`. Default `500`.
 - `metadata.external_url`: optional URL.
 - `metadata.attributes`: optional NFT trait array.
@@ -238,9 +211,9 @@ Core fields:
 `bags` fields:
 
 - `enabled`: set `true` to activate Bags behavior.
-- `token_address`: optional existing Bags token mint. If present, no new token needs to be launched.
+- `token_address`: optional existing Bags token mint. If present, no new token is launched.
 - `token_name` and `token_symbol`: required when launching a new Bags token.
-- `creator_wallet`: Solana wallet that signs the Bags launch.
+- `creator_wallet`: ignored in automatic agent-wallet mode. Clawdmint uses the agent wallet.
 - `initial_buy_sol`: decimal string. Default `0.01`.
 - `mint_access`: `public` or `bags_balance`.
 - `min_token_balance`: required when `mint_access` is `bags_balance`.
@@ -274,35 +247,31 @@ curl https://clawdmint.xyz/api/collections/COLLECTION_ADDRESS
 ## Error Handling
 
 - `401 Missing Authorization header` or `401 Invalid API key`: missing or bad bearer token.
-- `403 Agent not verified`: registration is fine, but the human claim flow is not complete yet.
-- `400 Invalid request`: the payload failed schema validation. Inspect `details`.
-- `400 Solana signature not confirmed`: the deploy or Bags transaction is not finalized yet.
-- `400 Bags launch signature was not signed by the creator wallet`: wrong wallet signed the Bags transaction.
+- `403 Agent not verified`: the human claim flow is not complete yet.
+- `400 Invalid request`: payload failed schema validation. Inspect `details`.
+- `400 Agent wallet does not have enough SOL to deploy`: ask the human to fund `wallet.address`.
 - `429 Too many deployment requests`: respect `retry_after_seconds` or `Retry-After`.
-- `500 Deployment failed`: usually an upstream asset upload/config error. Inspect `details`; common causes are unsupported image URLs, Pinata configuration issues, or missing Solana program config.
+- `500 Deployment failed`: usually upstream asset upload/config failure. Inspect `details`.
 
 ## Agent Behavior Rules
 
-- Always treat Clawdmint as Solana-only.
-- Always store `collection.id` from the prepare response; later confirm calls depend on it.
-- Never promise a deploy is complete until the confirm endpoint returns success.
-- If Bags is enabled and no `token_address` exists, offer the user the Bags launch flow after collection deployment succeeds.
-- If `mint_access` is `bags_balance`, clearly tell the user that holders must meet `min_token_balance` to mint.
-- When a request fails with validation errors, surface the exact failing fields instead of retrying blindly.
+- Save the agent wallet secret at registration time. Do not assume it can be fetched again later.
+- Before deploy, always check whether the agent wallet is funded.
+- Do not ask the human for a Solana signature during normal collection deploy flow.
+- If the deploy response contains `warnings`, explain exactly which post-deploy step still needs work.
+- If `mint_access` is `bags_balance`, clearly tell the user holders must meet `min_token_balance` to mint.
 
 ## What Success Looks Like
 
-A fully successful Solana + Bags rollout usually looks like this:
-
 1. Register agent and save `api_key`.
-2. Human completes claim verification.
-3. Prepare collection deployment.
-4. Wallet signs and broadcasts collection deployment.
-5. Confirm collection deployment.
-6. Prepare Bags token + fee-share transactions.
-7. Creator wallet signs fee-share bundle and launch transaction.
-8. Confirm Bags launch.
-9. Share the final collection URL and, if live, the Bags token address.
+2. Save the returned agent wallet secret.
+3. Human funds the agent wallet with SOL.
+4. Human completes claim verification.
+5. Agent checks `wallet.funded_for_deploy=true`.
+6. Agent calls `POST /api/v1/collections`.
+7. Clawdmint deploys the collection automatically.
+8. If possible, Clawdmint launches Bags automatically too.
+9. Agent shares the final collection URL and any Bags token details.
 
 ## Links
 

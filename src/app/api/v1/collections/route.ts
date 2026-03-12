@@ -11,12 +11,23 @@ import {
   prepareCollectionBagsRecord,
 } from "@/lib/collection-bags";
 import {
+  CollectionBagsLaunchError,
+  confirmCollectionBagsLaunch,
+  prepareCollectionBagsLaunch,
+} from "@/lib/collection-bags-launch";
+import {
   formatCollectionMintPrice,
   getCollectionNativeToken,
   SOLANA_COLLECTION_CHAINS,
 } from "@/lib/collection-chains";
 import { buildSolanaDeploymentManifest } from "@/lib/solana-collections";
 import { checkRateLimit, RATE_LIMIT_DEPLOY } from "@/lib/rate-limit";
+import {
+  AgentWalletError,
+  deployCollectionWithAgentWallet,
+  getAgentOperationalWalletAddress,
+  signAndBroadcastBagsTransactions,
+} from "@/lib/agent-wallets";
 
 function hashApiKey(apiKey: string): string {
   return createHash("sha256").update(apiKey).digest("hex");
@@ -24,7 +35,12 @@ function hashApiKey(apiKey: string): string {
 
 export const dynamic = "force-dynamic";
 
+function getCanonicalSolanaChain(): "solana" | "solana-devnet" {
+  return process.env["NEXT_PUBLIC_SOLANA_CLUSTER"] === "devnet" ? "solana-devnet" : "solana";
+}
+
 export async function POST(request: NextRequest) {
+  let createdCollectionId: string | null = null;
   try {
     const authHeader = request.headers.get("Authorization");
     if (!authHeader?.startsWith("Bearer ")) {
@@ -66,7 +82,19 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const validation = DeployCollectionSchema.safeParse(body);
+    const agentAuthority = getAgentOperationalWalletAddress(agent);
+    const normalizedBody = {
+      ...body,
+      chain: getCanonicalSolanaChain(),
+      authority_address: agentAuthority,
+      bags: body?.bags
+        ? {
+            ...body.bags,
+            creator_wallet: agentAuthority,
+          }
+        : body?.bags,
+    };
+    const validation = DeployCollectionSchema.safeParse(normalizedBody);
     if (!validation.success) {
       return NextResponse.json(
         { success: false, error: "Invalid request", details: validation.error.errors },
@@ -85,12 +113,12 @@ export async function POST(request: NextRequest) {
       collectionSymbol: data.symbol,
     });
 
-    const collection = await prisma.collection.create({
+    let collection = await prisma.collection.create({
       data: {
         agentId: agent.id,
         agentEoa: agent.eoa,
         chain: assets.chain,
-        authorityAddress: bagsRecord.authorityAddress,
+        authorityAddress: agentAuthority,
         name: data.name,
         symbol: data.symbol,
         description: data.description,
@@ -107,16 +135,37 @@ export async function POST(request: NextRequest) {
         bagsMintAccess: bagsRecord.bagsMintAccess,
         bagsMinTokenBalance: bagsRecord.bagsMinTokenBalance,
         bagsFeeConfig: bagsRecord.bagsFeeConfig,
-        bagsCreatorWallet: bagsRecord.bagsCreatorWallet,
+        bagsCreatorWallet: agentAuthority,
         bagsInitialBuyLamports: bagsRecord.bagsInitialBuyLamports,
-        status: "PENDING_SIGNATURE",
+        status: "DEPLOYING",
         address: `pending_${Date.now()}`,
         deployTxHash: "pending",
       },
     });
-    const bags = buildCollectionBagsView(collection);
+    createdCollectionId = collection.id;
+    const deployment = await deployCollectionWithAgentWallet(agent, {
+      authority: agentAuthority,
+      payoutAddress: data.payout_address,
+      collectionId: collection.id,
+      name: data.name,
+      symbol: data.symbol,
+      baseUri: assets.baseUri,
+      maxSupply: data.max_supply,
+      mintPriceLamports: BigInt(assets.mintPriceRaw),
+      royaltyBps: data.royalty_bps,
+    });
+    collection = await prisma.collection.update({
+      where: { id: collection.id },
+      data: {
+        address: deployment.collectionAddress,
+        deployTxHash: deployment.signature,
+        status: "ACTIVE",
+        deployedAt: new Date(),
+      },
+    });
+
     const manifest = buildSolanaDeploymentManifest({
-      authority: assets.authorityAddress,
+      authority: agentAuthority,
       payoutAddress: data.payout_address,
       collectionId: collection.id,
       name: data.name,
@@ -127,15 +176,51 @@ export async function POST(request: NextRequest) {
       royaltyBps: data.royalty_bps,
     });
 
+    const warnings: string[] = [];
+    let bagsCollection = collection;
+    let bags = buildCollectionBagsView(collection);
+    if (bags && bags.status !== "DISABLED" && !bags.token_address) {
+      try {
+        const preparedBags = await prepareCollectionBagsLaunch(agent.id, { collection_id: collection.id });
+        const signedBags = await signAndBroadcastBagsTransactions(
+          agent,
+          preparedBags.fee_config.transactions_base64,
+          preparedBags.launch.transaction_base64
+        );
+        const confirmedBags = await confirmCollectionBagsLaunch(agent.id, {
+          collection_id: collection.id,
+          launch_tx_hash: signedBags.launchSignature,
+          token_address: preparedBags.token_info.tokenMint,
+          config_key: preparedBags.fee_config.config_key,
+        });
+        bagsCollection = confirmedBags.collection;
+        bags = confirmedBags.bags;
+      } catch (error) {
+        console.error("Automatic Bags launch failed:", error);
+        const message =
+          error instanceof CollectionBagsLaunchError || error instanceof AgentWalletError
+            ? error.message
+            : error instanceof Error
+              ? error.message
+              : "Automatic Bags launch failed";
+        warnings.push(message);
+        bagsCollection =
+          (await prisma.collection.findUnique({
+            where: { id: collection.id },
+          })) || collection;
+        bags = buildCollectionBagsView(bagsCollection);
+      }
+    }
+
     return NextResponse.json({
       success: true,
       collection: {
-        id: collection.id,
-        chain: collection.chain,
-        address: manifest.collection_address,
-        name: collection.name,
-        symbol: collection.symbol,
-        max_supply: collection.maxSupply,
+        id: bagsCollection.id,
+        chain: bagsCollection.chain,
+        address: bagsCollection.address,
+        name: bagsCollection.name,
+        symbol: bagsCollection.symbol,
+        max_supply: bagsCollection.maxSupply,
         mint_price_native: assets.mintPriceInput,
         mint_price_raw: assets.mintPriceRaw,
         native_token: assets.nativeToken,
@@ -144,13 +229,17 @@ export async function POST(request: NextRequest) {
         bags,
       },
       deployment: {
-        mode: "agent_sign",
+        mode: "agent_wallet_auto",
         program_id: manifest.program_id,
-        cluster: manifest.cluster,
-        authority: manifest.authority,
-        predicted_collection_address: manifest.collection_address,
-        instructions: manifest.instructions,
-        confirm_endpoint: "/api/v1/collections/confirm",
+        cluster: deployment.cluster,
+        authority: deployment.authority,
+        predicted_collection_address: deployment.collectionAddress,
+        deploy_tx_hash: deployment.signature,
+        wallet_address: agentAuthority,
+        wallet_balance_sol: deployment.walletBalance.sol,
+        recommended_deploy_balance_sol: deployment.recommendedDeployBalanceSol,
+        user_signature_required: false,
+        confirm_endpoint: null,
       },
       bags_community: bags
         ? {
@@ -160,9 +249,34 @@ export async function POST(request: NextRequest) {
             confirm_endpoint: !bags.token_address ? "/api/v1/collections/bags/confirm" : null,
           }
         : null,
-      message: "Solana deployment manifest prepared. Sign and confirm to activate the collection.",
+      warnings: warnings.length > 0 ? warnings : undefined,
+      message:
+        warnings.length > 0
+          ? "Collection deployed automatically from the agent wallet. Bags setup still needs attention."
+          : "Collection deployed automatically from the agent wallet.",
     });
   } catch (error) {
+    if (createdCollectionId) {
+      await prisma.collection.updateMany({
+        where: {
+          id: createdCollectionId,
+          status: "DEPLOYING",
+        },
+        data: {
+          status: "FAILED",
+        },
+      });
+    }
+    if (error instanceof AgentWalletError) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: error.message,
+          details: error.details,
+        },
+        { status: error.status }
+      );
+    }
     console.error("Deploy error:", error);
     return NextResponse.json(
       {

@@ -1,12 +1,12 @@
 {
   "name": "clawdmint",
-  "version": "2.1.0",
-  "description": "Deploy Solana NFT collections and launch Bags-aware communities from verified AI agents.",
+  "version": "2.2.0",
+  "description": "Deploy Solana NFT collections and Bags-aware communities from verified AI agents using funded agent wallets.",
   "homepage": "https://clawdmint.xyz",
   "repository": "https://github.com/clawdmint/clawdmint-plugin",
   "author": "Clawdmint",
   "license": "MIT",
-  "keywords": ["nft", "solana", "ai-agent", "web3", "mint", "deploy", "bags", "openclaw"],
+  "keywords": ["nft", "solana", "ai-agent", "web3", "bags", "openclaw", "autonomous-wallet"],
   "social": {
     "twitter": "https://x.com/clawdmint"
   },
@@ -21,7 +21,8 @@
     "tools_url": "https://clawdmint.xyz/api/tools/openclaw.json",
     "program": "AfL9FC6ZzHXF2QBgyJ5vCNs3i8sVM8fJwZDuyHTNCE6X",
     "bags": {
-      "enabled": true
+      "enabled": true,
+      "auto_launch_with_agent_wallet": true
     },
     "openclaw": {
       "homepage": "https://clawdmint.xyz",
@@ -34,9 +35,9 @@
   },
   "capabilities": [
     "register_agent",
-    "check_agent_verification",
+    "provision_agent_wallet",
+    "check_agent_funding",
     "deploy_nft_collection",
-    "confirm_solana_deployment",
     "launch_bags_community",
     "bags_fee_sharing",
     "bags_token_gating",
@@ -46,26 +47,26 @@
   ],
   "constraints": [
     "Solana-only. Do not use for Base or any EVM chain.",
-    "Collection deploy is prepare/sign/confirm, not a single call.",
-    "Bags launch requires the configured creator wallet to sign.",
-    "Token-gated mints require bags.mint_access=bags_balance and bags.min_token_balance."
+    "The human must fund the returned agent wallet with SOL before deploy.",
+    "Collection deploy is automatic from the funded agent wallet.",
+    "Bags launch is attempted automatically from the same funded agent wallet."
   ],
   "workflows": {
     "agent_registration": [
       "POST /api/v1/agents/register",
-      "Save api_key and claim_url",
+      "Save api_key",
+      "Save agent.wallet.secret_key_base58",
+      "Fund agent.wallet.address with SOL",
       "Wait for human claim completion",
-      "Poll GET /api/v1/agents/status until claimed"
+      "Poll GET /api/v1/agents/status until can_deploy=true and wallet.funded_for_deploy=true"
     ],
     "collection_deploy": [
       "POST /api/v1/collections",
-      "Sign and broadcast returned Solana deployment manifest",
-      "POST /api/v1/collections/confirm"
+      "Read collection.address and deployment.deploy_tx_hash",
+      "Check warnings for incomplete Bags follow-up"
     ],
-    "bags_launch": [
-      "POST /api/v1/collections/bags",
-      "Sign fee-share transactions and launch transaction with creator wallet",
-      "POST /api/v1/collections/bags/confirm"
+    "bags_launch_fallback": [
+      "POST /api/v1/collections/bags"
     ]
   },
   "endpoints": {
@@ -73,9 +74,7 @@
     "status": "GET /api/v1/agents/status",
     "profile": "GET /api/v1/agents/me",
     "deploy": "POST /api/v1/collections",
-    "confirm_deploy": "POST /api/v1/collections/confirm",
     "prepare_bags_community": "POST /api/v1/collections/bags",
-    "confirm_bags_community": "POST /api/v1/collections/bags/confirm",
     "list_collections": "GET /api/v1/collections",
     "public_collections": "GET /api/v1/collections/public",
     "collection_detail": "GET /api/collections/{address}",
