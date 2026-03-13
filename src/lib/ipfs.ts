@@ -329,6 +329,159 @@ function isUrlSafe(urlString: string): { safe: boolean; reason?: string } {
 // Maximum image size: 10MB
 const MAX_IMAGE_SIZE = 10 * 1024 * 1024;
 const MAX_IMAGE_REDIRECTS = 5;
+const MIN_IMAGE_WIDTH = 256;
+const MIN_IMAGE_HEIGHT = 256;
+
+interface ImageDimensions {
+  width: number;
+  height: number;
+}
+
+function readPngDimensions(buffer: Buffer): ImageDimensions | null {
+  const pngSignature = "89504e470d0a1a0a";
+  if (buffer.length < 24 || buffer.subarray(0, 8).toString("hex") !== pngSignature) {
+    return null;
+  }
+
+  return {
+    width: buffer.readUInt32BE(16),
+    height: buffer.readUInt32BE(20),
+  };
+}
+
+function readGifDimensions(buffer: Buffer): ImageDimensions | null {
+  const signature = buffer.subarray(0, 6).toString("ascii");
+  if (buffer.length < 10 || (signature !== "GIF87a" && signature !== "GIF89a")) {
+    return null;
+  }
+
+  return {
+    width: buffer.readUInt16LE(6),
+    height: buffer.readUInt16LE(8),
+  };
+}
+
+function readJpegDimensions(buffer: Buffer): ImageDimensions | null {
+  if (buffer.length < 4 || buffer[0] !== 0xff || buffer[1] !== 0xd8) {
+    return null;
+  }
+
+  let offset = 2;
+  while (offset + 9 < buffer.length) {
+    if (buffer[offset] !== 0xff) {
+      offset += 1;
+      continue;
+    }
+
+    const marker = buffer[offset + 1];
+    const segmentLength = buffer.readUInt16BE(offset + 2);
+    if (segmentLength < 2) {
+      break;
+    }
+
+    const isStartOfFrame =
+      (marker >= 0xc0 && marker <= 0xc3) ||
+      (marker >= 0xc5 && marker <= 0xc7) ||
+      (marker >= 0xc9 && marker <= 0xcb) ||
+      (marker >= 0xcd && marker <= 0xcf);
+
+    if (isStartOfFrame && offset + 8 < buffer.length) {
+      return {
+        height: buffer.readUInt16BE(offset + 5),
+        width: buffer.readUInt16BE(offset + 7),
+      };
+    }
+
+    offset += 2 + segmentLength;
+  }
+
+  return null;
+}
+
+function readWebpDimensions(buffer: Buffer): ImageDimensions | null {
+  if (
+    buffer.length < 30 ||
+    buffer.subarray(0, 4).toString("ascii") !== "RIFF" ||
+    buffer.subarray(8, 12).toString("ascii") !== "WEBP"
+  ) {
+    return null;
+  }
+
+  const chunkType = buffer.subarray(12, 16).toString("ascii");
+
+  if (chunkType === "VP8X") {
+    return {
+      width: 1 + buffer.readUIntLE(24, 3),
+      height: 1 + buffer.readUIntLE(27, 3),
+    };
+  }
+
+  if (chunkType === "VP8 " && buffer.length >= 30) {
+    return {
+      width: buffer.readUInt16LE(26) & 0x3fff,
+      height: buffer.readUInt16LE(28) & 0x3fff,
+    };
+  }
+
+  if (chunkType === "VP8L" && buffer.length >= 25) {
+    const bits = buffer.readUInt32LE(21);
+    return {
+      width: (bits & 0x3fff) + 1,
+      height: ((bits >> 14) & 0x3fff) + 1,
+    };
+  }
+
+  return null;
+}
+
+function readSvgDimensions(buffer: Buffer): ImageDimensions | null {
+  const markup = buffer.subarray(0, 4096).toString("utf8");
+  if (!markup.includes("<svg")) {
+    return null;
+  }
+
+  const widthMatch = markup.match(/\bwidth=["']([\d.]+)(px)?["']/i);
+  const heightMatch = markup.match(/\bheight=["']([\d.]+)(px)?["']/i);
+  if (widthMatch && heightMatch) {
+    return {
+      width: Math.round(Number(widthMatch[1])),
+      height: Math.round(Number(heightMatch[1])),
+    };
+  }
+
+  const viewBoxMatch = markup.match(/\bviewBox=["'][^"']*?([\d.]+)\s+([\d.]+)\s+([\d.]+)\s+([\d.]+)["']/i);
+  if (viewBoxMatch) {
+    return {
+      width: Math.round(Number(viewBoxMatch[3])),
+      height: Math.round(Number(viewBoxMatch[4])),
+    };
+  }
+
+  return null;
+}
+
+function readImageDimensions(buffer: Buffer): ImageDimensions | null {
+  return (
+    readPngDimensions(buffer) ||
+    readJpegDimensions(buffer) ||
+    readGifDimensions(buffer) ||
+    readWebpDimensions(buffer) ||
+    readSvgDimensions(buffer)
+  );
+}
+
+function validateImageDimensions(buffer: Buffer): void {
+  const dimensions = readImageDimensions(buffer);
+  if (!dimensions) {
+    return;
+  }
+
+  if (dimensions.width < MIN_IMAGE_WIDTH || dimensions.height < MIN_IMAGE_HEIGHT) {
+    throw new Error(
+      `Image is too small (${dimensions.width}x${dimensions.height}). Use at least ${MIN_IMAGE_WIDTH}x${MIN_IMAGE_HEIGHT}.`
+    );
+  }
+}
 
 async function fetchSafeImageUrl(
   imageUrl: string,
@@ -345,6 +498,11 @@ async function fetchSafeImageUrl(
     const response = await fetch(currentUrl, {
       signal,
       redirect: "manual",
+      headers: {
+        Accept: "image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8",
+        "User-Agent":
+          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36",
+      },
     });
 
     if (response.status >= 300 && response.status < 400) {
@@ -394,6 +552,8 @@ export async function uploadImage(
       if (buffer.length > MAX_IMAGE_SIZE) {
         throw new Error(`Image too large (max ${MAX_IMAGE_SIZE / 1024 / 1024}MB)`);
       }
+
+      validateImageDimensions(buffer);
     } else if (imageSource.startsWith("https://")) {
       // Fetch from validated URL
       const controller = new AbortController();
@@ -425,6 +585,8 @@ export async function uploadImage(
         if (buffer.length > MAX_IMAGE_SIZE) {
           throw new Error(`Image too large (max ${MAX_IMAGE_SIZE / 1024 / 1024}MB)`);
         }
+
+        validateImageDimensions(buffer);
       } finally {
         clearTimeout(timeout);
       }

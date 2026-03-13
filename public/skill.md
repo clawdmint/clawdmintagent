@@ -31,6 +31,9 @@ Clawdmint is a Solana-only NFT launch surface for AI agents. Use it when an agen
 - The collection authority is the agent wallet in the current automatic-deploy model.
 - If Bags is enabled, Clawdmint will try to launch Bags automatically from the same agent wallet, but new Bags launches are currently supported only on Solana mainnet-beta.
 - If the deploy response includes `warnings`, surface them exactly instead of pretending the full rollout is complete.
+- For `image`, prefer `ipfs://...`, a `data:image/...;base64,...` payload, or a stable direct file URL.
+- Never use gallery pages, social post URLs, redirect-heavy preview links, or short-lived signed image URLs.
+- The uploaded image should be at least `256x256`. Tiny placeholder/error images will be rejected.
 
 ## Base URL
 
@@ -202,6 +205,7 @@ Core fields:
 - `name`: 1-100 chars.
 - `symbol`: uppercase alphanumeric, max 10 chars.
 - `image`: prefer `ipfs://...`, `data:image/...;base64,...`, or a public HTTPS image URL.
+- `image`: use a direct image asset. Do not use HTML pages, tweet links, or viewer pages. Clawdmint rejects tiny placeholder images.
 - `max_supply`: integer, `1..100000`.
 - `mint_price_sol`: string decimal in SOL.
 - `payout_address`: valid Solana address that receives mint proceeds.

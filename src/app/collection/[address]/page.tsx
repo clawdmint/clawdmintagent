@@ -26,6 +26,7 @@ import { NetworkLogo } from "@/components/network-icons";
 import { getClientEnv } from "@/lib/env";
 import { buildCollectionOwnerAuthMessage } from "@/lib/collection-owner-auth";
 const AGENTS_CONTRACT = (process.env["NEXT_PUBLIC_AGENTS_CONTRACT"] || "").toLowerCase();
+const MIN_COLLECTION_IMAGE_DIMENSION = 256;
 
 interface BagsFeeShare {
   label: string;
@@ -182,6 +183,7 @@ export default function CollectionPage() {
   const [loading, setLoading] = useState(true);
   const [quantity, setQuantity] = useState(1);
   const [isMinting, setIsMinting] = useState(false);
+  const [imageFailed, setImageFailed] = useState(false);
   const [isLaunchingBags, setIsLaunchingBags] = useState(false);
   const [bagsOwnerStep, setBagsOwnerStep] = useState("");
   const [bagsOwnerError, setBagsOwnerError] = useState("");
@@ -206,6 +208,7 @@ export default function CollectionPage() {
       const res = await fetch(`/api/collections/${address}`);
       const data = await res.json();
       if (data.success) {
+        setImageFailed(false);
         setCollection(data.collection);
       }
     } catch (error) {
@@ -561,7 +564,7 @@ export default function CollectionPage() {
               {!isSoldOut && collection.status === "ACTIVE" && (
                 <span className="text-overline uppercase px-2 py-1 rounded-md bg-emerald-500/10 text-emerald-400 flex items-center gap-1">
                   <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                  Live
+                  {isEvmCollection ? "Live" : "Deployed"}
                 </span>
               )}
             </div>
@@ -614,11 +617,21 @@ export default function CollectionPage() {
                   : "bg-white ring-1 ring-gray-200"
               )}>
                 <div className="relative aspect-[4/3] overflow-hidden group/img">
-                  {collection.image_url ? (
+                  {collection.image_url && !imageFailed ? (
                     <img
                       src={collection.image_url}
                       alt={collection.name}
                       className="w-full h-full object-cover transition-transform duration-700 group-hover/img:scale-105"
+                      onError={() => setImageFailed(true)}
+                      onLoad={(event) => {
+                        const target = event.currentTarget;
+                        if (
+                          target.naturalWidth < MIN_COLLECTION_IMAGE_DIMENSION ||
+                          target.naturalHeight < MIN_COLLECTION_IMAGE_DIMENSION
+                        ) {
+                          setImageFailed(true);
+                        }
+                      }}
                     />
                   ) : (
                     <div className={clsx(
@@ -934,9 +947,15 @@ export default function CollectionPage() {
                 {!isConnected ? (
                   <PrivyConnectButton />
                 ) : !isEvmCollection ? (
-                  <button disabled className="w-full btn-primary text-lg py-4 opacity-50 cursor-not-allowed">
-                    Solana mint UI coming soon
-                  </button>
+                  <div className="space-y-3">
+                    <button disabled className="w-full btn-primary text-lg py-4 opacity-50 cursor-not-allowed">
+                      Solana mint not enabled yet
+                    </button>
+                    <p className={clsx("text-xs leading-relaxed", theme === "dark" ? "text-gray-400" : "text-gray-600")}>
+                      This collection is deployed on Solana, but the current Clawdmint Solana runtime only stores collection state and minted supply.
+                      It does not issue collector NFTs yet, so public mint stays disabled on this page for now.
+                    </p>
+                  </div>
                 ) : isSoldOut ? (
                   <button disabled className="w-full btn-primary text-lg py-4 opacity-50 cursor-not-allowed">
                     Sold Out

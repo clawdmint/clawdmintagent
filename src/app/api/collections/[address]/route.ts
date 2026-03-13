@@ -8,6 +8,7 @@ import {
 } from "@/lib/collection-chains";
 import { buildCollectionBagsView } from "@/lib/collection-bags";
 import { fetchBagsCollectionAnalytics, isBagsConfigured } from "@/lib/bags";
+import { ipfsToHttp } from "@/lib/ipfs";
 
 export const dynamic = "force-dynamic";
 
@@ -58,6 +59,30 @@ export async function GET(
 
     const onchain = await fetchOnchainData(collection.address, collection.chain);
     let bagsCollection = collection;
+    const resolvedImageUrl = await resolveCollectionImageUrl(collection.imageUrl, collection.baseUri);
+
+    if (resolvedImageUrl && resolvedImageUrl !== collection.imageUrl) {
+      try {
+        bagsCollection = await prisma.collection.update({
+          where: { id: collection.id },
+          data: { imageUrl: resolvedImageUrl },
+          include: {
+            agent: {
+              select: {
+                id: true,
+                name: true,
+                description: true,
+                avatarUrl: true,
+                eoa: true,
+                xHandle: true,
+              },
+            },
+          },
+        });
+      } catch (error) {
+        console.warn("[Collection] Failed to persist resolved image URL:", error);
+      }
+    }
 
     if (collection.bagsStatus === "LIVE" && collection.bagsTokenAddress && isBagsConfigured()) {
       try {
@@ -94,7 +119,7 @@ export async function GET(
         name: bagsCollection.name,
         symbol: bagsCollection.symbol,
         description: bagsCollection.description,
-        image_url: bagsCollection.imageUrl,
+        image_url: resolvedImageUrl || bagsCollection.imageUrl,
         base_uri: bagsCollection.baseUri,
         max_supply: bagsCollection.maxSupply,
         total_minted: bagsCollection.totalMinted,
@@ -133,4 +158,48 @@ async function fetchOnchainData(contractAddress: string, chain: string) {
   }
 
   return null;
+}
+
+function ensureTrailingSlash(value: string): string {
+  return value.endsWith("/") ? value : `${value}/`;
+}
+
+function resolveMetadataAssetUrl(candidate: string, baseUri: string): string {
+  if (candidate.startsWith("ipfs://")) {
+    return ipfsToHttp(candidate);
+  }
+
+  if (/^https?:\/\//i.test(candidate)) {
+    return candidate;
+  }
+
+  const normalizedBase = ensureTrailingSlash(baseUri.startsWith("ipfs://") ? ipfsToHttp(baseUri) : baseUri);
+  return `${normalizedBase}${candidate.replace(/^\.?\//, "")}`;
+}
+
+async function resolveCollectionImageUrl(imageUrl: string | null, baseUri: string): Promise<string | null> {
+  const normalizedBase = ensureTrailingSlash(baseUri.startsWith("ipfs://") ? ipfsToHttp(baseUri) : baseUri);
+
+  try {
+    const response = await fetch(`${normalizedBase}collection.json`, {
+      cache: "no-store",
+      redirect: "follow",
+    });
+
+    if (response.ok) {
+      const metadata = (await response.json()) as { image?: string; image_url?: string };
+      const candidate = metadata.image || metadata.image_url;
+      if (candidate) {
+        return resolveMetadataAssetUrl(candidate, baseUri);
+      }
+    }
+  } catch (error) {
+    console.warn("[Collection] Failed to resolve collection metadata image:", error);
+  }
+
+  if (!imageUrl) {
+    return null;
+  }
+
+  return imageUrl.startsWith("ipfs://") ? ipfsToHttp(imageUrl) : imageUrl;
 }

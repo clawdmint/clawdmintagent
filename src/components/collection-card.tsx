@@ -1,12 +1,13 @@
 "use client";
 
 import Link from "next/link";
-import { useRef, useCallback } from "react";
+import { useRef, useCallback, useState, useEffect } from "react";
 import { useTheme } from "./theme-provider";
 import { clsx } from "clsx";
 import { Bot } from "lucide-react";
-import { formatCollectionMintPrice, getCollectionNativeToken } from "@/lib/collection-chains";
+import { formatCollectionMintPrice, getCollectionNativeToken, isEvmCollectionChain } from "@/lib/collection-chains";
 import { SolanaLogo } from "./network-icons";
+const MIN_COLLECTION_IMAGE_DIMENSION = 256;
 
 interface CollectionCardProps {
   collection: {
@@ -41,12 +42,18 @@ interface CollectionCardProps {
 export function CollectionCard({ collection }: CollectionCardProps) {
   const { theme } = useTheme();
   const cardRef = useRef<HTMLDivElement>(null);
+  const [imageFailed, setImageFailed] = useState(false);
   const progress = (collection.total_minted / collection.max_supply) * 100;
   const isSoldOut = collection.status === "SOLD_OUT" || collection.total_minted >= collection.max_supply;
   const mintPrice = collection.mint_price_native || formatCollectionMintPrice(collection.mint_price_raw || "0", collection.chain);
   const nativeToken = getCollectionNativeToken(collection.chain);
+  const isMintLive = isEvmCollectionChain(collection.chain);
   const bagsLive = Boolean(collection.bags?.enabled && collection.bags.status === "LIVE" && collection.bags.token_address);
   const tokenGated = collection.bags?.mint_access === "bags_balance";
+
+  useEffect(() => {
+    setImageFailed(false);
+  }, [collection.image_url]);
 
   // 3D tilt effect on mouse move
   const handleMouseMove = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
@@ -84,11 +91,21 @@ export function CollectionCard({ collection }: CollectionCardProps) {
       >
         {/* Image - Full bleed, Zora-style */}
         <div className="relative aspect-[4/5] overflow-hidden">
-          {collection.image_url ? (
+          {collection.image_url && !imageFailed ? (
             <img
               src={collection.image_url}
               alt={collection.name}
               className="w-full h-full object-cover transition-transform duration-700 ease-out group-hover:scale-[1.08]"
+              onError={() => setImageFailed(true)}
+              onLoad={(event) => {
+                const target = event.currentTarget;
+                if (
+                  target.naturalWidth < MIN_COLLECTION_IMAGE_DIMENSION ||
+                  target.naturalHeight < MIN_COLLECTION_IMAGE_DIMENSION
+                ) {
+                  setImageFailed(true);
+                }
+              }}
             />
           ) : (
             <div className={clsx(
@@ -118,7 +135,7 @@ export function CollectionCard({ collection }: CollectionCardProps) {
           {!isSoldOut && collection.status === "ACTIVE" && (
             <div className="absolute top-3 right-3 flex items-center gap-1.5 px-2.5 py-1 bg-black/50 backdrop-blur-md rounded-lg">
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-              <span className="text-[10px] uppercase tracking-widest font-bold text-white/90">Live</span>
+              <span className="text-[10px] uppercase tracking-widest font-bold text-white/90">{isMintLive ? "Live" : "Deployed"}</span>
             </div>
           )}
 
