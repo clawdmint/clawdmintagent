@@ -48,6 +48,7 @@ export async function GET(request: NextRequest) {
         eoa: a.eoa,
         x_handle: a.xHandle,
         status: a.status,
+        deploy_enabled: a.deployEnabled,
         collections_count: collectionCountByAgent.get(a.id) || 0,
         verified_at: a.verifiedAt?.toISOString(),
         created_at: a.createdAt.toISOString(),

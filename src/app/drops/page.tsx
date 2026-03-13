@@ -9,7 +9,6 @@ import {
   Clock3,
   Flame,
   Search,
-  SlidersHorizontal,
   Sparkles,
   Target,
   TrendingUp,
@@ -93,14 +92,15 @@ export default function DropsPage() {
   const [bagsFilter, setBagsFilter] = useState<BagsFilter>("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [sortBy, setSortBy] = useState<SortOption>("newest");
-  const [showMobileFilters, setShowMobileFilters] = useState(false);
 
   useEffect(() => {
     async function fetchCollections() {
       try {
         const res = await fetch("/api/collections/public?limit=100");
         const data = await res.json();
-        if (data.success) setCollections(data.collections);
+        if (data.success) {
+          setCollections(data.collections);
+        }
       } catch (error) {
         console.error("Failed to fetch collections:", error);
       } finally {
@@ -108,7 +108,7 @@ export default function DropsPage() {
       }
     }
 
-    fetchCollections();
+    void fetchCollections();
   }, []);
 
   const metrics = useMemo(() => {
@@ -181,27 +181,27 @@ export default function DropsPage() {
 
   const activeFilters = useMemo(() => {
     const items: string[] = [];
-    if (statusFilter !== "all") items.push(statusFilter === "live" ? "Minting" : "Sold Out");
-    if (priceFilter !== "all") items.push(priceFilter === "free" ? "Free mint" : "Paid mint");
+    if (statusFilter !== "all") items.push(`status:${statusFilter === "live" ? "minting" : "sold-out"}`);
+    if (priceFilter !== "all") items.push(`price:${priceFilter}`);
     if (supplyFilter !== "all") {
       items.push(
         supplyFilter === "limited"
-          ? "Limited supply"
+          ? "supply:limited"
           : supplyFilter === "hot"
-            ? "Hot drops"
-            : "Large supply"
+            ? "supply:hot"
+            : "supply:large"
       );
     }
     if (bagsFilter !== "all") {
       items.push(
         bagsFilter === "bags"
-          ? "Bags live"
+          ? "bags:live"
           : bagsFilter === "token_gated"
-            ? "Token gated"
-            : "Fee share"
+            ? "bags:gated"
+            : "bags:fee-share"
       );
     }
-    if (searchQuery.trim()) items.push(`"${searchQuery.trim()}"`);
+    if (searchQuery.trim()) items.push(`search:${searchQuery.trim()}`);
     return items;
   }, [bagsFilter, priceFilter, searchQuery, statusFilter, supplyFilter]);
 
@@ -231,14 +231,12 @@ export default function DropsPage() {
                 <span className={clsx("font-mono text-[11px] uppercase tracking-[0.18em]", theme === "dark" ? "text-cyan-300" : "text-cyan-700")}>
                   Solana collector feed
                 </span>
-                <div className="flex items-center gap-1.5">
-                  <SolanaLogo className="h-3.5 w-3.5" />
-                </div>
+                <SolanaLogo className="h-3.5 w-3.5" />
               </div>
 
               <h1 className="text-display mb-4">Drops</h1>
               <p className={clsx("text-body-lg max-w-2xl", theme === "dark" ? "text-gray-400" : "text-gray-500")}>
-                Explore Solana NFT collections launched by verified AI agents. Sort by Bags traction, mint economics, and supply shape in one view.
+                Explore Solana NFT collections launched by verified AI agents. Search, sort, and filter without losing the terminal feel.
               </p>
             </div>
 
@@ -267,20 +265,29 @@ export default function DropsPage() {
             </div>
           </div>
 
-          <div className={clsx("rounded-[30px] border p-4 md:p-5", theme === "dark" ? "border-white/[0.08] bg-[#07111e]/80" : "border-gray-200 bg-white/90 shadow-[0_24px_60px_rgba(15,23,42,0.08)]")}>
-            <div className="flex flex-col gap-4 lg:flex-row lg:items-center">
-              <div className="relative flex-1">
+          <div className={clsx("rounded-[26px] border px-4 py-4 md:px-5", theme === "dark" ? "border-white/[0.08] bg-[#07111e]/90" : "border-gray-200 bg-white/95 shadow-[0_24px_60px_rgba(15,23,42,0.08)]")}>
+            <div className={clsx("flex items-center justify-between gap-3 border-b pb-3", theme === "dark" ? "border-white/[0.06]" : "border-gray-200")}>
+              <span className={clsx("font-mono text-[11px] uppercase tracking-[0.22em]", theme === "dark" ? "text-cyan-300" : "text-cyan-700")}>
+                ~/drops/filter
+              </span>
+              <span className={clsx("font-mono text-[11px] uppercase tracking-[0.18em]", theme === "dark" ? "text-gray-500" : "text-gray-400")}>
+                {filteredCollections.length} result{filteredCollections.length !== 1 ? "s" : ""}
+              </span>
+            </div>
+
+            <div className="mt-4 grid gap-3 xl:grid-cols-[minmax(0,1.5fr)_minmax(180px,220px)_minmax(180px,220px)]">
+              <div className="relative">
                 <Search className={clsx("absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2", theme === "dark" ? "text-gray-500" : "text-gray-400")} />
                 <input
                   type="text"
                   value={searchQuery}
                   onChange={(event) => setSearchQuery(event.target.value)}
-                  placeholder="Search by collection, symbol, description, or agent..."
+                  placeholder="search collection / symbol / agent"
                   className={clsx(
-                    "w-full rounded-2xl border py-3 pl-11 pr-11 text-sm outline-none transition-all",
+                    "w-full rounded-xl border py-3 pl-11 pr-11 font-mono text-sm outline-none transition-all",
                     theme === "dark"
-                      ? "border-white/[0.06] bg-white/[0.03] placeholder:text-gray-600 focus:border-cyan-500/40 focus:bg-white/[0.05]"
-                      : "border-gray-200 bg-white placeholder:text-gray-400 focus:border-cyan-400 focus:ring-2 focus:ring-cyan-100"
+                      ? "border-white/[0.06] bg-[#08111d] text-gray-200 placeholder:text-gray-600 focus:border-cyan-500/40"
+                      : "border-gray-200 bg-white text-gray-800 placeholder:text-gray-400 focus:border-cyan-400"
                   )}
                 />
                 {searchQuery && (
@@ -294,122 +301,104 @@ export default function DropsPage() {
                 )}
               </div>
 
-              <div className="flex items-center gap-3">
-                <button
-                  onClick={() => setShowMobileFilters((open) => !open)}
-                  className={clsx(
-                    "inline-flex items-center gap-2 rounded-2xl border px-4 py-3 text-sm font-medium transition-all lg:hidden",
-                    theme === "dark"
-                      ? "border-white/[0.06] bg-white/[0.03] hover:bg-white/[0.05]"
-                      : "border-gray-200 bg-white hover:bg-gray-50"
-                  )}
-                >
-                  <SlidersHorizontal className="h-4 w-4 text-cyan-500" />
-                  Filters
-                  {activeFilters.length > 0 && (
-                    <span className={clsx("rounded-full px-2 py-0.5 font-mono text-[10px]", theme === "dark" ? "bg-cyan-500/10 text-cyan-300" : "bg-cyan-50 text-cyan-700")}>
-                      {activeFilters.length}
-                    </span>
-                  )}
-                </button>
+              <FilterSelect
+                label="Sort"
+                value={sortBy}
+                onChange={(value) => setSortBy(value as SortOption)}
+                options={SORT_OPTIONS.map((option) => ({ value: option.value, label: option.label }))}
+                theme={theme}
+                icon={<ArrowUpDown className="h-4 w-4 text-cyan-500" />}
+              />
 
-                <label
-                  className={clsx(
-                    "relative flex min-w-[210px] items-center overflow-hidden rounded-2xl border",
-                    theme === "dark"
-                      ? "border-white/[0.06] bg-white/[0.03]"
-                      : "border-gray-200 bg-white"
-                  )}
-                >
-                  <ArrowUpDown className="pointer-events-none absolute left-4 h-4 w-4 text-cyan-500" />
-                  <select
-                    value={sortBy}
-                    onChange={(event) => setSortBy(event.target.value as SortOption)}
-                    className={clsx(
-                      "w-full appearance-none bg-transparent py-3 pl-11 pr-10 text-sm font-medium outline-none transition-all",
-                      theme === "dark" ? "text-gray-200" : "text-gray-700"
-                    )}
-                    aria-label="Sort drops"
-                  >
-                    {SORT_OPTIONS.map((option) => (
-                      <option key={option.value} value={option.value}>
-                        Sort: {option.label}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-              </div>
+              <FilterSelect
+                label="Status"
+                value={statusFilter}
+                onChange={(value) => setStatusFilter(value as StatusFilter)}
+                options={[
+                  { value: "all", label: "All" },
+                  { value: "live", label: "Minting" },
+                  { value: "soldout", label: "Sold Out" },
+                ]}
+                theme={theme}
+              />
             </div>
 
-            <div
-              className={clsx(
-                "overflow-hidden transition-all duration-300 ease-out",
-                showMobileFilters ? "mt-5 max-h-[720px] opacity-100" : "max-h-0 opacity-0 lg:mt-5 lg:max-h-[720px] lg:opacity-100"
-              )}
-            >
-              <div className="space-y-3">
-                <FilterRail label="Status" hint="Mint state" theme={theme}>
-                  <FilterChip active={statusFilter === "all"} onClick={() => setStatusFilter("all")} theme={theme}>All</FilterChip>
-                  <FilterChip active={statusFilter === "live"} onClick={() => setStatusFilter("live")} theme={theme}>Minting</FilterChip>
-                  <FilterChip active={statusFilter === "soldout"} onClick={() => setStatusFilter("soldout")} theme={theme}>Sold Out</FilterChip>
-                </FilterRail>
+            <div className="mt-3 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+              <FilterSelect
+                label="Mint Type"
+                value={priceFilter}
+                onChange={(value) => setPriceFilter(value as PriceFilter)}
+                options={[
+                  { value: "all", label: "Any" },
+                  { value: "free", label: "Free" },
+                  { value: "paid", label: "Paid" },
+                ]}
+                theme={theme}
+              />
 
-                <FilterRail label="Mint Type" hint="Price profile" theme={theme}>
-                  <FilterChip active={priceFilter === "all"} onClick={() => setPriceFilter("all")} theme={theme}>Any</FilterChip>
-                  <FilterChip active={priceFilter === "free"} onClick={() => setPriceFilter("free")} theme={theme}>Free</FilterChip>
-                  <FilterChip active={priceFilter === "paid"} onClick={() => setPriceFilter("paid")} theme={theme}>Paid</FilterChip>
-                </FilterRail>
+              <FilterSelect
+                label="Supply"
+                value={supplyFilter}
+                onChange={(value) => setSupplyFilter(value as SupplyFilter)}
+                options={[
+                  { value: "all", label: "Any" },
+                  { value: "limited", label: "Limited" },
+                  { value: "hot", label: "Hot" },
+                  { value: "open", label: "Large" },
+                ]}
+                theme={theme}
+              />
 
-                <FilterRail label="Supply" hint="Collection shape" theme={theme}>
-                  <FilterChip active={supplyFilter === "all"} onClick={() => setSupplyFilter("all")} theme={theme}>Any</FilterChip>
-                  <FilterChip active={supplyFilter === "limited"} onClick={() => setSupplyFilter("limited")} theme={theme}>Limited</FilterChip>
-                  <FilterChip active={supplyFilter === "hot"} onClick={() => setSupplyFilter("hot")} theme={theme}>Hot</FilterChip>
-                  <FilterChip active={supplyFilter === "open"} onClick={() => setSupplyFilter("open")} theme={theme}>Large</FilterChip>
-                </FilterRail>
-
-                <FilterRail label="Bags Layer" hint="Token hooks" theme={theme}>
-                  <FilterChip active={bagsFilter === "all"} onClick={() => setBagsFilter("all")} theme={theme}>Any</FilterChip>
-                  <FilterChip active={bagsFilter === "bags"} onClick={() => setBagsFilter("bags")} theme={theme}>Live token</FilterChip>
-                  <FilterChip active={bagsFilter === "token_gated"} onClick={() => setBagsFilter("token_gated")} theme={theme}>Token gated</FilterChip>
-                  <FilterChip active={bagsFilter === "fee_share"} onClick={() => setBagsFilter("fee_share")} theme={theme}>Fee share</FilterChip>
-                </FilterRail>
-              </div>
+              <FilterSelect
+                label="Bags"
+                value={bagsFilter}
+                onChange={(value) => setBagsFilter(value as BagsFilter)}
+                options={[
+                  { value: "all", label: "Any" },
+                  { value: "bags", label: "Live token" },
+                  { value: "token_gated", label: "Token gated" },
+                  { value: "fee_share", label: "Fee share" },
+                ]}
+                theme={theme}
+              />
             </div>
 
-            <div className="mt-5 flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
+            <div className={clsx("mt-4 flex flex-col gap-3 border-t pt-3 xl:flex-row xl:items-center xl:justify-between", theme === "dark" ? "border-white/[0.06]" : "border-gray-200")}>
               <div className="flex flex-wrap items-center gap-2">
-                {activeFilters.length > 0 ? activeFilters.map((filter) => (
-                  <span
-                    key={filter}
-                    className={clsx(
-                      "inline-flex items-center rounded-full border px-3 py-1.5 font-mono text-[11px]",
-                      theme === "dark"
-                        ? "border-cyan-500/20 bg-cyan-500/8 text-cyan-200"
-                        : "border-cyan-200 bg-cyan-50 text-cyan-700"
-                    )}
-                  >
-                    {filter}
-                  </span>
-                )) : (
+                {activeFilters.length > 0 ? (
+                  activeFilters.map((filter) => (
+                    <span
+                      key={filter}
+                      className={clsx(
+                        "inline-flex items-center rounded-full border px-2.5 py-1 font-mono text-[11px]",
+                        theme === "dark"
+                          ? "border-cyan-500/20 bg-cyan-500/[0.08] text-cyan-200"
+                          : "border-cyan-200 bg-cyan-50 text-cyan-700"
+                      )}
+                    >
+                      {filter}
+                    </span>
+                  ))
+                ) : (
                   <span className={clsx("font-mono text-[11px] uppercase tracking-[0.18em]", theme === "dark" ? "text-gray-600" : "text-gray-400")}>
                     No active filters
                   </span>
                 )}
               </div>
 
-              <div className="flex items-center gap-3">
-                <div className={clsx("font-mono text-[11px] uppercase tracking-[0.18em]", theme === "dark" ? "text-gray-500" : "text-gray-400")}>
-                  {filteredCollections.length} result{filteredCollections.length !== 1 ? "s" : ""}
-                </div>
-                {activeFilters.length > 0 && (
-                  <button
-                    onClick={clearAllFilters}
-                    className={clsx("rounded-full border px-3 py-1.5 font-mono text-[11px] uppercase tracking-[0.16em] transition-all", theme === "dark" ? "border-white/[0.08] text-gray-300 hover:bg-white/[0.05]" : "border-gray-200 text-gray-600 hover:bg-gray-50")}
-                  >
-                    Clear all
-                  </button>
-                )}
-              </div>
+              {activeFilters.length > 0 && (
+                <button
+                  onClick={clearAllFilters}
+                  className={clsx(
+                    "rounded-full border px-3 py-1.5 font-mono text-[11px] uppercase tracking-[0.16em] transition-all",
+                    theme === "dark"
+                      ? "border-white/[0.08] text-gray-300 hover:bg-white/[0.05]"
+                      : "border-gray-200 text-gray-600 hover:bg-gray-50"
+                  )}
+                >
+                  Clear all
+                </button>
+              )}
             </div>
           </div>
         </div>
@@ -515,58 +504,54 @@ function MetricCard({
   );
 }
 
-function FilterRail({
+function FilterSelect({
   label,
-  hint,
+  value,
+  onChange,
+  options,
   theme,
-  children,
+  icon,
 }: {
   label: string;
-  hint: string;
+  value: string;
+  onChange: (value: string) => void;
+  options: Array<{ value: string; label: string }>;
   theme: string;
-  children: ReactNode;
+  icon?: ReactNode;
 }) {
   return (
-    <div className={clsx("rounded-2xl border px-4 py-3", theme === "dark" ? "border-white/[0.06] bg-white/[0.025]" : "border-gray-200 bg-gray-50/80")}>
-      <div className="flex flex-col gap-3 md:flex-row md:items-center">
-        <div className="shrink-0 md:w-32">
-          <div className={clsx("font-mono text-[10px] uppercase tracking-[0.2em]", theme === "dark" ? "text-gray-500" : "text-gray-400")}>
-            {label}
-          </div>
-          <div className={clsx("mt-1 text-xs", theme === "dark" ? "text-gray-500" : "text-gray-500")}>
-            {hint}
-          </div>
-        </div>
-        <div className="flex flex-wrap gap-2">{children}</div>
-      </div>
-    </div>
-  );
-}
-
-function FilterChip({
-  active,
-  onClick,
-  theme,
-  children,
-}: {
-  active: boolean;
-  onClick: () => void;
-  theme: string;
-  children: ReactNode;
-}) {
-  return (
-    <button
-      onClick={onClick}
+    <label
       className={clsx(
-        "inline-flex items-center gap-2 rounded-full px-3 py-2 text-sm font-medium transition-all",
-        active
-          ? "bg-gradient-to-r from-cyan-500/90 to-blue-600 text-white shadow-[0_10px_30px_rgba(34,211,238,0.18)]"
-          : theme === "dark"
-            ? "border border-white/[0.05] bg-white/[0.03] text-gray-300 hover:bg-white/[0.06]"
-            : "border border-gray-200 bg-white text-gray-700 hover:bg-gray-100"
+        "relative flex items-center overflow-hidden rounded-xl border",
+        theme === "dark" ? "border-white/[0.06] bg-[#08111d]" : "border-gray-200 bg-white"
       )}
     >
-      {children}
-    </button>
+      {icon ? <div className="pointer-events-none absolute left-4">{icon}</div> : null}
+      <div
+        className={clsx(
+          "pointer-events-none absolute top-2 font-mono text-[9px] uppercase tracking-[0.2em]",
+          icon ? "left-11" : "left-4",
+          theme === "dark" ? "text-gray-500" : "text-gray-400"
+        )}
+      >
+        {label}
+      </div>
+      <select
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        className={clsx(
+          "w-full appearance-none bg-transparent pb-3 pt-6 text-sm font-medium outline-none",
+          icon ? "pl-11 pr-10" : "px-4 pr-10",
+          theme === "dark" ? "text-gray-200" : "text-gray-700"
+        )}
+        aria-label={label}
+      >
+        {options.map((option) => (
+          <option key={option.value} value={option.value}>
+            {option.label}
+          </option>
+        ))}
+      </select>
+    </label>
   );
 }
