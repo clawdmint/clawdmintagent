@@ -9,6 +9,7 @@ import {
   Clock3,
   Flame,
   Search,
+  SlidersHorizontal,
   Sparkles,
   Target,
   TrendingUp,
@@ -92,7 +93,7 @@ export default function DropsPage() {
   const [bagsFilter, setBagsFilter] = useState<BagsFilter>("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [sortBy, setSortBy] = useState<SortOption>("newest");
-  const [showSortDropdown, setShowSortDropdown] = useState(false);
+  const [showMobileFilters, setShowMobileFilters] = useState(false);
 
   useEffect(() => {
     async function fetchCollections() {
@@ -109,17 +110,6 @@ export default function DropsPage() {
 
     fetchCollections();
   }, []);
-
-  useEffect(() => {
-    function handleClick() {
-      setShowSortDropdown(false);
-    }
-
-    if (showSortDropdown) {
-      document.addEventListener("click", handleClick);
-      return () => document.removeEventListener("click", handleClick);
-    }
-  }, [showSortDropdown]);
 
   const metrics = useMemo(() => {
     const live = collections.filter((collection) => collection.status === "ACTIVE").length;
@@ -278,7 +268,7 @@ export default function DropsPage() {
           </div>
 
           <div className={clsx("rounded-[30px] border p-4 md:p-5", theme === "dark" ? "border-white/[0.08] bg-[#07111e]/80" : "border-gray-200 bg-white/90 shadow-[0_24px_60px_rgba(15,23,42,0.08)]")}>
-            <div className="flex flex-col gap-4 xl:flex-row xl:items-center">
+            <div className="flex flex-col gap-4 lg:flex-row lg:items-center">
               <div className="relative flex-1">
                 <Search className={clsx("absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2", theme === "dark" ? "text-gray-500" : "text-gray-400")} />
                 <input
@@ -304,84 +294,100 @@ export default function DropsPage() {
                 )}
               </div>
 
-              <div className="relative">
+              <div className="flex items-center gap-3">
                 <button
-                  onClick={(event) => {
-                    event.stopPropagation();
-                    setShowSortDropdown((open) => !open);
-                  }}
+                  onClick={() => setShowMobileFilters((open) => !open)}
                   className={clsx(
-                    "flex items-center gap-2 rounded-2xl border px-4 py-3 text-sm font-medium transition-all",
+                    "inline-flex items-center gap-2 rounded-2xl border px-4 py-3 text-sm font-medium transition-all lg:hidden",
                     theme === "dark"
                       ? "border-white/[0.06] bg-white/[0.03] hover:bg-white/[0.05]"
                       : "border-gray-200 bg-white hover:bg-gray-50"
                   )}
                 >
-                  <ArrowUpDown className="h-4 w-4 text-cyan-500" />
-                  {currentSortLabel}
+                  <SlidersHorizontal className="h-4 w-4 text-cyan-500" />
+                  Filters
+                  {activeFilters.length > 0 && (
+                    <span className={clsx("rounded-full px-2 py-0.5 font-mono text-[10px]", theme === "dark" ? "bg-cyan-500/10 text-cyan-300" : "bg-cyan-50 text-cyan-700")}>
+                      {activeFilters.length}
+                    </span>
+                  )}
                 </button>
 
-                {showSortDropdown && (
-                  <div className={clsx("absolute right-0 top-full z-20 mt-2 w-56 overflow-hidden rounded-2xl border shadow-xl", theme === "dark" ? "border-white/[0.08] bg-[#08111d]" : "border-gray-200 bg-white")}>
+                <label
+                  className={clsx(
+                    "relative flex min-w-[210px] items-center overflow-hidden rounded-2xl border",
+                    theme === "dark"
+                      ? "border-white/[0.06] bg-white/[0.03]"
+                      : "border-gray-200 bg-white"
+                  )}
+                >
+                  <ArrowUpDown className="pointer-events-none absolute left-4 h-4 w-4 text-cyan-500" />
+                  <select
+                    value={sortBy}
+                    onChange={(event) => setSortBy(event.target.value as SortOption)}
+                    className={clsx(
+                      "w-full appearance-none bg-transparent py-3 pl-11 pr-10 text-sm font-medium outline-none transition-all",
+                      theme === "dark" ? "text-gray-200" : "text-gray-700"
+                    )}
+                    aria-label="Sort drops"
+                  >
                     {SORT_OPTIONS.map((option) => (
-                      <button
-                        key={option.value}
-                        onClick={(event) => {
-                          event.stopPropagation();
-                          setSortBy(option.value);
-                          setShowSortDropdown(false);
-                        }}
-                        className={clsx(
-                          "w-full px-4 py-3 text-left text-sm transition-colors",
-                          sortBy === option.value
-                            ? theme === "dark"
-                              ? "bg-cyan-500/10 text-cyan-400"
-                              : "bg-cyan-50 text-cyan-700"
-                            : theme === "dark"
-                              ? "text-gray-300 hover:bg-white/[0.04]"
-                              : "text-gray-700 hover:bg-gray-50"
-                        )}
-                      >
-                        {option.label}
-                      </button>
+                      <option key={option.value} value={option.value}>
+                        Sort: {option.label}
+                      </option>
                     ))}
-                  </div>
-                )}
+                  </select>
+                </label>
               </div>
             </div>
 
-            <div className="mt-5 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-              <FilterGroup label="Status" theme={theme}>
-                <FilterChip active={statusFilter === "all"} onClick={() => setStatusFilter("all")} theme={theme}>All</FilterChip>
-                <FilterChip active={statusFilter === "live"} onClick={() => setStatusFilter("live")} theme={theme}>Minting</FilterChip>
-                <FilterChip active={statusFilter === "soldout"} onClick={() => setStatusFilter("soldout")} theme={theme}>Sold Out</FilterChip>
-              </FilterGroup>
+            <div
+              className={clsx(
+                "overflow-hidden transition-all duration-300 ease-out",
+                showMobileFilters ? "mt-5 max-h-[720px] opacity-100" : "max-h-0 opacity-0 lg:mt-5 lg:max-h-[720px] lg:opacity-100"
+              )}
+            >
+              <div className="space-y-3">
+                <FilterRail label="Status" hint="Mint state" theme={theme}>
+                  <FilterChip active={statusFilter === "all"} onClick={() => setStatusFilter("all")} theme={theme}>All</FilterChip>
+                  <FilterChip active={statusFilter === "live"} onClick={() => setStatusFilter("live")} theme={theme}>Minting</FilterChip>
+                  <FilterChip active={statusFilter === "soldout"} onClick={() => setStatusFilter("soldout")} theme={theme}>Sold Out</FilterChip>
+                </FilterRail>
 
-              <FilterGroup label="Mint Type" theme={theme}>
-                <FilterChip active={priceFilter === "all"} onClick={() => setPriceFilter("all")} theme={theme}>Any</FilterChip>
-                <FilterChip active={priceFilter === "free"} onClick={() => setPriceFilter("free")} theme={theme}>Free</FilterChip>
-                <FilterChip active={priceFilter === "paid"} onClick={() => setPriceFilter("paid")} theme={theme}>Paid</FilterChip>
-              </FilterGroup>
+                <FilterRail label="Mint Type" hint="Price profile" theme={theme}>
+                  <FilterChip active={priceFilter === "all"} onClick={() => setPriceFilter("all")} theme={theme}>Any</FilterChip>
+                  <FilterChip active={priceFilter === "free"} onClick={() => setPriceFilter("free")} theme={theme}>Free</FilterChip>
+                  <FilterChip active={priceFilter === "paid"} onClick={() => setPriceFilter("paid")} theme={theme}>Paid</FilterChip>
+                </FilterRail>
 
-              <FilterGroup label="Supply Shape" theme={theme}>
-                <FilterChip active={supplyFilter === "all"} onClick={() => setSupplyFilter("all")} theme={theme}>Any</FilterChip>
-                <FilterChip active={supplyFilter === "limited"} onClick={() => setSupplyFilter("limited")} theme={theme}>Limited</FilterChip>
-                <FilterChip active={supplyFilter === "hot"} onClick={() => setSupplyFilter("hot")} theme={theme}>Hot</FilterChip>
-                <FilterChip active={supplyFilter === "open"} onClick={() => setSupplyFilter("open")} theme={theme}>Large</FilterChip>
-              </FilterGroup>
+                <FilterRail label="Supply" hint="Collection shape" theme={theme}>
+                  <FilterChip active={supplyFilter === "all"} onClick={() => setSupplyFilter("all")} theme={theme}>Any</FilterChip>
+                  <FilterChip active={supplyFilter === "limited"} onClick={() => setSupplyFilter("limited")} theme={theme}>Limited</FilterChip>
+                  <FilterChip active={supplyFilter === "hot"} onClick={() => setSupplyFilter("hot")} theme={theme}>Hot</FilterChip>
+                  <FilterChip active={supplyFilter === "open"} onClick={() => setSupplyFilter("open")} theme={theme}>Large</FilterChip>
+                </FilterRail>
 
-              <FilterGroup label="Bags Layer" theme={theme}>
-                <FilterChip active={bagsFilter === "all"} onClick={() => setBagsFilter("all")} theme={theme}>Any</FilterChip>
-                <FilterChip active={bagsFilter === "bags"} onClick={() => setBagsFilter("bags")} theme={theme}>Live token</FilterChip>
-                <FilterChip active={bagsFilter === "token_gated"} onClick={() => setBagsFilter("token_gated")} theme={theme}>Token gated</FilterChip>
-                <FilterChip active={bagsFilter === "fee_share"} onClick={() => setBagsFilter("fee_share")} theme={theme}>Fee share</FilterChip>
-              </FilterGroup>
+                <FilterRail label="Bags Layer" hint="Token hooks" theme={theme}>
+                  <FilterChip active={bagsFilter === "all"} onClick={() => setBagsFilter("all")} theme={theme}>Any</FilterChip>
+                  <FilterChip active={bagsFilter === "bags"} onClick={() => setBagsFilter("bags")} theme={theme}>Live token</FilterChip>
+                  <FilterChip active={bagsFilter === "token_gated"} onClick={() => setBagsFilter("token_gated")} theme={theme}>Token gated</FilterChip>
+                  <FilterChip active={bagsFilter === "fee_share"} onClick={() => setBagsFilter("fee_share")} theme={theme}>Fee share</FilterChip>
+                </FilterRail>
+              </div>
             </div>
 
             <div className="mt-5 flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
               <div className="flex flex-wrap items-center gap-2">
                 {activeFilters.length > 0 ? activeFilters.map((filter) => (
-                  <span key={filter} className={clsx("inline-flex items-center rounded-full px-3 py-1 font-mono text-[11px]", theme === "dark" ? "bg-cyan-500/10 text-cyan-300" : "bg-cyan-50 text-cyan-700")}>
+                  <span
+                    key={filter}
+                    className={clsx(
+                      "inline-flex items-center rounded-full border px-3 py-1.5 font-mono text-[11px]",
+                      theme === "dark"
+                        ? "border-cyan-500/20 bg-cyan-500/8 text-cyan-200"
+                        : "border-cyan-200 bg-cyan-50 text-cyan-700"
+                    )}
+                  >
                     {filter}
                   </span>
                 )) : (
@@ -509,21 +515,30 @@ function MetricCard({
   );
 }
 
-function FilterGroup({
+function FilterRail({
   label,
+  hint,
   theme,
   children,
 }: {
   label: string;
+  hint: string;
   theme: string;
   children: ReactNode;
 }) {
   return (
-    <div className={clsx("rounded-2xl border p-3", theme === "dark" ? "border-white/[0.06] bg-white/[0.03]" : "border-gray-200 bg-gray-50")}>
-      <div className={clsx("mb-3 font-mono text-[10px] uppercase tracking-[0.2em]", theme === "dark" ? "text-gray-500" : "text-gray-400")}>
-        {label}
+    <div className={clsx("rounded-2xl border px-4 py-3", theme === "dark" ? "border-white/[0.06] bg-white/[0.025]" : "border-gray-200 bg-gray-50/80")}>
+      <div className="flex flex-col gap-3 md:flex-row md:items-center">
+        <div className="shrink-0 md:w-32">
+          <div className={clsx("font-mono text-[10px] uppercase tracking-[0.2em]", theme === "dark" ? "text-gray-500" : "text-gray-400")}>
+            {label}
+          </div>
+          <div className={clsx("mt-1 text-xs", theme === "dark" ? "text-gray-500" : "text-gray-500")}>
+            {hint}
+          </div>
+        </div>
+        <div className="flex flex-wrap gap-2">{children}</div>
       </div>
-      <div className="flex flex-wrap gap-2">{children}</div>
     </div>
   );
 }
@@ -543,12 +558,12 @@ function FilterChip({
     <button
       onClick={onClick}
       className={clsx(
-        "inline-flex items-center gap-2 rounded-full px-3 py-2 text-sm transition-all",
+        "inline-flex items-center gap-2 rounded-full px-3 py-2 text-sm font-medium transition-all",
         active
-          ? "bg-gradient-to-r from-cyan-500 to-blue-600 text-white shadow-lg shadow-cyan-500/20"
+          ? "bg-gradient-to-r from-cyan-500/90 to-blue-600 text-white shadow-[0_10px_30px_rgba(34,211,238,0.18)]"
           : theme === "dark"
-            ? "bg-white/[0.04] text-gray-300 hover:bg-white/[0.06]"
-            : "bg-white text-gray-700 shadow-sm hover:bg-gray-100"
+            ? "border border-white/[0.05] bg-white/[0.03] text-gray-300 hover:bg-white/[0.06]"
+            : "border border-gray-200 bg-white text-gray-700 hover:bg-gray-100"
       )}
     >
       {children}

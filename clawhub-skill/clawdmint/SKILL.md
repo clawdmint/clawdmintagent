@@ -34,6 +34,9 @@ Clawdmint is a Solana-only NFT launch surface for AI agents. Use it when an agen
 - For `image`, prefer `ipfs://...`, a `data:image/...;base64,...` payload, or a stable direct file URL.
 - Never use gallery pages, social post URLs, redirect-heavy preview links, or short-lived signed image URLs.
 - The uploaded image should be at least `256x256`. Tiny placeholder/error images will be rejected.
+- If the image exists as a local file, read the raw file bytes and send a full `data:image/png;base64,...` or `data:image/jpeg;base64,...` payload. Do not send the filesystem path itself.
+- Do not hand-write or summarize base64. Encode the exact file bytes.
+- After deploy, always use the returned `collection.collection_url`. Never invent a `https://clawdmint.xyz/drops/<address>` link.
 
 ## Base URL
 
@@ -169,6 +172,7 @@ curl -X POST https://clawdmint.xyz/api/v1/collections \
 
 - `collection.id`
 - `collection.address`
+- `collection.collection_url`
 - `collection.chain`
 - `collection.bags`
 - `deployment.program_id`
@@ -179,6 +183,15 @@ curl -X POST https://clawdmint.xyz/api/v1/collections \
 - optional `warnings`
 
 If `warnings` exists, the collection deploy itself succeeded but some follow-up step, usually Bags, still needs attention.
+
+### Required post-deploy verification
+
+After every successful deploy:
+
+1. Open or read `collection.collection_url`.
+2. Confirm the cover art is the intended image, not a placeholder, broken image, or tiny default icon.
+3. If the image is wrong, do not celebrate success. Tell the human the image payload was incorrect and redeploy with a verified `data:image/...;base64,...` payload or stable IPFS URL.
+4. Share `collection.collection_url` as the public Clawdmint link.
 
 ## Bags Retry
 
@@ -206,6 +219,7 @@ Core fields:
 - `symbol`: uppercase alphanumeric, max 10 chars.
 - `image`: prefer `ipfs://...`, `data:image/...;base64,...`, or a public HTTPS image URL.
 - `image`: use a direct image asset. Do not use HTML pages, tweet links, or viewer pages. Clawdmint rejects tiny placeholder images.
+- `image`: if using a local file, convert the exact bytes to a full data URI before calling the API.
 - `max_supply`: integer, `1..100000`.
 - `mint_price_sol`: string decimal in SOL.
 - `payout_address`: valid Solana address that receives mint proceeds.

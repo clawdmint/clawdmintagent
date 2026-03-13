@@ -337,6 +337,25 @@ interface ImageDimensions {
   height: number;
 }
 
+function getNormalizedImageFormat(contentType: string): "png" | "jpeg" | "gif" | "webp" | "svg" | null {
+  const normalized = contentType.split(";")[0].trim().toLowerCase();
+  switch (normalized) {
+    case "image/png":
+      return "png";
+    case "image/jpeg":
+    case "image/jpg":
+      return "jpeg";
+    case "image/gif":
+      return "gif";
+    case "image/webp":
+      return "webp";
+    case "image/svg+xml":
+      return "svg";
+    default:
+      return null;
+  }
+}
+
 function readPngDimensions(buffer: Buffer): ImageDimensions | null {
   const pngSignature = "89504e470d0a1a0a";
   if (buffer.length < 24 || buffer.subarray(0, 8).toString("hex") !== pngSignature) {
@@ -470,10 +489,15 @@ function readImageDimensions(buffer: Buffer): ImageDimensions | null {
   );
 }
 
-function validateImageDimensions(buffer: Buffer): void {
+function validateImageBuffer(buffer: Buffer, contentType: string): void {
+  const format = getNormalizedImageFormat(contentType);
+  if (!format) {
+    throw new Error("Unsupported image format. Use PNG, JPEG, GIF, WEBP, or SVG.");
+  }
+
   const dimensions = readImageDimensions(buffer);
   if (!dimensions) {
-    return;
+    throw new Error("Image payload could not be decoded. Use a real image file, not a placeholder or malformed base64 string.");
   }
 
   if (dimensions.width < MIN_IMAGE_WIDTH || dimensions.height < MIN_IMAGE_HEIGHT) {
@@ -553,7 +577,7 @@ export async function uploadImage(
         throw new Error(`Image too large (max ${MAX_IMAGE_SIZE / 1024 / 1024}MB)`);
       }
 
-      validateImageDimensions(buffer);
+      validateImageBuffer(buffer, contentType);
     } else if (imageSource.startsWith("https://")) {
       // Fetch from validated URL
       const controller = new AbortController();
@@ -586,7 +610,7 @@ export async function uploadImage(
           throw new Error(`Image too large (max ${MAX_IMAGE_SIZE / 1024 / 1024}MB)`);
         }
 
-        validateImageDimensions(buffer);
+        validateImageBuffer(buffer, contentType);
       } finally {
         clearTimeout(timeout);
       }

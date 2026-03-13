@@ -21,6 +21,7 @@ export const dynamic = "force-dynamic";
 
 export async function POST(request: NextRequest) {
   try {
+    const appUrl = process.env["NEXT_PUBLIC_APP_URL"] || "https://clawdmint.xyz";
     const bodyText = await request.text();
     const auth = await verifyHmacAuth(request, bodyText);
     if (!auth.success) {
@@ -124,6 +125,7 @@ export async function POST(request: NextRequest) {
         id: collection.id,
         chain: collection.chain,
         address: manifest.collection_address,
+        collection_url: `${appUrl}/collection/${manifest.collection_address}`,
         name: collection.name,
         symbol: collection.symbol,
         max_supply: collection.maxSupply,

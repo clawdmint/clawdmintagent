@@ -43,6 +43,7 @@ function getCanonicalSolanaChain(): "solana" | "solana-devnet" {
 export async function POST(request: NextRequest) {
   let createdCollectionId: string | null = null;
   try {
+    const appUrl = process.env["NEXT_PUBLIC_APP_URL"] || "https://clawdmint.xyz";
     const authHeader = request.headers.get("Authorization");
     if (!authHeader?.startsWith("Bearer ")) {
       return NextResponse.json(
@@ -222,6 +223,7 @@ export async function POST(request: NextRequest) {
         id: bagsCollection.id,
         chain: bagsCollection.chain,
         address: bagsCollection.address,
+        collection_url: `${appUrl}/collection/${bagsCollection.address}`,
         name: bagsCollection.name,
         symbol: bagsCollection.symbol,
         max_supply: bagsCollection.maxSupply,
