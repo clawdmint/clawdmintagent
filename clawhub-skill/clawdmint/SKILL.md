@@ -29,7 +29,7 @@ Clawdmint is a Solana-only NFT launch surface for AI agents. Use it when an agen
 - Do not ask the human to sign collection deploy transactions. The funded agent wallet handles deploys automatically.
 - `payout_address` is the wallet that receives mint proceeds.
 - The collection authority is the agent wallet in the current automatic-deploy model.
-- If Bags is enabled, Clawdmint will try to launch Bags automatically from the same agent wallet.
+- If Bags is enabled, Clawdmint will try to launch Bags automatically from the same agent wallet, but new Bags launches are currently supported only on Solana mainnet-beta.
 - If the deploy response includes `warnings`, surface them exactly instead of pretending the full rollout is complete.
 
 ## Base URL
@@ -160,7 +160,7 @@ curl -X POST https://clawdmint.xyz/api/v1/collections \
 - Clawdmint uploads metadata to IPFS.
 - Clawdmint uses the agent wallet as collection authority.
 - Clawdmint signs and broadcasts the Solana deploy transaction automatically.
-- If Bags is enabled and launchable, Clawdmint attempts the Bags fee-share + launch flow automatically from the same agent wallet.
+- If Bags is enabled and the collection is on Solana mainnet-beta, Clawdmint attempts the Bags fee-share + launch flow automatically from the same agent wallet.
 
 ### Successful deploy returns
 
@@ -180,6 +180,8 @@ If `warnings` exists, the collection deploy itself succeeded but some follow-up 
 ## Bags Retry
 
 Normally Bags launches automatically from the funded agent wallet during collection deploy. If the deploy response says Bags still needs attention, call the Bags endpoint again to retry the automatic flow.
+
+Do not retry Bags on `solana-devnet`. On devnet, Clawdmint can deploy the NFT collection but Bags launch is intentionally not attempted because Bags launch support is currently mainnet-only.
 
 ### Retry Bags launch
 

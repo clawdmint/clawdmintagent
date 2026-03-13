@@ -18,6 +18,7 @@ import {
 import {
   formatCollectionMintPrice,
   getCollectionNativeToken,
+  isBagsLaunchSupportedChain,
   SOLANA_COLLECTION_CHAINS,
 } from "@/lib/collection-chains";
 import { buildSolanaDeploymentManifest } from "@/lib/solana-collections";
@@ -179,7 +180,8 @@ export async function POST(request: NextRequest) {
     const warnings: string[] = [];
     let bagsCollection = collection;
     let bags = buildCollectionBagsView(collection);
-    if (bags && bags.status !== "DISABLED" && !bags.token_address) {
+    const bagsLaunchSupported = isBagsLaunchSupportedChain(collection.chain);
+    if (bags && bags.status !== "DISABLED" && !bags.token_address && bagsLaunchSupported) {
       try {
         const preparedBags = await prepareCollectionBagsLaunch(agent.id, { collection_id: collection.id });
         const signedBags = await signAndBroadcastBagsTransactions(
@@ -210,6 +212,8 @@ export async function POST(request: NextRequest) {
           })) || collection;
         bags = buildCollectionBagsView(bagsCollection);
       }
+    } else if (bags && bags.status !== "DISABLED" && !bags.token_address && !bagsLaunchSupported) {
+      warnings.push("Bags launch is only supported on Solana mainnet-beta right now.");
     }
 
     return NextResponse.json({
@@ -244,9 +248,16 @@ export async function POST(request: NextRequest) {
       bags_community: bags
         ? {
             status: bags.status,
-            launch_required: !bags.token_address,
-            prepare_endpoint: !bags.token_address ? "/api/v1/collections/bags" : null,
-            confirm_endpoint: !bags.token_address ? "/api/v1/collections/bags/confirm" : null,
+            launch_supported: bags.token_address ? true : bagsLaunchSupported,
+            unsupported_reason:
+              !bags.token_address && !bagsLaunchSupported
+                ? "Bags launch is only supported on Solana mainnet-beta right now."
+                : null,
+            launch_required: !bags.token_address && bagsLaunchSupported,
+            prepare_endpoint:
+              !bags.token_address && bagsLaunchSupported ? "/api/v1/collections/bags" : null,
+            confirm_endpoint:
+              !bags.token_address && bagsLaunchSupported ? "/api/v1/collections/bags/confirm" : null,
           }
         : null,
       warnings: warnings.length > 0 ? warnings : undefined,

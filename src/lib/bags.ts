@@ -18,7 +18,7 @@ export interface BagsTokenInfoRequest {
 export interface BagsPreparedTokenInfo {
   tokenMint: string;
   tokenMetadata?: string | null;
-  tokenLaunch?: string | null;
+  tokenLaunch?: Record<string, unknown> | string | null;
   ipfs?: string | null;
   metadataUri?: string | null;
 }
@@ -77,11 +77,13 @@ function getBagsApiKey(): string {
 }
 
 async function bagsFetch<T>(path: string, init?: RequestInit): Promise<T> {
+  const isFormDataBody =
+    typeof FormData !== "undefined" && init?.body instanceof FormData;
   const response = await fetch(`${getBagsApiBaseUrl()}${path}`, {
     ...init,
     headers: {
-      "Content-Type": "application/json",
       "x-api-key": getBagsApiKey(),
+      ...(isFormDataBody ? {} : { "Content-Type": "application/json" }),
       ...(init?.headers || {}),
     },
   });
@@ -138,6 +140,63 @@ function extractStringArrayValue(payload: Record<string, unknown>, keys: string[
   return [];
 }
 
+function extractObjectValue(payload: Record<string, unknown>, keys: string[]): Record<string, unknown> | null {
+  const candidates = getPayloadCandidates(payload);
+  for (const candidate of candidates) {
+    for (const key of keys) {
+      const value = candidate[key];
+      if (value && typeof value === "object" && !Array.isArray(value)) {
+        return value as Record<string, unknown>;
+      }
+    }
+  }
+
+  return null;
+}
+
+function extractSerializedTransactions(payload: Record<string, unknown>, keys: string[]): string[] {
+  const candidates = getPayloadCandidates(payload);
+  for (const candidate of candidates) {
+    for (const key of keys) {
+      const value = candidate[key];
+      if (!Array.isArray(value)) {
+        continue;
+      }
+
+      const transactions = value.flatMap((entry) => {
+        if (typeof entry === "string" && entry.length > 0) {
+          return [entry];
+        }
+
+        if (entry && typeof entry === "object") {
+          const entryRecord = entry as Record<string, unknown>;
+          const transaction = extractStringValue(entryRecord, [
+            "transaction",
+            "serializedTransaction",
+            "serialized_transaction",
+          ]);
+          if (transaction) {
+            return [transaction];
+          }
+
+          const nestedTransactions = extractSerializedTransactions(entryRecord, ["transactions"]);
+          if (nestedTransactions.length > 0) {
+            return nestedTransactions;
+          }
+        }
+
+        return [];
+      });
+
+      if (transactions.length > 0) {
+        return transactions;
+      }
+    }
+  }
+
+  return [];
+}
+
 function tryParseSerializedTransaction(bytes: Buffer): boolean {
   try {
     VersionedTransaction.deserialize(bytes);
@@ -172,23 +231,45 @@ function normalizeSerializedTransaction(serialized: string): string {
 }
 
 export async function createBagsTokenInfo(input: BagsTokenInfoRequest): Promise<BagsPreparedTokenInfo> {
+  const formData = new FormData();
+  formData.append("name", input.name);
+  formData.append("symbol", input.symbol);
+  formData.append("imageUrl", input.image);
+  if (input.description) {
+    formData.append("description", input.description);
+  }
+  if (input.website) {
+    formData.append("website", input.website);
+  }
+  if (input.twitter) {
+    formData.append("twitter", input.twitter);
+  }
+  if (input.telegram) {
+    formData.append("telegram", input.telegram);
+  }
+
   const payload = await bagsFetch<Record<string, unknown>>("/api/v1/token-launch/create-token-info", {
     method: "POST",
-    body: JSON.stringify({
-      name: input.name,
-      symbol: input.symbol,
-      image: input.image,
-      description: input.description || undefined,
-      website: input.website || undefined,
-      twitter: input.twitter || undefined,
-      telegram: input.telegram || undefined,
-    }),
+    body: formData,
   });
 
   const tokenMint = extractStringValue(payload, ["tokenMint", "token_mint"]);
-  const tokenMetadata = extractStringValue(payload, ["tokenMetadata", "token_metadata"]);
-  const tokenLaunch = extractStringValue(payload, ["tokenLaunch", "token_launch"]);
-  const ipfs = extractStringValue(payload, ["ipfs", "metadataUri", "metadata_uri", "uri"]);
+  const tokenMetadata = extractStringValue(payload, [
+    "tokenMetadata",
+    "token_metadata",
+    "metadataUrl",
+    "metadata_url",
+  ]);
+  const tokenLaunch =
+    extractObjectValue(payload, ["tokenLaunch", "token_launch"]) ??
+    extractStringValue(payload, ["tokenLaunch", "token_launch"]);
+  const tokenLaunchRecord =
+    tokenLaunch && typeof tokenLaunch === "object" && !Array.isArray(tokenLaunch)
+      ? (tokenLaunch as Record<string, unknown>)
+      : null;
+  const ipfs =
+    extractStringValue(payload, ["ipfs", "metadataUri", "metadata_uri", "uri"]) ||
+    extractStringValue(tokenLaunchRecord || {}, ["uri", "ipfs", "metadataUri", "metadata_uri"]);
 
   if (!tokenMint) {
     throw new Error("Unexpected Bags token-info response");
@@ -251,18 +332,34 @@ export async function createBagsFeeShareConfig(input: {
     }),
   });
 
-  const configKey = extractStringValue(payload, ["configKey", "config_key"]);
-  const transactions = extractStringArrayValue(payload, ["transactions"]);
-  const transactionBundleIds = extractStringArrayValue(payload, ["transactionBundleIds", "transaction_bundle_ids"]);
+  const configKey = extractStringValue(payload, [
+    "configKey",
+    "config_key",
+    "meteoraConfigKey",
+    "meteora_config_key",
+  ]);
+  const transactions = extractSerializedTransactions(payload, ["transactions"]);
+  const bundledTransactions = extractSerializedTransactions(payload, ["bundles"]);
+  const transactionBundleIds = extractStringArrayValue(payload, [
+    "transactionBundleIds",
+    "transaction_bundle_ids",
+    "bundleIds",
+    "bundle_ids",
+  ]);
 
   if (!configKey) {
     throw new Error("Unexpected Bags fee-share response");
   }
 
+  const allTransactions = [...transactions, ...bundledTransactions];
+  if (allTransactions.length === 0) {
+    throw new Error("Bags fee-share response did not include signable transactions");
+  }
+
   return {
     configKey,
-    transactions,
-    transactionsBase64: transactions.map(normalizeSerializedTransaction),
+    transactions: allTransactions,
+    transactionsBase64: allTransactions.map(normalizeSerializedTransaction),
     transactionBundleIds,
   };
 }
@@ -270,16 +367,17 @@ export async function createBagsFeeShareConfig(input: {
 export async function createBagsLaunchTransaction(
   input: BagsLaunchRequest
 ): Promise<BagsPreparedLaunchTransaction> {
+  const parsedInitialBuyLamports = Number(input.initialBuyLamports);
   const payload = await bagsFetch<Record<string, unknown>>("/api/v1/token-launch/create-launch-transaction", {
     method: "POST",
     body: JSON.stringify({
       tokenMint: input.tokenMint,
-      tokenMetadata: input.tokenMetadata || input.ipfs || undefined,
-      tokenLaunch: input.tokenLaunch || undefined,
       ipfs: input.ipfs || input.tokenMetadata || undefined,
       wallet: input.wallet,
       configKey: input.configKey || undefined,
-      initialBuyLamports: input.initialBuyLamports,
+      initialBuyLamports: Number.isSafeInteger(parsedInitialBuyLamports)
+        ? parsedInitialBuyLamports
+        : input.initialBuyLamports,
     }),
   });
 

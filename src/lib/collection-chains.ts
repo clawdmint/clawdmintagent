@@ -32,6 +32,10 @@ export function isSolanaCollectionChain(chain?: string | null): boolean {
   return getNetworkFromValue(chain).family === "solana";
 }
 
+export function isBagsLaunchSupportedChain(chain?: string | null): boolean {
+  return normalizeCollectionChain(chain) === "solana";
+}
+
 export function isEvmCollectionChain(chain?: string | null): boolean {
   return getNetworkFromValue(chain).family === "evm";
 }

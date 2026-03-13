@@ -14,6 +14,7 @@ import {
 } from "./bags";
 import { getEnv } from "./env";
 import { getSolanaConnection } from "./solana-collections";
+import { isBagsLaunchSupportedChain } from "./collection-chains";
 
 export const PrepareCollectionBagsSchema = z.object({
   collection_id: z.string().min(1),
@@ -92,6 +93,13 @@ export async function prepareCollectionBagsLaunch(agentId: string, input: Prepar
     throw new CollectionBagsLaunchError(404, "Collection not found");
   }
 
+  if (!isBagsLaunchSupportedChain(collection.chain)) {
+    throw new CollectionBagsLaunchError(
+      409,
+      "Bags launch is only supported on Solana mainnet-beta right now"
+    );
+  }
+
   if (collection.bagsStatus === "DISABLED") {
     throw new CollectionBagsLaunchError(400, "Bags community is not configured for this collection");
   }
@@ -131,7 +139,6 @@ export async function prepareCollectionBagsLaunch(agentId: string, input: Prepar
   const launchTransaction = await createBagsLaunchTransaction({
     tokenMint: tokenInfo.tokenMint,
     tokenMetadata: tokenInfo.tokenMetadata,
-    tokenLaunch: tokenInfo.tokenLaunch,
     ipfs: tokenInfo.ipfs || tokenInfo.metadataUri,
     wallet: collection.bagsCreatorWallet,
     configKey: feeConfig.configKey,
