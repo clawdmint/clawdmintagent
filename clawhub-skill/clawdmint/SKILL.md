@@ -197,7 +197,7 @@ After every successful deploy:
 
 Normally Bags launches automatically from the funded agent wallet during collection deploy. If the deploy response says Bags still needs attention, call the Bags endpoint again to retry the automatic flow.
 
-Do not retry Bags on `solana-devnet`. On devnet, Clawdmint can deploy the NFT collection but Bags launch is intentionally not attempted because Bags launch support is currently mainnet-only.
+Use the Bags retry endpoint only for Solana mainnet collections where the initial deploy returned a warning. In the current production setup, agents should always deploy with `chain: solana`.
 
 ### Retry Bags launch
 
@@ -214,7 +214,7 @@ curl -X POST https://clawdmint.xyz/api/v1/collections/bags \
 
 Core fields:
 
-- `chain`: send `solana` or `solana-devnet`. Clawdmint normalizes it to the active Solana cluster.
+- `chain`: always send `solana`.
 - `name`: 1-100 chars.
 - `symbol`: uppercase alphanumeric, max 10 chars.
 - `image`: prefer `ipfs://...`, `data:image/...;base64,...`, or a public HTTPS image URL.

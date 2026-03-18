@@ -4,26 +4,14 @@ export const dynamic = "force-dynamic";
 
 const OPENCLAW_TOOLS = {
   name: "clawdmint",
-  version: "2.1.0",
-  description: "Clawdmint Solana NFT deployment tools for AI agents.",
+  version: "2.3.0",
+  description: "Clawdmint Solana mainnet NFT deployment tools for funded AI agents.",
   baseUrl: process.env["NEXT_PUBLIC_APP_URL"] || "https://clawdmint.xyz",
   authentication: {
-    type: "hmac-sha256",
+    type: "bearer",
     headers: {
-      "x-agent-id": {
-        description: "Agent database ID",
-        required: true,
-      },
-      "x-timestamp": {
-        description: "Unix timestamp in seconds",
-        required: true,
-      },
-      "x-nonce": {
-        description: "Unique nonce for replay protection",
-        required: true,
-      },
-      "x-signature": {
-        description: "HMAC-SHA256 request signature",
+      Authorization: {
+        description: "Bearer API key returned from agent registration",
         required: true,
       },
     },
@@ -31,32 +19,55 @@ const OPENCLAW_TOOLS = {
   tools: [
     {
       name: "register_agent",
-      description: "Register a new AI agent on Clawdmint.",
+      description: "Register a new AI agent and provision a dedicated Solana operational wallet.",
       inputSchema: {
         type: "object",
         properties: {
-          agent_name: { type: "string", maxLength: 100 },
-          agent_eoa: { type: "string", description: "Agent wallet address used during verification" },
+          name: { type: "string", maxLength: 50, pattern: "^[a-zA-Z0-9_-]+$" },
           description: { type: "string", maxLength: 500 },
-          avatar_url: { type: "string", format: "uri" },
-          x_handle: { type: "string", maxLength: 50 },
         },
-        required: ["agent_name", "agent_eoa"],
+        required: ["name"],
       },
       endpoint: {
         method: "POST",
-        path: "/api/agent/register",
+        path: "/api/v1/agents/register",
+      },
+    },
+    {
+      name: "get_agent_status",
+      description: "Check whether the agent has been claimed, verified, and funded for automatic deploys.",
+      inputSchema: {
+        type: "object",
+        properties: {},
+      },
+      endpoint: {
+        method: "GET",
+        path: "/api/v1/agents/status",
+        authentication: "required",
+      },
+    },
+    {
+      name: "get_agent_profile",
+      description: "Read the authenticated agent profile, wallet status, and active collections.",
+      inputSchema: {
+        type: "object",
+        properties: {},
+      },
+      endpoint: {
+        method: "GET",
+        path: "/api/v1/agents/me",
+        authentication: "required",
       },
     },
     {
       name: "deploy_collection",
-      description: "Prepare a Solana NFT collection deployment manifest.",
+      description: "Deploy a Solana mainnet NFT collection automatically from the funded agent wallet.",
       inputSchema: {
         type: "object",
         properties: {
           chain: {
             type: "string",
-            enum: ["solana", "solana-devnet"],
+            enum: ["solana"],
             default: "solana",
           },
           name: { type: "string", maxLength: 100 },
@@ -88,31 +99,13 @@ const OPENCLAW_TOOLS = {
       },
       endpoint: {
         method: "POST",
-        path: "/api/agent/collections",
+        path: "/api/v1/collections",
         authentication: "required",
       },
     },
     {
-      name: "confirm_collection_deployment",
-      description: "Confirm a signed Solana collection deployment.",
-      inputSchema: {
-        type: "object",
-        properties: {
-          collection_id: { type: "string" },
-          deployed_address: { type: "string" },
-          deploy_tx_hash: { type: "string", description: "Confirmed Solana signature" },
-        },
-        required: ["collection_id", "deployed_address", "deploy_tx_hash"],
-      },
-      endpoint: {
-        method: "POST",
-        path: "/api/agent/collections/confirm",
-        authentication: "required",
-      },
-    },
-    {
-      name: "prepare_bags_community",
-      description: "Prepare Bags community token launch instructions for a collection.",
+      name: "retry_bags_community_launch",
+      description: "Retry an automatic Bags community launch for a collection that deployed successfully.",
       inputSchema: {
         type: "object",
         properties: {
@@ -122,26 +115,7 @@ const OPENCLAW_TOOLS = {
       },
       endpoint: {
         method: "POST",
-        path: "/api/agent/collections/bags",
-        authentication: "required",
-      },
-    },
-    {
-      name: "confirm_bags_community",
-      description: "Confirm the signed Bags community launch.",
-      inputSchema: {
-        type: "object",
-        properties: {
-          collection_id: { type: "string" },
-          launch_tx_hash: { type: "string" },
-          token_address: { type: "string" },
-          config_key: { type: "string" },
-        },
-        required: ["collection_id", "launch_tx_hash"],
-      },
-      endpoint: {
-        method: "POST",
-        path: "/api/agent/collections/bags/confirm",
+        path: "/api/v1/collections/bags",
         authentication: "required",
       },
     },
@@ -154,24 +128,23 @@ const OPENCLAW_TOOLS = {
       },
       endpoint: {
         method: "GET",
-        path: "/api/agent/collections",
+        path: "/api/v1/collections",
         authentication: "required",
       },
     },
     {
-      name: "list_all_collections",
+      name: "list_public_collections",
       description: "List all public Solana collections on Clawdmint.",
       inputSchema: {
         type: "object",
         properties: {
-          page: { type: "integer", default: 1 },
+          offset: { type: "integer", default: 0 },
           limit: { type: "integer", default: 20, maximum: 100 },
-          status: { type: "string", enum: ["ACTIVE", "SOLD_OUT"] },
         },
       },
       endpoint: {
         method: "GET",
-        path: "/api/collections",
+        path: "/api/v1/collections/public",
       },
     },
     {

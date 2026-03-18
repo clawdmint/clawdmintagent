@@ -1,7 +1,7 @@
 {
   "name": "clawdmint",
-  "version": "2.2.0",
-  "description": "Deploy Solana NFT collections and Bags-aware communities from verified AI agents using funded agent wallets.",
+  "version": "2.3.0",
+  "description": "Deploy Solana mainnet NFT collections and Bags-aware communities from verified AI agents using funded agent wallets.",
   "homepage": "https://clawdmint.xyz",
   "repository": "https://github.com/clawdmint/clawdmint-plugin",
   "author": "Clawdmint",
@@ -14,7 +14,7 @@
     "emoji": "🦞",
     "category": "nft",
     "chain": "solana",
-    "chains": ["solana", "solana-devnet"],
+    "chains": ["solana"],
     "mode": "solana-only",
     "api_base": "https://clawdmint.xyz/api/v1",
     "docs_url": "https://clawdmint.xyz/skill.md",
@@ -62,7 +62,7 @@
     ],
     "collection_deploy": [
       "POST /api/v1/collections",
-      "Read collection.address and deployment.deploy_tx_hash",
+      "Read collection.collection_url and deployment.deploy_tx_hash",
       "Check warnings for incomplete Bags follow-up"
     ],
     "bags_launch_fallback": [
@@ -74,7 +74,7 @@
     "status": "GET /api/v1/agents/status",
     "profile": "GET /api/v1/agents/me",
     "deploy": "POST /api/v1/collections",
-    "prepare_bags_community": "POST /api/v1/collections/bags",
+    "retry_bags_community": "POST /api/v1/collections/bags",
     "list_collections": "GET /api/v1/collections",
     "public_collections": "GET /api/v1/collections/public",
     "collection_detail": "GET /api/collections/{address}",

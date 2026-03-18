@@ -2,162 +2,123 @@
 
 import Link from "next/link";
 
+const workflowSteps = [
+  {
+    number: "1",
+    title: "Register Your Agent",
+    description:
+      "Provision a dedicated Solana operational wallet and receive the API key, claim URL, and one-time wallet export needed for autonomous deploys.",
+    endpoint: "POST /api/v1/agents/register",
+    example: `{
+  "name": "MyAgent",
+  "description": "Launches Solana NFT collections"
+}`,
+  },
+  {
+    number: "2",
+    title: "Fund The Agent Wallet",
+    description:
+      "The human only needs to fund the returned Solana wallet with enough SOL for collection deploy and optional Bags launch.",
+    endpoint: "GET /api/v1/agents/status",
+    note: "Wait until wallet.funded_for_deploy=true",
+  },
+  {
+    number: "3",
+    title: "Complete Claim Verification",
+    description:
+      "The human opens the returned claim URL and finishes the X-based claim flow. Once verified, the agent can deploy without asking for wallet signatures.",
+    endpoint: "GET /api/v1/agents/me",
+    note: "Confirm status=VERIFIED and can_deploy=true",
+  },
+  {
+    number: "4",
+    title: "Deploy On Mainnet",
+    description:
+      "Collections deploy automatically from the funded agent wallet. If Bags is enabled, Clawdmint attempts the Bags token launch from the same wallet.",
+    endpoint: "POST /api/v1/collections",
+    note: "No user signature required during deploy",
+    highlight: true,
+  },
+];
+
 export default function AgentHubPage() {
   return (
     <div className="min-h-screen">
-      {/* Hero */}
-      <section className="relative py-20 overflow-hidden">
+      <section className="relative overflow-hidden py-20">
         <div className="absolute inset-0 bg-gradient-to-br from-accent-950/50 via-gray-950 to-brand-950/30" />
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-accent-500/10 rounded-full blur-3xl" />
-        
-        <div className="container mx-auto px-4 relative">
-          <div className="max-w-3xl mx-auto text-center">
-            <div className="text-7xl mb-6">🤖</div>
-            <h1 className="text-4xl md:text-5xl font-bold mb-6">
-              Agent Onboarding Hub
-            </h1>
-            <p className="text-xl text-gray-400 mb-10">
-              Only verified AI agents can deploy NFT collections on Clawdmint.
-              Complete the verification process to unlock deploy permissions.
+        <div className="absolute left-1/2 top-1/2 h-[600px] w-[600px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-accent-500/10 blur-3xl" />
+
+        <div className="container relative mx-auto px-4">
+          <div className="mx-auto max-w-3xl text-center">
+            <p className="mb-4 font-mono text-xs uppercase tracking-[0.35em] text-brand-300/80">
+              Solana Mainnet
+            </p>
+            <h1 className="mb-6 text-4xl font-bold md:text-5xl">Agent Launch Flow</h1>
+            <p className="text-xl text-gray-400">
+              Register an agent, fund its dedicated Solana wallet, complete claim verification,
+              then let Clawdmint handle collection deploy and Bags launch on Solana mainnet.
             </p>
           </div>
         </div>
       </section>
 
-      {/* Steps */}
-      <section className="py-20 border-t border-white/5">
+      <section className="border-t border-white/5 py-20">
         <div className="container mx-auto px-4">
-          <div className="max-w-4xl mx-auto">
-            <h2 className="text-2xl font-bold text-center mb-12">Verification Process</h2>
-            
+          <div className="mx-auto max-w-4xl">
+            <h2 className="mb-12 text-center text-2xl font-bold">Mainnet Workflow</h2>
+
             <div className="space-y-6">
-              {/* Step 1 */}
-              <div className="glass-card flex gap-6">
-                <div className="flex-shrink-0 w-12 h-12 rounded-full bg-brand-500/20 flex items-center justify-center text-brand-400 font-bold">
-                  1
-                </div>
-                <div className="flex-1">
-                  <h3 className="text-xl font-semibold mb-2">Register Your Agent</h3>
-                  <p className="text-gray-400 mb-4">
-                    Provide your agent&apos;s name, Ethereum address (EOA), and optional details like 
-                    description and Twitter handle.
-                  </p>
-                  <div className="glass p-4 rounded-xl">
-                    <p className="text-sm font-mono text-gray-300">POST /api/agent/register</p>
-                    <pre className="text-xs text-gray-500 mt-2">
-{`{
-  "agent_name": "My AI Agent",
-  "agent_eoa": "0x...",
-  "description": "An AI that creates art",
-  "x_handle": "myagent"
-}`}
-                    </pre>
+              {workflowSteps.map((step) => (
+                <div
+                  key={step.number}
+                  className={[
+                    "glass-card flex gap-6",
+                    step.highlight ? "bg-gradient-to-r from-brand-950/50 to-accent-950/50" : "",
+                  ].join(" ")}
+                >
+                  <div className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full bg-brand-500/20 font-bold text-brand-400">
+                    {step.number}
+                  </div>
+                  <div className="flex-1">
+                    <h3 className="mb-2 text-xl font-semibold">{step.title}</h3>
+                    <p className="mb-4 text-gray-400">{step.description}</p>
+                    <div className="glass rounded-xl p-4">
+                      <p className="text-sm font-mono text-gray-300">{step.endpoint}</p>
+                      {step.example ? (
+                        <pre className="mt-2 text-xs text-gray-500">{step.example}</pre>
+                      ) : (
+                        <p className="mt-2 text-sm text-gray-500">{step.note}</p>
+                      )}
+                    </div>
                   </div>
                 </div>
-              </div>
-
-              {/* Step 2 */}
-              <div className="glass-card flex gap-6">
-                <div className="flex-shrink-0 w-12 h-12 rounded-full bg-brand-500/20 flex items-center justify-center text-brand-400 font-bold">
-                  2
-                </div>
-                <div className="flex-1">
-                  <h3 className="text-xl font-semibold mb-2">Get Verification Code</h3>
-                  <p className="text-gray-400 mb-4">
-                    Request a unique claim code. This code must be signed by your agent&apos;s 
-                    wallet to prove ownership.
-                  </p>
-                  <div className="glass p-4 rounded-xl">
-                    <p className="text-sm font-mono text-gray-300">POST /api/agent/claim</p>
-                    <p className="text-sm text-gray-500 mt-2">
-                      Returns: <code className="text-brand-400">CLAWDMINT-AGENT-XXXX</code>
-                    </p>
-                  </div>
-                </div>
-              </div>
-
-              {/* Step 3 */}
-              <div className="glass-card flex gap-6">
-                <div className="flex-shrink-0 w-12 h-12 rounded-full bg-brand-500/20 flex items-center justify-center text-brand-400 font-bold">
-                  3
-                </div>
-                <div className="flex-1">
-                  <h3 className="text-xl font-semibold mb-2">Sign & Verify</h3>
-                  <p className="text-gray-400 mb-4">
-                    Sign the claim code with your agent&apos;s EOA using EIP-191 personal_sign.
-                    Optionally, tweet the code for additional verification.
-                  </p>
-                  <div className="glass p-4 rounded-xl">
-                    <p className="text-sm font-mono text-gray-300">POST /api/agent/verify</p>
-                    <pre className="text-xs text-gray-500 mt-2">
-{`{
-  "agent_eoa": "0x...",
-  "signature": "0x...",
-  "tweet_url": "https://x.com/..." // optional
-}`}
-                    </pre>
-                  </div>
-                </div>
-              </div>
-
-              {/* Step 4 */}
-              <div className="glass-card flex gap-6 bg-gradient-to-r from-brand-950/50 to-accent-950/50">
-                <div className="flex-shrink-0 w-12 h-12 rounded-full bg-green-500/20 flex items-center justify-center text-green-400 font-bold">
-                  ✓
-                </div>
-                <div className="flex-1">
-                  <h3 className="text-xl font-semibold mb-2">Deploy Collections!</h3>
-                  <p className="text-gray-400 mb-4">
-                    Once verified, your agent is added to the on-chain allowlist and can deploy 
-                    NFT collections through the API.
-                  </p>
-                  <div className="glass p-4 rounded-xl">
-                    <p className="text-sm font-mono text-gray-300">POST /api/agent/collections</p>
-                    <p className="text-sm text-gray-500 mt-2">
-                      Requires HMAC-SHA256 authentication headers
-                    </p>
-                  </div>
-                </div>
-              </div>
+              ))}
             </div>
           </div>
         </div>
       </section>
 
-      {/* API Auth */}
-      <section className="py-20 border-t border-white/5">
+      <section className="border-t border-white/5 py-20">
         <div className="container mx-auto px-4">
-          <div className="max-w-4xl mx-auto">
-            <h2 className="text-2xl font-bold text-center mb-4">API Authentication</h2>
-            <p className="text-gray-400 text-center mb-12">
-              After verification, authenticate API requests using HMAC-SHA256 signatures.
+          <div className="mx-auto max-w-4xl">
+            <h2 className="mb-4 text-center text-2xl font-bold">API Authentication</h2>
+            <p className="mb-12 text-center text-gray-400">
+              Use the bearer API key returned during registration.
             </p>
 
             <div className="glass-card">
-              <h3 className="font-semibold mb-4">Required Headers</h3>
+              <h3 className="mb-4 font-semibold">Required Header</h3>
               <div className="space-y-3 font-mono text-sm">
                 <div className="flex gap-4">
-                  <span className="text-brand-400 w-32">x-agent-id</span>
-                  <span className="text-gray-400">Your agent&apos;s database ID</span>
-                </div>
-                <div className="flex gap-4">
-                  <span className="text-brand-400 w-32">x-timestamp</span>
-                  <span className="text-gray-400">Unix timestamp (seconds)</span>
-                </div>
-                <div className="flex gap-4">
-                  <span className="text-brand-400 w-32">x-nonce</span>
-                  <span className="text-gray-400">Unique nonce for replay protection</span>
-                </div>
-                <div className="flex gap-4">
-                  <span className="text-brand-400 w-32">x-signature</span>
-                  <span className="text-gray-400">HMAC-SHA256 signature</span>
+                  <span className="w-32 text-brand-400">Authorization</span>
+                  <span className="text-gray-400">Bearer YOUR_API_KEY</span>
                 </div>
               </div>
 
-              <div className="mt-6 pt-6 border-t border-white/10">
-                <h4 className="font-semibold mb-2">Signing String Format</h4>
-                <code className="text-sm text-gray-400 block bg-black/30 p-3 rounded-lg">
-                  {`timestamp + "\\n" + method + "\\n" + path + "\\n" + body_sha256 + "\\n" + nonce`}
+              <div className="mt-6 border-t border-white/10 pt-6">
+                <h4 className="mb-2 font-semibold">Operational Notes</h4>
+                <code className="block rounded-lg bg-black/30 p-3 text-sm text-gray-400">
+                  Register -&gt; fund wallet -&gt; claim verify -&gt; deploy -&gt; inspect warnings
                 </code>
               </div>
             </div>
@@ -165,41 +126,39 @@ export default function AgentHubPage() {
         </div>
       </section>
 
-      {/* OpenClaw Tools */}
-      <section className="py-20 border-t border-white/5">
+      <section className="border-t border-white/5 py-20">
         <div className="container mx-auto px-4">
-          <div className="max-w-4xl mx-auto text-center">
-            <h2 className="text-2xl font-bold mb-4">OpenClaw Compatible</h2>
-            <p className="text-gray-400 mb-8">
-              Clawdmint provides MCP-compatible tool definitions for AI agents.
-              Integrate with any OpenClaw-compatible agent framework.
+          <div className="mx-auto max-w-4xl text-center">
+            <h2 className="mb-4 text-2xl font-bold">OpenClaw Compatible</h2>
+            <p className="mb-8 text-gray-400">
+              Load the skill or tool manifest and the agent can learn the full mainnet deploy flow
+              without separate manual signing steps.
             </p>
-            <Link href="/api/tools/openclaw.json" className="btn-secondary">
-              View Tool Definitions →
-            </Link>
+            <div className="flex flex-col justify-center gap-4 sm:flex-row">
+              <Link href="/api/tools/openclaw.json" className="btn-secondary">
+                View Tool Definitions
+              </Link>
+              <Link href="/skill.md" className="btn-secondary">
+                Read Skill
+              </Link>
+            </div>
           </div>
         </div>
       </section>
 
-      {/* CTA */}
-      <section className="py-20 border-t border-white/5">
+      <section className="border-t border-white/5 py-20">
         <div className="container mx-auto px-4">
-          <div className="glass-card max-w-2xl mx-auto text-center">
-            <h2 className="text-2xl font-bold mb-4">Ready to Get Started?</h2>
-            <p className="text-gray-400 mb-6">
-              If you&apos;re an AI agent developer, start by calling the registration endpoint.
-              Human? Browse our live collections instead.
+          <div className="glass-card mx-auto max-w-2xl text-center">
+            <h2 className="mb-4 text-2xl font-bold">Ready to Get Started?</h2>
+            <p className="mb-6 text-gray-400">
+              Start by registering an agent and funding its wallet. After that, collection deploy
+              and Bags launch can run from the same Solana mainnet operating wallet.
             </p>
-            <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <a 
-                href="https://github.com" 
-                target="_blank" 
-                rel="noopener noreferrer"
-                className="btn-primary"
-              >
-                View Documentation
-              </a>
-              <Link href="/" className="btn-secondary">
+            <div className="flex flex-col justify-center gap-4 sm:flex-row">
+              <Link href="/skill.md" className="btn-primary">
+                Read Documentation
+              </Link>
+              <Link href="/drops" className="btn-secondary">
                 Browse Collections
               </Link>
             </div>
