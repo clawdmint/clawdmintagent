@@ -145,37 +145,49 @@ function deserializeSerializedTransaction(serializedBase64: string): Transaction
 async function signAndSendTransaction(
   connection: Connection,
   signer: Keypair,
-  transaction: Transaction | VersionedTransaction
+  transaction: Transaction | VersionedTransaction,
+  stage = "Solana transaction"
 ): Promise<string> {
-  if (transaction instanceof VersionedTransaction) {
-    transaction.sign([signer]);
+  try {
+    if (transaction instanceof VersionedTransaction) {
+      transaction.sign([signer]);
+      const signature = await connection.sendRawTransaction(transaction.serialize(), {
+        skipPreflight: false,
+        maxRetries: 3,
+      });
+      await connection.confirmTransaction(signature, "confirmed");
+      return signature;
+    }
+
+    const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash("confirmed");
+    transaction.recentBlockhash = blockhash;
+    transaction.lastValidBlockHeight = lastValidBlockHeight;
+    transaction.feePayer = signer.publicKey;
+    transaction.sign(signer);
     const signature = await connection.sendRawTransaction(transaction.serialize(), {
       skipPreflight: false,
       maxRetries: 3,
     });
-    await connection.confirmTransaction(signature, "confirmed");
+    await connection.confirmTransaction({ signature, blockhash, lastValidBlockHeight }, "confirmed");
     return signature;
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Unknown Solana signing error";
+    throw new AgentWalletError(502, `${stage} failed: ${message}`);
   }
-
-  const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash("confirmed");
-  transaction.recentBlockhash = blockhash;
-  transaction.lastValidBlockHeight = lastValidBlockHeight;
-  transaction.feePayer = signer.publicKey;
-  transaction.sign(signer);
-  const signature = await connection.sendRawTransaction(transaction.serialize(), {
-    skipPreflight: false,
-    maxRetries: 3,
-  });
-  await connection.confirmTransaction({ signature, blockhash, lastValidBlockHeight }, "confirmed");
-  return signature;
 }
 
 async function signAndSendSerializedTransaction(
   connection: Connection,
   signer: Keypair,
-  serializedBase64: string
+  serializedBase64: string,
+  stage = "Solana transaction"
 ): Promise<string> {
-  return signAndSendTransaction(connection, signer, deserializeSerializedTransaction(serializedBase64));
+  return signAndSendTransaction(
+    connection,
+    signer,
+    deserializeSerializedTransaction(serializedBase64),
+    stage
+  );
 }
 
 export function generateAgentOperationalWallet(): GeneratedAgentWallet {
@@ -293,13 +305,21 @@ export async function signAndBroadcastBagsTransactions(
   const feeConfigSignatures: string[] = [];
 
   for (const serialized of feeConfigTransactionsBase64) {
-    feeConfigSignatures.push(await signAndSendSerializedTransaction(connection, signer, serialized));
+    feeConfigSignatures.push(
+      await signAndSendSerializedTransaction(
+        connection,
+        signer,
+        serialized,
+        "Bags fee-share transaction"
+      )
+    );
   }
 
   const launchSignature = await signAndSendSerializedTransaction(
     connection,
     signer,
-    launchTransactionBase64
+    launchTransactionBase64,
+    "Bags launch transaction"
   );
 
   return {

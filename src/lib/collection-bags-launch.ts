@@ -69,10 +69,19 @@ async function resolveFeeShareWallets(collectionId: string, feeShares: ReturnTyp
       throw new CollectionBagsLaunchError(400, `${feeShare.label} username is missing`);
     }
 
-    const wallet = await lookupBagsFeeShareWallet({
-      provider: feeShare.provider,
-      username: feeShare.username,
-    });
+    let wallet: string;
+    try {
+      wallet = await lookupBagsFeeShareWallet({
+        provider: feeShare.provider,
+        username: feeShare.username,
+      });
+    } catch (error) {
+      throw new CollectionBagsLaunchError(
+        502,
+        `Failed to resolve ${feeShare.label} fee-share wallet`,
+        error instanceof Error ? error.message : error
+      );
+    }
 
     resolved.push({
       ...feeShare,
@@ -145,34 +154,61 @@ export async function prepareCollectionBagsLaunch(agentId: string, input: Prepar
       ? `${getEnv("NEXT_PUBLIC_APP_URL", "https://clawdmint.xyz")}/drops`
       : `${getEnv("NEXT_PUBLIC_APP_URL", "https://clawdmint.xyz")}/collection/${collection.address}`;
 
-  const tokenInfo = await createBagsTokenInfo({
-    name: collection.bagsTokenName,
-    symbol: collection.bagsTokenSymbol,
-    image: config.imageUrl || collection.imageUrl || "",
-    description:
-      collection.description ||
-      `${collection.name} community token launched around an AI-curated NFT collection on Clawdmint.`,
-    website: config.websiteUrl || collectionUrl,
-    twitter: config.twitterUrl,
-    telegram: config.telegramUrl,
-  });
+  let tokenInfo;
+  try {
+    tokenInfo = await createBagsTokenInfo({
+      name: collection.bagsTokenName,
+      symbol: collection.bagsTokenSymbol,
+      image: config.imageUrl || collection.imageUrl || "",
+      description:
+        collection.description ||
+        `${collection.name} community token launched around an AI-curated NFT collection on Clawdmint.`,
+      website: config.websiteUrl || collectionUrl,
+      twitter: config.twitterUrl,
+      telegram: config.telegramUrl,
+    });
+  } catch (error) {
+    throw new CollectionBagsLaunchError(
+      502,
+      "Failed to create Bags token metadata",
+      error instanceof Error ? error.message : error
+    );
+  }
 
-  const feeConfig = await createBagsFeeShareConfig({
-    payer: collection.bagsCreatorWallet,
-    baseMint: tokenInfo.tokenMint,
-    feeShares: resolvedFeeShares,
-    partnerWallet: config.partnerWallet,
-    partnerConfig: config.partnerConfig,
-  });
+  let feeConfig;
+  try {
+    feeConfig = await createBagsFeeShareConfig({
+      payer: collection.bagsCreatorWallet,
+      baseMint: tokenInfo.tokenMint,
+      feeShares: resolvedFeeShares,
+      partnerWallet: config.partnerWallet,
+      partnerConfig: config.partnerConfig,
+    });
+  } catch (error) {
+    throw new CollectionBagsLaunchError(
+      502,
+      "Failed to create Bags fee-share config",
+      error instanceof Error ? error.message : error
+    );
+  }
 
-  const launchTransaction = await createBagsLaunchTransaction({
-    tokenMint: tokenInfo.tokenMint,
-    tokenMetadata: tokenInfo.tokenMetadata,
-    ipfs: tokenInfo.ipfs || tokenInfo.metadataUri,
-    wallet: collection.bagsCreatorWallet,
-    configKey: feeConfig.configKey,
-    initialBuyLamports: collection.bagsInitialBuyLamports || config.initialBuyLamports,
-  });
+  let launchTransaction;
+  try {
+    launchTransaction = await createBagsLaunchTransaction({
+      tokenMint: tokenInfo.tokenMint,
+      tokenMetadata: tokenInfo.tokenMetadata,
+      ipfs: tokenInfo.ipfs || tokenInfo.metadataUri,
+      wallet: collection.bagsCreatorWallet,
+      configKey: feeConfig.configKey,
+      initialBuyLamports: collection.bagsInitialBuyLamports || config.initialBuyLamports,
+    });
+  } catch (error) {
+    throw new CollectionBagsLaunchError(
+      502,
+      "Failed to create Bags launch transaction",
+      error instanceof Error ? error.message : error
+    );
+  }
 
   const updated = await prisma.collection.update({
     where: { id: collection.id },
