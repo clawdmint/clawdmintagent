@@ -83,6 +83,7 @@ interface Collection {
   deployed_at: string;
   deploy_tx_hash: string;
   bags?: BagsConfig | null;
+  bags_managed_by_agent?: boolean;
   agent: {
     id: string;
     name: string;
@@ -521,8 +522,10 @@ export default function CollectionPage() {
   const bagsIsTokenGated = bags?.mint_access === "bags_balance";
   const showBagsPanel = Boolean(bags?.enabled);
   const needsBagsOwnerLaunch = Boolean(showBagsPanel && bags?.status !== "LIVE");
+  const isAgentManagedBagsLaunch = Boolean(needsBagsOwnerLaunch && collection.bags_managed_by_agent);
+  const shouldShowBagsOwnerConsole = Boolean(needsBagsOwnerLaunch && !collection.bags_managed_by_agent);
   const isBagsOwner = Boolean(bags?.creator_wallet && solanaAddress && bags.creator_wallet === solanaAddress);
-  const needsOwnerWalletConnection = Boolean(needsBagsOwnerLaunch && !isBagsOwner);
+  const needsOwnerWalletConnection = Boolean(shouldShowBagsOwnerConsole && !isBagsOwner);
   const bagsLaunchExplorerUrl = bagsOwnerLaunchTx ? getTransactionExplorerUrl(bagsOwnerLaunchTx, bagsChainValue) : null;
 
   return (
@@ -808,7 +811,9 @@ export default function CollectionPage() {
                       </div>
                     ) : (
                       <p className={clsx("text-sm leading-relaxed", theme === "dark" ? "text-gray-400" : "text-gray-600")}>
-                        This collection is configured for a Bags-native community token. The agent still needs to sign the Bags launch flow to make the token live.
+                        {isAgentManagedBagsLaunch
+                          ? "This collection is configured for a Bags-native community token, but the automatic agent-wallet launch did not finish yet. The agent should retry the server-side Bags launch flow."
+                          : "This collection is configured for a Bags-native community token. The creator wallet still needs to finalize the Bags launch flow to make the token live."}
                       </p>
                     )}
 
@@ -847,7 +852,42 @@ export default function CollectionPage() {
                       </div>
                     )}
 
-                    {needsBagsOwnerLaunch && (
+                    {isAgentManagedBagsLaunch && (
+                      <div
+                        className={clsx(
+                          "rounded-2xl border p-4 space-y-3",
+                          theme === "dark" ? "border-cyan-500/20 bg-cyan-500/10" : "border-cyan-200 bg-cyan-50"
+                        )}
+                      >
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="space-y-1">
+                            <div className="flex items-center gap-2">
+                              <ShieldCheck className="w-4 h-4 text-cyan-500" />
+                              <span className="font-medium">Agent Launch Pending</span>
+                            </div>
+                            <p className={clsx("text-sm leading-relaxed", theme === "dark" ? "text-gray-300" : "text-gray-700")}>
+                              This Bags token is owned by the agent wallet, not your connected wallet. The agent needs to retry the automatic Bags launch endpoint to make the token live.
+                            </p>
+                            {bags?.creator_wallet && (
+                              <p className={clsx("text-xs font-mono", theme === "dark" ? "text-gray-400" : "text-gray-600")}>
+                                Agent wallet: {bags.creator_wallet.slice(0, 6)}...{bags.creator_wallet.slice(-4)}
+                              </p>
+                            )}
+                          </div>
+                          <span className={clsx(
+                            "rounded-full px-2.5 py-1 font-mono text-[10px] uppercase tracking-[0.18em]",
+                            theme === "dark" ? "bg-white/[0.06] text-cyan-200" : "bg-white text-cyan-700"
+                          )}>
+                            Auto Retry
+                          </span>
+                        </div>
+                        <p className={clsx("text-xs", theme === "dark" ? "text-gray-400" : "text-gray-600")}>
+                          No manual Phantom action is required from the collection viewer on this page.
+                        </p>
+                      </div>
+                    )}
+
+                    {shouldShowBagsOwnerConsole && (
                       <div className={clsx(
                         "rounded-2xl border p-4 space-y-3",
                         theme === "dark" ? "border-cyan-500/20 bg-cyan-500/10" : "border-cyan-200 bg-cyan-50"

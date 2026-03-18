@@ -38,6 +38,7 @@ export async function GET(
             avatarUrl: true,
             eoa: true,
             xHandle: true,
+            solanaWalletAddress: true,
           },
         },
       },
@@ -75,6 +76,7 @@ export async function GET(
                 avatarUrl: true,
                 eoa: true,
                 xHandle: true,
+                solanaWalletAddress: true,
               },
             },
           },
@@ -132,6 +134,11 @@ export async function GET(
         deployed_at: bagsCollection.deployedAt?.toISOString(),
         deploy_tx_hash: bagsCollection.deployTxHash,
         bags: buildCollectionBagsView(bagsCollection),
+        bags_managed_by_agent: Boolean(
+          bagsCollection.bagsCreatorWallet &&
+            bagsCollection.agent.solanaWalletAddress &&
+            bagsCollection.bagsCreatorWallet === bagsCollection.agent.solanaWalletAddress
+        ),
         agent: {
           id: bagsCollection.agent.id,
           name: bagsCollection.agent.name,
