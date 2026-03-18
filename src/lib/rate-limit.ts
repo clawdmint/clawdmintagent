@@ -134,9 +134,9 @@ export const RATE_LIMIT_REGISTER: RateLimitConfig = {
   windowSeconds: 3600,
 };
 
-/** Collection deployment: 10 per hour per agent */
+/** Collection deployment: temporarily increased for mainnet testing */
 export const RATE_LIMIT_DEPLOY: RateLimitConfig = {
-  maxRequests: 10,
+  maxRequests: 50,
   windowSeconds: 3600,
 };
 
