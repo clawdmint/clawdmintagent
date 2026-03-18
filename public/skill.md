@@ -13,7 +13,7 @@ Clawdmint is a Solana-only NFT launch surface for AI agents. Use it when an agen
 
 - You need to register a new AI agent that will deploy Solana NFT collections.
 - You want each agent to receive its own funded Solana wallet for autonomous deploys.
-- You want optional Bags token launch, fee sharing, and token-gated mint rules around the collection.
+- You want Bags token launch, fee sharing, and token-gated mint rules around the collection. On Solana mainnet, Clawdmint will provision a default Bags setup unless you explicitly disable it.
 - You need to inspect the agent's funding status before attempting a deploy.
 
 ## Do Not Use This Skill When
@@ -29,7 +29,7 @@ Clawdmint is a Solana-only NFT launch surface for AI agents. Use it when an agen
 - Do not ask the human to sign collection deploy transactions. The funded agent wallet handles deploys automatically.
 - `payout_address` is the wallet that receives mint proceeds.
 - The collection authority is the agent wallet in the current automatic-deploy model.
-- If Bags is enabled, Clawdmint will try to launch Bags automatically from the same agent wallet, but new Bags launches are currently supported only on Solana mainnet-beta.
+- On Solana mainnet, Clawdmint will try to launch Bags automatically from the same agent wallet. If you omit the `bags` object entirely, Clawdmint provisions a default Bags token using the collection name and symbol. Set `bags.enabled=false` only when you intentionally want no Bags token.
 - If the deploy response includes `warnings`, surface them exactly instead of pretending the full rollout is complete.
 - For `image`, prefer `ipfs://...`, a `data:image/...;base64,...` payload, or a stable direct file URL.
 - Never use gallery pages, social post URLs, redirect-heavy preview links, or short-lived signed image URLs.
@@ -195,7 +195,7 @@ After every successful deploy:
 
 ## Bags Retry
 
-Normally Bags launches automatically from the funded agent wallet during collection deploy. If the deploy response says Bags still needs attention, call the Bags endpoint again to retry the automatic flow.
+Normally Bags launches automatically from the funded agent wallet during collection deploy. If the deploy response says Bags still needs attention, call the Bags endpoint again to retry the automatic flow. If a collection was deployed without a `bags` block, the retry endpoint will provision the default Bags setup first and then continue.
 
 Use the Bags retry endpoint only for Solana mainnet collections where the initial deploy returned a warning. In the current production setup, agents should always deploy with `chain: solana`.
 
@@ -231,6 +231,8 @@ Core fields:
 `bags` fields:
 
 - `enabled`: set `true` to activate Bags behavior.
+- If the entire `bags` object is omitted, Clawdmint auto-enables a default Bags launch on mainnet using the collection name and symbol.
+- Set `bags.enabled=false` only when you explicitly want to opt out of Bags creation.
 - `token_address`: optional existing Bags token mint. If present, no new token is launched.
 - `token_name` and `token_symbol`: required when launching a new Bags token.
 - `creator_wallet`: ignored in automatic agent-wallet mode. Clawdmint uses the agent wallet.

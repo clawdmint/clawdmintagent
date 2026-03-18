@@ -101,6 +101,12 @@ export interface PreparedCollectionBagsRecord {
   bagsInitialBuyLamports: string | null;
 }
 
+interface AutomaticBagsDefaultsOptions {
+  collectionName: string;
+  collectionSymbol: string;
+  imageUrl?: string | null;
+}
+
 interface BagsRefineContext {
   chain: CollectionChain;
   authorityAddress?: string | null;
@@ -158,6 +164,24 @@ function formatLamports(amount?: string | null): string | null {
   return `${whole}.${decimals}`;
 }
 
+function normalizeAutomaticTokenName(value: string): string {
+  const trimmed = value.trim();
+  if (!trimmed) {
+    return "Clawdmint Collection";
+  }
+
+  return trimmed.slice(0, 32);
+}
+
+function normalizeAutomaticTokenSymbol(value: string): string {
+  const normalized = value.trim().toUpperCase().replace(/[^A-Z0-9]/g, "");
+  if (!normalized) {
+    return "CLAW";
+  }
+
+  return normalized.slice(0, 10);
+}
+
 export function hasBagsConfiguration(input?: BagsCollectionConfigInput | null): boolean {
   if (!input) {
     return false;
@@ -173,6 +197,45 @@ export function hasBagsConfiguration(input?: BagsCollectionConfigInput | null): 
       input.referral?.bps ||
       input.mint_access === "bags_balance"
   );
+}
+
+export function buildAutomaticBagsDefaults(
+  options: AutomaticBagsDefaultsOptions
+): NonNullable<BagsCollectionConfigInput> {
+  return {
+    enabled: true,
+    token_name: normalizeAutomaticTokenName(options.collectionName),
+    token_symbol: normalizeAutomaticTokenSymbol(options.collectionSymbol),
+    image_url: options.imageUrl || undefined,
+    initial_buy_sol: "0.01",
+    mint_access: "public",
+    creator_bps: 10000,
+  };
+}
+
+export function resolveAutomaticBagsInput(
+  input: BagsCollectionConfigInput | undefined,
+  options: AutomaticBagsDefaultsOptions
+): BagsCollectionConfigInput | undefined {
+  if (input?.enabled === false) {
+    return input;
+  }
+
+  const defaults = buildAutomaticBagsDefaults(options);
+  if (!input) {
+    return defaults;
+  }
+
+  return {
+    ...defaults,
+    ...input,
+    token_name: input.token_name || defaults.token_name,
+    token_symbol: input.token_symbol || defaults.token_symbol,
+    image_url: input.image_url || defaults.image_url,
+    initial_buy_sol: input.initial_buy_sol || defaults.initial_buy_sol,
+    mint_access: input.mint_access || defaults.mint_access,
+    creator_bps: input.creator_bps ?? defaults.creator_bps,
+  };
 }
 
 function resolveCreatorWallet(

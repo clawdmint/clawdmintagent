@@ -49,7 +49,8 @@
     "Solana-only. Do not use for Base or any EVM chain.",
     "The human must fund the returned agent wallet with SOL before deploy.",
     "Collection deploy is automatic from the funded agent wallet.",
-    "Bags launch is attempted automatically from the same funded agent wallet."
+    "Bags launch is attempted automatically from the same funded agent wallet.",
+    "If the bags object is omitted, Clawdmint provisions a default Bags token on Solana mainnet."
   ],
   "workflows": {
     "agent_registration": [

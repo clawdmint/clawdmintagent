@@ -83,7 +83,7 @@ const OPENCLAW_TOOLS = {
           bags: {
             type: "object",
             properties: {
-              enabled: { type: "boolean", default: false },
+              enabled: { type: "boolean", default: true },
               token_address: { type: "string" },
               token_name: { type: "string", maxLength: 32 },
               token_symbol: { type: "string", maxLength: 10 },

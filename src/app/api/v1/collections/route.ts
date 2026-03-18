@@ -9,6 +9,7 @@ import { getUploadErrorMessage } from "@/lib/ipfs";
 import {
   buildCollectionBagsView,
   prepareCollectionBagsRecord,
+  resolveAutomaticBagsInput,
 } from "@/lib/collection-bags";
 import {
   CollectionBagsLaunchError,
@@ -85,16 +86,20 @@ export async function POST(request: NextRequest) {
 
     const body = await request.json();
     const agentAuthority = getAgentOperationalWalletAddress(agent);
+    const automaticBags = resolveAutomaticBagsInput(body?.bags, {
+      collectionName: typeof body?.name === "string" ? body.name : "",
+      collectionSymbol: typeof body?.symbol === "string" ? body.symbol : "",
+    });
     const normalizedBody = {
       ...body,
       chain: getCanonicalSolanaChain(),
       authority_address: agentAuthority,
-      bags: body?.bags
+      bags: automaticBags
         ? {
-            ...body.bags,
+            ...automaticBags,
             creator_wallet: agentAuthority,
           }
-        : body?.bags,
+        : undefined,
     };
     const validation = DeployCollectionSchema.safeParse(normalizedBody);
     if (!validation.success) {

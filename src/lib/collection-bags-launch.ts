@@ -2,8 +2,10 @@ import { z } from "zod";
 import { prisma } from "./db";
 import {
   buildCollectionBagsView,
+  buildAutomaticBagsDefaults,
   getCollectionBagsFeeShares,
   parseCollectionBagsConfig,
+  prepareCollectionBagsRecord,
 } from "./collection-bags";
 import {
   createBagsFeeShareConfig,
@@ -14,7 +16,7 @@ import {
 } from "./bags";
 import { getEnv } from "./env";
 import { getSolanaConnection } from "./solana-collections";
-import { isBagsLaunchSupportedChain } from "./collection-chains";
+import { isBagsLaunchSupportedChain, normalizeCollectionChain } from "./collection-chains";
 
 export const PrepareCollectionBagsSchema = z.object({
   collection_id: z.string().min(1),
@@ -82,7 +84,7 @@ async function resolveFeeShareWallets(collectionId: string, feeShares: ReturnTyp
 }
 
 export async function prepareCollectionBagsLaunch(agentId: string, input: PrepareCollectionBagsInput) {
-  const collection = await prisma.collection.findFirst({
+  let collection = await prisma.collection.findFirst({
     where: {
       id: input.collection_id,
       agentId,
@@ -101,7 +103,34 @@ export async function prepareCollectionBagsLaunch(agentId: string, input: Prepar
   }
 
   if (collection.bagsStatus === "DISABLED") {
-    throw new CollectionBagsLaunchError(400, "Bags community is not configured for this collection");
+    const automaticConfig = buildAutomaticBagsDefaults({
+      collectionName: collection.name,
+      collectionSymbol: collection.symbol,
+      imageUrl: collection.imageUrl,
+    });
+    const preparedRecord = prepareCollectionBagsRecord({
+      input: automaticConfig,
+      chain: normalizeCollectionChain(collection.chain),
+      authorityAddress: collection.authorityAddress || null,
+      payoutAddress: collection.payoutAddress,
+      collectionName: collection.name,
+      collectionSymbol: collection.symbol,
+    });
+
+    collection = await prisma.collection.update({
+      where: { id: collection.id },
+      data: {
+        bagsStatus: preparedRecord.bagsStatus,
+        bagsTokenAddress: preparedRecord.bagsTokenAddress,
+        bagsTokenName: preparedRecord.bagsTokenName,
+        bagsTokenSymbol: preparedRecord.bagsTokenSymbol,
+        bagsMintAccess: preparedRecord.bagsMintAccess,
+        bagsMinTokenBalance: preparedRecord.bagsMinTokenBalance,
+        bagsFeeConfig: preparedRecord.bagsFeeConfig,
+        bagsCreatorWallet: preparedRecord.bagsCreatorWallet,
+        bagsInitialBuyLamports: preparedRecord.bagsInitialBuyLamports,
+      },
+    });
   }
 
   const config = parseCollectionBagsConfig(collection.bagsFeeConfig);
