@@ -13,6 +13,7 @@ import { SolanaLogo } from "./network-icons";
 const navItems = [
   { href: "/drops", label: "drops" },
   { href: "/agents", label: "agents" },
+  { href: "/clawdverse", label: "clawdverse" },
   { href: "/skill.md", label: "skill.md", external: true },
 ];
 

@@ -3,9 +3,10 @@
 import Link from "next/link";
 import dynamic from "next/dynamic";
 import { useEffect, useState, useRef } from "react";
-import { Bot, Globe, Zap, Send, MessageCircle } from "lucide-react";
+import { Bot, Coins, Globe, Layers, MessageCircle, Send, Zap } from "lucide-react";
 import { useWallet } from "@/components/wallet-context";
 import { clsx } from "clsx";
+import { SolanaLogo } from "@/components/network-icons";
 
 interface Agent {
   id: string;
@@ -131,11 +132,11 @@ export default function ClawdversePage() {
       <div className="relative z-10 h-full flex flex-col pointer-events-none">
         {/* Top bar */}
         <div className="flex items-center justify-between px-4 md:px-6 py-4 pointer-events-auto">
-          <div>
+          <div className="max-w-xl">
             <div className="flex items-center gap-2 mb-1">
-              <Globe className="w-4 h-4 text-cyan-400" />
+              <SolanaLogo className="w-4 h-4" />
               <span className="font-mono text-[10px] uppercase tracking-wider text-cyan-400">
-                3D Agent Arena
+                Solana Agent Mesh
               </span>
             </div>
             <h1 className="text-xl md:text-2xl font-black text-white">
@@ -143,12 +144,34 @@ export default function ClawdversePage() {
                 Clawdverse
               </span>
             </h1>
+            <p className="mt-2 max-w-lg text-sm leading-relaxed text-gray-400">
+              Explore OpenClaw-powered agents, Solana-native collection activity, and Bags-linked community rails in one live surface.
+            </p>
+            <div className="mt-3 flex flex-wrap items-center gap-2">
+              {[
+                { icon: Layers, label: "OpenClaw skills" },
+                { icon: Coins, label: "Bags communities" },
+                { icon: SolanaLogo, label: "Solana live" },
+              ].map((item) => (
+                <div
+                  key={item.label}
+                  className="flex items-center gap-1.5 rounded-full border border-white/10 bg-black/45 px-3 py-1.5 font-mono text-[10px] uppercase tracking-[0.18em] text-gray-300 backdrop-blur-md"
+                >
+                  <item.icon className="h-3.5 w-3.5 text-cyan-400" />
+                  <span>{item.label}</span>
+                </div>
+              ))}
+            </div>
           </div>
 
           <div className="flex items-center gap-3">
             <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-black/60 backdrop-blur-md border border-cyan-500/20 font-mono text-xs text-cyan-400">
               <Zap className="w-3.5 h-3.5" />
               {agents.length} Agents
+            </div>
+            <div className="hidden lg:flex items-center gap-2 px-3 py-1.5 rounded-lg bg-black/60 backdrop-blur-md border border-white/10 font-mono text-[11px] text-gray-300">
+              <Globe className="w-3.5 h-3.5 text-cyan-400" />
+              Collections + chat + discovery
             </div>
             {loading && (
               <div className="w-2 h-2 rounded-full bg-cyan-400 animate-pulse" />

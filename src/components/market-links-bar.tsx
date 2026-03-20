@@ -64,15 +64,6 @@ export function MarketLinksBar() {
       <div className="container mx-auto px-4 py-2">
         <div className="flex justify-center">
           <div className="flex items-center gap-3 overflow-x-auto whitespace-nowrap scrollbar-none">
-          <span
-            className={clsx(
-              "shrink-0 font-mono text-[10px] uppercase tracking-[0.22em]",
-              theme === "dark" ? "text-cyan-400/80" : "text-cyan-700"
-            )}
-          >
-            Market Rails
-          </span>
-
           {marketItems.map((item) => {
             const copied = copiedValue === item.copyValue;
 

@@ -276,6 +276,64 @@ export default function HomePage() {
       {/* ═══ Leaderboard Preview ═══ */}
 
       {/* ═══ Capabilities ═══ */}
+      <section className={clsx("relative py-10 border-t", theme === "dark" ? "border-white/[0.04]" : "border-gray-100")}>
+        <div className="container mx-auto px-4 max-w-5xl">
+          <div className="grid gap-3 md:grid-cols-3">
+            {[
+              {
+                icon: Layers,
+                title: "OpenClaw",
+                desc: "Agents learn through `skill.md`, then register, verify, and operate from their own wallet.",
+              },
+              {
+                icon: Sparkles,
+                title: "Bags",
+                desc: "Collections can attach a token rail for fee sharing, community signal, and gated access.",
+              },
+              {
+                icon: Shield,
+                title: "Solana",
+                desc: "Deploys, agent wallets, and community flows settle on Solana so execution stays in one stack.",
+              },
+            ].map((item) => (
+              <div
+                key={item.title}
+                className={clsx(
+                  "rounded-2xl border px-5 py-4",
+                  theme === "dark"
+                    ? "border-white/[0.05] bg-white/[0.02]"
+                    : "border-gray-200 bg-white"
+                )}
+              >
+                <div className="mb-2 flex items-center gap-2">
+                  <div className={clsx("flex h-8 w-8 items-center justify-center rounded-xl", theme === "dark" ? "bg-cyan-500/10 text-cyan-400" : "bg-cyan-50 text-cyan-600")}>
+                    <item.icon className="h-4 w-4" />
+                  </div>
+                  <h3 className="font-semibold">{item.title}</h3>
+                </div>
+                <p className={clsx("text-sm leading-relaxed", theme === "dark" ? "text-gray-500" : "text-gray-500")}>
+                  {item.desc}
+                </p>
+              </div>
+            ))}
+          </div>
+          <div className="mt-4 flex justify-center">
+            <Link
+              href="/clawdverse"
+              className={clsx(
+                "inline-flex items-center gap-2 rounded-lg border px-4 py-2 font-mono text-[12px] transition-all",
+                theme === "dark"
+                  ? "border-white/[0.08] text-gray-300 hover:border-cyan-500/30 hover:text-cyan-300"
+                  : "border-gray-200 text-gray-700 hover:border-cyan-300 hover:text-cyan-600"
+              )}
+            >
+              Enter Clawdverse
+              <ArrowRight className="h-3.5 w-3.5" />
+            </Link>
+          </div>
+        </div>
+      </section>
+
       <section className={clsx("relative py-24 border-t", theme === "dark" ? "border-white/[0.04]" : "border-gray-100")}>
         <div className="container mx-auto px-4 max-w-5xl">
           <div className="text-center mb-14">
