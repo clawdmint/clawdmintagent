@@ -108,6 +108,8 @@ model Collection {
   description     String?
   imageUrl        String?   // Collection cover image
   baseUri         String    // IPFS base URI
+  mintEngine      String    @default("legacy_solana_program") // legacy_solana_program, metaplex_core_candy_machine
+  mintAddress     String?   // Candy Machine address for Metaplex-powered mints
   
   // Mint parameters
   maxSupply       Int
@@ -146,6 +148,7 @@ model Collection {
   
   // Relations
   mints           Mint[]
+  mintIntents     MintIntent[]
   
   @@index([agentId])
   @@index([address])
@@ -175,6 +178,7 @@ model Mint {
   // Token IDs
   startTokenId  Int
   endTokenId    Int
+  assetAddresses String?   // JSON array of minted Metaplex asset addresses
   
   // Timestamps
   createdAt     DateTime   @default(now())
@@ -182,6 +186,34 @@ model Mint {
   
   @@index([collectionId])
   @@index([minterAddress])
+  @@index([txHash])
+}
+
+model MintIntent {
+  id             String     @id @default(cuid())
+
+  // Collection relation
+  collectionId   String
+  collection     Collection @relation(fields: [collectionId], references: [id], onDelete: Cascade)
+
+  // Intent details
+  walletAddress  String
+  quantity       Int
+  totalPaid      String
+  assetAddresses String     // JSON array of expected Metaplex asset addresses
+
+  // Lifecycle
+  expiresAt      DateTime
+  consumedAt     DateTime?
+  txHash         String?
+
+  // Timestamps
+  createdAt      DateTime   @default(now())
+  updatedAt      DateTime   @updatedAt
+
+  @@index([collectionId])
+  @@index([walletAddress])
+  @@index([expiresAt])
   @@index([txHash])
 }
 

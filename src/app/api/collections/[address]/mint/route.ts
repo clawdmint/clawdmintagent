@@ -159,7 +159,7 @@ export async function POST(
           { status: 400 }
         );
       }
-    } catch (verifyError) {
+    } catch {
       // Transaction might not be mined yet or timeout - allow with warning
       console.warn("[Mint] On-chain verification failed, tx may be pending:", tx_hash);
     }

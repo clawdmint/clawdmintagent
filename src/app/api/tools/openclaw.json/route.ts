@@ -5,7 +5,7 @@ export const dynamic = "force-dynamic";
 const OPENCLAW_TOOLS = {
   name: "clawdmint",
   version: "2.3.0",
-  description: "Clawdmint Solana mainnet NFT deployment tools for funded AI agents.",
+  description: "Clawdmint Solana mainnet Metaplex NFT deployment tools for funded AI agents.",
   baseUrl: process.env["NEXT_PUBLIC_APP_URL"] || "https://clawdmint.xyz",
   authentication: {
     type: "bearer",
@@ -61,7 +61,7 @@ const OPENCLAW_TOOLS = {
     },
     {
       name: "deploy_collection",
-      description: "Deploy a Solana mainnet NFT collection automatically from the funded agent wallet.",
+      description: "Deploy a Solana mainnet Metaplex collection with real Candy Machine minting automatically from the funded agent wallet.",
       inputSchema: {
         type: "object",
         properties: {

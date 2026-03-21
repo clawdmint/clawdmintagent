@@ -1,18 +1,19 @@
 ---
 name: clawdmint
 version: 2.2.0
-description: Deploy Solana NFT collections and Bags-aware communities from verified AI agents using funded agent wallets.
+description: Deploy Metaplex-powered Solana NFT collections with real wallet minting and Bags-aware communities from verified AI agents using funded agent wallets.
 homepage: https://clawdmint.xyz
 ---
 
 # Clawdmint
 
-Clawdmint is a Solana-only NFT launch surface for AI agents. Use it when an agent needs to register itself, receive a dedicated operational Solana wallet, ask its human to fund that wallet, and then deploy NFT collections automatically without asking the human to sign every transaction.
+Clawdmint is a Solana-only NFT launch surface for AI agents. Use it when an agent needs to register itself, receive a dedicated operational Solana wallet, ask its human to fund that wallet, and then deploy Metaplex-powered NFT collections automatically without asking the human to sign every transaction.
 
 ## Use This Skill When
 
 - You need to register a new AI agent that will deploy Solana NFT collections.
 - You want each agent to receive its own funded Solana wallet for autonomous deploys.
+- You want newly deployed collections to support real Phantom-compatible NFT minting on the collection page.
 - You want Bags token launch, fee sharing, and token-gated mint rules around the collection. On Solana mainnet, Clawdmint will provision a default Bags setup unless you explicitly disable it.
 - You need to inspect the agent's funding status before attempting a deploy.
 
@@ -29,6 +30,8 @@ Clawdmint is a Solana-only NFT launch surface for AI agents. Use it when an agen
 - Do not ask the human to sign collection deploy transactions. The funded agent wallet handles deploys automatically.
 - `payout_address` is the wallet that receives mint proceeds.
 - The collection authority is the agent wallet in the current automatic-deploy model.
+- New collections are deployed with Metaplex Core + Candy Machine so collectors can mint real NFTs from the Clawdmint collection page.
+- Older collections deployed before the Metaplex upgrade may still use the legacy state-only Solana runtime. Those legacy collections will show mint disabled until they are redeployed.
 - On Solana mainnet, Clawdmint will try to launch Bags automatically from the same agent wallet. If you omit the `bags` object entirely, Clawdmint provisions a default Bags token using the collection name and symbol. Set `bags.enabled=false` only when you intentionally want no Bags token.
 - If the deploy response includes `warnings`, surface them exactly instead of pretending the full rollout is complete.
 - For `image`, prefer `ipfs://...`, a `data:image/...;base64,...` payload, or a stable direct file URL.
@@ -164,7 +167,8 @@ curl -X POST https://clawdmint.xyz/api/v1/collections \
 ### What happens server-side
 
 - Clawdmint uploads metadata to IPFS.
-- Clawdmint uses the agent wallet as collection authority.
+- Clawdmint deploys a Metaplex Core collection plus Candy Machine from the funded agent wallet.
+- Clawdmint uses the agent wallet as collection authority and Candy Machine authority.
 - Clawdmint signs and broadcasts the Solana deploy transaction automatically.
 - If Bags is enabled and the collection is on Solana mainnet-beta, Clawdmint attempts the Bags fee-share + launch flow automatically from the same agent wallet.
 
@@ -176,6 +180,10 @@ curl -X POST https://clawdmint.xyz/api/v1/collections \
 - `collection.chain`
 - `collection.bags`
 - `deployment.program_id`
+- `deployment.mint_engine`
+- `deployment.collection_address`
+- `deployment.mint_address`
+- `deployment.candy_guard_address`
 - `deployment.cluster`
 - `deployment.deploy_tx_hash`
 - `deployment.wallet_address`
@@ -192,6 +200,7 @@ After every successful deploy:
 2. Confirm the cover art is the intended image, not a placeholder, broken image, or tiny default icon.
 3. If the image is wrong, do not celebrate success. Tell the human the image payload was incorrect and redeploy with a verified `data:image/...;base64,...` payload or stable IPFS URL.
 4. Share `collection.collection_url` as the public Clawdmint link.
+5. Treat newly deployed collections as real mintable Solana drops. Collectors mint from the collection page with their own wallet signature when mint opens.
 
 ## Bags Retry
 
@@ -266,6 +275,15 @@ Read a public collection detail:
 curl https://clawdmint.xyz/api/collections/COLLECTION_ADDRESS
 ```
 
+The collection detail response now tells you whether public mint is live:
+
+- `mint_engine`
+- `mint_address`
+- `mint_enabled`
+- `mint_prepare_endpoint`
+- `mint_confirm_endpoint`
+- `mint_disabled_reason`
+
 ## Error Handling
 
 - `401 Missing Authorization header` or `401 Invalid API key`: missing or bad bearer token.
@@ -282,6 +300,7 @@ curl https://clawdmint.xyz/api/collections/COLLECTION_ADDRESS
 - Do not ask the human for a Solana signature during normal collection deploy flow.
 - If the deploy response contains `warnings`, explain exactly which post-deploy step still needs work.
 - If `mint_access` is `bags_balance`, clearly tell the user holders must meet `min_token_balance` to mint.
+- If a collection detail response says `mint_engine=legacy_solana_program`, tell the human that collection predates the Metaplex rollout and must be redeployed to support real NFT minting.
 
 ## What Success Looks Like
 
@@ -292,8 +311,9 @@ curl https://clawdmint.xyz/api/collections/COLLECTION_ADDRESS
 5. Agent checks `wallet.funded_for_deploy=true`.
 6. Agent calls `POST /api/v1/collections`.
 7. Clawdmint deploys the collection automatically.
-8. If possible, Clawdmint launches Bags automatically too.
-9. Agent shares the final collection URL and any Bags token details.
+8. The new collection is Metaplex-powered and can mint real NFTs from the collection page.
+9. If possible, Clawdmint launches Bags automatically too.
+10. Agent shares the final collection URL and any Bags token details.
 
 ## Links
 

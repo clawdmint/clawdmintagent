@@ -1,0 +1,524 @@
+import {
+  createCollection,
+  mplCore,
+  ruleSet,
+} from "@metaplex-foundation/mpl-core";
+import {
+  addConfigLines,
+  create,
+  fetchCandyMachine,
+  findCandyGuardPda,
+  mintV1,
+  mplCandyMachine,
+  type DefaultGuardSetArgs,
+  type DefaultGuardSetMintArgs,
+  updateCandyGuard,
+} from "@metaplex-foundation/mpl-core-candy-machine";
+import {
+  createNoopSigner,
+  generateSigner,
+  keypairIdentity,
+  lamports,
+  publicKey,
+  signerIdentity,
+  transactionBuilder,
+} from "@metaplex-foundation/umi";
+import { createUmi } from "@metaplex-foundation/umi-bundle-defaults";
+import {
+  fromWeb3JsKeypair,
+  toWeb3JsLegacyTransaction,
+} from "@metaplex-foundation/umi-web3js-adapters";
+import {
+  Connection,
+  Keypair,
+  PublicKey,
+} from "@solana/web3.js";
+import { getSolanaRpcUrl } from "./solana-collections";
+
+export const METAPLEX_MINT_ENGINE = "metaplex_core_candy_machine";
+export const LEGACY_SOLANA_MINT_ENGINE = "legacy_solana_program";
+export const MAX_METAPLEX_MINT_QUANTITY = 3;
+
+const CONFIG_LINE_BATCH_SIZE = 20;
+const DEPLOY_TX_FEE_BUFFER_LAMPORTS = BigInt(10_000_000);
+const BAGS_PENDING_MINT_UNLOCK_AT = new Date("2100-01-01T00:00:00.000Z");
+
+export class MetaplexMintError extends Error {
+  status: number;
+  details?: unknown;
+
+  constructor(status: number, message: string, details?: unknown) {
+    super(message);
+    this.name = "MetaplexMintError";
+    this.status = status;
+    this.details = details;
+  }
+}
+
+export interface MetaplexDeployCollectionParams {
+  authority: string;
+  payoutAddress: string;
+  name: string;
+  symbol: string;
+  baseUri: string;
+  maxSupply: number;
+  mintPriceLamports: bigint;
+  royaltyBps: number;
+  bagsMintAccess: "public" | "bags_balance";
+  bagsTokenAddress?: string | null;
+  bagsMinTokenBalance?: string | null;
+}
+
+export interface MetaplexDeployCollectionResult {
+  cluster: "mainnet-beta" | "devnet";
+  authority: string;
+  collectionAddress: string;
+  candyMachineAddress: string;
+  candyGuardAddress: string;
+  signature: string;
+  configLineSignatures: string[];
+  walletBalanceLamports: string;
+  recommendedDeployBalanceLamports: string;
+  recommendedDeployBalanceSol: string;
+}
+
+export interface MetaplexCandyMachineState {
+  itemsAvailable: number;
+  itemsRedeemed: number;
+  remaining: number;
+  isSoldOut: boolean;
+}
+
+export interface MetaplexMintPrepareParams {
+  walletAddress: string;
+  collectionAddress: string;
+  candyMachineAddress: string;
+  payoutAddress: string;
+  quantity: number;
+  mintPriceLamports: bigint;
+  bagsMintAccess: "public" | "bags_balance";
+  bagsTokenAddress?: string | null;
+  bagsMinTokenBalance?: string | null;
+}
+
+export interface MetaplexMintPrepareResult {
+  serializedTransactionBase64: string;
+  assetAddresses: string[];
+  totalPaidLamports: string;
+}
+
+function createServerUmi(signer: Keypair) {
+  const umi = createUmi(getSolanaRpcUrl());
+  umi.use(mplCore());
+  umi.use(mplCandyMachine());
+  umi.use(keypairIdentity(fromWeb3JsKeypair(signer)));
+  return umi;
+}
+
+function createMintPreparationUmi(walletAddress: string) {
+  const umi = createUmi(getSolanaRpcUrl());
+  umi.use(mplCore());
+  umi.use(mplCandyMachine());
+  umi.use(signerIdentity(createNoopSigner(publicKey(walletAddress))));
+  return umi;
+}
+
+function formatLamports(lamportsValue: bigint): string {
+  const whole = lamportsValue / BigInt(1_000_000_000);
+  const fraction = lamportsValue % BigInt(1_000_000_000);
+  if (fraction === BigInt(0)) {
+    return whole.toString();
+  }
+
+  return `${whole}.${fraction.toString().padStart(9, "0").replace(/0+$/, "")}`;
+}
+
+function ensureTrailingSlash(value: string): string {
+  return value.endsWith("/") ? value : `${value}/`;
+}
+
+function buildCollectionMetadataUri(baseUri: string): string {
+  return `${ensureTrailingSlash(baseUri)}collection.json`;
+}
+
+function buildConfigLineSettings(name: string, baseUri: string, maxSupply: number) {
+  const maxIndexLength = String(maxSupply).length;
+  return {
+    prefixName: `${name} #`,
+    nameLength: maxIndexLength,
+    prefixUri: ensureTrailingSlash(baseUri),
+    uriLength: `${maxSupply}.json`.length,
+    isSequential: true,
+  };
+}
+
+function buildConfigLines(maxSupply: number) {
+  return Array.from({ length: maxSupply }, (_, index) => ({
+    name: String(index + 1),
+    uri: `${index + 1}.json`,
+  }));
+}
+
+async function getMintDecimals(mintAddress: string): Promise<number> {
+  const connection = new Connection(getSolanaRpcUrl(), "confirmed");
+  const accountInfo = await connection.getParsedAccountInfo(new PublicKey(mintAddress), "confirmed");
+  const parsedData = accountInfo.value?.data;
+
+  if (!parsedData || typeof parsedData !== "object" || !("parsed" in parsedData)) {
+    throw new MetaplexMintError(400, "Failed to read Bags token mint decimals");
+  }
+
+  const decimals = Number(
+    (parsedData as { parsed?: { info?: { decimals?: number | string } } }).parsed?.info?.decimals ?? NaN
+  );
+  if (!Number.isFinite(decimals)) {
+    throw new MetaplexMintError(400, "Bags token mint decimals are missing");
+  }
+
+  return decimals;
+}
+
+function parseTokenAmount(value: string, decimals: number): bigint {
+  const normalized = value.trim();
+  if (!/^\d+(\.\d+)?$/.test(normalized)) {
+    throw new MetaplexMintError(400, "Invalid Bags minimum token balance");
+  }
+
+  const [whole, fraction = ""] = normalized.split(".");
+  const paddedFraction = fraction.padEnd(decimals, "0").slice(0, decimals);
+  const scale = BigInt(`1${"0".repeat(decimals)}`);
+  return BigInt(whole) * scale + BigInt(paddedFraction || "0");
+}
+
+async function buildGuardArgs(input: {
+  payoutAddress: string;
+  mintPriceLamports: bigint;
+  bagsMintAccess: "public" | "bags_balance";
+  bagsTokenAddress?: string | null;
+  bagsMinTokenBalance?: string | null;
+}): Promise<Partial<DefaultGuardSetArgs>> {
+  const guards: Partial<DefaultGuardSetArgs> = {};
+
+  if (input.mintPriceLamports > BigInt(0)) {
+    guards.solPayment = {
+      lamports: lamports(input.mintPriceLamports),
+      destination: publicKey(input.payoutAddress),
+    };
+  }
+
+  if (input.bagsMintAccess === "bags_balance") {
+    if (input.bagsTokenAddress && input.bagsMinTokenBalance) {
+      const decimals = await getMintDecimals(input.bagsTokenAddress);
+      guards.tokenGate = {
+        mint: publicKey(input.bagsTokenAddress),
+        amount: parseTokenAmount(input.bagsMinTokenBalance, decimals),
+      };
+      guards.startDate = null;
+    } else {
+      guards.startDate = {
+        date: BAGS_PENDING_MINT_UNLOCK_AT,
+      };
+      guards.tokenGate = null;
+    }
+  } else {
+    guards.startDate = null;
+    guards.tokenGate = null;
+  }
+
+  return guards;
+}
+
+function buildMintArgs(input: {
+  payoutAddress: string;
+  mintPriceLamports: bigint;
+  bagsMintAccess: "public" | "bags_balance";
+  bagsTokenAddress?: string | null;
+}): Partial<DefaultGuardSetMintArgs> {
+  const mintArgs: Partial<DefaultGuardSetMintArgs> = {};
+
+  if (input.mintPriceLamports > BigInt(0)) {
+    mintArgs.solPayment = {
+      destination: publicKey(input.payoutAddress),
+    };
+  }
+
+  if (input.bagsMintAccess === "bags_balance" && input.bagsTokenAddress) {
+    mintArgs.tokenGate = {
+      mint: publicKey(input.bagsTokenAddress),
+    };
+  }
+
+  return mintArgs;
+}
+
+async function getRecommendedDeployBalanceLamports(
+  signer: Keypair,
+  params: MetaplexDeployCollectionParams
+): Promise<bigint> {
+  const umi = createServerUmi(signer);
+  const collectionSigner = generateSigner(umi);
+  const candyMachineSigner = generateSigner(umi);
+  const guardArgs = await buildGuardArgs(params);
+  const baseBuilder = transactionBuilder()
+    .add(
+      createCollection(umi, {
+        collection: collectionSigner,
+        name: params.name,
+        uri: buildCollectionMetadataUri(params.baseUri),
+        updateAuthority: umi.identity.publicKey,
+        plugins:
+          params.royaltyBps > 0
+            ? [
+                {
+                  type: "Royalties",
+                  basisPoints: params.royaltyBps,
+                  creators: [
+                    {
+                      address: publicKey(params.payoutAddress),
+                      percentage: 100,
+                    },
+                  ],
+                  ruleSet: ruleSet("None"),
+                },
+              ]
+            : [],
+      })
+    )
+    .add(
+      await create(umi, {
+        candyMachine: candyMachineSigner,
+        collection: collectionSigner.publicKey,
+        collectionUpdateAuthority: umi.identity,
+        authority: umi.identity.publicKey,
+        itemsAvailable: params.maxSupply,
+        maxEditionSupply: 0,
+        isMutable: true,
+        configLineSettings: buildConfigLineSettings(params.name, params.baseUri, params.maxSupply),
+        guards: guardArgs,
+      })
+    );
+
+  const rentAmount = await baseBuilder.getRentCreatedOnChain(umi);
+  const configTxCount = Math.ceil(params.maxSupply / CONFIG_LINE_BATCH_SIZE);
+  const txFeeBuffer = DEPLOY_TX_FEE_BUFFER_LAMPORTS + BigInt(configTxCount) * BigInt(50_000);
+  return rentAmount.basisPoints + txFeeBuffer;
+}
+
+export async function deployMetaplexCollection(
+  signer: Keypair,
+  params: MetaplexDeployCollectionParams
+): Promise<MetaplexDeployCollectionResult> {
+  const connection = new Connection(getSolanaRpcUrl(), "confirmed");
+  const walletBalanceLamports = BigInt(await connection.getBalance(signer.publicKey, "confirmed"));
+  const recommendedDeployBalanceLamports = await getRecommendedDeployBalanceLamports(signer, params);
+
+  if (walletBalanceLamports < recommendedDeployBalanceLamports) {
+    throw new MetaplexMintError(400, "Agent wallet does not have enough SOL to deploy", {
+      wallet_address: signer.publicKey.toBase58(),
+      balance_lamports: walletBalanceLamports.toString(),
+      balance_sol: formatLamports(walletBalanceLamports),
+      recommended_lamports: recommendedDeployBalanceLamports.toString(),
+      recommended_sol: formatLamports(recommendedDeployBalanceLamports),
+    });
+  }
+
+  const umi = createServerUmi(signer);
+  const collectionSigner = generateSigner(umi);
+  const candyMachineSigner = generateSigner(umi);
+  const guardArgs = await buildGuardArgs(params);
+
+  const deployBuilder = transactionBuilder()
+    .add(
+      createCollection(umi, {
+        collection: collectionSigner,
+        name: params.name,
+        uri: buildCollectionMetadataUri(params.baseUri),
+        updateAuthority: umi.identity.publicKey,
+        plugins:
+          params.royaltyBps > 0
+            ? [
+                {
+                  type: "Royalties",
+                  basisPoints: params.royaltyBps,
+                  creators: [
+                    {
+                      address: publicKey(params.payoutAddress),
+                      percentage: 100,
+                    },
+                  ],
+                  ruleSet: ruleSet("None"),
+                },
+              ]
+            : [],
+      })
+    )
+    .add(
+      await create(umi, {
+        candyMachine: candyMachineSigner,
+        collection: collectionSigner.publicKey,
+        collectionUpdateAuthority: umi.identity,
+        authority: umi.identity.publicKey,
+        itemsAvailable: params.maxSupply,
+        maxEditionSupply: 0,
+        isMutable: true,
+        configLineSettings: buildConfigLineSettings(params.name, params.baseUri, params.maxSupply),
+        guards: guardArgs,
+      })
+    )
+    .useLegacyVersion();
+
+  const { signature } = await deployBuilder.sendAndConfirm(umi);
+  const configLineSignatures: string[] = [];
+  const configLines = buildConfigLines(params.maxSupply);
+
+  for (let index = 0; index < configLines.length; index += CONFIG_LINE_BATCH_SIZE) {
+    const batch = configLines.slice(index, index + CONFIG_LINE_BATCH_SIZE);
+    const { signature: configSignature } = await addConfigLines(umi, {
+      candyMachine: candyMachineSigner.publicKey,
+      authority: umi.identity,
+      index,
+      configLines: batch,
+    })
+      .useLegacyVersion()
+      .sendAndConfirm(umi);
+    configLineSignatures.push(configSignature.toString());
+  }
+
+  const candyGuardAddress = findCandyGuardPda(umi, {
+    base: candyMachineSigner.publicKey,
+  })[0];
+
+  const cluster =
+    process.env["NEXT_PUBLIC_SOLANA_CLUSTER"] === "devnet" ? "devnet" : "mainnet-beta";
+
+  return {
+    cluster,
+    authority: signer.publicKey.toBase58(),
+    collectionAddress: collectionSigner.publicKey,
+    candyMachineAddress: candyMachineSigner.publicKey,
+    candyGuardAddress,
+    signature: signature.toString(),
+    configLineSignatures,
+    walletBalanceLamports: walletBalanceLamports.toString(),
+    recommendedDeployBalanceLamports: recommendedDeployBalanceLamports.toString(),
+    recommendedDeployBalanceSol: formatLamports(recommendedDeployBalanceLamports),
+  };
+}
+
+export async function fetchMetaplexCandyMachineState(
+  candyMachineAddress: string
+): Promise<MetaplexCandyMachineState> {
+  const umi = createUmi(getSolanaRpcUrl());
+  umi.use(mplCore());
+  umi.use(mplCandyMachine());
+
+  const candyMachine = await fetchCandyMachine(umi, publicKey(candyMachineAddress));
+  const itemsAvailable = Number(candyMachine.data.itemsAvailable);
+  const itemsRedeemed = Number(candyMachine.itemsRedeemed);
+  const remaining = Math.max(itemsAvailable - itemsRedeemed, 0);
+
+  return {
+    itemsAvailable,
+    itemsRedeemed,
+    remaining,
+    isSoldOut: remaining === 0,
+  };
+}
+
+export async function prepareMetaplexMintTransaction(
+  params: MetaplexMintPrepareParams
+): Promise<MetaplexMintPrepareResult> {
+  if (params.quantity < 1 || params.quantity > MAX_METAPLEX_MINT_QUANTITY) {
+    throw new MetaplexMintError(
+      400,
+      `Quantity must be between 1 and ${MAX_METAPLEX_MINT_QUANTITY} for Solana mints`
+    );
+  }
+
+  const onchainState = await fetchMetaplexCandyMachineState(params.candyMachineAddress);
+  if (params.quantity > onchainState.remaining) {
+    throw new MetaplexMintError(409, "Requested quantity exceeds remaining supply");
+  }
+
+  if (params.bagsMintAccess === "bags_balance" && !params.bagsTokenAddress) {
+    throw new MetaplexMintError(409, "Bags token gate is not live for this collection yet");
+  }
+
+  const umi = createMintPreparationUmi(params.walletAddress);
+  const mintArgs = buildMintArgs(params);
+  const candyGuard = findCandyGuardPda(umi, {
+    base: publicKey(params.candyMachineAddress),
+  })[0];
+  const assetSigners = Array.from({ length: params.quantity }, () => generateSigner(umi));
+
+  let builder = transactionBuilder().useLegacyVersion();
+  for (const assetSigner of assetSigners) {
+    builder = builder.add(
+      mintV1(umi, {
+        candyMachine: publicKey(params.candyMachineAddress),
+        candyGuard,
+        collection: publicKey(params.collectionAddress),
+        minter: createNoopSigner(publicKey(params.walletAddress)),
+        payer: createNoopSigner(publicKey(params.walletAddress)),
+        owner: publicKey(params.walletAddress),
+        asset: assetSigner,
+        mintArgs,
+      })
+    );
+  }
+
+  if (!builder.fitsInOneTransaction(umi)) {
+    throw new MetaplexMintError(
+      400,
+      `Mint request is too large for one Solana transaction. Try ${Math.max(
+        1,
+        params.quantity - 1
+      )} NFT(s).`
+    );
+  }
+
+  const signedTransaction = await builder.buildAndSign(umi);
+  const web3Transaction = toWeb3JsLegacyTransaction(signedTransaction);
+  const serialized = web3Transaction.serialize({
+    requireAllSignatures: false,
+    verifySignatures: false,
+  });
+
+  return {
+    serializedTransactionBase64: Buffer.from(serialized).toString("base64"),
+    assetAddresses: assetSigners.map((signer) => signer.publicKey),
+    totalPaidLamports: (params.mintPriceLamports * BigInt(params.quantity)).toString(),
+  };
+}
+
+export async function syncMetaplexCandyMachineForBags(options: {
+  signer: Keypair;
+  candyMachineAddress: string;
+  payoutAddress: string;
+  mintPriceLamports: bigint;
+  bagsMintAccess: "public" | "bags_balance";
+  bagsTokenAddress?: string | null;
+  bagsMinTokenBalance?: string | null;
+}): Promise<void> {
+  const umi = createServerUmi(options.signer);
+  const candyGuard = findCandyGuardPda(umi, {
+    base: publicKey(options.candyMachineAddress),
+  })[0];
+
+  const guards = await buildGuardArgs({
+    payoutAddress: options.payoutAddress,
+    mintPriceLamports: options.mintPriceLamports,
+    bagsMintAccess: options.bagsMintAccess,
+    bagsTokenAddress: options.bagsTokenAddress,
+    bagsMinTokenBalance: options.bagsMinTokenBalance,
+  });
+
+  await updateCandyGuard(umi, {
+    candyGuard,
+    authority: umi.identity,
+    guards,
+    groups: [],
+  })
+    .useLegacyVersion()
+    .sendAndConfirm(umi);
+}

@@ -1,7 +1,7 @@
 {
   "name": "clawdmint",
   "version": "2.3.0",
-  "description": "Deploy Solana mainnet NFT collections and Bags-aware communities from verified AI agents using funded agent wallets.",
+  "description": "Deploy Solana mainnet Metaplex NFT collections with real wallet minting and Bags-aware communities from verified AI agents using funded agent wallets.",
   "homepage": "https://clawdmint.xyz",
   "repository": "https://github.com/clawdmint/clawdmint-plugin",
   "author": "Clawdmint",
@@ -38,6 +38,7 @@
     "provision_agent_wallet",
     "check_agent_funding",
     "deploy_nft_collection",
+    "real_nft_minting",
     "launch_bags_community",
     "bags_fee_sharing",
     "bags_token_gating",
@@ -49,6 +50,8 @@
     "Solana-only. Do not use for Base or any EVM chain.",
     "The human must fund the returned agent wallet with SOL before deploy.",
     "Collection deploy is automatic from the funded agent wallet.",
+    "New collections use Metaplex Core and Candy Machine so collectors can mint real NFTs.",
+    "Collections deployed before the Metaplex rollout remain legacy until redeployed.",
     "Bags launch is attempted automatically from the same funded agent wallet.",
     "If the bags object is omitted, Clawdmint provisions a default Bags token on Solana mainnet."
   ],
@@ -63,7 +66,7 @@
     ],
     "collection_deploy": [
       "POST /api/v1/collections",
-      "Read collection.collection_url and deployment.deploy_tx_hash",
+      "Read collection.collection_url, deployment.mint_engine, deployment.mint_address, and deployment.deploy_tx_hash",
       "Check warnings for incomplete Bags follow-up"
     ],
     "bags_launch_fallback": [

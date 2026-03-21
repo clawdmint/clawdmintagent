@@ -22,14 +22,18 @@ import {
   isBagsLaunchSupportedChain,
   SOLANA_COLLECTION_CHAINS,
 } from "@/lib/collection-chains";
-import { buildSolanaDeploymentManifest } from "@/lib/solana-collections";
 import { checkRateLimit, RATE_LIMIT_DEPLOY } from "@/lib/rate-limit";
 import {
   AgentWalletError,
-  deployCollectionWithAgentWallet,
+  getAgentOperationalKeypair,
   getAgentOperationalWalletAddress,
   signAndBroadcastBagsTransactions,
 } from "@/lib/agent-wallets";
+import {
+  deployMetaplexCollection,
+  METAPLEX_MINT_ENGINE,
+  MetaplexMintError,
+} from "@/lib/metaplex-core-candy-machine";
 
 function hashApiKey(apiKey: string): string {
   return createHash("sha256").update(apiKey).digest("hex");
@@ -131,6 +135,7 @@ export async function POST(request: NextRequest) {
         description: data.description,
         imageUrl: assets.imageHttpUrl,
         baseUri: assets.baseUri,
+        mintEngine: METAPLEX_MINT_ENGINE,
         maxSupply: data.max_supply,
         mintPrice: assets.mintPriceRaw,
         royaltyBps: data.royalty_bps,
@@ -150,37 +155,28 @@ export async function POST(request: NextRequest) {
       },
     });
     createdCollectionId = collection.id;
-    const deployment = await deployCollectionWithAgentWallet(agent, {
+    const deployment = await deployMetaplexCollection(getAgentOperationalKeypair(agent), {
       authority: agentAuthority,
       payoutAddress: data.payout_address,
-      collectionId: collection.id,
       name: data.name,
       symbol: data.symbol,
       baseUri: assets.baseUri,
       maxSupply: data.max_supply,
       mintPriceLamports: BigInt(assets.mintPriceRaw),
       royaltyBps: data.royalty_bps,
+      bagsMintAccess: bagsRecord.bagsMintAccess,
+      bagsTokenAddress: bagsRecord.bagsTokenAddress,
+      bagsMinTokenBalance: bagsRecord.bagsMinTokenBalance,
     });
     collection = await prisma.collection.update({
       where: { id: collection.id },
       data: {
         address: deployment.collectionAddress,
+        mintAddress: deployment.candyMachineAddress,
         deployTxHash: deployment.signature,
         status: "ACTIVE",
         deployedAt: new Date(),
       },
-    });
-
-    const manifest = buildSolanaDeploymentManifest({
-      authority: agentAuthority,
-      payoutAddress: data.payout_address,
-      collectionId: collection.id,
-      name: data.name,
-      symbol: data.symbol,
-      baseUri: assets.baseUri,
-      maxSupply: data.max_supply,
-      mintPriceLamports: BigInt(assets.mintPriceRaw),
-      royaltyBps: data.royalty_bps,
     });
 
     const warnings: string[] = [];
@@ -241,14 +237,21 @@ export async function POST(request: NextRequest) {
       },
       deployment: {
         mode: "agent_wallet_auto",
-        program_id: manifest.program_id,
+        mint_engine: METAPLEX_MINT_ENGINE,
+        program_id: null,
         cluster: deployment.cluster,
         authority: deployment.authority,
         predicted_collection_address: deployment.collectionAddress,
+        collection_address: deployment.collectionAddress,
+        mint_address: deployment.candyMachineAddress,
+        candy_guard_address: deployment.candyGuardAddress,
         deploy_tx_hash: deployment.signature,
         wallet_address: agentAuthority,
-        wallet_balance_sol: deployment.walletBalance.sol,
+        wallet_balance_sol: deployment.walletBalanceLamports
+          ? formatCollectionMintPrice(deployment.walletBalanceLamports, "solana")
+          : "0",
         recommended_deploy_balance_sol: deployment.recommendedDeployBalanceSol,
+        config_line_tx_hashes: deployment.configLineSignatures,
         user_signature_required: false,
         confirm_endpoint: null,
       },
@@ -285,7 +288,7 @@ export async function POST(request: NextRequest) {
         },
       });
     }
-    if (error instanceof AgentWalletError) {
+    if (error instanceof AgentWalletError || error instanceof MetaplexMintError) {
       return NextResponse.json(
         {
           success: false,
@@ -340,6 +343,8 @@ export async function GET(request: NextRequest) {
         id: c.id,
         address: c.address,
         chain: c.chain,
+        mint_engine: c.mintEngine,
+        mint_address: c.mintAddress,
         name: c.name,
         symbol: c.symbol,
         max_supply: c.maxSupply,

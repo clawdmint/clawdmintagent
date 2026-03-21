@@ -17,6 +17,11 @@ import {
 import { getEnv } from "./env";
 import { getSolanaConnection } from "./solana-collections";
 import { isBagsLaunchSupportedChain, normalizeCollectionChain } from "./collection-chains";
+import { getAgentOperationalKeypair } from "./agent-wallets";
+import {
+  METAPLEX_MINT_ENGINE,
+  syncMetaplexCandyMachineForBags,
+} from "./metaplex-core-candy-machine";
 
 export const PrepareCollectionBagsSchema = z.object({
   collection_id: z.string().min(1),
@@ -284,6 +289,42 @@ export async function confirmCollectionBagsLaunch(agentId: string, input: Confir
     analytics = await fetchBagsCollectionAnalytics(tokenAddress);
   } catch (error) {
     console.warn("[Bags] Initial analytics fetch failed:", error);
+  }
+
+  if (
+    collection.mintEngine === METAPLEX_MINT_ENGINE &&
+    collection.mintAddress &&
+    collection.bagsMintAccess === "bags_balance"
+  ) {
+    const agent = await prisma.agent.findUnique({
+      where: { id: agentId },
+      select: {
+        solanaWalletAddress: true,
+        solanaWalletEncryptedKey: true,
+      },
+    });
+
+    if (!agent) {
+      throw new CollectionBagsLaunchError(404, "Agent not found for Bags mint gate sync");
+    }
+
+    try {
+      await syncMetaplexCandyMachineForBags({
+        signer: getAgentOperationalKeypair(agent),
+        candyMachineAddress: collection.mintAddress,
+        payoutAddress: collection.payoutAddress,
+        mintPriceLamports: BigInt(collection.mintPrice),
+        bagsMintAccess: "bags_balance",
+        bagsTokenAddress: tokenAddress,
+        bagsMinTokenBalance: collection.bagsMinTokenBalance,
+      });
+    } catch (error) {
+      throw new CollectionBagsLaunchError(
+        502,
+        "Bags token launched but Candy Guard sync failed",
+        error instanceof Error ? error.message : error
+      );
+    }
   }
 
   const updated = await prisma.collection.update({

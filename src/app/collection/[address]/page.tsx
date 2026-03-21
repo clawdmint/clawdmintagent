@@ -27,6 +27,7 @@ import { getClientEnv } from "@/lib/env";
 import { buildCollectionOwnerAuthMessage } from "@/lib/collection-owner-auth";
 const AGENTS_CONTRACT = (process.env["NEXT_PUBLIC_AGENTS_CONTRACT"] || "").toLowerCase();
 const MIN_COLLECTION_IMAGE_DIMENSION = 256;
+const MAX_SOLANA_MINTS_PER_TX = 3;
 
 interface BagsFeeShare {
   label: string;
@@ -67,6 +68,12 @@ interface Collection {
   address: string;
   chain: string;
   native_token: string;
+  mint_engine?: string | null;
+  mint_address?: string | null;
+  mint_enabled?: boolean;
+  mint_prepare_endpoint?: string | null;
+  mint_confirm_endpoint?: string | null;
+  mint_disabled_reason?: string | null;
   name: string;
   symbol: string;
   description: string;
@@ -96,6 +103,7 @@ interface Collection {
     total_minted: string;
     remaining: string;
     is_sold_out: boolean;
+    items_available?: string;
   };
 }
 
@@ -184,6 +192,9 @@ export default function CollectionPage() {
   const [loading, setLoading] = useState(true);
   const [quantity, setQuantity] = useState(1);
   const [isMinting, setIsMinting] = useState(false);
+  const [mintError, setMintError] = useState("");
+  const [mintSuccess, setMintSuccess] = useState("");
+  const [solanaMintTxHash, setSolanaMintTxHash] = useState<string | null>(null);
   const [imageFailed, setImageFailed] = useState(false);
   const [isLaunchingBags, setIsLaunchingBags] = useState(false);
   const [bagsOwnerStep, setBagsOwnerStep] = useState("");
@@ -224,6 +235,19 @@ export default function CollectionPage() {
       void loadCollection();
     }
   }, [address, loadCollection]);
+
+  useEffect(() => {
+    if (!collection) {
+      return;
+    }
+
+    const remainingCount = Number(collection.onchain?.remaining || collection.max_supply - collection.total_minted);
+    const limit = isEvmCollectionChain(collection.chain)
+      ? Math.max(1, remainingCount)
+      : Math.max(1, Math.min(remainingCount, MAX_SOLANA_MINTS_PER_TX));
+
+    setQuantity((current) => Math.min(Math.max(1, current), limit));
+  }, [collection]);
 
   useEffect(() => {
     if (!collection?.bags || collection.bags.mint_access !== "bags_balance" || !solanaAddress || !isSolanaAddress(solanaAddress)) {
@@ -302,6 +326,8 @@ export default function CollectionPage() {
     if (!collection || !isConnected || !isEvmCollectionChain(collection.chain)) return;
     
     setIsMinting(true);
+    setMintError("");
+    setMintSuccess("");
     
     try {
       const mintPrice = BigInt(collection.mint_price_raw);
@@ -316,6 +342,7 @@ export default function CollectionPage() {
       });
     } catch (error) {
       console.error("Mint error:", error);
+      setMintError(error instanceof Error ? error.message : "Mint failed");
       setIsMinting(false);
     }
   };
@@ -373,6 +400,72 @@ export default function CollectionPage() {
     },
     []
   );
+
+  const handleSolanaMint = useCallback(async () => {
+    if (!collection?.mint_prepare_endpoint || !collection?.mint_confirm_endpoint || !solanaAddress) {
+      return;
+    }
+
+    setIsMinting(true);
+    setMintError("");
+    setMintSuccess("");
+    setSolanaMintTxHash(null);
+
+    try {
+      const prepareResponse = await fetch(collection.mint_prepare_endpoint, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          wallet_address: solanaAddress,
+          quantity,
+        }),
+      });
+      const preparePayload = await prepareResponse.json();
+      if (!prepareResponse.ok || !preparePayload.success || !preparePayload.mint?.transaction_base64) {
+        throw new Error(preparePayload.error || "Failed to prepare Solana mint");
+      }
+
+      const { solanaCluster, solanaRpcUrl } = getClientEnv();
+      const connection = new Connection(
+        solanaRpcUrl || clusterApiUrl(solanaCluster === "devnet" ? "devnet" : "mainnet-beta"),
+        "confirmed"
+      );
+      const signature = await signAndBroadcastSolanaTransaction(
+        connection,
+        preparePayload.mint.transaction_base64
+      );
+      setSolanaMintTxHash(signature);
+
+      const confirmResponse = await fetch(collection.mint_confirm_endpoint, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          intent_id: preparePayload.mint.intent_id,
+          wallet_address: solanaAddress,
+          tx_hash: signature,
+        }),
+      });
+      const confirmPayload = await confirmResponse.json();
+      if (!confirmResponse.ok || !confirmPayload.success) {
+        throw new Error(confirmPayload.error || "Failed to confirm Solana mint");
+      }
+
+      setMintSuccess(`Minted ${quantity} NFT${quantity > 1 ? "s" : ""} on Solana.`);
+      await loadCollection();
+    } catch (error) {
+      console.error("Solana mint failed:", error);
+      setMintError(error instanceof Error ? error.message : "Solana mint failed");
+    } finally {
+      setIsMinting(false);
+    }
+  }, [
+    collection?.mint_confirm_endpoint,
+    collection?.mint_prepare_endpoint,
+    loadCollection,
+    quantity,
+    signAndBroadcastSolanaTransaction,
+    solanaAddress,
+  ]);
 
   const handleBagsOwnerLaunch = useCallback(async () => {
     if (!collection?.bags?.creator_wallet) {
@@ -506,8 +599,10 @@ export default function CollectionPage() {
   const network = getNetworkFromValue(collection.chain);
   const chainName = network.label;
   const explorerUrl = getAddressExplorerUrl(collection.address, collection.chain);
-  const txExplorerUrl = txHash ? getTransactionExplorerUrl(txHash, collection.chain) : null;
+  const latestMintTxHash = solanaMintTxHash || txHash || null;
+  const txExplorerUrl = latestMintTxHash ? getTransactionExplorerUrl(latestMintTxHash, collection.chain) : null;
   const isEvmCollection = isEvmCollectionChain(collection.chain);
+  const isMetaplexMintCollection = collection.mint_engine === "metaplex_core_candy_machine";
   const nativeToken = collection.native_token || getCollectionNativeToken(collection.chain);
   const mintPriceNative = collection.mint_price_native || formatCollectionMintPrice(collection.mint_price_raw, collection.chain);
   const totalCost = parseFloat(mintPriceNative || "0") * quantity;
@@ -527,6 +622,10 @@ export default function CollectionPage() {
   const isBagsOwner = Boolean(bags?.creator_wallet && solanaAddress && bags.creator_wallet === solanaAddress);
   const needsOwnerWalletConnection = Boolean(shouldShowBagsOwnerConsole && !isBagsOwner);
   const bagsLaunchExplorerUrl = bagsOwnerLaunchTx ? getTransactionExplorerUrl(bagsOwnerLaunchTx, bagsChainValue) : null;
+  const solanaMintGatePending = Boolean(bagsIsTokenGated && bags?.status !== "LIVE");
+  const maxMintableQuantity = isEvmCollection
+    ? parseInt(remaining, 10)
+    : Math.min(parseInt(remaining, 10), MAX_SOLANA_MINTS_PER_TX);
 
   return (
     <div className="min-h-screen relative noise">
@@ -705,7 +804,7 @@ export default function CollectionPage() {
                   </span>
                 </div>
 
-                {!isSoldOut && isEvmCollection && (
+                {!isSoldOut && (isEvmCollection || isMetaplexMintCollection) && (
                   <>
                     {/* Quantity selector */}
                     <div className="flex items-center justify-between">
@@ -723,17 +822,23 @@ export default function CollectionPage() {
                         </button>
                         <span className="text-xl font-bold w-12 text-center">{quantity}</span>
                         <button
-                          onClick={() => setQuantity(Math.min(parseInt(remaining), quantity + 1))}
+                          onClick={() => setQuantity(Math.min(maxMintableQuantity, quantity + 1))}
                           className={clsx(
                             "w-10 h-10 glass rounded-xl flex items-center justify-center transition-colors",
                             theme === "dark" ? "hover:bg-white/[0.08]" : "hover:bg-gray-100"
                           )}
-                          disabled={quantity >= parseInt(remaining)}
+                          disabled={quantity >= maxMintableQuantity}
                         >
                           <Plus className="w-4 h-4" />
                         </button>
                       </div>
                     </div>
+
+                    {isMetaplexMintCollection && (
+                      <p className={clsx("text-xs", theme === "dark" ? "text-gray-500" : "text-gray-500")}>
+                        Solana mints are currently capped at {MAX_SOLANA_MINTS_PER_TX} NFTs per transaction.
+                      </p>
+                    )}
 
                     {/* Total */}
                     <div className={clsx(
@@ -986,21 +1091,11 @@ export default function CollectionPage() {
                 {/* Mint Button */}
                 {!isConnected ? (
                   <PrivyConnectButton />
-                ) : !isEvmCollection ? (
-                  <div className="space-y-3">
-                    <button disabled className="w-full btn-primary text-lg py-4 opacity-50 cursor-not-allowed">
-                      Solana mint not enabled yet
-                    </button>
-                    <p className={clsx("text-xs leading-relaxed", theme === "dark" ? "text-gray-400" : "text-gray-600")}>
-                      This collection is deployed on Solana, but the current Clawdmint Solana runtime only stores collection state and minted supply.
-                      It does not issue collector NFTs yet, so public mint stays disabled on this page for now.
-                    </p>
-                  </div>
                 ) : isSoldOut ? (
                   <button disabled className="w-full btn-primary text-lg py-4 opacity-50 cursor-not-allowed">
                     Sold Out
                   </button>
-                ) : (
+                ) : isEvmCollection ? (
                   <button
                     onClick={handleMint}
                     disabled={isMinting || isWritePending || isConfirming}
@@ -1017,10 +1112,57 @@ export default function CollectionPage() {
                             : `Mint ${quantity} NFT${quantity > 1 ? "s" : ""}`}
                     </span>
                   </button>
+                ) : isMetaplexMintCollection && collection.mint_enabled ? (
+                  <button
+                    onClick={() => void handleSolanaMint()}
+                    disabled={isMinting}
+                    className="w-full btn-primary text-lg py-4 flex items-center justify-center gap-2"
+                  >
+                    {isMinting ? (
+                      <Loader2 className="w-5 h-5 relative z-10 animate-spin" />
+                    ) : (
+                      <Sparkles className="w-5 h-5 relative z-10" />
+                    )}
+                    <span className="relative z-10">
+                      {isMinting
+                        ? "Minting on Solana..."
+                        : `Mint ${quantity} NFT${quantity > 1 ? "s" : ""}`}
+                    </span>
+                  </button>
+                ) : isMetaplexMintCollection ? (
+                  <div className="space-y-3">
+                    <button disabled className="w-full btn-primary text-lg py-4 opacity-50 cursor-not-allowed">
+                      Mint unavailable
+                    </button>
+                    <p className={clsx("text-xs leading-relaxed", theme === "dark" ? "text-gray-400" : "text-gray-600")}>
+                      {collection.mint_disabled_reason ||
+                        (solanaMintGatePending
+                          ? "This collection is waiting for the Bags token gate to go live."
+                          : "Mint is not available for this collection right now.")}
+                    </p>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    <button disabled className="w-full btn-primary text-lg py-4 opacity-50 cursor-not-allowed">
+                      Legacy Solana Collection
+                    </button>
+                    <p className={clsx("text-xs leading-relaxed", theme === "dark" ? "text-gray-400" : "text-gray-600")}>
+                      This collection was deployed on the old state-only Solana runtime, so it cannot issue real NFTs.
+                    </p>
+                  </div>
+                )}
+
+                {mintError && (
+                  <div className={clsx(
+                    "rounded-xl border px-3 py-2 text-sm",
+                    theme === "dark" ? "border-red-500/20 bg-red-500/10 text-red-200" : "border-red-200 bg-red-50 text-red-700"
+                  )}>
+                    {mintError}
+                  </div>
                 )}
 
                 {/* Success message with enhanced animation */}
-                {isSuccess && txHash && (
+                {((isSuccess && txHash) || (mintSuccess && latestMintTxHash)) && (
                   <div className="relative">
                     {/* Confetti particles */}
                     <div className="absolute -inset-4 pointer-events-none overflow-hidden">
@@ -1076,7 +1218,9 @@ export default function CollectionPage() {
                           </div>
                           <div>
                             <p className="text-emerald-300 font-bold text-xl">Mint Successful!</p>
-                            <p className="text-emerald-400/70 text-sm">You minted {quantity} NFT{quantity > 1 ? "s" : ""}</p>
+                            <p className="text-emerald-400/70 text-sm">
+                              {mintSuccess || `You minted ${quantity} NFT${quantity > 1 ? "s" : ""}`}
+                            </p>
                           </div>
                         </div>
                         
