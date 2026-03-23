@@ -78,7 +78,7 @@ export function MarketLinksBar() {
           >
             <div
               className={clsx(
-                "mx-auto flex min-w-max items-center gap-2 rounded-[24px] border px-2 py-2 shadow-[0_12px_40px_rgba(0,0,0,0.18)]",
+                "mx-auto flex min-w-max items-center gap-2 rounded-[24px] border px-2 py-2 shadow-[0_12px_40px_rgba(0,0,0,0.18)] md:grid md:min-w-0 md:grid-cols-4 md:items-stretch",
                 theme === "dark"
                   ? "border-white/[0.08] bg-[linear-gradient(180deg,rgba(11,18,37,0.96),rgba(4,9,22,0.92))]"
                   : "border-gray-200/80 bg-[linear-gradient(180deg,rgba(255,255,255,0.98),rgba(247,250,255,0.96))]"
@@ -91,7 +91,7 @@ export function MarketLinksBar() {
                   <div
                     key={item.label}
                     className={clsx(
-                      "flex shrink-0 items-center gap-2 rounded-[18px] border px-3 py-2 transition-all",
+                      "flex shrink-0 items-center gap-2 rounded-[18px] border px-3 py-2 transition-all md:min-w-0 md:w-full md:justify-between",
                       theme === "dark"
                         ? "border-white/[0.06] bg-white/[0.03] hover:border-cyan-400/20 hover:bg-white/[0.05]"
                         : "border-gray-200/80 bg-white/80 hover:border-cyan-200 hover:bg-white"
@@ -110,7 +110,7 @@ export function MarketLinksBar() {
 
                     <span
                       className={clsx(
-                        "max-w-[148px] truncate font-mono text-[11px] md:max-w-[168px]",
+                        "max-w-[148px] truncate font-mono text-[11px] md:max-w-none md:flex-1",
                         theme === "dark" ? "text-gray-200" : "text-gray-700"
                       )}
                       title={item.copyValue}
