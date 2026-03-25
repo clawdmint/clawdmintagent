@@ -5,7 +5,8 @@ import { useParams } from "next/navigation";
 import Link from "next/link";
 import { useTheme } from "@/components/theme-provider";
 import { clsx } from "clsx";
-import { ArrowRight, Sparkles } from "lucide-react";
+import { ArrowRight, Check, Copy, ExternalLink, Sparkles } from "lucide-react";
+import { getAddressExplorerUrl, truncateAddress } from "@/lib/network-config";
 
 interface Agent {
   id: string;
@@ -13,6 +14,7 @@ interface Agent {
   description: string;
   avatar_url: string;
   eoa: string;
+  solana_wallet_address: string | null;
   x_handle: string;
   verified_at: string;
   collections: Array<{
@@ -38,6 +40,7 @@ export default function AgentPage() {
 
   const [agent, setAgent] = useState<Agent | null>(null);
   const [loading, setLoading] = useState(true);
+  const [copiedWallet, setCopiedWallet] = useState(false);
 
   useEffect(() => {
     async function fetchAgent() {
@@ -127,6 +130,41 @@ export default function AgentPage() {
                     <p className="text-gray-400 font-mono text-sm mb-2">
                       {agent.eoa}
                     </p>
+                    {agent.solana_wallet_address ? (
+                      <div className="flex flex-wrap items-center gap-2 mb-2">
+                        <span className="rounded-full bg-violet-500/10 px-2.5 py-1 text-[11px] font-mono uppercase tracking-[0.2em] text-violet-300">
+                          Solana
+                        </span>
+                        <span className="font-mono text-sm text-gray-300" title={agent.solana_wallet_address}>
+                          {truncateAddress(agent.solana_wallet_address, 8, 6)}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={async () => {
+                            try {
+                              await navigator.clipboard.writeText(agent.solana_wallet_address || "");
+                              setCopiedWallet(true);
+                              window.setTimeout(() => setCopiedWallet(false), 1800);
+                            } catch (error) {
+                              console.error("Failed to copy Solana wallet:", error);
+                            }
+                          }}
+                          className="rounded-full p-1.5 text-gray-400 transition-colors hover:bg-white/[0.06] hover:text-white"
+                          aria-label="Copy Solana wallet"
+                        >
+                          {copiedWallet ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
+                        </button>
+                        <a
+                          href={getAddressExplorerUrl(agent.solana_wallet_address, "solana")}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="rounded-full p-1.5 text-gray-400 transition-colors hover:bg-white/[0.06] hover:text-white"
+                          aria-label="Open Solana wallet in explorer"
+                        >
+                          <ExternalLink className="w-3.5 h-3.5" />
+                        </a>
+                      </div>
+                    ) : null}
                     <div className="flex items-center gap-4">
                       {agent.x_handle && (
                         <a

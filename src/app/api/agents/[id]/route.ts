@@ -58,6 +58,7 @@ export async function GET(
         description: agent.description,
         avatar_url: agent.avatarUrl,
         eoa: agent.eoa,
+        solana_wallet_address: agent.solanaWalletAddress,
         x_handle: agent.xHandle,
         verified_at: agent.verifiedAt?.toISOString(),
         collections: agent.collections.map((c) => ({

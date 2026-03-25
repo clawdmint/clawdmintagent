@@ -1,4 +1,4 @@
-import { getEnv } from "./env";
+import { getEnv, isBagsIntegrationEnabled } from "./env";
 import { calculateBagsScore, type StoredBagsRecipientConfig } from "./collection-bags";
 import { Transaction, VersionedTransaction } from "@solana/web3.js";
 import bs58 from "bs58";
@@ -61,7 +61,7 @@ interface FeeShareWalletLookup {
 }
 
 export function isBagsConfigured(): boolean {
-  return Boolean(getEnv("BAGS_API_KEY", ""));
+  return isBagsIntegrationEnabled() && Boolean(getEnv("BAGS_API_KEY", ""));
 }
 
 function getBagsApiBaseUrl(): string {
@@ -69,6 +69,10 @@ function getBagsApiBaseUrl(): string {
 }
 
 function getBagsApiKey(): string {
+  if (!isBagsIntegrationEnabled()) {
+    throw new Error("Bags integration is temporarily disabled");
+  }
+
   const apiKey = getEnv("BAGS_API_KEY", "");
   if (!apiKey) {
     throw new Error("BAGS_API_KEY not configured");

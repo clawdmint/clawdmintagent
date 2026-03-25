@@ -17,6 +17,7 @@ import {
 import { CollectionCard } from "@/components/collection-card";
 import { SolanaLogo } from "@/components/network-icons";
 import { useTheme } from "@/components/theme-provider";
+import { getClientEnv } from "@/lib/env";
 
 interface BagsCollectionPreview {
   enabled: boolean;
@@ -84,6 +85,7 @@ function hasFeeSharing(collection: Collection) {
 
 export default function DropsPage() {
   const { theme } = useTheme();
+  const { bagsEnabled } = getClientEnv();
   const [collections, setCollections] = useState<Collection[]>([]);
   const [loading, setLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
@@ -92,6 +94,16 @@ export default function DropsPage() {
   const [bagsFilter, setBagsFilter] = useState<BagsFilter>("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [sortBy, setSortBy] = useState<SortOption>("newest");
+
+  useEffect(() => {
+    if (!bagsEnabled && bagsFilter !== "all") {
+      setBagsFilter("all");
+    }
+
+    if (!bagsEnabled && sortBy === "bags_signal") {
+      setSortBy("newest");
+    }
+  }, [bagsEnabled, bagsFilter, sortBy]);
 
   useEffect(() => {
     async function fetchCollections() {
@@ -114,6 +126,7 @@ export default function DropsPage() {
   const metrics = useMemo(() => {
     const live = collections.filter((collection) => collection.status === "ACTIVE").length;
     const free = collections.filter((collection) => getMintPriceValue(collection) === 0).length;
+    const paid = collections.filter((collection) => getMintPriceValue(collection) > 0).length;
     const hot = collections.filter((collection) => getMintProgress(collection) >= 80 && collection.status === "ACTIVE").length;
     const bagsLive = collections.filter((collection) => hasLiveBagsToken(collection)).length;
     const tokenGated = collections.filter((collection) => collection.bags?.mint_access === "bags_balance").length;
@@ -122,6 +135,7 @@ export default function DropsPage() {
       total: collections.length,
       live,
       free,
+      paid,
       hot,
       bagsLive,
       tokenGated,
@@ -141,9 +155,11 @@ export default function DropsPage() {
     if (supplyFilter === "hot") result = result.filter((collection) => getMintProgress(collection) >= 80);
     if (supplyFilter === "open") result = result.filter((collection) => collection.max_supply > 1000);
 
-    if (bagsFilter === "bags") result = result.filter((collection) => hasLiveBagsToken(collection));
-    if (bagsFilter === "token_gated") result = result.filter((collection) => collection.bags?.mint_access === "bags_balance");
-    if (bagsFilter === "fee_share") result = result.filter((collection) => hasFeeSharing(collection));
+    if (bagsEnabled) {
+      if (bagsFilter === "bags") result = result.filter((collection) => hasLiveBagsToken(collection));
+      if (bagsFilter === "token_gated") result = result.filter((collection) => collection.bags?.mint_access === "bags_balance");
+      if (bagsFilter === "fee_share") result = result.filter((collection) => hasFeeSharing(collection));
+    }
 
     if (searchQuery.trim()) {
       const query = searchQuery.toLowerCase().trim();
@@ -177,7 +193,7 @@ export default function DropsPage() {
     }
 
     return result;
-  }, [bagsFilter, collections, priceFilter, searchQuery, sortBy, statusFilter, supplyFilter]);
+  }, [bagsEnabled, bagsFilter, collections, priceFilter, searchQuery, sortBy, statusFilter, supplyFilter]);
 
   const activeFilters = useMemo(() => {
     const items: string[] = [];
@@ -192,7 +208,7 @@ export default function DropsPage() {
             : "supply:large"
       );
     }
-    if (bagsFilter !== "all") {
+    if (bagsEnabled && bagsFilter !== "all") {
       items.push(
         bagsFilter === "bags"
           ? "bags:live"
@@ -203,9 +219,14 @@ export default function DropsPage() {
     }
     if (searchQuery.trim()) items.push(`search:${searchQuery.trim()}`);
     return items;
-  }, [bagsFilter, priceFilter, searchQuery, statusFilter, supplyFilter]);
+  }, [bagsEnabled, bagsFilter, priceFilter, searchQuery, statusFilter, supplyFilter]);
 
-  const currentSortLabel = SORT_OPTIONS.find((option) => option.value === sortBy)?.label || "Newest";
+  const sortOptions = useMemo(
+    () => (bagsEnabled ? SORT_OPTIONS : SORT_OPTIONS.filter((option) => option.value !== "bags_signal")),
+    [bagsEnabled]
+  );
+
+  const currentSortLabel = sortOptions.find((option) => option.value === sortBy)?.label || "Newest";
 
   const clearAllFilters = () => {
     setStatusFilter("all");
@@ -245,16 +266,24 @@ export default function DropsPage() {
                 <MetricCard label="Live now" value={metrics.live} icon={<TrendingUp className="h-4 w-4" />} theme={theme} accent="cyan" />
                 <MetricCard label="Free mints" value={metrics.free} icon={<Sparkles className="h-4 w-4" />} theme={theme} accent="emerald" />
                 <MetricCard label="Solana drops" value={metrics.total} icon={<SolanaLogo className="h-4 w-4" />} theme={theme} accent="purple" />
-                <MetricCard label="Token gated" value={metrics.tokenGated} icon={<Target className="h-4 w-4" />} theme={theme} accent="cyan" />
+                <MetricCard
+                  label={bagsEnabled ? "Token gated" : "Paid mints"}
+                  value={bagsEnabled ? metrics.tokenGated : metrics.paid}
+                  icon={<Target className="h-4 w-4" />}
+                  theme={theme}
+                  accent="cyan"
+                />
               </div>
               <div className={clsx("mt-4 rounded-2xl border px-4 py-3", theme === "dark" ? "border-white/[0.06] bg-white/[0.03]" : "border-gray-200 bg-gray-50")}>
                 <div className="flex items-center justify-between gap-3">
                   <div>
                     <div className={clsx("font-mono text-[10px] uppercase tracking-[0.2em]", theme === "dark" ? "text-cyan-400/70" : "text-cyan-600")}>
-                      Bags signal
+                      {bagsEnabled ? "Bags signal" : "Feed status"}
                     </div>
                     <p className={clsx("mt-1 text-sm", theme === "dark" ? "text-gray-400" : "text-gray-500")}>
-                      {metrics.bagsLive} live Bags token{metrics.bagsLive !== 1 ? "s" : ""}, {metrics.tokenGated} token-gated drop{metrics.tokenGated !== 1 ? "s" : ""}.
+                      {bagsEnabled
+                        ? `${metrics.bagsLive} live Bags token${metrics.bagsLive !== 1 ? "s" : ""}, ${metrics.tokenGated} token-gated drop${metrics.tokenGated !== 1 ? "s" : ""}.`
+                        : `${metrics.live} collections are live and Bags features are temporarily offline.`}
                     </p>
                   </div>
                   <div className={clsx("rounded-full px-3 py-1 font-mono text-[11px]", theme === "dark" ? "bg-orange-500/10 text-orange-300" : "bg-orange-50 text-orange-600")}>
@@ -305,7 +334,7 @@ export default function DropsPage() {
                 label="Sort"
                 value={sortBy}
                 onChange={(value) => setSortBy(value as SortOption)}
-                options={SORT_OPTIONS.map((option) => ({ value: option.value, label: option.label }))}
+                options={sortOptions.map((option) => ({ value: option.value, label: option.label }))}
                 theme={theme}
                 icon={<ArrowUpDown className="h-4 w-4 text-cyan-500" />}
               />
@@ -349,18 +378,20 @@ export default function DropsPage() {
                 theme={theme}
               />
 
-              <FilterSelect
-                label="Bags"
-                value={bagsFilter}
-                onChange={(value) => setBagsFilter(value as BagsFilter)}
-                options={[
-                  { value: "all", label: "Any" },
-                  { value: "bags", label: "Live token" },
-                  { value: "token_gated", label: "Token gated" },
-                  { value: "fee_share", label: "Fee share" },
-                ]}
-                theme={theme}
-              />
+              {bagsEnabled ? (
+                <FilterSelect
+                  label="Bags"
+                  value={bagsFilter}
+                  onChange={(value) => setBagsFilter(value as BagsFilter)}
+                  options={[
+                    { value: "all", label: "Any" },
+                    { value: "bags", label: "Live token" },
+                    { value: "token_gated", label: "Token gated" },
+                    { value: "fee_share", label: "Fee share" },
+                  ]}
+                  theme={theme}
+                />
+              ) : null}
             </div>
 
             <div className={clsx("mt-4 flex flex-col gap-3 border-t pt-3 xl:flex-row xl:items-center xl:justify-between", theme === "dark" ? "border-white/[0.06]" : "border-gray-200")}>

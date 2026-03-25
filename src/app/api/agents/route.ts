@@ -46,6 +46,7 @@ export async function GET(request: NextRequest) {
         description: a.description,
         avatar_url: a.avatarUrl,
         eoa: a.eoa,
+        solana_wallet_address: a.solanaWalletAddress,
         x_handle: a.xHandle,
         status: a.status,
         deploy_enabled: a.deployEnabled,

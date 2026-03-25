@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { isSolanaAddress } from "./network-config";
 import { type CollectionChain, isSolanaCollectionChain } from "./collection-chains";
+import { isBagsIntegrationEnabled } from "./env";
 
 const BAGS_NATIVE_AMOUNT_REGEX = /^\d+\.?\d*$/;
 const LAMPORTS_PER_SOL = BigInt("1000000000");
@@ -183,6 +184,10 @@ function normalizeAutomaticTokenSymbol(value: string): string {
 }
 
 export function hasBagsConfiguration(input?: BagsCollectionConfigInput | null): boolean {
+  if (!isBagsIntegrationEnabled()) {
+    return false;
+  }
+
   if (!input) {
     return false;
   }
@@ -217,6 +222,10 @@ export function resolveAutomaticBagsInput(
   input: BagsCollectionConfigInput | undefined,
   options: AutomaticBagsDefaultsOptions
 ): BagsCollectionConfigInput | undefined {
+  if (!isBagsIntegrationEnabled()) {
+    return undefined;
+  }
+
   if (input?.enabled === false) {
     return input;
   }
@@ -532,6 +541,10 @@ export function calculateBagsScore(lifetimeFeesLamports?: string | null, claimed
 }
 
 export function buildCollectionBagsView(collection: CollectionBagsRecordLike): CollectionBagsView | null {
+  if (!isBagsIntegrationEnabled()) {
+    return null;
+  }
+
   const status = (collection.bagsStatus || "DISABLED") as CollectionBagsStatus;
   const config = parseCollectionBagsConfig(collection.bagsFeeConfig);
   const enabled = status !== "DISABLED" || Boolean(collection.bagsTokenAddress) || Boolean(config);

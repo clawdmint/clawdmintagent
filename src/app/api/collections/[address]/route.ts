@@ -7,6 +7,7 @@ import {
 } from "@/lib/collection-chains";
 import { buildCollectionBagsView } from "@/lib/collection-bags";
 import { fetchBagsCollectionAnalytics, isBagsConfigured } from "@/lib/bags";
+import { isBagsIntegrationEnabled } from "@/lib/env";
 import { ipfsToHttp } from "@/lib/ipfs";
 import {
   fetchMetaplexCandyMachineState,
@@ -146,15 +147,20 @@ export async function GET(
       }
     }
 
+    const bagsEnabled = isBagsIntegrationEnabled();
     const bagsView = buildCollectionBagsView(bagsCollection);
     const mintEngine = bagsCollection.mintEngine || LEGACY_SOLANA_MINT_ENGINE;
     const isMetaplexMint = mintEngine === METAPLEX_MINT_ENGINE && Boolean(bagsCollection.mintAddress);
+    const bagsGateBlockedWhileDisabled =
+      !bagsEnabled && bagsCollection.bagsMintAccess === "bags_balance";
     const bagsTokenGatePending =
+      !bagsGateBlockedWhileDisabled &&
       bagsView?.mint_access === "bags_balance" &&
       (!bagsView.token_address || bagsView.status !== "LIVE");
     const mintEnabled =
       isMetaplexMint &&
       bagsCollection.status !== "FAILED" &&
+      !bagsGateBlockedWhileDisabled &&
       !bagsTokenGatePending &&
       !onchain?.is_sold_out;
 
@@ -174,6 +180,8 @@ export async function GET(
           ? null
           : mintEngine !== METAPLEX_MINT_ENGINE
             ? "This legacy Solana collection uses the old state-only runtime and cannot issue NFTs."
+            : bagsGateBlockedWhileDisabled
+              ? "Bags integration is temporarily disabled for this collection."
             : bagsTokenGatePending
               ? "This collection is waiting for its Bags token gate to go live before mint opens."
               : onchain?.is_sold_out

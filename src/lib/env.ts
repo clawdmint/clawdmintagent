@@ -18,6 +18,24 @@ export function getEnv(key: string, defaultValue = ""): string {
   return process.env[key] ?? defaultValue;
 }
 
+function isTruthyEnvValue(value: string): boolean {
+  return ["1", "true", "yes", "on"].includes(value.trim().toLowerCase());
+}
+
+export function isBagsIntegrationEnabled(): boolean {
+  const serverFlag = getEnv("BAGS_ENABLED", "");
+  if (serverFlag) {
+    return isTruthyEnvValue(serverFlag);
+  }
+
+  const clientFlag = getEnv("NEXT_PUBLIC_BAGS_ENABLED", "");
+  if (clientFlag) {
+    return isTruthyEnvValue(clientFlag);
+  }
+
+  return true;
+}
+
 /**
  * Require an environment variable - throws if missing
  */
@@ -42,6 +60,7 @@ export function getClientEnv() {
     solanaCluster: getEnv("NEXT_PUBLIC_SOLANA_CLUSTER", "mainnet-beta"),
     solanaRpcUrl: getEnv("NEXT_PUBLIC_SOLANA_RPC_URL", ""),
     solanaCollectionProgramId: getEnv("NEXT_PUBLIC_SOLANA_COLLECTION_PROGRAM_ID", ""),
+    bagsEnabled: isBagsIntegrationEnabled(),
     bagsAppUrl: getEnv("NEXT_PUBLIC_BAGS_APP_URL", "https://bags.fm"),
     factoryAddress: getEnv("NEXT_PUBLIC_FACTORY_ADDRESS", ""),
     alchemyId: getEnv("NEXT_PUBLIC_ALCHEMY_ID", ""),
@@ -104,6 +123,7 @@ export function getServerEnv() {
     // External APIs
     twitterBearerToken: getEnv("TWITTER_BEARER_TOKEN", ""),
     basescanApiKey: getEnv("BASESCAN_API_KEY", ""),
+    bagsEnabled: isBagsIntegrationEnabled(),
     bagsApiKey: getEnv("BAGS_API_KEY", ""),
     bagsApiBaseUrl: getEnv("BAGS_API_BASE_URL", "https://public-api-v2.bags.fm"),
     
@@ -135,6 +155,7 @@ export function validateEnv(forProduction = false): EnvValidationResult {
   const missing: string[] = [];
   const warnings: string[] = [];
   const networkFamily = process.env["NEXT_PUBLIC_NETWORK_FAMILY"] || "solana";
+  const bagsEnabled = isBagsIntegrationEnabled();
   
   // Required for all environments
   const requiredClient = ["NEXT_PUBLIC_APP_URL"];
@@ -208,7 +229,7 @@ export function validateEnv(forProduction = false): EnvValidationResult {
     }
   }
 
-  if (!process.env["BAGS_API_KEY"]) {
+  if (bagsEnabled && !process.env["BAGS_API_KEY"]) {
     warnings.push("BAGS_API_KEY not set - Bags token launch and analytics features will be disabled");
   }
   

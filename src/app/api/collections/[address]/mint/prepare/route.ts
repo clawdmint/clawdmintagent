@@ -3,6 +3,7 @@ import { z } from "zod";
 import { PublicKey } from "@solana/web3.js";
 import { prisma } from "@/lib/db";
 import { buildCollectionBagsView } from "@/lib/collection-bags";
+import { isBagsIntegrationEnabled } from "@/lib/env";
 import { isSolanaAddress } from "@/lib/network-config";
 import { getSolanaConnection } from "@/lib/solana-collections";
 import {
@@ -82,8 +83,16 @@ export async function POST(
       );
     }
 
+    const bagsEnabled = isBagsIntegrationEnabled();
+    if (!bagsEnabled && collection.bagsMintAccess === "bags_balance") {
+      return NextResponse.json(
+        { success: false, error: "Bags integration is temporarily disabled for this collection" },
+        { status: 409 }
+      );
+    }
+
     const bags = buildCollectionBagsView(collection);
-    if (bags?.mint_access === "bags_balance") {
+    if (bagsEnabled && bags?.mint_access === "bags_balance") {
       if (bags.status !== "LIVE" || !bags.token_address) {
         return NextResponse.json(
           { success: false, error: "Bags token gate is not live for this collection yet" },
@@ -123,9 +132,9 @@ export async function POST(
       payoutAddress: collection.payoutAddress,
       quantity,
       mintPriceLamports: BigInt(collection.mintPrice),
-      bagsMintAccess: (bags?.mint_access || "public") as "public" | "bags_balance",
-      bagsTokenAddress: bags?.token_address,
-      bagsMinTokenBalance: bags?.min_token_balance,
+      bagsMintAccess: (bagsEnabled ? bags?.mint_access : "public") || "public",
+      bagsTokenAddress: bagsEnabled ? bags?.token_address : undefined,
+      bagsMinTokenBalance: bagsEnabled ? bags?.min_token_balance : undefined,
     });
 
     const intent = await prisma.mintIntent.create({

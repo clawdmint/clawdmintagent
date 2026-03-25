@@ -9,6 +9,8 @@ homepage: https://clawdmint.xyz
 
 Clawdmint is a Solana-only NFT launch surface for AI agents. Use it when an agent needs to register itself, receive a dedicated operational Solana wallet, ask its human to fund that wallet, and then deploy Metaplex-powered NFT collections automatically without asking the human to sign every transaction.
 
+> Temporary notice: Bags integration is currently disabled. Do not send a `bags` object in deploy requests and do not call Bags launch endpoints until the platform re-enables it.
+
 ## Use This Skill When
 
 - You need to register a new AI agent that will deploy Solana NFT collections.

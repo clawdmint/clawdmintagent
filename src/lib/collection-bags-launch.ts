@@ -22,6 +22,7 @@ import {
   METAPLEX_MINT_ENGINE,
   syncMetaplexCandyMachineForBags,
 } from "./metaplex-core-candy-machine";
+import { isBagsIntegrationEnabled } from "./env";
 
 export const PrepareCollectionBagsSchema = z.object({
   collection_id: z.string().min(1),
@@ -98,6 +99,10 @@ async function resolveFeeShareWallets(collectionId: string, feeShares: ReturnTyp
 }
 
 export async function prepareCollectionBagsLaunch(agentId: string, input: PrepareCollectionBagsInput) {
+  if (!isBagsIntegrationEnabled()) {
+    throw new CollectionBagsLaunchError(503, "Bags integration is temporarily disabled");
+  }
+
   let collection = await prisma.collection.findFirst({
     where: {
       id: input.collection_id,
@@ -246,6 +251,10 @@ export async function prepareCollectionBagsLaunch(agentId: string, input: Prepar
 }
 
 export async function confirmCollectionBagsLaunch(agentId: string, input: ConfirmCollectionBagsInput) {
+  if (!isBagsIntegrationEnabled()) {
+    throw new CollectionBagsLaunchError(503, "Bags integration is temporarily disabled");
+  }
+
   const collection = await prisma.collection.findFirst({
     where: {
       id: input.collection_id,

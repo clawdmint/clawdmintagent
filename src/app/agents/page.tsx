@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import { useTheme } from "@/components/theme-provider";
 import { clsx } from "clsx";
+import { getAddressExplorerUrl, truncateAddress } from "@/lib/network-config";
 
 interface Agent {
   id: string;
@@ -22,6 +23,7 @@ interface Agent {
   description: string;
   avatar_url: string;
   eoa: string;
+  solana_wallet_address: string | null;
   x_handle: string;
   status: string;
   deploy_enabled: boolean;
@@ -173,6 +175,7 @@ export default function AgentsPage() {
         agent.description,
         agent.x_handle,
         agent.eoa,
+        agent.solana_wallet_address,
       ]
         .filter(Boolean)
         .join(" ")
@@ -762,6 +765,23 @@ function AgentCard({ agent, theme }: { agent: Agent; theme: string }) {
             >
               @{agent.x_handle}
             </span>
+          ) : null}
+          {agent.solana_wallet_address ? (
+            <a
+              href={getAddressExplorerUrl(agent.solana_wallet_address, "solana")}
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={(event) => event.stopPropagation()}
+              className={clsx(
+                "inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-mono uppercase tracking-[0.18em] transition-colors",
+                theme === "dark"
+                  ? "bg-violet-500/10 text-violet-300 hover:bg-violet-500/20"
+                  : "bg-violet-50 text-violet-700 hover:bg-violet-100"
+              )}
+            >
+              sol {truncateAddress(agent.solana_wallet_address, 5, 4)}
+              <ExternalLink className="w-3 h-3" />
+            </a>
           ) : null}
         </div>
 
