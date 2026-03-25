@@ -65,6 +65,10 @@ const OPENCLAW_TOOLS = {
       inputSchema: {
         type: "object",
         properties: {
+          collection_id: {
+            type: "string",
+            description: "Optional. When provided, continue a DEPLOYING collection instead of starting a new one.",
+          },
           chain: {
             type: "string",
             enum: ["solana"],
@@ -95,7 +99,7 @@ const OPENCLAW_TOOLS = {
             },
           },
         },
-        required: ["name", "symbol", "image", "max_supply", "payout_address"],
+        required: [],
       },
       endpoint: {
         method: "POST",

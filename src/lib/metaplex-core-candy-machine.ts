@@ -79,13 +79,25 @@ export interface MetaplexDeployCollectionResult {
   candyGuardAddress: string;
   signature: string;
   configLineSignatures: string[];
+  itemsLoaded: number;
+  itemsAvailable: number;
+  isFullyLoaded: boolean;
   walletBalanceLamports: string;
   recommendedDeployBalanceLamports: string;
   recommendedDeployBalanceSol: string;
 }
 
+export interface MetaplexConfigLoadProgress {
+  configLineSignatures: string[];
+  itemsLoaded: number;
+  itemsAvailable: number;
+  remainingConfigLines: number;
+  isFullyLoaded: boolean;
+}
+
 export interface MetaplexCandyMachineState {
   itemsAvailable: number;
+  itemsLoaded: number;
   itemsRedeemed: number;
   remaining: number;
   isSoldOut: boolean;
@@ -395,9 +407,72 @@ async function addConfigLinesWithRetry(input: {
   );
 }
 
+async function getCandyMachineConfigProgress(
+  umi: ReturnType<typeof createServerUmi>,
+  candyMachineAddress: string
+) {
+  const candyMachine = await fetchCandyMachine(umi, publicKey(candyMachineAddress));
+  const itemsAvailable = Number(candyMachine.data.itemsAvailable);
+  const itemsLoaded = Number(candyMachine.itemsLoaded || 0);
+
+  return {
+    itemsAvailable,
+    itemsLoaded,
+    remainingConfigLines: Math.max(itemsAvailable - itemsLoaded, 0),
+    isFullyLoaded: itemsLoaded >= itemsAvailable,
+  };
+}
+
+export async function continueMetaplexCollectionDeploy(
+  signer: Keypair,
+  params: {
+    candyMachineAddress: string;
+    maxSupply: number;
+    maxConfigBatchesPerRun?: number;
+  }
+): Promise<MetaplexConfigLoadProgress> {
+  const umi = createServerUmi(signer);
+  await waitForCandyMachineInitialization(umi, params.candyMachineAddress);
+
+  const configLineSignatures: string[] = [];
+  const configLines = buildConfigLines(params.maxSupply);
+  const batchLimit = Math.max(1, params.maxConfigBatchesPerRun ?? Number.MAX_SAFE_INTEGER);
+
+  let progress = await getCandyMachineConfigProgress(umi, params.candyMachineAddress);
+  let batchesWritten = 0;
+
+  while (!progress.isFullyLoaded && batchesWritten < batchLimit) {
+    const batch = configLines.slice(progress.itemsLoaded, progress.itemsLoaded + CONFIG_LINE_BATCH_SIZE);
+    if (batch.length === 0) {
+      break;
+    }
+
+    const configSignature = await addConfigLinesWithRetry({
+      umi,
+      candyMachineAddress: params.candyMachineAddress,
+      index: progress.itemsLoaded,
+      configLines: batch,
+    });
+    configLineSignatures.push(configSignature);
+    batchesWritten += 1;
+    progress = await getCandyMachineConfigProgress(umi, params.candyMachineAddress);
+  }
+
+  return {
+    configLineSignatures,
+    itemsLoaded: progress.itemsLoaded,
+    itemsAvailable: progress.itemsAvailable,
+    remainingConfigLines: progress.remainingConfigLines,
+    isFullyLoaded: progress.isFullyLoaded,
+  };
+}
+
 export async function deployMetaplexCollection(
   signer: Keypair,
-  params: MetaplexDeployCollectionParams
+  params: MetaplexDeployCollectionParams,
+  options?: {
+    maxConfigBatchesPerRun?: number;
+  }
 ): Promise<MetaplexDeployCollectionResult> {
   const connection = new Connection(getSolanaRpcUrl(), "confirmed");
   const walletBalanceLamports = BigInt(await connection.getBalance(signer.publicKey, "confirmed"));
@@ -462,21 +537,14 @@ export async function deployMetaplexCollection(
     confirm: { commitment: "finalized" },
   });
   const configLineSignatures: string[] = [];
-  const configLines = buildConfigLines(params.maxSupply);
   const candyMachineAddress = candyMachineSigner.publicKey.toString();
 
-  await waitForCandyMachineInitialization(umi, candyMachineAddress);
-
-  for (let index = 0; index < configLines.length; index += CONFIG_LINE_BATCH_SIZE) {
-    const batch = configLines.slice(index, index + CONFIG_LINE_BATCH_SIZE);
-    const configSignature = await addConfigLinesWithRetry({
-      umi,
-      candyMachineAddress,
-      index,
-      configLines: batch,
-    });
-    configLineSignatures.push(configSignature);
-  }
+  const configLoadProgress = await continueMetaplexCollectionDeploy(signer, {
+    candyMachineAddress,
+    maxSupply: params.maxSupply,
+    maxConfigBatchesPerRun: options?.maxConfigBatchesPerRun,
+  });
+  configLineSignatures.push(...configLoadProgress.configLineSignatures);
 
   const candyGuardAddress = findCandyGuardPda(umi, {
     base: candyMachineSigner.publicKey,
@@ -493,6 +561,9 @@ export async function deployMetaplexCollection(
     candyGuardAddress,
     signature: signature.toString(),
     configLineSignatures,
+    itemsLoaded: configLoadProgress.itemsLoaded,
+    itemsAvailable: configLoadProgress.itemsAvailable,
+    isFullyLoaded: configLoadProgress.isFullyLoaded,
     walletBalanceLamports: walletBalanceLamports.toString(),
     recommendedDeployBalanceLamports: recommendedDeployBalanceLamports.toString(),
     recommendedDeployBalanceSol: formatLamports(recommendedDeployBalanceLamports),
@@ -508,11 +579,13 @@ export async function fetchMetaplexCandyMachineState(
 
   const candyMachine = await fetchCandyMachine(umi, publicKey(candyMachineAddress));
   const itemsAvailable = Number(candyMachine.data.itemsAvailable);
+  const itemsLoaded = Number(candyMachine.itemsLoaded || 0);
   const itemsRedeemed = Number(candyMachine.itemsRedeemed);
   const remaining = Math.max(itemsAvailable - itemsRedeemed, 0);
 
   return {
     itemsAvailable,
+    itemsLoaded,
     itemsRedeemed,
     remaining,
     isSoldOut: remaining === 0,

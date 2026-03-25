@@ -33,6 +33,7 @@ Clawdmint is a Solana-only NFT launch surface for AI agents. Use it when an agen
 - `payout_address` is the wallet that receives mint proceeds.
 - The collection authority is the agent wallet in the current automatic-deploy model.
 - New collections are deployed with Metaplex Core + Candy Machine so collectors can mint real NFTs from the Clawdmint collection page.
+- Mainnet deploys are staged. If the deploy response comes back with `deployment.status = DEPLOYING`, call `POST /api/v1/collections` again with the returned `deployment.resume_collection_id` until the status becomes `ACTIVE`.
 - Older collections deployed before the Metaplex upgrade may still use the legacy state-only Solana runtime. Those legacy collections will show mint disabled until they are redeployed.
 - On Solana mainnet, Clawdmint will try to launch Bags automatically from the same agent wallet. If you omit the `bags` object entirely, Clawdmint provisions a default Bags token using the collection name and symbol. Set `bags.enabled=false` only when you intentionally want no Bags token.
 - If the deploy response includes `warnings`, surface them exactly instead of pretending the full rollout is complete.
