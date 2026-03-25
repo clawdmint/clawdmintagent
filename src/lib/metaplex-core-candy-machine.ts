@@ -42,6 +42,8 @@ export const MAX_METAPLEX_MINT_QUANTITY = 3;
 const CONFIG_LINE_BATCH_SIZE = 20;
 const DEPLOY_TX_FEE_BUFFER_LAMPORTS = BigInt(10_000_000);
 const BAGS_PENDING_MINT_UNLOCK_AT = new Date("2100-01-01T00:00:00.000Z");
+const CANDY_MACHINE_INIT_MAX_ATTEMPTS = 12;
+const CANDY_MACHINE_INIT_RETRY_DELAY_MS = 1500;
 
 export class MetaplexMintError extends Error {
   status: number;
@@ -135,6 +137,31 @@ function formatLamports(lamportsValue: bigint): string {
 
 function ensureTrailingSlash(value: string): string {
   return value.endsWith("/") ? value : `${value}/`;
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function extractErrorMessage(error: unknown): string {
+  if (error instanceof Error) {
+    return error.message;
+  }
+
+  if (typeof error === "string") {
+    return error;
+  }
+
+  try {
+    return JSON.stringify(error);
+  } catch {
+    return "Unknown error";
+  }
+}
+
+function isCandyMachineInitializationError(error: unknown): boolean {
+  const message = extractErrorMessage(error);
+  return message.includes("AccountNotInitialized") || message.includes("3012");
 }
 
 function buildCollectionMetadataUri(baseUri: string): string {
@@ -304,6 +331,70 @@ async function getRecommendedDeployBalanceLamports(
   return rentAmount.basisPoints + txFeeBuffer;
 }
 
+async function waitForCandyMachineInitialization(
+  umi: ReturnType<typeof createServerUmi>,
+  candyMachineAddress: string
+): Promise<void> {
+  let lastError: unknown;
+
+  for (let attempt = 1; attempt <= CANDY_MACHINE_INIT_MAX_ATTEMPTS; attempt += 1) {
+    try {
+      await fetchCandyMachine(umi, publicKey(candyMachineAddress));
+      return;
+    } catch (error) {
+      lastError = error;
+      if (attempt < CANDY_MACHINE_INIT_MAX_ATTEMPTS) {
+        await sleep(CANDY_MACHINE_INIT_RETRY_DELAY_MS);
+      }
+    }
+  }
+
+  throw new MetaplexMintError(
+    502,
+    "Candy machine initialization did not finalize in time",
+    extractErrorMessage(lastError)
+  );
+}
+
+async function addConfigLinesWithRetry(input: {
+  umi: ReturnType<typeof createServerUmi>;
+  candyMachineAddress: string;
+  index: number;
+  configLines: Array<{ name: string; uri: string }>;
+}): Promise<string> {
+  let lastError: unknown;
+
+  for (let attempt = 1; attempt <= CANDY_MACHINE_INIT_MAX_ATTEMPTS; attempt += 1) {
+    try {
+      const { signature } = await addConfigLines(input.umi, {
+        candyMachine: publicKey(input.candyMachineAddress),
+        authority: input.umi.identity,
+        index: input.index,
+        configLines: input.configLines,
+      })
+        .useLegacyVersion()
+        .sendAndConfirm(input.umi, {
+          confirm: { commitment: "finalized" },
+        });
+
+      return signature.toString();
+    } catch (error) {
+      lastError = error;
+      if (!isCandyMachineInitializationError(error) || attempt === CANDY_MACHINE_INIT_MAX_ATTEMPTS) {
+        break;
+      }
+
+      await sleep(CANDY_MACHINE_INIT_RETRY_DELAY_MS);
+    }
+  }
+
+  throw new MetaplexMintError(
+    502,
+    "Candy machine config lines could not be written after initialization",
+    extractErrorMessage(lastError)
+  );
+}
+
 export async function deployMetaplexCollection(
   signer: Keypair,
   params: MetaplexDeployCollectionParams
@@ -367,21 +458,24 @@ export async function deployMetaplexCollection(
     )
     .useLegacyVersion();
 
-  const { signature } = await deployBuilder.sendAndConfirm(umi);
+  const { signature } = await deployBuilder.sendAndConfirm(umi, {
+    confirm: { commitment: "finalized" },
+  });
   const configLineSignatures: string[] = [];
   const configLines = buildConfigLines(params.maxSupply);
+  const candyMachineAddress = candyMachineSigner.publicKey.toString();
+
+  await waitForCandyMachineInitialization(umi, candyMachineAddress);
 
   for (let index = 0; index < configLines.length; index += CONFIG_LINE_BATCH_SIZE) {
     const batch = configLines.slice(index, index + CONFIG_LINE_BATCH_SIZE);
-    const { signature: configSignature } = await addConfigLines(umi, {
-      candyMachine: candyMachineSigner.publicKey,
-      authority: umi.identity,
+    const configSignature = await addConfigLinesWithRetry({
+      umi,
+      candyMachineAddress,
       index,
       configLines: batch,
-    })
-      .useLegacyVersion()
-      .sendAndConfirm(umi);
-    configLineSignatures.push(configSignature.toString());
+    });
+    configLineSignatures.push(configSignature);
   }
 
   const candyGuardAddress = findCandyGuardPda(umi, {
