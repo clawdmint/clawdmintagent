@@ -101,6 +101,7 @@ export interface MetaplexCandyMachineState {
   itemsRedeemed: number;
   remaining: number;
   isSoldOut: boolean;
+  isFullyLoaded: boolean;
 }
 
 export interface MetaplexMintPrepareParams {
@@ -589,6 +590,7 @@ export async function fetchMetaplexCandyMachineState(
     itemsRedeemed,
     remaining,
     isSoldOut: remaining === 0,
+    isFullyLoaded: itemsLoaded >= itemsAvailable,
   };
 }
 

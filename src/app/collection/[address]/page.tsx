@@ -104,6 +104,8 @@ interface Collection {
     remaining: string;
     is_sold_out: boolean;
     items_available?: string;
+    items_loaded?: string;
+    is_fully_loaded?: boolean;
   };
 }
 

@@ -76,6 +76,20 @@ export async function POST(
     }
 
     const onchainState = await fetchMetaplexCandyMachineState(collection.mintAddress);
+    if (!onchainState.isFullyLoaded) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "Candy Machine config is still loading for this collection. Retry deploy resume before minting.",
+          details: {
+            items_loaded: onchainState.itemsLoaded,
+            items_available: onchainState.itemsAvailable,
+          },
+        },
+        { status: 409 }
+      );
+    }
+
     if (onchainState.isSoldOut || quantity > onchainState.remaining) {
       return NextResponse.json(
         { success: false, error: "Requested quantity exceeds remaining supply" },

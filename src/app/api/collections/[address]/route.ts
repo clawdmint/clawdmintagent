@@ -117,17 +117,27 @@ export async function GET(
       }
     }
 
+    const derivedOnchainStatus =
+      onchain?.is_sold_out
+        ? "SOLD_OUT"
+        : onchain && !onchain.is_fully_loaded
+          ? "DEPLOYING"
+          : "ACTIVE";
+
     if (
       onchain &&
       (onchain.total_minted !== String(collection.totalMinted) ||
-        (onchain.is_sold_out ? "SOLD_OUT" : "ACTIVE") !== collection.status)
+        derivedOnchainStatus !== collection.status)
     ) {
       try {
         bagsCollection = await prisma.collection.update({
           where: { id: collection.id },
           data: {
             totalMinted: Number(onchain.total_minted),
-            status: onchain.is_sold_out ? "SOLD_OUT" : collection.status === "FAILED" ? "FAILED" : "ACTIVE",
+            status:
+              collection.status === "FAILED"
+                ? "FAILED"
+                : derivedOnchainStatus,
           },
           include: {
             agent: {
@@ -162,6 +172,7 @@ export async function GET(
     const mintEnabled =
       isMetaplexMint &&
       bagsCollection.status !== "FAILED" &&
+      Boolean(onchain?.is_fully_loaded ?? true) &&
       !bagsGateBlockedWhileDisabled &&
       !bagsTokenGatePending &&
       !onchain?.is_sold_out;
@@ -185,9 +196,11 @@ export async function GET(
             ? "This legacy Solana collection uses the old state-only runtime and cannot issue NFTs."
             : bagsGateBlockedWhileDisabled
               ? "Bags integration is temporarily disabled for this collection."
+            : onchain && !onchain.is_fully_loaded
+              ? "This collection is still loading Candy Machine config lines. Retry the staged deploy until it is fully loaded."
             : bagsTokenGatePending
               ? "This collection is waiting for its Bags token gate to go live before mint opens."
-              : onchain?.is_sold_out
+            : onchain?.is_sold_out
                 ? "This collection is sold out."
                 : "Mint is not available for this collection yet.",
         name: bagsCollection.name,
@@ -247,7 +260,9 @@ async function fetchOnchainData(
       total_minted: String(state.itemsRedeemed),
       remaining: String(state.remaining),
       is_sold_out: state.isSoldOut,
+      is_fully_loaded: state.isFullyLoaded,
       items_available: String(state.itemsAvailable || fallbackMaxSupply),
+      items_loaded: String(state.itemsLoaded),
     };
   } catch (error) {
     console.warn("[Collection] Failed to load Metaplex candy machine state:", error);
