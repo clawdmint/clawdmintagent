@@ -381,11 +381,30 @@ export default function CollectionPage() {
   const signAndBroadcastSolanaTransaction = useCallback(
     async (connection: Connection, serializedBase64: string) => {
       const provider = getPhantomProvider();
-      if (!provider?.signTransaction) {
+      if (!provider) {
         throw new Error("Phantom transaction signing is unavailable");
       }
 
       const transaction = deserializeSolanaTransaction(serializedBase64);
+
+      if (provider.signAndSendTransaction) {
+        const { signature } = await provider.signAndSendTransaction(
+          transaction as Transaction | VersionedTransaction,
+          {
+            skipPreflight: false,
+            maxRetries: 3,
+            preflightCommitment: "confirmed",
+          }
+        );
+
+        await connection.confirmTransaction(signature, "confirmed");
+        return signature;
+      }
+
+      if (!provider.signTransaction) {
+        throw new Error("Phantom transaction signing is unavailable");
+      }
+
       const signedTransaction = (await provider.signTransaction(
         transaction as Transaction | VersionedTransaction
       )) as Transaction | VersionedTransaction;
