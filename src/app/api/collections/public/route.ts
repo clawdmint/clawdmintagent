@@ -14,6 +14,11 @@ export const dynamic = 'force-dynamic';
 // Hidden collections (removed from public listings)
 const HIDDEN_COLLECTIONS = new Set([
   "0xa36bfea4b27ff26a8e4c580a925761025ae6e551",
+  "dsujau9vnaqrmyv7u8dx4xg6azffzsh4fzn4g95dytx",
+  "4pk6vwfnxyja3whksgsmevtkpzr2efskpuvlre82yvjd",
+  "2fls53pygxtbacud3sy6bs3supw4u8makdpwd8iguvec",
+  "5jzbocsrm6n8hf1qc7wh62ws19jqmxnd9dmljcgrdyrr",
+  "2nb5hy1qbfeseyfx2ep1ecxwzdcbplkxq7adwf465nyq",
 ]);
 
 export async function GET(request: NextRequest) {

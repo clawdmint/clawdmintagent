@@ -22,6 +22,7 @@ export async function GET(
   { params }: { params: Promise<{ address: string }> }
 ) {
   try {
+    const appUrl = process.env["NEXT_PUBLIC_APP_URL"] || "https://clawdmint.xyz";
     const { address } = await params;
     if (!address) {
       return NextResponse.json(
@@ -149,6 +150,7 @@ export async function GET(
 
     const bagsEnabled = isBagsIntegrationEnabled();
     const bagsView = buildCollectionBagsView(bagsCollection);
+    const publicCollectionUrl = `${appUrl}/collection/${bagsCollection.address}`;
     const mintEngine = bagsCollection.mintEngine || LEGACY_SOLANA_MINT_ENGINE;
     const isMetaplexMint = mintEngine === METAPLEX_MINT_ENGINE && Boolean(bagsCollection.mintAddress);
     const bagsGateBlockedWhileDisabled =
@@ -169,6 +171,7 @@ export async function GET(
       collection: {
         id: bagsCollection.id,
         address: bagsCollection.address,
+        collection_url: publicCollectionUrl,
         chain: bagsCollection.chain,
         native_token: getCollectionNativeToken(bagsCollection.chain),
         mint_engine: mintEngine,
@@ -202,8 +205,9 @@ export async function GET(
         status: bagsCollection.status,
         deployed_at: bagsCollection.deployedAt?.toISOString(),
         deploy_tx_hash: bagsCollection.deployTxHash,
-        bags: bagsView,
+        bags: bagsEnabled ? bagsView : null,
         bags_managed_by_agent: Boolean(
+          bagsEnabled &&
           bagsCollection.bagsCreatorWallet &&
             bagsCollection.agent.solanaWalletAddress &&
             bagsCollection.bagsCreatorWallet === bagsCollection.agent.solanaWalletAddress

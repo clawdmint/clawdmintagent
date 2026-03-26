@@ -15,6 +15,7 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const appUrl = process.env["NEXT_PUBLIC_APP_URL"] || "https://clawdmint.xyz";
     const { id } = await params;
 
     const agent = await prisma.agent.findUnique({
@@ -64,6 +65,7 @@ export async function GET(
         collections: agent.collections.map((c) => ({
           id: c.id,
           address: c.address,
+          collection_url: `${appUrl}/collection/${c.address}`,
           chain: c.chain,
           name: c.name,
           symbol: c.symbol,

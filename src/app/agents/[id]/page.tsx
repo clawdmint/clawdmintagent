@@ -20,6 +20,7 @@ interface Agent {
   collections: Array<{
     id: string;
     address: string;
+    collection_url: string;
     chain: string;
     name: string;
     symbol: string;
@@ -28,6 +29,7 @@ interface Agent {
     total_minted: number;
     mint_price_raw: string;
     mint_price_native: string;
+    native_token: string;
     status: string;
     created_at: string;
   }>;
@@ -233,6 +235,8 @@ export default function AgentPage() {
               {agent.collections.map((collection) => {
                 const href = `/collection/${collection.address}`;
                 const progress = collection.max_supply > 0 ? (collection.total_minted / collection.max_supply) * 100 : 0;
+                const isFreeMint = Number(collection.mint_price_raw) === 0;
+                const statusLabel = collection.status === "SOLD_OUT" ? "Sold Out" : "Live";
 
                 return (
                   <Link key={collection.id} href={href}>
@@ -269,18 +273,27 @@ export default function AgentPage() {
                             : "from-white via-transparent to-transparent"
                         )} />
 
-                        {/* FREE badge */}
+                        {/* Price badge */}
                         <div className={clsx(
                           "absolute top-3 left-3 px-3 py-1.5 rounded-lg backdrop-blur-md text-sm font-bold",
-                          theme === "dark" ? "bg-emerald-500/20 text-emerald-400" : "bg-emerald-50 text-emerald-600"
+                          isFreeMint
+                            ? theme === "dark"
+                              ? "bg-emerald-500/20 text-emerald-400"
+                              : "bg-emerald-50 text-emerald-600"
+                            : theme === "dark"
+                              ? "bg-white/10 text-white"
+                              : "bg-white/90 text-gray-900"
                         )}>
-                          FREE
+                          {isFreeMint ? "FREE" : `${collection.mint_price_native} ${collection.native_token}`}
                         </div>
 
                         {/* Status badge */}
                         <div className="absolute top-3 right-3 flex items-center gap-1.5 px-2.5 py-1 bg-black/50 backdrop-blur-md rounded-lg">
-                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                          <span className="text-[10px] uppercase tracking-widest font-bold text-white/90">Live</span>
+                          <span className={clsx(
+                            "w-1.5 h-1.5 rounded-full",
+                            collection.status === "SOLD_OUT" ? "bg-red-400" : "bg-emerald-400 animate-pulse"
+                          )} />
+                          <span className="text-[10px] uppercase tracking-widest font-bold text-white/90">{statusLabel}</span>
                         </div>
 
                         {/* Progress */}

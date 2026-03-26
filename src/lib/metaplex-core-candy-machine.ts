@@ -37,7 +37,7 @@ import { getSolanaRpcUrl } from "./solana-collections";
 
 export const METAPLEX_MINT_ENGINE = "metaplex_core_candy_machine";
 export const LEGACY_SOLANA_MINT_ENGINE = "legacy_solana_program";
-export const MAX_METAPLEX_MINT_QUANTITY = 3;
+export const MAX_METAPLEX_MINT_QUANTITY = 10;
 
 const CONFIG_LINE_BATCH_SIZE = 20;
 const DEPLOY_TX_FEE_BUFFER_LAMPORTS = BigInt(10_000_000);

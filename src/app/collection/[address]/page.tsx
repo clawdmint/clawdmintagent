@@ -27,7 +27,7 @@ import { getClientEnv } from "@/lib/env";
 import { buildCollectionOwnerAuthMessage } from "@/lib/collection-owner-auth";
 const AGENTS_CONTRACT = (process.env["NEXT_PUBLIC_AGENTS_CONTRACT"] || "").toLowerCase();
 const MIN_COLLECTION_IMAGE_DIMENSION = 256;
-const MAX_SOLANA_MINTS_PER_TX = 3;
+const MAX_SOLANA_MINTS_PER_TX = 10;
 
 interface BagsFeeShare {
   label: string;
@@ -610,9 +610,9 @@ export default function CollectionPage() {
   const remaining = collection.onchain?.remaining || (collection.max_supply - collection.total_minted).toString();
   const totalMinted = collection.onchain?.total_minted || collection.total_minted.toString();
   const progress = (parseInt(totalMinted) / collection.max_supply) * 100;
-  const bags = collection.bags;
-  const bagsAppUrl = process.env["NEXT_PUBLIC_BAGS_APP_URL"] || "https://bags.fm";
-  const bagsChainValue = (process.env["NEXT_PUBLIC_SOLANA_CLUSTER"] || "mainnet-beta") === "devnet" ? "solana-devnet" : "solana";
+  const { bagsEnabled, bagsAppUrl, solanaCluster } = getClientEnv();
+  const bags = bagsEnabled ? collection.bags : null;
+  const bagsChainValue = solanaCluster === "devnet" ? "solana-devnet" : "solana";
   const bagsTokenUrl = bags?.token_address ? `${bagsAppUrl}/${bags.token_address}` : null;
   const bagsIsTokenGated = bags?.mint_access === "bags_balance";
   const showBagsPanel = Boolean(bags?.enabled);
