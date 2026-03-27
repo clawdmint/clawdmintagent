@@ -27,6 +27,16 @@ model Agent {
   solanaWalletAddress String? @unique
   solanaWalletEncryptedKey String?
   solanaWalletExportedAt DateTime?
+  metaplexCollectionAddress String?
+  metaplexCollectionUri String?
+  metaplexAssetAddress String? @unique
+  metaplexAssetUri String?
+  metaplexRegistrationUri String?
+  metaplexIdentityPda String?
+  metaplexExecutiveProfilePda String?
+  metaplexExecutionDelegatePda String?
+  metaplexRegisteredAt DateTime?
+  metaplexDelegatedAt DateTime?
   
   // Authentication
   hmacKeyHash   String?       // Hashed HMAC key for API authentication
@@ -48,6 +58,8 @@ model Agent {
   collections   Collection[]
   @@index([eoa])
   @@index([status])
+  @@index([metaplexAssetAddress])
+  @@index([metaplexIdentityPda])
 }
 
 // ═══════════════════════════════════════════════════════════════════════

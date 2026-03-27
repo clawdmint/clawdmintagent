@@ -15,6 +15,18 @@ interface Agent {
   avatar_url: string;
   eoa: string;
   solana_wallet_address: string | null;
+  metaplex: {
+    registered: boolean;
+    delegated: boolean;
+    asset_address: string | null;
+    collection_address: string | null;
+    registration_uri: string | null;
+    identity_pda: string | null;
+    executive_profile_pda: string | null;
+    execution_delegate_pda: string | null;
+    registered_at: string | null;
+    delegated_at: string | null;
+  };
   x_handle: string;
   verified_at: string;
   collections: Array<{
@@ -182,6 +194,12 @@ export default function AgentPage() {
                         <span className="w-2 h-2 bg-green-400 rounded-full" />
                         Verified
                       </span>
+                      {agent.metaplex?.registered ? (
+                        <span className="flex items-center gap-1 text-fuchsia-300 text-sm">
+                          <span className="w-2 h-2 bg-fuchsia-400 rounded-full" />
+                          Metaplex Registered
+                        </span>
+                      ) : null}
                     </div>
                   </div>
 
@@ -216,6 +234,69 @@ export default function AgentPage() {
           </div>
         </div>
       </section>
+
+      {agent.metaplex?.registered ? (
+        <section className="py-8">
+          <div className="container mx-auto px-4">
+            <div className="glass-card max-w-4xl">
+              <div className="flex items-center justify-between gap-4 mb-5">
+                <div>
+                  <h2 className="text-xl font-semibold">Metaplex Registry</h2>
+                  <p className="text-sm text-gray-400 mt-1">
+                    On-chain identity and execution delegation for this agent.
+                  </p>
+                </div>
+                <span className="rounded-full bg-fuchsia-500/10 px-3 py-1 text-[11px] font-mono uppercase tracking-[0.2em] text-fuchsia-300">
+                  {agent.metaplex.delegated ? "delegated" : "registered"}
+                </span>
+              </div>
+
+              <div className="grid gap-3 md:grid-cols-2">
+                {[
+                  ["Asset", agent.metaplex.asset_address, agent.metaplex.asset_address ? getAddressExplorerUrl(agent.metaplex.asset_address, "solana") : null],
+                  ["Collection", agent.metaplex.collection_address, agent.metaplex.collection_address ? getAddressExplorerUrl(agent.metaplex.collection_address, "solana") : null],
+                  ["Identity PDA", agent.metaplex.identity_pda, agent.metaplex.identity_pda ? getAddressExplorerUrl(agent.metaplex.identity_pda, "solana") : null],
+                  ["Executive PDA", agent.metaplex.executive_profile_pda, agent.metaplex.executive_profile_pda ? getAddressExplorerUrl(agent.metaplex.executive_profile_pda, "solana") : null],
+                ].map(([label, value, href]) => (
+                  <div key={label} className="rounded-2xl border border-white/10 bg-black/20 px-4 py-3">
+                    <p className="text-[11px] font-mono uppercase tracking-[0.2em] text-gray-500">{label}</p>
+                    <div className="mt-2 flex items-center gap-2">
+                      <span className="font-mono text-sm text-gray-300" title={value || ""}>
+                        {value ? truncateAddress(value, 8, 6) : "n/a"}
+                      </span>
+                      {href ? (
+                        <a
+                          href={href}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="rounded-full p-1.5 text-gray-400 transition-colors hover:bg-white/[0.06] hover:text-white"
+                        >
+                          <ExternalLink className="w-3.5 h-3.5" />
+                        </a>
+                      ) : null}
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {agent.metaplex.registration_uri ? (
+                <div className="mt-4 rounded-2xl border border-white/10 bg-black/20 px-4 py-3">
+                  <p className="text-[11px] font-mono uppercase tracking-[0.2em] text-gray-500">Registration URI</p>
+                  <a
+                    href={agent.metaplex.registration_uri}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="mt-2 inline-flex items-center gap-2 text-sm text-cyan-300 hover:text-cyan-200"
+                  >
+                    open registration document
+                    <ExternalLink className="w-3.5 h-3.5" />
+                  </a>
+                </div>
+              ) : null}
+            </div>
+          </div>
+        </section>
+      ) : null}
 
       {/* Collections */}
       <section className="py-12">

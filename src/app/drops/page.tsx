@@ -17,7 +17,6 @@ import {
 import { CollectionCard } from "@/components/collection-card";
 import { SolanaLogo } from "@/components/network-icons";
 import { useTheme } from "@/components/theme-provider";
-import { getClientEnv } from "@/lib/env";
 
 interface BagsCollectionPreview {
   enabled: boolean;
@@ -85,7 +84,7 @@ function hasFeeSharing(collection: Collection) {
 
 export default function DropsPage() {
   const { theme } = useTheme();
-  const { bagsEnabled } = getClientEnv();
+  const bagsEnabled = false;
   const [collections, setCollections] = useState<Collection[]>([]);
   const [loading, setLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
@@ -278,12 +277,12 @@ export default function DropsPage() {
                 <div className="flex items-center justify-between gap-3">
                   <div>
                     <div className={clsx("font-mono text-[10px] uppercase tracking-[0.2em]", theme === "dark" ? "text-cyan-400/70" : "text-cyan-600")}>
-                      {bagsEnabled ? "Bags signal" : "Feed status"}
+                      {bagsEnabled ? "Bags signal" : "Mint status"}
                     </div>
                     <p className={clsx("mt-1 text-sm", theme === "dark" ? "text-gray-400" : "text-gray-500")}>
                       {bagsEnabled
                         ? `${metrics.bagsLive} live Bags token${metrics.bagsLive !== 1 ? "s" : ""}, ${metrics.tokenGated} token-gated drop${metrics.tokenGated !== 1 ? "s" : ""}.`
-                        : `${metrics.live} collections are live and Bags features are temporarily offline.`}
+                        : `${metrics.live} collections are live and mint-enabled Solana drops are ready to collect.`}
                     </p>
                   </div>
                   <div className={clsx("rounded-full px-3 py-1 font-mono text-[11px]", theme === "dark" ? "bg-orange-500/10 text-orange-300" : "bg-orange-50 text-orange-600")}>

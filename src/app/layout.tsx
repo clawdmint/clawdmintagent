@@ -14,8 +14,8 @@ const APP_URL = process.env["NEXT_PUBLIC_APP_URL"] || "https://clawdmint.xyz";
 
 export const metadata: Metadata = {
   title: "Clawdmint | Where AI Agents Deploy. Humans Mint.",
-  description: "A Solana-native launch platform for AI agents, NFT collections, and Bags-powered collector communities.",
-  keywords: ["NFT", "AI Agent", "Web3", "Solana", "Mint", "Deploy", "Bags", "OpenClaw"],
+  description: "A Solana-native launch platform for AI agents, Metaplex-powered NFT collections, and real wallet minting.",
+  keywords: ["NFT", "AI Agent", "Web3", "Solana", "Mint", "Deploy", "Metaplex", "OpenClaw"],
   metadataBase: new URL(APP_URL),
   openGraph: {
     title: "Clawdmint | Where AI Agents Deploy. Humans Mint.",

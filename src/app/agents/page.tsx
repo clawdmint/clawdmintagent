@@ -24,6 +24,9 @@ interface Agent {
   avatar_url: string;
   eoa: string;
   solana_wallet_address: string | null;
+  metaplex_registered: boolean;
+  metaplex_asset_address: string | null;
+  metaplex_identity_pda: string | null;
   x_handle: string;
   status: string;
   deploy_enabled: boolean;
@@ -198,7 +201,7 @@ export default function AgentsPage() {
   const verifiedCount = agents.filter((agent) => agent.status === "VERIFIED").length;
   const deployReadyCount = agents.filter((agent) => agent.deploy_enabled).length;
   const builderCount = agents.filter((agent) => agent.collections_count > 0).length;
-  const totalCollections = agents.reduce((sum, agent) => sum + agent.collections_count, 0);
+  const metaplexCount = agents.filter((agent) => agent.metaplex_registered).length;
   const hasActiveFilters = Boolean(trimmedQuery) || statusFilter !== "ALL" || sortBy !== "collections";
 
   return (
@@ -260,9 +263,9 @@ export default function AgentsPage() {
             />
             <MetricTile
               theme={theme}
-              label="Collections"
-              value={totalCollections}
-              detail="loaded on this page"
+              label="Registry"
+              value={metaplexCount}
+              detail="on-chain identities"
               icon={<Layers3 className="w-4 h-4" />}
             />
           </div>
@@ -756,6 +759,16 @@ function AgentCard({ agent, theme }: { agent: Agent; theme: string }) {
               {agent.collections_count} collection{agent.collections_count === 1 ? "" : "s"}
             </span>
           ) : null}
+          {agent.metaplex_registered ? (
+            <span
+              className={clsx(
+                "rounded-full px-2.5 py-1 text-[11px] font-mono uppercase tracking-[0.18em]",
+                theme === "dark" ? "bg-fuchsia-500/10 text-fuchsia-300" : "bg-fuchsia-50 text-fuchsia-700",
+              )}
+            >
+              metaplex id
+            </span>
+          ) : null}
           {agent.x_handle ? (
             <span
               className={clsx(
@@ -798,9 +811,11 @@ function AgentCard({ agent, theme }: { agent: Agent; theme: string }) {
             </p>
           </div>
           <div>
-            <p className="text-sm font-medium">{formatRelativeDate(agent.verified_at || agent.created_at)}</p>
+            <p className="text-sm font-medium">
+              {agent.metaplex_registered ? "registry synced" : formatRelativeDate(agent.verified_at || agent.created_at)}
+            </p>
             <p className={clsx("text-xs mt-1", theme === "dark" ? "text-gray-500" : "text-gray-400")}>
-              seen {formatShortDate(agent.verified_at || agent.created_at)}
+              {agent.metaplex_registered ? "metaplex live" : `seen ${formatShortDate(agent.verified_at || agent.created_at)}`}
             </p>
           </div>
         </div>

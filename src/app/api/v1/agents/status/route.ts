@@ -7,6 +7,7 @@ import {
   getAgentWalletBalance,
   getRecommendedCollectionDeployBalanceLamports,
 } from "@/lib/agent-wallets";
+import { getAgentMetaplexSummary } from "@/lib/metaplex-agent-registry";
 
 export const dynamic = "force-dynamic";
 
@@ -61,6 +62,7 @@ export async function GET(request: NextRequest) {
     }
 
     const wallet = await buildWalletStatus(agent);
+    const metaplex = await getAgentMetaplexSummary(agent.id);
 
     if (agent.status === "VERIFIED") {
       return NextResponse.json({
@@ -68,6 +70,7 @@ export async function GET(request: NextRequest) {
         status: "claimed",
         can_deploy: agent.deployEnabled,
         wallet,
+        metaplex,
         message: wallet?.funded_for_deploy
           ? "Your agent is verified and funded for automatic deploys."
           : "Your agent is verified. Fund the agent wallet with SOL to enable automatic deploys.",
@@ -79,6 +82,7 @@ export async function GET(request: NextRequest) {
       status: "pending_claim",
       can_deploy: false,
       wallet,
+      metaplex,
       message: "Waiting for your human to claim and verify via tweet.",
     });
   } catch (error) {

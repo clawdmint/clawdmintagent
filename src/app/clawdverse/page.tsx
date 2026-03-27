@@ -3,7 +3,7 @@
 import Link from "next/link";
 import dynamic from "next/dynamic";
 import { useEffect, useState, useRef } from "react";
-import { Bot, Coins, Globe, Layers, MessageCircle, Send, Zap } from "lucide-react";
+import { Bot, Globe, Layers, MessageCircle, Send, Zap } from "lucide-react";
 import { useWallet } from "@/components/wallet-context";
 import { clsx } from "clsx";
 import { SolanaLogo } from "@/components/network-icons";
@@ -145,12 +145,12 @@ export default function ClawdversePage() {
               </span>
             </h1>
             <p className="mt-2 max-w-lg text-sm leading-relaxed text-gray-400">
-              Explore OpenClaw-powered agents, Solana-native collection activity, and Bags-linked community rails in one live surface.
+              Explore OpenClaw-powered agents, Solana-native collection activity, and Metaplex-backed mint surfaces in one live view.
             </p>
             <div className="mt-3 flex flex-wrap items-center gap-2">
               {[
                 { icon: Layers, label: "OpenClaw skills" },
-                { icon: Coins, label: "Bags communities" },
+                  { icon: Globe, label: "Metaplex mints" },
                 { icon: SolanaLogo, label: "Solana live" },
               ].map((item) => (
                 <div

@@ -23,14 +23,6 @@ interface CollectionCardProps {
     mint_price_raw?: string;
     mint_price_native?: string;
     status: string;
-    bags_score?: number;
-    bags?: {
-      enabled: boolean;
-      status: string;
-      token_address: string | null;
-      token_symbol: string | null;
-      mint_access: "public" | "bags_balance";
-    } | null;
     agent: {
       id: string;
       name: string;
@@ -48,8 +40,7 @@ export function CollectionCard({ collection }: CollectionCardProps) {
   const mintPrice = collection.mint_price_native || formatCollectionMintPrice(collection.mint_price_raw || "0", collection.chain);
   const nativeToken = getCollectionNativeToken(collection.chain);
   const isMintLive = isEvmCollectionChain(collection.chain);
-  const bagsLive = Boolean(collection.bags?.enabled && collection.bags.status === "LIVE" && collection.bags.token_address);
-  const tokenGated = collection.bags?.mint_access === "bags_balance";
+  const isMetaplexCollection = !isMintLive;
 
   useEffect(() => {
     setImageFailed(false);
@@ -149,22 +140,6 @@ export function CollectionCard({ collection }: CollectionCardProps) {
             {parseFloat(mintPrice) === 0 ? "Free" : `${mintPrice} ${nativeToken}`}
           </div>
 
-          {(bagsLive || tokenGated) && (
-            <div className="absolute left-3 right-3 top-14 flex flex-wrap gap-2">
-              {bagsLive && (
-                <span className="inline-flex items-center gap-1 rounded-full bg-black/55 px-2.5 py-1 font-mono text-[10px] uppercase tracking-[0.18em] text-cyan-200 backdrop-blur-md">
-                  <SolanaLogo className="h-3 w-3" />
-                  Bags
-                </span>
-              )}
-              {tokenGated && (
-                <span className="inline-flex items-center gap-1 rounded-full bg-black/55 px-2.5 py-1 font-mono text-[10px] uppercase tracking-[0.18em] text-emerald-200 backdrop-blur-md">
-                  Gate
-                </span>
-              )}
-            </div>
-          )}
-
           {/* Bottom info overlay - appears on image */}
           <div className="absolute bottom-0 left-0 right-0 p-4">
             {/* Progress bar */}
@@ -208,15 +183,27 @@ export function CollectionCard({ collection }: CollectionCardProps) {
           </h3>
 
           <div className="flex items-center justify-between gap-3 mb-2">
-            <span className={clsx(
-              "inline-flex items-center gap-1.5 rounded-full border px-2 py-1 font-mono text-[10px] uppercase tracking-[0.18em]",
-              theme === "dark"
-                ? "border-emerald-500/20 bg-emerald-500/10 text-emerald-300"
-                : "border-emerald-200 bg-emerald-50 text-emerald-700"
-            )}>
-              <SolanaLogo className="w-3.5 h-3.5" />
-              Solana
-            </span>
+            <div className="flex flex-wrap items-center gap-2">
+              <span className={clsx(
+                "inline-flex items-center gap-1.5 rounded-full border px-2 py-1 font-mono text-[10px] uppercase tracking-[0.18em]",
+                theme === "dark"
+                  ? "border-emerald-500/20 bg-emerald-500/10 text-emerald-300"
+                  : "border-emerald-200 bg-emerald-50 text-emerald-700"
+              )}>
+                <SolanaLogo className="w-3.5 h-3.5" />
+                Solana
+              </span>
+              {isMetaplexCollection && (
+                <span className={clsx(
+                  "inline-flex items-center gap-1.5 rounded-full border px-2 py-1 font-mono text-[10px] uppercase tracking-[0.18em]",
+                  theme === "dark"
+                    ? "border-cyan-500/20 bg-cyan-500/10 text-cyan-300"
+                    : "border-cyan-200 bg-cyan-50 text-cyan-700"
+                )}>
+                  Metaplex
+                </span>
+              )}
+            </div>
 
             <span className={clsx(
               "text-caption font-mono flex-shrink-0",
@@ -225,37 +212,6 @@ export function CollectionCard({ collection }: CollectionCardProps) {
               ${collection.symbol}
             </span>
           </div>
-
-          {(bagsLive || tokenGated) && (
-            <div className="mb-2 flex items-center justify-between gap-3">
-              <div className="flex flex-wrap gap-2">
-                {bagsLive && (
-                  <span className={clsx(
-                    "inline-flex items-center gap-1 rounded-full px-2 py-1 font-mono text-[10px]",
-                    theme === "dark" ? "bg-cyan-500/10 text-cyan-300" : "bg-cyan-50 text-cyan-700"
-                  )}>
-                    {collection.bags?.token_symbol || "BAGS"}
-                  </span>
-                )}
-                {tokenGated && (
-                  <span className={clsx(
-                    "inline-flex items-center gap-1 rounded-full px-2 py-1 font-mono text-[10px]",
-                    theme === "dark" ? "bg-emerald-500/10 text-emerald-300" : "bg-emerald-50 text-emerald-700"
-                  )}>
-                    Token gated
-                  </span>
-                )}
-              </div>
-              {bagsLive && typeof collection.bags_score === "number" && collection.bags_score > 0 && (
-                <span className={clsx(
-                  "font-mono text-[10px]",
-                  theme === "dark" ? "text-cyan-300" : "text-cyan-700"
-                )}>
-                  Signal {collection.bags_score.toFixed(2)}
-                </span>
-              )}
-            </div>
-          )}
 
           <div className="flex items-center justify-between">
             {/* Agent */}

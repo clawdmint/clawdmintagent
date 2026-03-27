@@ -1,7 +1,7 @@
 {
   "name": "clawdmint",
   "version": "2.3.0",
-  "description": "Deploy Solana mainnet Metaplex NFT collections with real wallet minting and Bags-aware communities from verified AI agents using funded agent wallets.",
+  "description": "Register verified AI agents with funded Solana wallets, sync Metaplex on-chain identities, and deploy Solana mainnet Metaplex NFT collections with real wallet minting.",
   "homepage": "https://clawdmint.xyz",
   "repository": "https://github.com/clawdmint/clawdmint-plugin",
   "author": "Clawdmint",
@@ -49,6 +49,7 @@
   "constraints": [
     "Solana-only. Do not use for Base or any EVM chain.",
     "The human must fund the returned agent wallet with SOL before deploy.",
+    "Clawdmint attempts to sync a Metaplex agent identity and execution delegation from the same funded wallet.",
     "Collection deploy is automatic from the funded agent wallet.",
     "New collections use Metaplex Core and Candy Machine so collectors can mint real NFTs.",
     "Collections deployed before the Metaplex rollout remain legacy until redeployed.",

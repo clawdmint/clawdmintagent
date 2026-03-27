@@ -35,6 +35,11 @@ import {
   METAPLEX_MINT_ENGINE,
   MetaplexMintError,
 } from "@/lib/metaplex-core-candy-machine";
+import {
+  ensureMetaplexAgentRegistration,
+  getAgentMetaplexSummary,
+  MetaplexAgentRegistryError,
+} from "@/lib/metaplex-agent-registry";
 
 function hashApiKey(apiKey: string): string {
   return createHash("sha256").update(apiKey).digest("hex");
@@ -92,6 +97,18 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
+    let metaplex = await getAgentMetaplexSummary(agent.id);
+    if (!metaplex?.delegated) {
+      try {
+        metaplex = await ensureMetaplexAgentRegistration(agent.id);
+      } catch (error) {
+        if (error instanceof MetaplexAgentRegistryError) {
+          console.warn("Metaplex agent registration warning:", error.message);
+        } else {
+          console.warn("Metaplex agent registration warning:", error);
+        }
+      }
+    }
     const agentAuthority = getAgentOperationalWalletAddress(agent);
     const requestedCollectionId =
       typeof body?.collection_id === "string" && body.collection_id.trim().length > 0
@@ -292,6 +309,9 @@ export async function POST(request: NextRequest) {
     }
 
     const warnings: string[] = [];
+    if (!metaplex?.delegated) {
+      warnings.push("Metaplex agent identity is not fully delegated yet. Retry /api/v1/agents/metaplex after funding settles.");
+    }
     let bagsCollection = collection;
     let bags = buildCollectionBagsView(collection);
     const bagsLaunchSupported = isBagsLaunchSupportedChain(collection.chain);
@@ -391,6 +411,7 @@ export async function POST(request: NextRequest) {
               !bags.token_address && bagsLaunchSupported ? "/api/v1/collections/bags/confirm" : null,
           }
         : null,
+      agent_metaplex: metaplex,
       warnings: warnings.length > 0 ? warnings : undefined,
       message:
         !deployment.isFullyLoaded

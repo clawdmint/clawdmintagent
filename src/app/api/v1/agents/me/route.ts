@@ -8,6 +8,7 @@ import {
   getAgentWalletBalance,
   getRecommendedCollectionDeployBalanceLamports,
 } from "@/lib/agent-wallets";
+import { getAgentMetaplexSummary } from "@/lib/metaplex-agent-registry";
 
 export const dynamic = "force-dynamic";
 
@@ -79,6 +80,7 @@ export async function GET(request: NextRequest) {
     }
 
     const wallet = await buildWalletStatus(agent);
+    const metaplex = await getAgentMetaplexSummary(agent.id);
 
     return NextResponse.json({
       success: true,
@@ -91,6 +93,7 @@ export async function GET(request: NextRequest) {
         collections_count: agent.collections.length,
         collections: agent.collections,
         wallet,
+        metaplex,
         created_at: agent.createdAt.toISOString(),
         verified_at: agent.verifiedAt?.toISOString(),
       },

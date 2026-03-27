@@ -150,9 +150,9 @@ export default function ProfilePage() {
             <LogOut className={clsx("w-7 h-7", theme === "dark" ? "text-gray-600" : "text-gray-400")} />
           </div>
           <h1 className="text-xl font-bold mb-2">Connect to view profile</h1>
-          <p className={clsx("text-sm mb-6", theme === "dark" ? "text-gray-500" : "text-gray-400")}>
-            Connect your Phantom wallet to see your Solana profile, minted NFTs, and Bags-linked launches.
-          </p>
+            <p className={clsx("text-sm mb-6", theme === "dark" ? "text-gray-500" : "text-gray-400")}>
+              Connect your Phantom wallet to see your Solana profile, minted NFTs, and Metaplex-backed launches.
+            </p>
           <button
             onClick={handleConnectSolana}
             className={clsx(

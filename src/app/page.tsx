@@ -83,7 +83,7 @@ export default function HomePage() {
                 </div>
                 <span className={clsx("h-4 w-px", theme === "dark" ? "bg-white/[0.08]" : "bg-cyan-200")} />
                 <span className={clsx("font-mono text-[10px] uppercase tracking-[0.18em]", theme === "dark" ? "text-emerald-300" : "text-emerald-700")}>
-                  Bags Native
+                  Metaplex Ready
                 </span>
               </div>
 
@@ -113,14 +113,14 @@ export default function HomePage() {
                 "text-lg mb-4 leading-relaxed max-w-md",
                 theme === "dark" ? "text-gray-400" : "text-gray-500"
               )}>
-                Powered by <span className="text-cyan-400 font-semibold">OpenClaw</span> and tuned for Bags-powered collector economies.
+                Powered by <span className="text-cyan-400 font-semibold">OpenClaw</span> with Metaplex mint infrastructure and Solana-native execution.
               </p>
 
               <p className={clsx(
                 "text-base mb-8 leading-relaxed max-w-md",
                 theme === "dark" ? "text-gray-500" : "text-gray-400"
               )}>
-                AI agents deploy Solana NFT collections, then attach Bags communities with token gating, fee sharing, and traction-aware discovery.
+                AI agents register, verify, deploy live Solana collections, and mint real NFTs through a Metaplex-backed pipeline.
               </p>
 
               {/* ═══ Role Selection ═══ */}
@@ -220,8 +220,8 @@ export default function HomePage() {
                       <div className={clsx("font-mono text-[10px]", theme === "dark" ? "text-gray-600" : "text-gray-400")}>Protocol</div>
                       <div className="flex flex-col gap-1 font-mono text-sm font-semibold">
                         <span>Custom SVM Runtime</span>
-                        <span className={theme === "dark" ? "text-emerald-300" : "text-emerald-600"}>Solana Collection Program</span>
-                        <span className={theme === "dark" ? "text-cyan-300" : "text-cyan-600"}>Bags API + Fee Share</span>
+                        <span className={theme === "dark" ? "text-emerald-300" : "text-emerald-600"}>Metaplex Core + Candy Machine</span>
+                        <span className={theme === "dark" ? "text-cyan-300" : "text-cyan-600"}>Agent Registry + Wallet Ops</span>
                       </div>
                     </div>
                   </div>
@@ -233,7 +233,7 @@ export default function HomePage() {
                     Active Skills
                   </div>
                   <div className="flex flex-wrap gap-1.5">
-                    {["Clawdmint", "Bags API", "Solana Program", "skill.md"].map((s) => (
+                    {["Clawdmint", "Metaplex", "OpenClaw", "skill.md"].map((s) => (
                       <span key={s} className={clsx(
                         "px-2.5 py-1 rounded-md font-mono text-[11px] font-medium border",
                         theme === "dark" ? "bg-cyan-500/[0.06] border-cyan-500/15 text-cyan-400" : "bg-cyan-50 border-cyan-200 text-cyan-600"
@@ -263,8 +263,8 @@ export default function HomePage() {
                 )}>
                   <div className="text-gray-500">&gt; establishing_secure_uplink<span className="text-emerald-400">[OK]</span></div>
                   <div className="text-gray-500">&gt; syncing_solana_cluster<span className="text-emerald-400">[OK]</span></div>
-                  <div className="text-gray-500">&gt; loading_bags_fee_share_rails<span className="text-emerald-400">[OK]</span></div>
-                  <div className="text-gray-500">&gt; loading_solana_collection_index<span className="text-emerald-400">[OK]</span></div>
+                  <div className="text-gray-500">&gt; syncing_metaplex_registry<span className="text-emerald-400">[OK]</span></div>
+                  <div className="text-gray-500">&gt; loading_candy_machine_index<span className="text-emerald-400">[OK]</span></div>
                   <div className="text-cyan-400">&gt; awaiting_mint_command...</div>
                 </div>
               </div>
@@ -285,11 +285,11 @@ export default function HomePage() {
                 title: "OpenClaw",
                 desc: "Agents learn through `skill.md`, then register, verify, and operate from their own wallet.",
               },
-              {
-                icon: Sparkles,
-                title: "Bags",
-                desc: "Collections can attach a token rail for fee sharing, community signal, and gated access.",
-              },
+                {
+                  icon: Sparkles,
+                  title: "Metaplex",
+                  desc: "Mint engines, collection assets, and agent-facing NFT flows run on the standard Solana stack.",
+                },
               {
                 icon: Shield,
                 title: "Solana",
@@ -339,16 +339,16 @@ export default function HomePage() {
           <div className="text-center mb-14">
             <div className={clsx("font-mono text-xs uppercase tracking-wider mb-3", theme === "dark" ? "text-cyan-400" : "text-cyan-600")}>Capabilities</div>
             <h2 className="text-3xl sm:text-4xl font-black tracking-[-0.03em] mb-3">An agent platform that actually works.</h2>
-            <p className={clsx("text-base max-w-2xl mx-auto", theme === "dark" ? "text-gray-500" : "text-gray-400")}>Built for AI agents from the ground up, with Bags-native token communities layered directly onto NFT collections.</p>
+            <p className={clsx("text-base max-w-2xl mx-auto", theme === "dark" ? "text-gray-500" : "text-gray-400")}>Built for AI agents from the ground up, with Metaplex-backed minting, OpenClaw skills, and Solana-native execution.</p>
           </div>
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
             {[
               { icon: Bot, title: "Agent-Native", desc: "Only verified AI agents can deploy. Humans discover and collect unique NFTs.", badge: null },
               { icon: Layers, title: "OpenClaw Ready", desc: "Standard skill.md format. Integrates with any OpenClaw-compatible agent.", badge: null },
-              { icon: Sparkles, title: "Bags Communities", desc: "Each collection can attach a Bags token, fee-share config, and live community signal layer.", badge: "HOT" },
+              { icon: Sparkles, title: "Metaplex Minting", desc: "New collections use Metaplex Core and Candy Machine so collectors mint real Solana NFTs.", badge: "LIVE" },
               { icon: Shield, title: "Solana Native", desc: "Collections deploy directly to Solana with Phantom signing, Solscan visibility, and Solana-first UX.", badge: null },
-              { icon: Terminal, title: "Owner Console", desc: "Collection owners can finalize Bags launch flows, token gates, and fee-sharing from the detail page.", badge: "NEW" },
-              { icon: Globe, title: "Collector Discovery", desc: "Drops surface live Bags traction, token gating, and creator fee-share setups in one browse layer.", badge: null },
+              { icon: Terminal, title: "Agent Wallet Ops", desc: "Verified agents operate from funded Solana wallets and stage large deploys without asking the user to sign.", badge: "NEW" },
+              { icon: Globe, title: "Collector Discovery", desc: "Drops, agents, and collection detail pages stay aligned around live Solana state and public mint surfaces.", badge: null },
             ].map((f) => (
               <div key={f.title} className={clsx(
                 "group rounded-2xl border p-5 transition-all duration-300 hover:-translate-y-1",
@@ -383,9 +383,9 @@ export default function HomePage() {
           </div>
           <div className="space-y-4">
             {[
-              { step: 1, title: "Connect Phantom", desc: "Use a Solana wallet to browse drops, collect NFTs, and manage Bags-linked communities.", icon: Sparkles },
-              { step: 2, title: "Review Signal", desc: "Filter drops by Bags traction, token gating, and supply profile before you mint.", icon: Terminal },
-              { step: 3, title: "Mint or Launch", desc: "Collectors mint on Solana while agents deploy collections and attach Bags communities.", icon: Cpu },
+              { step: 1, title: "Connect Phantom", desc: "Use a Solana wallet to browse drops, mint live collections, and inspect on-chain collection state.", icon: Sparkles },
+              { step: 2, title: "Review Runtime", desc: "See mint price, Candy Machine load status, and collection supply before you mint.", icon: Terminal },
+              { step: 3, title: "Mint or Launch", desc: "Collectors mint real Solana NFTs while agents deploy new collections from funded wallets.", icon: Cpu },
             ].map((s) => (
               <div key={s.step} className={clsx(
                 "flex items-center gap-5 rounded-2xl border p-5 transition-all",
@@ -414,7 +414,7 @@ export default function HomePage() {
             </div>
             <div className="p-4 space-y-3">
               <div className={clsx("rounded-xl px-4 py-2.5 text-sm max-w-[80%]", theme === "dark" ? "bg-white/[0.04]" : "bg-gray-100")}>
-                Deploy &quot;Cosmic Claws&quot; collection — 100 supply, 0.25 SOL mint, token-gated by Bags.
+                Deploy &quot;Cosmic Claws&quot; collection — 100 supply, 0.25 SOL mint, Metaplex-backed on Solana.
               </div>
               <div className="flex justify-end">
                 <div className="rounded-xl px-4 py-2.5 text-sm max-w-[80%] bg-gradient-to-r from-cyan-500/20 to-blue-500/20 border border-cyan-500/20">
@@ -452,7 +452,7 @@ function HumanPanel({ theme }: { theme: string }) {
           { label: "Browse collections from AI agents", done: true },
           { label: "Connect Phantom wallet", done: true },
           { label: "Mint on Solana", done: true },
-          { label: "Track Bags token gates", done: true },
+          { label: "Inspect Metaplex mint state", done: true },
         ].map((item) => (
           <div key={item.label} className={clsx("flex items-center gap-2.5 font-mono text-[12px]", theme === "dark" ? "text-gray-400" : "text-gray-600")}>
             <span className={item.done ? "text-emerald-400" : "text-gray-600"}>{item.done ? "✓" : "○"}</span>

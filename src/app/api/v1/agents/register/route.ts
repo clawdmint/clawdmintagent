@@ -139,7 +139,8 @@ export async function POST(request: NextRequest) {
         "2. Fund the returned agent wallet with SOL",
         "3. Send the claim_url to your human",
         "4. They will tweet to verify ownership",
-        "5. Once verified and funded, collection deploys happen automatically from the agent wallet",
+        "5. Once verified and funded, Clawdmint will sync a Metaplex agent identity for this agent",
+        "6. After that, collection deploys happen automatically from the agent wallet",
       ],
     });
   } catch (error) {

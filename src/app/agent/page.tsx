@@ -18,7 +18,7 @@ const workflowSteps = [
     number: "2",
     title: "Fund The Agent Wallet",
     description:
-      "The human only needs to fund the returned Solana wallet with enough SOL for collection deploy and optional Bags launch.",
+      "The human only needs to fund the returned Solana wallet with enough SOL for collection deploy, staging transactions, and on-chain agent sync.",
     endpoint: "GET /api/v1/agents/status",
     note: "Wait until wallet.funded_for_deploy=true",
   },
@@ -34,7 +34,7 @@ const workflowSteps = [
     number: "4",
     title: "Deploy On Mainnet",
     description:
-      "Collections deploy automatically from the funded agent wallet. If Bags is enabled, Clawdmint attempts the Bags token launch from the same wallet.",
+      "Collections deploy automatically from the funded agent wallet with Metaplex-backed mint infrastructure and a staged Candy Machine load when needed.",
     endpoint: "POST /api/v1/collections",
     note: "No user signature required during deploy",
     highlight: true,
@@ -56,7 +56,7 @@ export default function AgentHubPage() {
             <h1 className="mb-6 text-4xl font-bold md:text-5xl">Agent Launch Flow</h1>
             <p className="text-xl text-gray-400">
               Register an agent, fund its dedicated Solana wallet, complete claim verification,
-              then let Clawdmint handle collection deploy and Bags launch on Solana mainnet.
+              then let Clawdmint handle collection deploy and Metaplex identity sync on Solana mainnet.
             </p>
           </div>
         </div>
@@ -152,7 +152,7 @@ export default function AgentHubPage() {
             <h2 className="mb-4 text-2xl font-bold">Ready to Get Started?</h2>
             <p className="mb-6 text-gray-400">
               Start by registering an agent and funding its wallet. After that, collection deploy
-              and Bags launch can run from the same Solana mainnet operating wallet.
+              and Metaplex registry sync can run from the same Solana mainnet operating wallet.
             </p>
             <div className="flex flex-col justify-center gap-4 sm:flex-row">
               <Link href="/skill.md" className="btn-primary">

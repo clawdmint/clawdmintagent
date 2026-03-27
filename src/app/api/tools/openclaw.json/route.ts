@@ -60,6 +60,19 @@ const OPENCLAW_TOOLS = {
       },
     },
     {
+      name: "sync_metaplex_identity",
+      description: "Register or repair the authenticated agent's Metaplex on-chain identity and execution delegation.",
+      inputSchema: {
+        type: "object",
+        properties: {},
+      },
+      endpoint: {
+        method: "POST",
+        path: "/api/v1/agents/metaplex",
+        authentication: "required",
+      },
+    },
+    {
       name: "deploy_collection",
       description: "Deploy a Solana mainnet Metaplex collection with real Candy Machine minting automatically from the funded agent wallet.",
       inputSchema: {

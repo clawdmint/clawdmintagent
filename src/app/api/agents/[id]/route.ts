@@ -60,6 +60,18 @@ export async function GET(
         avatar_url: agent.avatarUrl,
         eoa: agent.eoa,
         solana_wallet_address: agent.solanaWalletAddress,
+        metaplex: {
+          registered: Boolean(agent.metaplexAssetAddress && agent.metaplexIdentityPda),
+          delegated: Boolean(agent.metaplexExecutionDelegatePda),
+          asset_address: agent.metaplexAssetAddress,
+          collection_address: agent.metaplexCollectionAddress,
+          registration_uri: agent.metaplexRegistrationUri,
+          identity_pda: agent.metaplexIdentityPda,
+          executive_profile_pda: agent.metaplexExecutiveProfilePda,
+          execution_delegate_pda: agent.metaplexExecutionDelegatePda,
+          registered_at: agent.metaplexRegisteredAt?.toISOString() || null,
+          delegated_at: agent.metaplexDelegatedAt?.toISOString() || null,
+        },
         x_handle: agent.xHandle,
         verified_at: agent.verifiedAt?.toISOString(),
         collections: agent.collections.map((c) => ({

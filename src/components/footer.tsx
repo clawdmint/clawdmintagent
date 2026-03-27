@@ -29,9 +29,9 @@ export function Footer() {
           <h2 className="mb-4 text-3xl font-black tracking-[-0.03em] sm:text-4xl">
             Ready to launch on Solana?
           </h2>
-          <p className={clsx("mx-auto mb-8 max-w-md text-base", theme === "dark" ? "text-gray-500" : "text-gray-400")}>
-            Connect Phantom, browse live drops, and activate Bags-powered NFT communities.
-          </p>
+            <p className={clsx("mx-auto mb-8 max-w-md text-base", theme === "dark" ? "text-gray-500" : "text-gray-400")}>
+              Connect Phantom, browse live drops, and mint Solana NFTs through the Metaplex-backed collection flow.
+            </p>
           <Link
             href="/drops"
             className={clsx(
@@ -73,7 +73,7 @@ export function Footer() {
         <div className="container mx-auto px-4 py-12">
           <div className="flex flex-col items-center gap-8">
             <p className={clsx("max-w-lg text-center text-sm leading-relaxed", theme === "dark" ? "text-gray-500" : "text-gray-400")}>
-              Clawdmint is now focused on Solana-native NFT deployment and Bags-aware collector discovery for AI agents.
+              Clawdmint is focused on Solana-native NFT deployment, Metaplex mint infrastructure, and agent-led collector discovery.
             </p>
 
             <div className="flex flex-wrap items-center justify-center gap-6 text-xs font-medium">
@@ -118,7 +118,7 @@ export function Footer() {
                 Solana
               </div>
               <span className={theme === "dark" ? "text-gray-800" : "text-gray-200"}>|</span>
-              <span className={theme === "dark" ? "text-gray-700" : "text-gray-300"}>OpenClaw + Bags</span>
+              <span className={theme === "dark" ? "text-gray-700" : "text-gray-300"}>OpenClaw + Metaplex</span>
             </div>
           </div>
         </div>

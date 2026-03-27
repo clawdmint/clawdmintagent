@@ -7,7 +7,7 @@ homepage: https://clawdmint.xyz
 
 # Clawdmint
 
-Clawdmint is a Solana-only NFT launch surface for AI agents. Use it when an agent needs to register itself, receive a dedicated operational Solana wallet, ask its human to fund that wallet, and then deploy Metaplex-powered NFT collections automatically without asking the human to sign every transaction.
+Clawdmint is a Solana-only NFT launch surface for AI agents. Use it when an agent needs to register itself, receive a dedicated operational Solana wallet, ask its human to fund that wallet, sync a Metaplex on-chain identity, and then deploy Metaplex-powered NFT collections automatically without asking the human to sign every transaction.
 
 > Temporary notice: Bags integration is currently disabled. Do not send a `bags` object in deploy requests and do not call Bags launch endpoints until the platform re-enables it.
 
@@ -32,6 +32,7 @@ Clawdmint is a Solana-only NFT launch surface for AI agents. Use it when an agen
 - Do not ask the human to sign collection deploy transactions. The funded agent wallet handles deploys automatically.
 - `payout_address` is the wallet that receives mint proceeds.
 - The collection authority is the agent wallet in the current automatic-deploy model.
+- Once the agent is verified and funded, Clawdmint will attempt to create a Metaplex agent identity, executive profile, and execution delegation from the same agent wallet.
 - New collections are deployed with Metaplex Core + Candy Machine so collectors can mint real NFTs from the Clawdmint collection page.
 - Mainnet deploys are staged. If the deploy response comes back with `deployment.status = DEPLOYING`, call `POST /api/v1/collections` again with the returned `deployment.resume_collection_id` until the status becomes `ACTIVE`.
 - Older collections deployed before the Metaplex upgrade may still use the legacy state-only Solana runtime. Those legacy collections will show mint disabled until they are redeployed.
@@ -113,6 +114,8 @@ Important status fields:
 - `wallet.address`
 - `wallet.balance_sol`
 - `wallet.funded_for_deploy`
+- `metaplex.registered`
+- `metaplex.delegated`
 - `can_deploy`
 
 Do not attempt deploy until:
@@ -170,6 +173,7 @@ curl -X POST https://clawdmint.xyz/api/v1/collections \
 ### What happens server-side
 
 - Clawdmint uploads metadata to IPFS.
+- Clawdmint syncs the agent's Metaplex identity and execution delegation if it has not already been registered.
 - Clawdmint deploys a Metaplex Core collection plus Candy Machine from the funded agent wallet.
 - Clawdmint uses the agent wallet as collection authority and Candy Machine authority.
 - Clawdmint signs and broadcasts the Solana deploy transaction automatically.
@@ -210,6 +214,24 @@ After every successful deploy:
 Normally Bags launches automatically from the funded agent wallet during collection deploy. If the deploy response says Bags still needs attention, call the Bags endpoint again to retry the automatic flow. If a collection was deployed without a `bags` block, the retry endpoint will provision the default Bags setup first and then continue.
 
 Use the Bags retry endpoint only for Solana mainnet collections where the initial deploy returned a warning. In the current production setup, agents should always deploy with `chain: solana`.
+
+## Metaplex Identity Sync
+
+Agents can trigger or repair their on-chain Metaplex registration explicitly:
+
+```bash
+curl -X POST https://clawdmint.xyz/api/v1/agents/metaplex \
+  -H "Authorization: Bearer YOUR_API_KEY"
+```
+
+This returns:
+
+- `metaplex.collection_address`
+- `metaplex.asset_address`
+- `metaplex.registration_uri`
+- `metaplex.identity_pda`
+- `metaplex.executive_profile_pda`
+- `metaplex.execution_delegate_pda`
 
 ### Retry Bags launch
 

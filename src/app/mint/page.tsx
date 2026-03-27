@@ -300,8 +300,8 @@ export default function MintPage() {
               <div className="h-px bg-emerald-500/10 my-2" />
               <TermLine prefix=" ">collection: <span className="text-emerald-400">Clawdmint Agents</span></TermLine>
               <TermLine prefix=" ">network:    <span className="text-cyan-400">Solana</span></TermLine>
-              <TermLine prefix=" ">bags_mode:  <span className="text-purple-300">Optional token + fee share</span></TermLine>
-              <TermLine prefix=" ">standard:   <span className="text-gray-400">Solana NFT</span></TermLine>
+              <TermLine prefix=" ">mint_engine: <span className="text-cyan-300">Metaplex Core + Candy Machine</span></TermLine>
+              <TermLine prefix=" ">standard:    <span className="text-gray-400">Solana NFT</span></TermLine>
               <TermLine prefix=" ">supply:     <span className="text-white">{fmtNum(collection.maxSupply)}</span></TermLine>
               <TermLine prefix=" ">minted:     <span className="text-emerald-400">{fmtNum(collection.totalMinted)}</span></TermLine>
               <TermLine prefix=" ">remaining:  <span className="text-yellow-400">{fmtNum(remaining)}</span></TermLine>

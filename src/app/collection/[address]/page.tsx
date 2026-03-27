@@ -631,19 +631,12 @@ export default function CollectionPage() {
   const remaining = collection.onchain?.remaining || (collection.max_supply - collection.total_minted).toString();
   const totalMinted = collection.onchain?.total_minted || collection.total_minted.toString();
   const progress = (parseInt(totalMinted) / collection.max_supply) * 100;
-  const { bagsEnabled, bagsAppUrl, solanaCluster } = getClientEnv();
-  const bags = bagsEnabled ? collection.bags : null;
-  const bagsChainValue = solanaCluster === "devnet" ? "solana-devnet" : "solana";
-  const bagsTokenUrl = bags?.token_address ? `${bagsAppUrl}/${bags.token_address}` : null;
-  const bagsIsTokenGated = bags?.mint_access === "bags_balance";
-  const showBagsPanel = Boolean(bags?.enabled);
-  const needsBagsOwnerLaunch = Boolean(showBagsPanel && bags?.status !== "LIVE");
-  const isAgentManagedBagsLaunch = Boolean(needsBagsOwnerLaunch && collection.bags_managed_by_agent);
-  const shouldShowBagsOwnerConsole = Boolean(needsBagsOwnerLaunch && !collection.bags_managed_by_agent);
-  const isBagsOwner = Boolean(bags?.creator_wallet && solanaAddress && bags.creator_wallet === solanaAddress);
-  const needsOwnerWalletConnection = Boolean(shouldShowBagsOwnerConsole && !isBagsOwner);
-  const bagsLaunchExplorerUrl = bagsOwnerLaunchTx ? getTransactionExplorerUrl(bagsOwnerLaunchTx, bagsChainValue) : null;
-  const solanaMintGatePending = Boolean(bagsIsTokenGated && bags?.status !== "LIVE");
+  const metaplexLoadPending = Boolean(isMetaplexMintCollection && collection.onchain?.is_fully_loaded === false);
+  const metaplexStatusLabel = !isMetaplexMintCollection
+    ? "Legacy"
+    : metaplexLoadPending
+      ? "Syncing"
+      : "Ready";
   const maxMintableQuantity = isEvmCollection
     ? parseInt(remaining, 10)
     : Math.min(parseInt(remaining, 10), MAX_SOLANA_MINTS_PER_TX);
@@ -874,237 +867,59 @@ export default function CollectionPage() {
                   </>
                 )}
 
-                {showBagsPanel && (
+                {isMetaplexMintCollection && (
                   <div className={clsx(
                     "rounded-2xl border p-4 space-y-3",
                     theme === "dark" ? "border-white/[0.06] bg-white/[0.03]" : "border-gray-200 bg-gray-50"
                   )}>
                     <div className="flex items-center justify-between gap-3">
                       <div className="flex items-center gap-2">
-                        <Coins className="w-4 h-4 text-cyan-500" />
-                        <span className="font-medium">Bags Community</span>
+                        <ShieldCheck className="w-4 h-4 text-cyan-500" />
+                        <span className="font-medium">Metaplex Mint Engine</span>
                       </div>
-                      <div className="flex items-center gap-2 flex-wrap justify-end">
-                        <span className={clsx(
-                          "rounded-full px-2.5 py-1 font-mono text-[10px] uppercase tracking-[0.18em]",
-                          theme === "dark" ? "bg-cyan-500/10 text-cyan-300" : "bg-cyan-50 text-cyan-700"
-                        )}>
-                          {bags?.status}
-                        </span>
-                        {bagsIsTokenGated && (
-                          <span className={clsx(
-                            "rounded-full px-2.5 py-1 font-mono text-[10px] uppercase tracking-[0.18em]",
-                            theme === "dark" ? "bg-emerald-500/10 text-emerald-300" : "bg-emerald-50 text-emerald-700"
-                          )}>
-                            Token gated
-                          </span>
-                        )}
+                      <span className={clsx(
+                        "rounded-full px-2.5 py-1 font-mono text-[10px] uppercase tracking-[0.18em]",
+                        theme === "dark" ? "bg-cyan-500/10 text-cyan-300" : "bg-cyan-50 text-cyan-700"
+                      )}>
+                        {metaplexStatusLabel}
+                      </span>
+                    </div>
+
+                    <p className={clsx("text-sm leading-relaxed", theme === "dark" ? "text-gray-400" : "text-gray-600")}>
+                      This collection uses Metaplex Core and Candy Machine for real Solana NFT minting. Mint becomes available as soon as all config lines settle on-chain.
+                    </p>
+
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className={clsx("rounded-xl px-3 py-2", theme === "dark" ? "bg-white/[0.03]" : "bg-white")}>
+                        <p className={clsx("text-[10px] uppercase font-mono", theme === "dark" ? "text-gray-500" : "text-gray-400")}>Runtime</p>
+                        <p className="font-semibold">Metaplex</p>
+                      </div>
+                      <div className={clsx("rounded-xl px-3 py-2", theme === "dark" ? "bg-white/[0.03]" : "bg-white")}>
+                        <p className={clsx("text-[10px] uppercase font-mono", theme === "dark" ? "text-gray-500" : "text-gray-400")}>Mint status</p>
+                        <p className="font-semibold">{metaplexLoadPending ? "Loading config" : "Ready for collectors"}</p>
+                      </div>
+                      <div className={clsx("rounded-xl px-3 py-2", theme === "dark" ? "bg-white/[0.03]" : "bg-white")}>
+                        <p className={clsx("text-[10px] uppercase font-mono", theme === "dark" ? "text-gray-500" : "text-gray-400")}>Candy Machine</p>
+                        <p className="font-mono text-sm">{collection.mint_address ? `${collection.mint_address.slice(0, 6)}...${collection.mint_address.slice(-4)}` : "Pending"}</p>
+                      </div>
+                      <div className={clsx("rounded-xl px-3 py-2", theme === "dark" ? "bg-white/[0.03]" : "bg-white")}>
+                        <p className={clsx("text-[10px] uppercase font-mono", theme === "dark" ? "text-gray-500" : "text-gray-400")}>Config lines</p>
+                        <p className="font-semibold">
+                          {collection.onchain?.items_loaded || "0"} / {collection.onchain?.items_available || collection.max_supply}
+                        </p>
                       </div>
                     </div>
 
-                    {bags?.token_address ? (
-                      <div className="space-y-2">
-                        <div className="flex items-center justify-between gap-3">
-                          <span className={theme === "dark" ? "text-gray-400" : "text-gray-500"}>
-                            {bags.token_symbol || "BAGS"} token
-                          </span>
-                          <a
-                            href={bagsTokenUrl || "#"}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-cyan-500 hover:underline font-mono inline-flex items-center gap-1"
-                          >
-                            {bags.token_address.slice(0, 6)}...{bags.token_address.slice(-4)}
-                            <ExternalLink className="w-3 h-3" />
-                          </a>
-                        </div>
-                        {bags.analytics && (
-                          <div className="grid grid-cols-3 gap-3">
-                            <div className={clsx("rounded-xl px-3 py-2", theme === "dark" ? "bg-white/[0.03]" : "bg-white")}>
-                              <p className={clsx("text-[10px] uppercase font-mono", theme === "dark" ? "text-gray-500" : "text-gray-400")}>Fees</p>
-                              <p className="font-semibold">{bags.analytics.lifetime_fees_sol || "0"} SOL</p>
-                            </div>
-                            <div className={clsx("rounded-xl px-3 py-2", theme === "dark" ? "bg-white/[0.03]" : "bg-white")}>
-                              <p className={clsx("text-[10px] uppercase font-mono", theme === "dark" ? "text-gray-500" : "text-gray-400")}>Claimed</p>
-                              <p className="font-semibold">{bags.analytics.claimed_fees_sol || "0"} SOL</p>
-                            </div>
-                            <div className={clsx("rounded-xl px-3 py-2", theme === "dark" ? "bg-white/[0.03]" : "bg-white")}>
-                              <p className={clsx("text-[10px] uppercase font-mono", theme === "dark" ? "text-gray-500" : "text-gray-400")}>Signal</p>
-                              <p className="font-semibold">{bags.analytics.score.toFixed(2)}</p>
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    ) : (
-                      <p className={clsx("text-sm leading-relaxed", theme === "dark" ? "text-gray-400" : "text-gray-600")}>
-                        {isAgentManagedBagsLaunch
-                          ? "This collection is configured for a Bags-native community token, but the automatic agent-wallet launch did not finish yet. The agent should retry the server-side Bags launch flow."
-                          : "This collection is configured for a Bags-native community token. The creator wallet still needs to finalize the Bags launch flow to make the token live."}
-                      </p>
-                    )}
-
-                    {bagsIsTokenGated && (
-                      <div className={clsx(
-                        "rounded-2xl border px-4 py-3",
-                        eligibility?.eligible
-                          ? theme === "dark"
-                            ? "border-emerald-500/20 bg-emerald-500/10"
-                            : "border-emerald-200 bg-emerald-50"
-                          : theme === "dark"
-                            ? "border-orange-500/20 bg-orange-500/10"
-                            : "border-orange-200 bg-orange-50"
-                      )}>
-                        <div className="flex items-start gap-3">
-                          <Lock className={clsx(
-                            "w-4 h-4 mt-0.5",
-                            eligibility?.eligible ? "text-emerald-400" : "text-orange-400"
-                          )} />
-                          <div className="space-y-1">
-                            <p className="font-medium">
-                              Hold at least {bags?.min_token_balance} {bags?.token_symbol || "BAGS"} to mint
-                            </p>
-                            <p className={clsx("text-sm", theme === "dark" ? "text-gray-400" : "text-gray-600")}>
-                              {eligibilityLoading
-                                ? "Checking your Solana balance..."
-                                : eligibility?.reason || "Connect your Solana wallet to check access."}
-                            </p>
-                            {eligibility && (
-                              <p className={clsx("text-xs font-mono", theme === "dark" ? "text-gray-500" : "text-gray-500")}>
-                                Balance: {eligibility.balance || "0"} / Required: {eligibility.required || bags?.min_token_balance}
-                              </p>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    )}
-
-                    {isAgentManagedBagsLaunch && (
-                      <div
-                        className={clsx(
-                          "rounded-2xl border p-4 space-y-3",
-                          theme === "dark" ? "border-cyan-500/20 bg-cyan-500/10" : "border-cyan-200 bg-cyan-50"
-                        )}
+                    {collection.mint_address && (
+                      <a
+                        href={getAddressExplorerUrl(collection.mint_address, collection.chain)}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1 text-sm text-cyan-500 hover:underline"
                       >
-                        <div className="flex items-start justify-between gap-3">
-                          <div className="space-y-1">
-                            <div className="flex items-center gap-2">
-                              <ShieldCheck className="w-4 h-4 text-cyan-500" />
-                              <span className="font-medium">Agent Launch Pending</span>
-                            </div>
-                            <p className={clsx("text-sm leading-relaxed", theme === "dark" ? "text-gray-300" : "text-gray-700")}>
-                              This Bags token is owned by the agent wallet, not your connected wallet. The agent needs to retry the automatic Bags launch endpoint to make the token live.
-                            </p>
-                            {bags?.creator_wallet && (
-                              <p className={clsx("text-xs font-mono", theme === "dark" ? "text-gray-400" : "text-gray-600")}>
-                                Agent wallet: {bags.creator_wallet.slice(0, 6)}...{bags.creator_wallet.slice(-4)}
-                              </p>
-                            )}
-                          </div>
-                          <span className={clsx(
-                            "rounded-full px-2.5 py-1 font-mono text-[10px] uppercase tracking-[0.18em]",
-                            theme === "dark" ? "bg-white/[0.06] text-cyan-200" : "bg-white text-cyan-700"
-                          )}>
-                            Auto Retry
-                          </span>
-                        </div>
-                        <p className={clsx("text-xs", theme === "dark" ? "text-gray-400" : "text-gray-600")}>
-                          No manual Phantom action is required from the collection viewer on this page.
-                        </p>
-                      </div>
-                    )}
-
-                    {shouldShowBagsOwnerConsole && (
-                      <div className={clsx(
-                        "rounded-2xl border p-4 space-y-3",
-                        theme === "dark" ? "border-cyan-500/20 bg-cyan-500/10" : "border-cyan-200 bg-cyan-50"
-                      )}>
-                        <div className="flex items-start justify-between gap-3">
-                          <div className="space-y-1">
-                            <div className="flex items-center gap-2">
-                              <ShieldCheck className="w-4 h-4 text-cyan-500" />
-                              <span className="font-medium">Owner Console</span>
-                            </div>
-                            <p className={clsx("text-sm leading-relaxed", theme === "dark" ? "text-gray-300" : "text-gray-700")}>
-                              Launch the Bags token, activate onchain fee sharing, and turn on token-gated collector access from this page.
-                            </p>
-                            {bags?.creator_wallet && (
-                              <p className={clsx("text-xs font-mono", theme === "dark" ? "text-gray-400" : "text-gray-600")}>
-                                Creator wallet: {bags.creator_wallet.slice(0, 6)}...{bags.creator_wallet.slice(-4)}
-                              </p>
-                            )}
-                          </div>
-                          <span className={clsx(
-                            "rounded-full px-2.5 py-1 font-mono text-[10px] uppercase tracking-[0.18em]",
-                            theme === "dark" ? "bg-white/[0.06] text-cyan-200" : "bg-white text-cyan-700"
-                          )}>
-                            Bags Launch
-                          </span>
-                        </div>
-
-                        <button
-                          onClick={() => void handleBagsOwnerLaunch()}
-                          disabled={isLaunchingBags}
-                          className="w-full btn-primary text-base py-3 flex items-center justify-center gap-2"
-                        >
-                          {isLaunchingBags ? <Loader2 className="w-4 h-4 relative z-10 animate-spin" /> : <Coins className="w-4 h-4 relative z-10" />}
-                          <span className="relative z-10">
-                            {isLaunchingBags
-                              ? bagsOwnerStep || "Launching Bags community..."
-                              : !solanaAddress
-                                ? "Connect Solana Owner Wallet"
-                                : needsOwnerWalletConnection
-                                  ? "Switch to Creator Wallet"
-                                  : "Launch Bags Community"}
-                          </span>
-                        </button>
-
-                        {!isLaunchingBags && !isBagsOwner && (
-                          <p className={clsx("text-xs", theme === "dark" ? "text-gray-400" : "text-gray-600")}>
-                            Connect the configured Phantom wallet to finalize Bags fee share config and token launch.
-                          </p>
-                        )}
-
-                        {bagsOwnerStep && !isLaunchingBags && (
-                          <p className={clsx("text-xs", theme === "dark" ? "text-gray-400" : "text-gray-600")}>
-                            {bagsOwnerStep}
-                          </p>
-                        )}
-
-                        {bagsOwnerError && (
-                          <div className={clsx(
-                            "rounded-xl border px-3 py-2 text-sm",
-                            theme === "dark" ? "border-red-500/20 bg-red-500/10 text-red-200" : "border-red-200 bg-red-50 text-red-700"
-                          )}>
-                            {bagsOwnerError}
-                          </div>
-                        )}
-
-                        {bagsOwnerSuccess && (
-                          <div className={clsx(
-                            "rounded-xl border px-3 py-2 text-sm",
-                            theme === "dark" ? "border-emerald-500/20 bg-emerald-500/10 text-emerald-200" : "border-emerald-200 bg-emerald-50 text-emerald-700"
-                          )}>
-                            <p>{bagsOwnerSuccess}</p>
-                            {bagsLaunchExplorerUrl && (
-                              <a
-                                href={bagsLaunchExplorerUrl}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="mt-2 inline-flex items-center gap-1 font-mono text-xs text-cyan-500 hover:underline"
-                              >
-                                View launch transaction
-                                <ExternalLink className="w-3 h-3" />
-                              </a>
-                            )}
-                          </div>
-                        )}
-
-                        {!solanaAvailable && (
-                          <p className={clsx("text-xs", theme === "dark" ? "text-orange-300" : "text-orange-700")}>
-                            Phantom is required for Bags owner actions.
-                          </p>
-                        )}
-                      </div>
+                        View Candy Machine
+                        <ExternalLink className="w-3 h-3" />
+                      </a>
                     )}
                   </div>
                 )}
@@ -1157,8 +972,8 @@ export default function CollectionPage() {
                     </button>
                     <p className={clsx("text-xs leading-relaxed", theme === "dark" ? "text-gray-400" : "text-gray-600")}>
                       {collection.mint_disabled_reason ||
-                        (solanaMintGatePending
-                          ? "This collection is waiting for the Bags token gate to go live."
+                        (metaplexLoadPending
+                          ? "This collection is still syncing Candy Machine config lines on-chain."
                           : "Mint is not available for this collection right now.")}
                     </p>
                   </div>
@@ -1293,49 +1108,46 @@ export default function CollectionPage() {
                 </div>
               </div>
 
-              {showBagsPanel && (
+              {isMetaplexMintCollection && (
                 <div className={clsx("glass-card space-y-4", theme === "light" && "bg-white/80")}>
                   <div className="flex items-center gap-2">
                     <TrendingUp className="w-5 h-5 text-cyan-500" />
-                    <h3 className="text-heading-sm">Bags Layer</h3>
+                    <h3 className="text-heading-sm">Mint Runtime</h3>
                   </div>
 
                   <div className="grid grid-cols-2 gap-3">
                     <div className={clsx("rounded-2xl border p-3", theme === "dark" ? "border-white/[0.06] bg-white/[0.03]" : "border-gray-200 bg-gray-50")}>
-                      <p className={clsx("text-[10px] uppercase font-mono mb-1", theme === "dark" ? "text-gray-500" : "text-gray-400")}>Mint access</p>
-                      <p className="font-semibold">{bagsIsTokenGated ? "Bags balance gate" : "Public mint"}</p>
+                      <p className={clsx("text-[10px] uppercase font-mono mb-1", theme === "dark" ? "text-gray-500" : "text-gray-400")}>Mint engine</p>
+                      <p className="font-semibold">Metaplex</p>
                     </div>
                     <div className={clsx("rounded-2xl border p-3", theme === "dark" ? "border-white/[0.06] bg-white/[0.03]" : "border-gray-200 bg-gray-50")}>
-                      <p className={clsx("text-[10px] uppercase font-mono mb-1", theme === "dark" ? "text-gray-500" : "text-gray-400")}>Initial buy</p>
-                      <p className="font-semibold">{bags?.initial_buy_sol || "0"} SOL</p>
+                      <p className={clsx("text-[10px] uppercase font-mono mb-1", theme === "dark" ? "text-gray-500" : "text-gray-400")}>Load state</p>
+                      <p className="font-semibold">{metaplexLoadPending ? "Syncing config lines" : "Collector mint ready"}</p>
                     </div>
                   </div>
 
                   <div className="space-y-2">
                     <div className="flex items-center gap-2">
                       <Users className="w-4 h-4 text-cyan-500" />
-                      <span className="font-medium">Onchain fee sharing</span>
+                      <span className="font-medium">Onchain mint state</span>
                     </div>
-                    <div className="space-y-2">
-                      {bags?.fee_shares.map((feeShare) => (
-                        <div
-                          key={`${feeShare.label}-${feeShare.bps}`}
-                          className={clsx(
-                            "rounded-2xl border px-4 py-3 flex items-center justify-between gap-3",
-                            theme === "dark" ? "border-white/[0.06] bg-white/[0.03]" : "border-gray-200 bg-gray-50"
-                          )}
-                        >
-                          <div>
-                            <p className="font-medium capitalize">{feeShare.label}</p>
-                            <p className={clsx("text-xs font-mono", theme === "dark" ? "text-gray-500" : "text-gray-500")}>
-                              {feeShare.provider === "wallet"
-                                ? `${feeShare.wallet?.slice(0, 6)}...${feeShare.wallet?.slice(-4)}`
-                                : `${feeShare.provider}:${feeShare.username}`}
-                            </p>
-                          </div>
-                          <span className="text-lg font-semibold">{(feeShare.bps / 100).toFixed(2)}%</span>
-                        </div>
-                      ))}
+                    <div
+                      className={clsx(
+                        "rounded-2xl border px-4 py-3 flex items-center justify-between gap-3",
+                        theme === "dark" ? "border-white/[0.06] bg-white/[0.03]" : "border-gray-200 bg-gray-50"
+                      )}
+                    >
+                      <div>
+                        <p className="font-medium">Candy Machine</p>
+                        <p className={clsx("text-xs font-mono", theme === "dark" ? "text-gray-500" : "text-gray-500")}>
+                          {collection.mint_address
+                            ? `${collection.mint_address.slice(0, 6)}...${collection.mint_address.slice(-4)}`
+                            : "pending"}
+                        </p>
+                      </div>
+                      <span className="text-lg font-semibold">
+                        {collection.onchain?.items_loaded || "0"} / {collection.onchain?.items_available || collection.max_supply}
+                      </span>
                     </div>
                   </div>
                 </div>

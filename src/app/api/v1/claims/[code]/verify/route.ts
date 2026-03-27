@@ -1,5 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
+import {
+  ensureMetaplexAgentRegistration,
+  MetaplexAgentRegistryError,
+} from "@/lib/metaplex-agent-registry";
 
 // Force dynamic rendering (prevents static generation errors on Netlify)
 export const dynamic = 'force-dynamic';
@@ -85,7 +89,7 @@ export async function POST(
     });
 
     // Update agent
-    await prisma.agent.update({
+    const updatedAgent = await prisma.agent.update({
       where: { id: claim.agent.id },
       data: {
         status: "VERIFIED",
@@ -95,6 +99,20 @@ export async function POST(
       },
     });
 
+    let metaplex = null;
+    let metaplexWarning: string | null = null;
+    try {
+      metaplex = await ensureMetaplexAgentRegistration(updatedAgent.id);
+    } catch (error) {
+      if (error instanceof MetaplexAgentRegistryError) {
+        metaplexWarning = error.message;
+      } else if (error instanceof Error) {
+        metaplexWarning = error.message;
+      } else {
+        metaplexWarning = "Metaplex registration could not be completed yet.";
+      }
+    }
+
     return NextResponse.json({
       success: true,
       message: "Agent verified successfully!",
@@ -103,7 +121,9 @@ export async function POST(
         status: "VERIFIED",
         can_deploy: true,
         wallet_address: claim.agent.solanaWalletAddress,
+        metaplex,
       },
+      warning: metaplexWarning,
     });
   } catch (error) {
     console.error("Verify claim error:", error);
