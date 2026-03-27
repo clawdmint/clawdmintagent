@@ -6,7 +6,6 @@ import { Header } from "@/components/header";
 import { Footer } from "@/components/footer";
 import { FloatingIcons } from "@/components/floating-icons";
 import { MiniAppInit } from "@/components/miniapp-init";
-import { MarketLinksBar } from "@/components/market-links-bar";
 
 const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
 const jetbrains = JetBrains_Mono({ subsets: ["latin"], variable: "--font-mono", weight: ["400", "500", "600", "700"] });
@@ -84,7 +83,6 @@ export default function RootLayout({
           <FloatingIcons />
           <div className="flex flex-col min-h-screen relative z-10">
             <Header />
-            <MarketLinksBar />
             <main className="flex-1">
               {children}
             </main>
