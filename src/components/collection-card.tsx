@@ -1,12 +1,13 @@
 "use client";
 
 import Link from "next/link";
-import { useRef, useCallback, useState, useEffect } from "react";
-import { useTheme } from "./theme-provider";
+import { useEffect, useState } from "react";
 import { clsx } from "clsx";
 import { Bot } from "lucide-react";
-import { formatCollectionMintPrice, getCollectionNativeToken, isEvmCollectionChain } from "@/lib/collection-chains";
+import { useTheme } from "./theme-provider";
+import { formatCollectionMintPrice, getCollectionNativeToken } from "@/lib/collection-chains";
 import { SolanaLogo } from "./network-icons";
+
 const MIN_COLLECTION_IMAGE_DIMENSION = 256;
 
 interface CollectionCardProps {
@@ -33,60 +34,36 @@ interface CollectionCardProps {
 
 export function CollectionCard({ collection }: CollectionCardProps) {
   const { theme } = useTheme();
-  const cardRef = useRef<HTMLDivElement>(null);
   const [imageFailed, setImageFailed] = useState(false);
-  const progress = (collection.total_minted / collection.max_supply) * 100;
+
+  const progress = collection.max_supply > 0 ? (collection.total_minted / collection.max_supply) * 100 : 0;
   const isSoldOut = collection.status === "SOLD_OUT" || collection.total_minted >= collection.max_supply;
   const mintPrice = collection.mint_price_native || formatCollectionMintPrice(collection.mint_price_raw || "0", collection.chain);
   const nativeToken = getCollectionNativeToken(collection.chain);
-  const isMintLive = isEvmCollectionChain(collection.chain);
-  const isMetaplexCollection = !isMintLive;
+  const isMintLive = collection.status === "ACTIVE" && !isSoldOut;
 
   useEffect(() => {
     setImageFailed(false);
   }, [collection.image_url]);
 
-  // 3D tilt effect on mouse move
-  const handleMouseMove = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
-    const card = cardRef.current;
-    if (!card) return;
-    const rect = card.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const y = e.clientY - rect.top;
-    const centerX = rect.width / 2;
-    const centerY = rect.height / 2;
-    const rotateX = ((y - centerY) / centerY) * -6;
-    const rotateY = ((x - centerX) / centerX) * 6;
-    card.style.transform = `perspective(800px) rotateX(${rotateX}deg) rotateY(${rotateY}deg) translateZ(10px)`;
-  }, []);
-
-  const handleMouseLeave = useCallback(() => {
-    const card = cardRef.current;
-    if (!card) return;
-    card.style.transform = "perspective(800px) rotateX(0deg) rotateY(0deg) translateZ(0px)";
-  }, []);
-
   return (
-    <Link href={`/collection/${collection.address}`}>
-      <div
-        ref={cardRef}
-        onMouseMove={handleMouseMove}
-        onMouseLeave={handleMouseLeave}
+    <Link href={`/collection/${collection.address}`} className="block h-full">
+      <article
         className={clsx(
-          "group relative h-full rounded-2xl overflow-hidden card-shine",
-          "transition-[transform,box-shadow] duration-300 ease-out will-change-transform",
+          "group relative flex h-full flex-col overflow-hidden rounded-[30px] border transition-all duration-300",
           theme === "dark"
-            ? "bg-[#0d1117] ring-1 ring-white/[0.06] hover:ring-white/[0.12] hover:shadow-2xl hover:shadow-cyan-500/10"
-            : "bg-white ring-1 ring-gray-200 hover:ring-gray-300 hover:shadow-2xl hover:shadow-gray-300/50"
+            ? "border-white/[0.08] bg-[#09111d]/90 hover:-translate-y-1 hover:border-cyan-400/30 hover:shadow-[0_30px_80px_rgba(34,211,238,0.12)]"
+            : "border-gray-200 bg-white/95 hover:-translate-y-1 hover:border-cyan-300 hover:shadow-[0_28px_70px_rgba(14,165,233,0.12)]"
         )}
       >
-        {/* Image - Full bleed, Zora-style */}
-        <div className="relative aspect-[4/5] overflow-hidden">
+        <div className="pointer-events-none absolute inset-x-0 top-0 h-24 bg-gradient-to-b from-cyan-400/10 to-transparent opacity-80" />
+
+        <div className="relative aspect-[4/4.85] overflow-hidden">
           {collection.image_url && !imageFailed ? (
             <img
               src={collection.image_url}
               alt={collection.name}
-              className="w-full h-full object-cover transition-transform duration-700 ease-out group-hover:scale-[1.08]"
+              className="h-full w-full object-cover transition-transform duration-700 ease-out group-hover:scale-[1.04]"
               onError={() => setImageFailed(true)}
               onLoad={(event) => {
                 const target = event.currentTarget;
@@ -99,55 +76,102 @@ export function CollectionCard({ collection }: CollectionCardProps) {
               }}
             />
           ) : (
-            <div className={clsx(
-              "w-full h-full flex items-center justify-center",
-              theme === "dark"
-                ? "bg-gradient-to-br from-gray-800 via-gray-900 to-black"
-                : "bg-gradient-to-br from-gray-100 via-gray-50 to-white"
-            )}>
+            <div
+              className={clsx(
+                "flex h-full w-full items-center justify-center",
+                theme === "dark"
+                  ? "bg-gradient-to-br from-[#101827] via-[#0b1220] to-black"
+                  : "bg-gradient-to-br from-gray-100 via-gray-50 to-white"
+              )}
+            >
               <span className="text-6xl opacity-15">🖼️</span>
             </div>
           )}
 
-          {/* Gradient overlay from bottom */}
-          <div className={clsx(
-            "absolute inset-0 bg-gradient-to-t via-transparent",
-            theme === "dark"
-              ? "from-[#0d1117] via-[#0d1117]/20 to-transparent"
-              : "from-white via-white/30 to-transparent"
-          )} />
+          <div
+            className={clsx(
+              "absolute inset-0 bg-gradient-to-t via-transparent",
+              theme === "dark"
+                ? "from-[#09111d] via-[#09111d]/15 to-transparent"
+                : "from-white via-white/25 to-transparent"
+            )}
+          />
 
-          {/* Status badge */}
-          {isSoldOut && (
-            <div className="absolute top-3 right-3 px-2.5 py-1 bg-black/60 backdrop-blur-md rounded-lg text-[10px] uppercase tracking-widest font-bold text-white/90">
-              Sold Out
+          <div className="absolute left-4 right-4 top-4 flex items-start justify-between gap-3">
+            <div className="flex flex-wrap items-center gap-2">
+              <span
+                className={clsx(
+                  "inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 font-mono text-[10px] uppercase tracking-[0.18em] backdrop-blur-md",
+                  theme === "dark"
+                    ? "border-white/10 bg-black/35 text-white/90"
+                    : "border-white/60 bg-white/80 text-gray-900"
+                )}
+              >
+                <SolanaLogo className="h-3.5 w-3.5" />
+                Solana
+              </span>
             </div>
-          )}
-          {!isSoldOut && collection.status === "ACTIVE" && (
-            <div className="absolute top-3 right-3 flex items-center gap-1.5 px-2.5 py-1 bg-black/50 backdrop-blur-md rounded-lg">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-              <span className="text-[10px] uppercase tracking-widest font-bold text-white/90">{isMintLive ? "Live" : "Deployed"}</span>
-            </div>
-          )}
 
-          {/* Price badge - floating */}
-          <div className={clsx(
-            "absolute top-3 left-3 px-3 py-1.5 rounded-lg backdrop-blur-md text-sm font-bold tracking-tight",
-            theme === "dark"
-              ? "bg-black/50 text-white"
-              : "bg-white/80 text-gray-900"
-          )}>
-            {parseFloat(mintPrice) === 0 ? "Free" : `${mintPrice} ${nativeToken}`}
+            <span
+              className={clsx(
+                "rounded-full border px-2.5 py-1 font-mono text-[10px] uppercase tracking-[0.18em] backdrop-blur-md",
+                isSoldOut
+                  ? "border-red-500/20 bg-red-500/10 text-red-300"
+                  : theme === "dark"
+                    ? "border-emerald-500/20 bg-emerald-500/10 text-emerald-300"
+                    : "border-emerald-200 bg-emerald-50 text-emerald-700"
+              )}
+            >
+              {isSoldOut ? "Sold Out" : isMintLive ? "Live Mint" : "Deployed"}
+            </span>
           </div>
 
-          {/* Bottom info overlay - appears on image */}
           <div className="absolute bottom-0 left-0 right-0 p-4">
-            {/* Progress bar */}
-            <div className="mb-3">
-              <div className={clsx(
-                "h-1 rounded-full overflow-hidden",
-                theme === "dark" ? "bg-white/10" : "bg-black/10"
-              )}>
+            <div className="mb-3 flex items-end justify-between gap-3">
+              <div className="min-w-0">
+                <p className="truncate text-2xl font-semibold tracking-tight text-white drop-shadow-[0_8px_24px_rgba(0,0,0,0.42)]">
+                  {collection.name}
+                </p>
+                <p className="mt-1 font-mono text-[11px] uppercase tracking-[0.18em] text-white/65">
+                  ${collection.symbol}
+                </p>
+              </div>
+              <div
+                className={clsx(
+                  "min-w-[108px] rounded-[20px] border px-3.5 py-2.5 text-left backdrop-blur-md",
+                  theme === "dark" ? "border-white/10 bg-black/35" : "border-white/60 bg-white/85"
+                )}
+              >
+                <p
+                  className={clsx(
+                    "font-mono text-[10px] uppercase tracking-[0.18em]",
+                    theme === "dark" ? "text-white/55" : "text-gray-500"
+                  )}
+                >
+                  Mint
+                </p>
+                {parseFloat(mintPrice) === 0 ? (
+                  <p className={clsx("mt-1 text-base font-semibold leading-none", theme === "dark" ? "text-white" : "text-gray-900")}>
+                    Free
+                  </p>
+                ) : (
+                  <p className={clsx("mt-1 flex items-end gap-1 whitespace-nowrap text-base font-semibold leading-none", theme === "dark" ? "text-white" : "text-gray-900")}>
+                    <span>{mintPrice}</span>
+                    <span className={clsx("text-[11px] font-medium uppercase tracking-[0.14em]", theme === "dark" ? "text-white/75" : "text-gray-600")}>
+                      {nativeToken}
+                    </span>
+                  </p>
+                )}
+              </div>
+            </div>
+
+            <div className="mb-2">
+              <div
+                className={clsx(
+                  "h-1.5 overflow-hidden rounded-full",
+                  theme === "dark" ? "bg-white/10" : "bg-black/10"
+                )}
+              >
                 <div
                   className={clsx(
                     "h-full rounded-full transition-all duration-700",
@@ -158,17 +182,11 @@ export function CollectionCard({ collection }: CollectionCardProps) {
                   style={{ width: `${Math.min(progress, 100)}%` }}
                 />
               </div>
-              <div className="flex justify-between mt-1">
-                <span className={clsx(
-                  "text-[10px] font-medium",
-                  theme === "dark" ? "text-white/50" : "text-gray-500"
-                )}>
-                  {collection.total_minted}/{collection.max_supply}
+              <div className="mt-1 flex justify-between">
+                <span className={clsx("text-[10px] font-medium", theme === "dark" ? "text-white/50" : "text-gray-500")}>
+                  {collection.total_minted} / {collection.max_supply}
                 </span>
-                <span className={clsx(
-                  "text-[10px] font-bold",
-                  theme === "dark" ? "text-white/70" : "text-gray-700"
-                )}>
+                <span className={clsx("text-[10px] font-bold", theme === "dark" ? "text-white/70" : "text-gray-700")}>
                   {Math.round(progress)}%
                 </span>
               </div>
@@ -176,67 +194,63 @@ export function CollectionCard({ collection }: CollectionCardProps) {
           </div>
         </div>
 
-        {/* Text content - below image */}
-        <div className="p-4 pt-2">
-          <h3 className="text-heading-sm group-hover:text-cyan-500 transition-colors line-clamp-1 mb-1">
-            {collection.name}
-          </h3>
+        <div className="flex flex-1 flex-col space-y-4 p-4">
+          <p className={clsx("line-clamp-2 text-sm leading-relaxed", theme === "dark" ? "text-gray-400" : "text-gray-600")}>
+            {collection.description || "Minted by a verified AI agent through Clawdmint's Solana-native Metaplex flow."}
+          </p>
 
-          <div className="flex items-center justify-between gap-3 mb-2">
-            <div className="flex flex-wrap items-center gap-2">
-              <span className={clsx(
-                "inline-flex items-center gap-1.5 rounded-full border px-2 py-1 font-mono text-[10px] uppercase tracking-[0.18em]",
-                theme === "dark"
-                  ? "border-emerald-500/20 bg-emerald-500/10 text-emerald-300"
-                  : "border-emerald-200 bg-emerald-50 text-emerald-700"
-              )}>
-                <SolanaLogo className="w-3.5 h-3.5" />
-                Solana
-              </span>
-              {isMetaplexCollection && (
-                <span className={clsx(
-                  "inline-flex items-center gap-1.5 rounded-full border px-2 py-1 font-mono text-[10px] uppercase tracking-[0.18em]",
-                  theme === "dark"
-                    ? "border-cyan-500/20 bg-cyan-500/10 text-cyan-300"
-                    : "border-cyan-200 bg-cyan-50 text-cyan-700"
-                )}>
-                  Metaplex
-                </span>
-              )}
+          <div
+            className={clsx(
+              "grid grid-cols-2 gap-2 rounded-2xl border p-3",
+              theme === "dark" ? "border-white/[0.06] bg-white/[0.02]" : "border-gray-200 bg-gray-50/70"
+            )}
+          >
+            <div>
+              <p className={clsx("font-mono text-[10px] uppercase tracking-[0.18em]", theme === "dark" ? "text-gray-500" : "text-gray-400")}>
+                Progress
+              </p>
+              <p className="mt-1 text-base font-semibold">{Math.round(progress)}%</p>
             </div>
-
-            <span className={clsx(
-              "text-caption font-mono flex-shrink-0",
-              theme === "dark" ? "text-gray-600" : "text-gray-400"
-            )}>
-              ${collection.symbol}
-            </span>
+            <div>
+              <p className={clsx("font-mono text-[10px] uppercase tracking-[0.18em]", theme === "dark" ? "text-gray-500" : "text-gray-400")}>
+                Remaining
+              </p>
+              <p className="mt-1 text-base font-semibold">{Math.max(collection.max_supply - collection.total_minted, 0)}</p>
+            </div>
           </div>
 
-          <div className="flex items-center justify-between">
-            {/* Agent */}
-            <div className="flex items-center gap-2 min-w-0">
-              <div className="w-5 h-5 rounded-full bg-gradient-to-br from-cyan-500 to-blue-600 flex items-center justify-center flex-shrink-0 overflow-hidden">
+          <div className="mt-auto flex items-center justify-between gap-3">
+            <div className="flex min-w-0 items-center gap-2.5">
+              <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center overflow-hidden rounded-2xl bg-gradient-to-br from-cyan-500 to-blue-600">
                 {collection.agent.avatar_url ? (
                   <img
                     src={collection.agent.avatar_url}
                     alt={collection.agent.name}
-                    className="w-full h-full object-cover"
+                    className="h-full w-full object-cover"
                   />
                 ) : (
-                  <Bot className="w-3 h-3 text-white" />
+                  <Bot className="h-4 w-4 text-white" />
                 )}
               </div>
-              <span className={clsx(
-                "text-caption truncate",
-                theme === "dark" ? "text-gray-500" : "text-gray-400"
-              )}>
-                {collection.agent.name}
-              </span>
+              <div className="min-w-0">
+                <p className={clsx("font-mono text-[10px] uppercase tracking-[0.18em]", theme === "dark" ? "text-gray-500" : "text-gray-400")}>
+                  Created by
+                </p>
+                <p className="truncate text-sm font-medium">{collection.agent.name}</p>
+              </div>
             </div>
+
+            <span
+              className={clsx(
+                "rounded-full px-2.5 py-1 font-mono text-[10px] uppercase tracking-[0.18em]",
+                theme === "dark" ? "bg-white/[0.05] text-gray-300" : "bg-gray-100 text-gray-700"
+              )}
+            >
+              {parseFloat(mintPrice) === 0 ? "Free" : "Paid"}
+            </span>
           </div>
         </div>
-      </div>
+      </article>
     </Link>
   );
 }

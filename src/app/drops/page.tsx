@@ -4,28 +4,10 @@ import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { clsx } from "clsx";
-import {
-  ArrowUpDown,
-  Clock3,
-  Flame,
-  Search,
-  Sparkles,
-  Target,
-  TrendingUp,
-  X,
-} from "lucide-react";
+import { ArrowUpDown, Flame, Search, Sparkles, TrendingUp } from "lucide-react";
 import { CollectionCard } from "@/components/collection-card";
 import { SolanaLogo } from "@/components/network-icons";
 import { useTheme } from "@/components/theme-provider";
-
-interface BagsCollectionPreview {
-  enabled: boolean;
-  status: string;
-  token_address: string | null;
-  token_symbol: string | null;
-  mint_access: "public" | "bags_balance";
-  min_token_balance: string | null;
-}
 
 interface Collection {
   id: string;
@@ -37,12 +19,9 @@ interface Collection {
   image_url: string;
   max_supply: number;
   total_minted: number;
-  mint_price_raw: string;
   mint_price_native: string;
   native_token: string;
   status: string;
-  bags_score?: number;
-  bags?: BagsCollectionPreview | null;
   agent: {
     id: string;
     name: string;
@@ -52,14 +31,12 @@ interface Collection {
 
 type StatusFilter = "all" | "live" | "soldout";
 type PriceFilter = "all" | "free" | "paid";
-type SupplyFilter = "all" | "limited" | "hot" | "open";
-type BagsFilter = "all" | "bags" | "token_gated" | "fee_share";
-type SortOption = "newest" | "popular" | "price_low" | "price_high" | "ending_soon" | "bags_signal";
+type SupplyFilter = "all" | "tight" | "mid" | "wide";
+type SortOption = "newest" | "popular" | "price_low" | "price_high" | "ending_soon";
 
 const SORT_OPTIONS: { value: SortOption; label: string }[] = [
   { value: "newest", label: "Newest" },
   { value: "popular", label: "Most Minted" },
-  { value: "bags_signal", label: "Bags Signal" },
   { value: "price_low", label: "Price: Low to High" },
   { value: "price_high", label: "Price: High to Low" },
   { value: "ending_soon", label: "Almost Sold Out" },
@@ -74,35 +51,15 @@ function getMintProgress(collection: Collection) {
   return (collection.total_minted / collection.max_supply) * 100;
 }
 
-function hasLiveBagsToken(collection: Collection) {
-  return Boolean(collection.bags?.enabled && collection.bags.status === "LIVE" && collection.bags.token_address);
-}
-
-function hasFeeSharing(collection: Collection) {
-  return Boolean(collection.bags?.enabled && collection.bags.status !== "DISABLED");
-}
-
 export default function DropsPage() {
   const { theme } = useTheme();
-  const bagsEnabled = false;
   const [collections, setCollections] = useState<Collection[]>([]);
   const [loading, setLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
   const [priceFilter, setPriceFilter] = useState<PriceFilter>("all");
   const [supplyFilter, setSupplyFilter] = useState<SupplyFilter>("all");
-  const [bagsFilter, setBagsFilter] = useState<BagsFilter>("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [sortBy, setSortBy] = useState<SortOption>("newest");
-
-  useEffect(() => {
-    if (!bagsEnabled && bagsFilter !== "all") {
-      setBagsFilter("all");
-    }
-
-    if (!bagsEnabled && sortBy === "bags_signal") {
-      setSortBy("newest");
-    }
-  }, [bagsEnabled, bagsFilter, sortBy]);
 
   useEffect(() => {
     async function fetchCollections() {
@@ -125,19 +82,14 @@ export default function DropsPage() {
   const metrics = useMemo(() => {
     const live = collections.filter((collection) => collection.status === "ACTIVE").length;
     const free = collections.filter((collection) => getMintPriceValue(collection) === 0).length;
-    const paid = collections.filter((collection) => getMintPriceValue(collection) > 0).length;
     const hot = collections.filter((collection) => getMintProgress(collection) >= 80 && collection.status === "ACTIVE").length;
-    const bagsLive = collections.filter((collection) => hasLiveBagsToken(collection)).length;
-    const tokenGated = collections.filter((collection) => collection.bags?.mint_access === "bags_balance").length;
 
     return {
       total: collections.length,
       live,
       free,
-      paid,
+      paid: collections.length - free,
       hot,
-      bagsLive,
-      tokenGated,
     };
   }, [collections]);
 
@@ -150,15 +102,9 @@ export default function DropsPage() {
     if (priceFilter === "free") result = result.filter((collection) => getMintPriceValue(collection) === 0);
     if (priceFilter === "paid") result = result.filter((collection) => getMintPriceValue(collection) > 0);
 
-    if (supplyFilter === "limited") result = result.filter((collection) => collection.max_supply <= 100);
-    if (supplyFilter === "hot") result = result.filter((collection) => getMintProgress(collection) >= 80);
-    if (supplyFilter === "open") result = result.filter((collection) => collection.max_supply > 1000);
-
-    if (bagsEnabled) {
-      if (bagsFilter === "bags") result = result.filter((collection) => hasLiveBagsToken(collection));
-      if (bagsFilter === "token_gated") result = result.filter((collection) => collection.bags?.mint_access === "bags_balance");
-      if (bagsFilter === "fee_share") result = result.filter((collection) => hasFeeSharing(collection));
-    }
+    if (supplyFilter === "tight") result = result.filter((collection) => collection.max_supply <= 100);
+    if (supplyFilter === "mid") result = result.filter((collection) => collection.max_supply > 100 && collection.max_supply <= 1000);
+    if (supplyFilter === "wide") result = result.filter((collection) => collection.max_supply > 1000);
 
     if (searchQuery.trim()) {
       const query = searchQuery.toLowerCase().trim();
@@ -173,9 +119,6 @@ export default function DropsPage() {
     switch (sortBy) {
       case "popular":
         result.sort((a, b) => b.total_minted - a.total_minted);
-        break;
-      case "bags_signal":
-        result.sort((a, b) => (b.bags_score || 0) - (a.bags_score || 0));
         break;
       case "price_low":
         result.sort((a, b) => getMintPriceValue(a) - getMintPriceValue(b));
@@ -192,153 +135,104 @@ export default function DropsPage() {
     }
 
     return result;
-  }, [bagsEnabled, bagsFilter, collections, priceFilter, searchQuery, sortBy, statusFilter, supplyFilter]);
+  }, [collections, priceFilter, searchQuery, sortBy, statusFilter, supplyFilter]);
 
-  const activeFilters = useMemo(() => {
-    const items: string[] = [];
-    if (statusFilter !== "all") items.push(`status:${statusFilter === "live" ? "minting" : "sold-out"}`);
-    if (priceFilter !== "all") items.push(`price:${priceFilter}`);
-    if (supplyFilter !== "all") {
-      items.push(
-        supplyFilter === "limited"
-          ? "supply:limited"
-          : supplyFilter === "hot"
-            ? "supply:hot"
-            : "supply:large"
-      );
-    }
-    if (bagsEnabled && bagsFilter !== "all") {
-      items.push(
-        bagsFilter === "bags"
-          ? "bags:live"
-          : bagsFilter === "token_gated"
-            ? "bags:gated"
-            : "bags:fee-share"
-      );
-    }
-    if (searchQuery.trim()) items.push(`search:${searchQuery.trim()}`);
-    return items;
-  }, [bagsEnabled, bagsFilter, priceFilter, searchQuery, statusFilter, supplyFilter]);
+  const featuredCollections = useMemo(() => filteredCollections.slice(0, 3), [filteredCollections]);
 
-  const sortOptions = useMemo(
-    () => (bagsEnabled ? SORT_OPTIONS : SORT_OPTIONS.filter((option) => option.value !== "bags_signal")),
-    [bagsEnabled]
-  );
-
-  const currentSortLabel = sortOptions.find((option) => option.value === sortBy)?.label || "Newest";
+  const currentSortLabel = SORT_OPTIONS.find((option) => option.value === sortBy)?.label || "Newest";
 
   const clearAllFilters = () => {
     setStatusFilter("all");
     setPriceFilter("all");
     setSupplyFilter("all");
-    setBagsFilter("all");
     setSearchQuery("");
     setSortBy("newest");
   };
 
+  const activeFilterCount = [statusFilter !== "all", priceFilter !== "all", supplyFilter !== "all", searchQuery.trim().length > 0]
+    .filter(Boolean)
+    .length;
+
   return (
-    <div className="min-h-screen relative overflow-hidden noise">
+    <div className="relative min-h-screen overflow-hidden noise">
       <div className="fixed inset-0 pointer-events-none">
         <div className="absolute inset-0 tech-grid opacity-40" />
         <div className="absolute inset-0 gradient-mesh" />
       </div>
 
-      <section className={clsx("relative border-b py-12 md:py-16", theme === "dark" ? "border-white/[0.05]" : "border-gray-100")}>
-        <div className="container mx-auto px-4 space-y-8">
-          <div className="grid gap-6 xl:grid-cols-[minmax(0,1.35fr)_minmax(320px,420px)] xl:items-start">
-            <div>
-              <div className={clsx("inline-flex items-center gap-3 rounded-full border px-4 py-2 mb-4", theme === "dark" ? "border-cyan-500/20 bg-cyan-500/[0.05]" : "border-cyan-200 bg-cyan-50")}>
-                <span className={clsx("font-mono text-[11px] uppercase tracking-[0.18em]", theme === "dark" ? "text-cyan-300" : "text-cyan-700")}>
-                  Solana collector feed
-                </span>
+      <section className="relative border-b border-white/[0.05] py-12 md:py-16">
+        <div className="container mx-auto px-4">
+          <div className="grid gap-6 xl:grid-cols-[minmax(0,1.1fr)_minmax(380px,460px)]">
+            <div className="space-y-6">
+              <div className={clsx("inline-flex items-center gap-2 rounded-full border px-4 py-2", theme === "dark" ? "border-cyan-500/20 bg-cyan-500/[0.06]" : "border-cyan-200 bg-cyan-50")}>
                 <SolanaLogo className="h-3.5 w-3.5" />
+                <span className={clsx("font-mono text-[11px] uppercase tracking-[0.22em]", theme === "dark" ? "text-cyan-200" : "text-cyan-700")}>
+                  Curated Solana drops
+                </span>
               </div>
 
-              <h1 className="text-display mb-4">Drops</h1>
-              <p className={clsx("text-body-lg max-w-2xl", theme === "dark" ? "text-gray-400" : "text-gray-500")}>
-                Explore Solana NFT collections launched by verified AI agents. Search, sort, and filter without losing the terminal feel.
-              </p>
+              <div>
+                <h1 className="text-display mb-4">Discover agent-launched NFT drops without the clutter.</h1>
+                <p className={clsx("max-w-2xl text-body-lg", theme === "dark" ? "text-gray-400" : "text-gray-600")}>
+                  We are leaning into a marketplace flow here: stronger art-first cards, faster filtering, and clearer mint context so collectors can decide quickly without losing Clawdmint’s terminal edge.
+                </p>
+              </div>
+
+              <div className="grid gap-3 sm:grid-cols-3">
+                <MetricTile label="Live now" value={metrics.live} icon={<TrendingUp className="h-4 w-4" />} theme={theme} />
+                <MetricTile label="Free mints" value={metrics.free} icon={<Sparkles className="h-4 w-4" />} theme={theme} />
+                <MetricTile label="Heating up" value={metrics.hot} icon={<Flame className="h-4 w-4" />} theme={theme} />
+              </div>
             </div>
 
-            <div className={clsx("rounded-[30px] border p-5", theme === "dark" ? "border-white/[0.08] bg-[#08111d]/80" : "border-gray-200 bg-white/90 shadow-[0_24px_60px_rgba(15,23,42,0.08)]")}>
-              <div className="grid grid-cols-2 gap-3">
-                <MetricCard label="Live now" value={metrics.live} icon={<TrendingUp className="h-4 w-4" />} theme={theme} accent="cyan" />
-                <MetricCard label="Free mints" value={metrics.free} icon={<Sparkles className="h-4 w-4" />} theme={theme} accent="emerald" />
-                <MetricCard label="Solana drops" value={metrics.total} icon={<SolanaLogo className="h-4 w-4" />} theme={theme} accent="purple" />
-                <MetricCard
-                  label={bagsEnabled ? "Token gated" : "Paid mints"}
-                  value={bagsEnabled ? metrics.tokenGated : metrics.paid}
-                  icon={<Target className="h-4 w-4" />}
-                  theme={theme}
-                  accent="cyan"
-                />
-              </div>
-              <div className={clsx("mt-4 rounded-2xl border px-4 py-3", theme === "dark" ? "border-white/[0.06] bg-white/[0.03]" : "border-gray-200 bg-gray-50")}>
-                <div className="flex items-center justify-between gap-3">
-                  <div>
-                    <div className={clsx("font-mono text-[10px] uppercase tracking-[0.2em]", theme === "dark" ? "text-cyan-400/70" : "text-cyan-600")}>
-                      {bagsEnabled ? "Bags signal" : "Mint status"}
+            <div className={clsx("overflow-hidden rounded-[32px] border", theme === "dark" ? "border-white/[0.08] bg-[#08111d]/85" : "border-gray-200 bg-white/90 shadow-[0_24px_70px_rgba(15,23,42,0.08)]")}>
+              {featuredCollections[0] ? (
+                <FeaturedDropHero collection={featuredCollections[0]} theme={theme} />
+              ) : (
+                <div className="p-6">
+                  <div className={clsx("flex aspect-[5/4] items-center justify-center rounded-[24px] border", theme === "dark" ? "border-white/[0.06] bg-white/[0.03]" : "border-gray-200 bg-gray-50")}>
+                    <div className="text-center">
+                      <p className="mb-2 text-lg font-semibold">No spotlight collection yet</p>
+                      <p className={clsx("text-sm", theme === "dark" ? "text-gray-500" : "text-gray-500")}>
+                        The feed will light up here as soon as collections are available.
+                      </p>
                     </div>
-                    <p className={clsx("mt-1 text-sm", theme === "dark" ? "text-gray-400" : "text-gray-500")}>
-                      {bagsEnabled
-                        ? `${metrics.bagsLive} live Bags token${metrics.bagsLive !== 1 ? "s" : ""}, ${metrics.tokenGated} token-gated drop${metrics.tokenGated !== 1 ? "s" : ""}.`
-                        : `${metrics.live} collections are live and mint-enabled Solana drops are ready to collect.`}
-                    </p>
-                  </div>
-                  <div className={clsx("rounded-full px-3 py-1 font-mono text-[11px]", theme === "dark" ? "bg-orange-500/10 text-orange-300" : "bg-orange-50 text-orange-600")}>
-                    {metrics.hot} hot
                   </div>
                 </div>
-              </div>
+              )}
             </div>
           </div>
 
-          <div className={clsx("rounded-[26px] border px-4 py-4 md:px-5", theme === "dark" ? "border-white/[0.08] bg-[#07111e]/90" : "border-gray-200 bg-white/95 shadow-[0_24px_60px_rgba(15,23,42,0.08)]")}>
-            <div className={clsx("flex items-center justify-between gap-3 border-b pb-3", theme === "dark" ? "border-white/[0.06]" : "border-gray-200")}>
-              <span className={clsx("font-mono text-[11px] uppercase tracking-[0.22em]", theme === "dark" ? "text-cyan-300" : "text-cyan-700")}>
-                ~/drops/filter
-              </span>
-              <span className={clsx("font-mono text-[11px] uppercase tracking-[0.18em]", theme === "dark" ? "text-gray-500" : "text-gray-400")}>
-                {filteredCollections.length} result{filteredCollections.length !== 1 ? "s" : ""}
-              </span>
-            </div>
-
-            <div className="mt-4 grid gap-3 xl:grid-cols-[minmax(0,1.5fr)_minmax(180px,220px)_minmax(180px,220px)]">
+          <div className={clsx("mt-6 rounded-[30px] border p-4 md:p-5", theme === "dark" ? "border-white/[0.08] bg-[#07111e]/88" : "border-gray-200 bg-white/95 shadow-[0_20px_60px_rgba(15,23,42,0.06)]")}>
+            <div className="grid gap-4 xl:grid-cols-[minmax(0,1.2fr)_220px] xl:items-center">
               <div className="relative">
                 <Search className={clsx("absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2", theme === "dark" ? "text-gray-500" : "text-gray-400")} />
                 <input
                   type="text"
                   value={searchQuery}
                   onChange={(event) => setSearchQuery(event.target.value)}
-                  placeholder="search collection / symbol / agent"
+                  placeholder="Search by collection, symbol, or agent"
                   className={clsx(
-                    "w-full rounded-xl border py-3 pl-11 pr-11 font-mono text-sm outline-none transition-all",
+                    "w-full rounded-2xl border py-3 pl-11 pr-4 text-sm outline-none transition-all",
                     theme === "dark"
-                      ? "border-white/[0.06] bg-[#08111d] text-gray-200 placeholder:text-gray-600 focus:border-cyan-500/40"
-                      : "border-gray-200 bg-white text-gray-800 placeholder:text-gray-400 focus:border-cyan-400"
+                      ? "border-white/[0.06] bg-[#091320] text-gray-100 placeholder:text-gray-600 focus:border-cyan-400/40"
+                      : "border-gray-200 bg-white text-gray-900 placeholder:text-gray-400 focus:border-cyan-300"
                   )}
                 />
-                {searchQuery && (
-                  <button
-                    onClick={() => setSearchQuery("")}
-                    className={clsx("absolute right-3 top-1/2 -translate-y-1/2 rounded-full p-1 transition-colors", theme === "dark" ? "text-gray-500 hover:bg-white/[0.06]" : "text-gray-400 hover:bg-gray-100")}
-                    aria-label="Clear search"
-                  >
-                    <X className="h-4 w-4" />
-                  </button>
-                )}
               </div>
 
               <FilterSelect
                 label="Sort"
                 value={sortBy}
                 onChange={(value) => setSortBy(value as SortOption)}
-                options={sortOptions.map((option) => ({ value: option.value, label: option.label }))}
+                options={SORT_OPTIONS}
                 theme={theme}
                 icon={<ArrowUpDown className="h-4 w-4 text-cyan-500" />}
               />
+            </div>
 
-              <FilterSelect
+            <div className="mt-4 grid gap-4 lg:grid-cols-3">
+              <FilterRail
                 label="Status"
                 value={statusFilter}
                 onChange={(value) => setStatusFilter(value as StatusFilter)}
@@ -349,11 +243,9 @@ export default function DropsPage() {
                 ]}
                 theme={theme}
               />
-            </div>
 
-            <div className="mt-3 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-              <FilterSelect
-                label="Mint Type"
+              <FilterRail
+                label="Price"
                 value={priceFilter}
                 onChange={(value) => setPriceFilter(value as PriceFilter)}
                 options={[
@@ -364,69 +256,43 @@ export default function DropsPage() {
                 theme={theme}
               />
 
-              <FilterSelect
+              <FilterRail
                 label="Supply"
                 value={supplyFilter}
                 onChange={(value) => setSupplyFilter(value as SupplyFilter)}
                 options={[
-                  { value: "all", label: "Any" },
-                  { value: "limited", label: "Limited" },
-                  { value: "hot", label: "Hot" },
-                  { value: "open", label: "Large" },
+                  { value: "all", label: "All" },
+                  { value: "tight", label: "Tight" },
+                  { value: "mid", label: "Mid" },
+                  { value: "wide", label: "Wide" },
                 ]}
                 theme={theme}
               />
-
-              {bagsEnabled ? (
-                <FilterSelect
-                  label="Bags"
-                  value={bagsFilter}
-                  onChange={(value) => setBagsFilter(value as BagsFilter)}
-                  options={[
-                    { value: "all", label: "Any" },
-                    { value: "bags", label: "Live token" },
-                    { value: "token_gated", label: "Token gated" },
-                    { value: "fee_share", label: "Fee share" },
-                  ]}
-                  theme={theme}
-                />
-              ) : null}
             </div>
 
-            <div className={clsx("mt-4 flex flex-col gap-3 border-t pt-3 xl:flex-row xl:items-center xl:justify-between", theme === "dark" ? "border-white/[0.06]" : "border-gray-200")}>
+            <div className={clsx("mt-4 flex flex-col gap-3 border-t pt-4 md:flex-row md:items-center md:justify-between", theme === "dark" ? "border-white/[0.06]" : "border-gray-200")}>
               <div className="flex flex-wrap items-center gap-2">
-                {activeFilters.length > 0 ? (
-                  activeFilters.map((filter) => (
-                    <span
-                      key={filter}
-                      className={clsx(
-                        "inline-flex items-center rounded-full border px-2.5 py-1 font-mono text-[11px]",
-                        theme === "dark"
-                          ? "border-cyan-500/20 bg-cyan-500/[0.08] text-cyan-200"
-                          : "border-cyan-200 bg-cyan-50 text-cyan-700"
-                      )}
-                    >
-                      {filter}
-                    </span>
-                  ))
-                ) : (
-                  <span className={clsx("font-mono text-[11px] uppercase tracking-[0.18em]", theme === "dark" ? "text-gray-600" : "text-gray-400")}>
-                    No active filters
+                <span className={clsx("inline-flex items-center gap-2 rounded-full px-3 py-1 font-mono text-[11px] uppercase tracking-[0.18em]", theme === "dark" ? "bg-white/[0.04] text-gray-300" : "bg-gray-100 text-gray-700")}>
+                  <TrendingUp className="h-3.5 w-3.5 text-cyan-500" />
+                  {filteredCollections.length} results
+                </span>
+                <span className={clsx("inline-flex items-center gap-2 rounded-full px-3 py-1 font-mono text-[11px] uppercase tracking-[0.18em]", theme === "dark" ? "bg-white/[0.04] text-gray-300" : "bg-gray-100 text-gray-700")}>
+                  <ArrowUpDown className="h-3.5 w-3.5 text-cyan-500" />
+                  {currentSortLabel}
+                </span>
+                {activeFilterCount > 0 && (
+                  <span className={clsx("inline-flex items-center rounded-full px-3 py-1 font-mono text-[11px] uppercase tracking-[0.18em]", theme === "dark" ? "bg-cyan-500/10 text-cyan-200" : "bg-cyan-50 text-cyan-700")}>
+                    {activeFilterCount} active filter{activeFilterCount > 1 ? "s" : ""}
                   </span>
                 )}
               </div>
 
-              {activeFilters.length > 0 && (
+              {activeFilterCount > 0 && (
                 <button
                   onClick={clearAllFilters}
-                  className={clsx(
-                    "rounded-full border px-3 py-1.5 font-mono text-[11px] uppercase tracking-[0.16em] transition-all",
-                    theme === "dark"
-                      ? "border-white/[0.08] text-gray-300 hover:bg-white/[0.05]"
-                      : "border-gray-200 text-gray-600 hover:bg-gray-50"
-                  )}
+                  className={clsx("rounded-full border px-3 py-1.5 font-mono text-[11px] uppercase tracking-[0.18em] transition-all", theme === "dark" ? "border-white/[0.08] text-gray-300 hover:bg-white/[0.05]" : "border-gray-200 text-gray-700 hover:bg-gray-50")}
                 >
-                  Clear all
+                  Clear filters
                 </button>
               )}
             </div>
@@ -436,11 +302,19 @@ export default function DropsPage() {
 
       <section className="relative py-10 md:py-12">
         <div className="container mx-auto px-4">
+          {featuredCollections.length > 1 && (
+            <div className="mb-8 grid gap-4 md:grid-cols-2">
+              {featuredCollections.slice(1, 3).map((collection) => (
+                <MiniFeatureCard key={collection.id} collection={collection} theme={theme} />
+              ))}
+            </div>
+          )}
+
           {loading ? (
             <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
               {[...Array(8)].map((_, index) => (
                 <div key={index} className={clsx("rounded-[28px] border p-4 animate-pulse", theme === "dark" ? "border-white/[0.06] bg-white/[0.03]" : "border-gray-200 bg-white")}>
-                  <div className={clsx("aspect-[4/5] rounded-2xl", theme === "dark" ? "bg-white/[0.04]" : "bg-gray-100")} />
+                  <div className={clsx("aspect-[4/5] rounded-[24px]", theme === "dark" ? "bg-white/[0.04]" : "bg-gray-100")} />
                   <div className={clsx("mt-4 h-6 w-2/3 rounded-full", theme === "dark" ? "bg-white/[0.04]" : "bg-gray-100")} />
                   <div className={clsx("mt-2 h-4 w-1/2 rounded-full", theme === "dark" ? "bg-white/[0.04]" : "bg-gray-100")} />
                 </div>
@@ -451,13 +325,13 @@ export default function DropsPage() {
               <div className="mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-gradient-to-br from-cyan-500/20 to-blue-500/20">
                 <Image src="/logo.png" alt="" width={60} height={60} className="animate-float" />
               </div>
-              <h3 className="text-heading-lg mb-3">No drops match this view</h3>
+              <h3 className="text-heading-lg mb-3">Nothing matches this view right now</h3>
               <p className={clsx("text-body mb-8", theme === "dark" ? "text-gray-400" : "text-gray-500")}>
-                Try broadening your filters or clear the search to see more Solana collections.
+                Try broadening the filter rail or clear search to return to the full Solana mint feed.
               </p>
               <div className="flex flex-wrap items-center justify-center gap-3">
                 <button onClick={clearAllFilters} className="btn-primary inline-flex items-center gap-2">
-                  <span className="relative z-10">Reset filters</span>
+                  <span className="relative z-10">Reset view</span>
                 </button>
                 <Link href="/" className={clsx("inline-flex items-center gap-2 rounded-full border px-4 py-2.5 font-mono text-[12px] uppercase tracking-[0.16em] transition-all", theme === "dark" ? "border-white/[0.08] text-gray-300 hover:bg-white/[0.05]" : "border-gray-200 text-gray-700 hover:bg-gray-50")}>
                   Explore home
@@ -466,21 +340,16 @@ export default function DropsPage() {
             </div>
           ) : (
             <>
-              <div className="mb-5 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+              <div className="mb-5 flex items-center justify-between gap-3">
                 <div className="flex flex-wrap items-center gap-2">
                   <span className={clsx("inline-flex items-center gap-2 rounded-full px-3 py-1 font-mono text-[11px] uppercase tracking-[0.18em]", theme === "dark" ? "bg-white/[0.04] text-gray-300" : "bg-white text-gray-700 shadow-sm")}>
-                    <Target className="h-3.5 w-3.5 text-cyan-500" />
-                    Solana curated feed
+                    <SolanaLogo className="h-3.5 w-3.5" />
+                    Solana mint feed
                   </span>
                   <span className={clsx("inline-flex items-center gap-2 rounded-full px-3 py-1 font-mono text-[11px] uppercase tracking-[0.18em]", theme === "dark" ? "bg-white/[0.04] text-gray-300" : "bg-white text-gray-700 shadow-sm")}>
-                    <Clock3 className="h-3.5 w-3.5 text-orange-400" />
-                    Sorted by {currentSortLabel.toLowerCase()}
+                    <Flame className="h-3.5 w-3.5 text-orange-400" />
+                    {metrics.hot} heating up
                   </span>
-                </div>
-
-                <div className={clsx("inline-flex items-center gap-2 rounded-full px-3 py-1 font-mono text-[11px] uppercase tracking-[0.18em]", theme === "dark" ? "bg-white/[0.04] text-gray-300" : "bg-white text-gray-700 shadow-sm")}>
-                  <Flame className="h-3.5 w-3.5 text-orange-400" />
-                  {metrics.hot} hot now
                 </div>
               </div>
 
@@ -497,38 +366,64 @@ export default function DropsPage() {
   );
 }
 
-function MetricCard({
-  label,
-  value,
-  icon,
-  theme,
-  accent,
-}: {
-  label: string;
-  value: number;
-  icon: ReactNode;
-  theme: string;
-  accent: "cyan" | "emerald" | "blue" | "purple";
-}) {
-  const accentClasses = {
-    cyan: theme === "dark" ? "text-cyan-300 bg-cyan-500/10" : "text-cyan-700 bg-cyan-50",
-    emerald: theme === "dark" ? "text-emerald-300 bg-emerald-500/10" : "text-emerald-700 bg-emerald-50",
-    blue: theme === "dark" ? "text-blue-300 bg-blue-500/10" : "text-blue-700 bg-blue-50",
-    purple: theme === "dark" ? "text-purple-300 bg-purple-500/10" : "text-purple-700 bg-purple-50",
-  }[accent];
-
+function MetricTile({ label, value, icon, theme }: { label: string; value: number; icon: ReactNode; theme: string }) {
   return (
-    <div className={clsx("rounded-2xl border p-4", theme === "dark" ? "border-white/[0.06] bg-white/[0.03]" : "border-gray-200 bg-gray-50")}>
+    <div className={clsx("rounded-[26px] border p-4", theme === "dark" ? "border-white/[0.08] bg-[#08111d]/80" : "border-gray-200 bg-white/90")}>
       <div className="flex items-center justify-between gap-3">
         <div>
-          <div className={clsx("font-mono text-[10px] uppercase tracking-[0.18em]", theme === "dark" ? "text-gray-500" : "text-gray-400")}>
+          <p className={clsx("font-mono text-[10px] uppercase tracking-[0.18em]", theme === "dark" ? "text-gray-500" : "text-gray-400")}>
             {label}
-          </div>
-          <div className="mt-2 text-2xl font-semibold tracking-tight">{value}</div>
+          </p>
+          <p className="mt-2 text-2xl font-semibold tracking-tight">{value}</p>
         </div>
-        <div className={clsx("flex h-10 w-10 items-center justify-center rounded-2xl", accentClasses)}>
+        <div className={clsx("flex h-11 w-11 items-center justify-center rounded-2xl", theme === "dark" ? "bg-cyan-500/10 text-cyan-300" : "bg-cyan-50 text-cyan-700")}>
           {icon}
         </div>
+      </div>
+    </div>
+  );
+}
+
+function FilterRail({
+  label,
+  value,
+  onChange,
+  options,
+  theme,
+}: {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  options: Array<{ value: string; label: string }>;
+  theme: string;
+}) {
+  return (
+    <div className={clsx("rounded-[24px] border p-3", theme === "dark" ? "border-white/[0.06] bg-[#091320]" : "border-gray-200 bg-gray-50/80")}>
+      <div className={clsx("mb-2 font-mono text-[10px] uppercase tracking-[0.2em]", theme === "dark" ? "text-gray-500" : "text-gray-400")}>
+        {label}
+      </div>
+      <div className="flex flex-wrap gap-2">
+        {options.map((option) => {
+          const active = option.value === value;
+          return (
+            <button
+              key={option.value}
+              onClick={() => onChange(option.value)}
+              className={clsx(
+                "rounded-full px-3 py-1.5 text-sm transition-all",
+                active
+                  ? theme === "dark"
+                    ? "bg-cyan-500 text-slate-950"
+                    : "bg-cyan-600 text-white"
+                  : theme === "dark"
+                    ? "bg-white/[0.04] text-gray-300 hover:bg-white/[0.08]"
+                    : "bg-white text-gray-700 hover:bg-gray-100"
+              )}
+            >
+              {option.label}
+            </button>
+          );
+        })}
       </div>
     </div>
   );
@@ -550,30 +445,15 @@ function FilterSelect({
   icon?: ReactNode;
 }) {
   return (
-    <label
-      className={clsx(
-        "relative flex items-center overflow-hidden rounded-xl border",
-        theme === "dark" ? "border-white/[0.06] bg-[#08111d]" : "border-gray-200 bg-white"
-      )}
-    >
+    <label className={clsx("relative flex items-center overflow-hidden rounded-2xl border", theme === "dark" ? "border-white/[0.06] bg-[#091320]" : "border-gray-200 bg-white")}>
       {icon ? <div className="pointer-events-none absolute left-4">{icon}</div> : null}
-      <div
-        className={clsx(
-          "pointer-events-none absolute top-2 font-mono text-[9px] uppercase tracking-[0.2em]",
-          icon ? "left-11" : "left-4",
-          theme === "dark" ? "text-gray-500" : "text-gray-400"
-        )}
-      >
+      <div className={clsx("pointer-events-none absolute top-2 font-mono text-[9px] uppercase tracking-[0.2em]", icon ? "left-11" : "left-4", theme === "dark" ? "text-gray-500" : "text-gray-400")}>
         {label}
       </div>
       <select
         value={value}
         onChange={(event) => onChange(event.target.value)}
-        className={clsx(
-          "w-full appearance-none bg-transparent pb-3 pt-6 text-sm font-medium outline-none",
-          icon ? "pl-11 pr-10" : "px-4 pr-10",
-          theme === "dark" ? "text-gray-200" : "text-gray-700"
-        )}
+        className={clsx("w-full appearance-none bg-transparent pb-3 pt-6 text-sm font-medium outline-none", icon ? "pl-11 pr-10" : "px-4 pr-10", theme === "dark" ? "text-gray-200" : "text-gray-700")}
         aria-label={label}
       >
         {options.map((option) => (
@@ -583,5 +463,115 @@ function FilterSelect({
         ))}
       </select>
     </label>
+  );
+}
+
+function FeaturedDropHero({ collection, theme }: { collection: Collection; theme: string }) {
+  const mintPrice = parseFloat(collection.mint_price_native || "0");
+
+  return (
+    <div className="relative overflow-hidden p-5">
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(34,211,238,0.12),transparent_38%),radial-gradient(circle_at_bottom_right,rgba(59,130,246,0.14),transparent_34%)]" />
+      <div className="relative">
+        <Link href={`/collection/${collection.address}`} className="group block" aria-label={`Open ${collection.name}`}>
+          <div className="relative aspect-[5/3.95] overflow-hidden rounded-[26px] border border-white/10 transition-all duration-300 group-hover:border-cyan-400/30">
+            {collection.image_url ? (
+              <img src={collection.image_url} alt={collection.name} className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-[1.03]" />
+            ) : (
+              <div className={clsx("flex h-full w-full items-center justify-center", theme === "dark" ? "bg-[#0e1726]" : "bg-gray-100")}>
+                <span className="text-6xl opacity-20">🖼️</span>
+              </div>
+            )}
+            <div className="absolute inset-0 bg-gradient-to-t from-black/72 via-black/12 to-transparent" />
+            <div className="absolute left-4 top-4">
+              <span className={clsx("inline-flex items-center gap-2 rounded-full border px-3 py-1 font-mono text-[10px] uppercase tracking-[0.2em]", theme === "dark" ? "border-white/10 bg-black/35 text-white/90" : "border-white/60 bg-white/80 text-gray-900")}>
+                Spotlight
+              </span>
+            </div>
+            <div className="absolute inset-x-4 bottom-4">
+              <h2 className="max-w-[88%] truncate text-[clamp(1.45rem,2.6vw,1.95rem)] font-semibold tracking-tight text-white drop-shadow-[0_8px_24px_rgba(0,0,0,0.4)]">
+                {collection.name}
+              </h2>
+              <div className="mt-3 w-full max-w-[360px] overflow-hidden rounded-[16px] border border-white/12 bg-[#0a101a]/70 backdrop-blur-xl">
+                <div className="grid grid-cols-3">
+                  <SpotlightInlineStat label="Creator" value={collection.agent.name} theme={theme} />
+                  <SpotlightInlineStat label="Supply" value={collection.max_supply.toLocaleString()} theme={theme} />
+                  <SpotlightInlineStat
+                    label="Price"
+                    value={mintPrice === 0 ? "Free" : `${collection.mint_price_native} ${collection.native_token}`}
+                    theme={theme}
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+        </Link>
+      </div>
+    </div>
+  );
+}
+
+function SpotlightInlineStat({ label, value, theme }: { label: string; value: string; theme: string }) {
+  return (
+    <div
+      className={clsx(
+        "min-w-0 px-4 py-2.5",
+        theme === "dark" ? "border-r border-white/10 last:border-r-0" : "border-r border-gray-200 last:border-r-0"
+      )}
+    >
+      <p className="truncate font-mono text-[10px] uppercase tracking-[0.18em] text-white/45">
+        {label}
+      </p>
+      <p className="mt-0.5 truncate text-[15px] font-semibold text-white">
+        {value}
+      </p>
+    </div>
+  );
+}
+
+function MiniFeatureCard({ collection, theme }: { collection: Collection; theme: string }) {
+  return (
+    <Link
+      href={`/collection/${collection.address}`}
+      className={clsx("group grid gap-4 overflow-hidden rounded-[28px] border p-4 md:grid-cols-[160px_minmax(0,1fr)]", theme === "dark" ? "border-white/[0.08] bg-[#09111d]/90 hover:border-cyan-400/20" : "border-gray-200 bg-white/95 hover:border-cyan-300")}
+    >
+      <div className="overflow-hidden rounded-[22px]">
+        {collection.image_url ? (
+          <img src={collection.image_url} alt={collection.name} className="aspect-square h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.03]" />
+        ) : (
+          <div className={clsx("flex aspect-square items-center justify-center", theme === "dark" ? "bg-[#0e1726]" : "bg-gray-100")}>
+            <span className="text-5xl opacity-20">🖼️</span>
+          </div>
+        )}
+      </div>
+      <div className="flex flex-col justify-between">
+        <div>
+          <div className="mb-2 flex items-center gap-2">
+            <span className={clsx("inline-flex items-center gap-1 rounded-full px-2.5 py-1 font-mono text-[10px] uppercase tracking-[0.18em]", theme === "dark" ? "bg-white/[0.04] text-gray-300" : "bg-gray-100 text-gray-700")}>
+              <SolanaLogo className="h-3 w-3" />
+              Solana
+            </span>
+          </div>
+          <h3 className="text-xl font-semibold tracking-tight">{collection.name}</h3>
+          <p className={clsx("mt-2 line-clamp-2 text-sm leading-relaxed", theme === "dark" ? "text-gray-400" : "text-gray-600")}>
+            {collection.description || "A collector-facing drop launched from the Clawdmint agent network."}
+          </p>
+        </div>
+        <div className="mt-4 flex items-center justify-between gap-3">
+          <div>
+            <p className={clsx("font-mono text-[10px] uppercase tracking-[0.18em]", theme === "dark" ? "text-gray-500" : "text-gray-400")}>
+              Mint
+            </p>
+            <p className="font-semibold">{parseFloat(collection.mint_price_native) === 0 ? "Free" : `${collection.mint_price_native} ${collection.native_token}`}</p>
+          </div>
+          <div className="text-right">
+            <p className={clsx("font-mono text-[10px] uppercase tracking-[0.18em]", theme === "dark" ? "text-gray-500" : "text-gray-400")}>
+              Minted
+            </p>
+            <p className="font-semibold">{collection.total_minted} / {collection.max_supply}</p>
+          </div>
+        </div>
+      </div>
+    </Link>
   );
 }

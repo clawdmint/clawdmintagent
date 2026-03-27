@@ -10,7 +10,7 @@ import { Connection, Transaction, VersionedTransaction, clusterApiUrl } from "@s
 import { COLLECTION_ABI } from "@/lib/contracts";
 import { useTheme } from "@/components/theme-provider";
 import { clsx } from "clsx";
-import { Bot, ExternalLink, ArrowLeft, Minus, Plus, Sparkles, CheckCircle, ShoppingBag, Share2, Link2, Check, MessageSquare, Send, ChevronDown, ChevronUp, Coins, Lock, TrendingUp, Users, Loader2, ShieldCheck } from "lucide-react";
+import { Bot, ExternalLink, ArrowLeft, Minus, Plus, Sparkles, CheckCircle, Share2, Link2, Check, MessageSquare, Send, ChevronDown, ChevronUp, Users, Loader2, ShieldCheck } from "lucide-react";
 import {
   formatCollectionMintPrice,
   getCollectionNativeToken,
@@ -631,6 +631,7 @@ export default function CollectionPage() {
   const remaining = collection.onchain?.remaining || (collection.max_supply - collection.total_minted).toString();
   const totalMinted = collection.onchain?.total_minted || collection.total_minted.toString();
   const progress = (parseInt(totalMinted) / collection.max_supply) * 100;
+  const mintPriceValue = parseFloat(mintPriceNative || "0");
   const metaplexLoadPending = Boolean(isMetaplexMintCollection && collection.onchain?.is_fully_loaded === false);
   const metaplexStatusLabel = !isMetaplexMintCollection
     ? "Legacy"
@@ -640,6 +641,27 @@ export default function CollectionPage() {
   const maxMintableQuantity = isEvmCollection
     ? parseInt(remaining, 10)
     : Math.min(parseInt(remaining, 10), MAX_SOLANA_MINTS_PER_TX);
+  const remainingCount = Math.max(0, parseInt(remaining, 10) || 0);
+  const mintedCount = Math.max(0, parseInt(totalMinted, 10) || 0);
+  const deployedLabel = new Date(collection.deployed_at).toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  });
+  const loadedItems = Number(collection.onchain?.items_loaded || 0);
+  const availableItems = Number(collection.onchain?.items_available || collection.max_supply);
+  const configProgress = availableItems > 0 ? (loadedItems / availableItems) * 100 : 0;
+  const availabilityLabel = isSoldOut
+    ? "Sold out"
+    : isMetaplexMintCollection
+      ? metaplexLoadPending
+        ? "Configuring"
+        : collection.mint_enabled
+          ? "Mint live"
+          : "Stand by"
+      : isEvmCollection
+        ? "Mint live"
+        : "Legacy";
 
   return (
     <div className="min-h-screen relative noise">
@@ -650,7 +672,7 @@ export default function CollectionPage() {
       </div>
 
       <div className="container mx-auto px-4 py-12 relative">
-        <div className="max-w-6xl mx-auto">
+        <div className="max-w-[1400px] mx-auto">
           {/* Breadcrumb */}
           <Link 
             href="/drops" 
@@ -664,25 +686,36 @@ export default function CollectionPage() {
           </Link>
 
           {/* Collection Header */}
-          <div className="mb-8">
-            <div className="flex items-center gap-2 mb-3">
+          <div className={clsx(
+            "mb-8 rounded-[30px] border p-6 md:p-7",
+            theme === "dark"
+              ? "border-white/[0.08] bg-[#08111d]/84"
+              : "border-gray-200 bg-white/92 shadow-[0_24px_70px_rgba(15,23,42,0.08)]"
+          )}>
+            <div className="flex flex-wrap items-center gap-2 mb-3">
               <span className={clsx(
-                "text-overline font-mono uppercase px-2 py-1 rounded-md",
-                theme === "dark" ? "bg-white/[0.04] text-gray-400" : "bg-gray-100 text-gray-500"
+                "text-overline font-mono uppercase px-3 py-1.5 rounded-full",
+                theme === "dark" ? "bg-white/[0.04] text-gray-300" : "bg-gray-100 text-gray-700"
               )}>
                 ${collection.symbol}
               </span>
               {isSoldOut && (
-                <span className="text-overline uppercase px-2 py-1 rounded-md bg-red-500/10 text-red-400">
+                <span className="text-overline uppercase px-3 py-1.5 rounded-full bg-red-500/10 text-red-400">
                   Sold Out
                 </span>
               )}
               {!isSoldOut && collection.status === "ACTIVE" && (
-                <span className="text-overline uppercase px-2 py-1 rounded-md bg-emerald-500/10 text-emerald-400 flex items-center gap-1">
+                <span className="text-overline uppercase px-3 py-1.5 rounded-full bg-emerald-500/10 text-emerald-400 flex items-center gap-1">
                   <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
                   {isEvmCollection ? "Live" : "Deployed"}
                 </span>
               )}
+              <span className={clsx(
+                "text-overline uppercase px-3 py-1.5 rounded-full",
+                theme === "dark" ? "bg-cyan-500/10 text-cyan-300" : "bg-cyan-50 text-cyan-700"
+              )}>
+                {isMetaplexMintCollection ? "Metaplex Mint" : "Legacy Runtime"}
+              </span>
             </div>
             <h1 className="text-display mb-4">{collection.name}</h1>
 
@@ -690,13 +723,13 @@ export default function CollectionPage() {
             <Link 
               href={`/agents/${collection.agent.id}`}
               className={clsx(
-                "inline-flex items-center gap-3 px-3 py-2 rounded-xl transition-colors",
+                "inline-flex items-center gap-3 rounded-2xl border px-4 py-3 transition-all",
                 theme === "dark"
-                  ? "hover:bg-white/[0.04]"
-                  : "hover:bg-gray-50"
+                  ? "border-white/[0.06] bg-white/[0.03] hover:bg-white/[0.05]"
+                  : "border-gray-200 bg-gray-50 hover:bg-gray-100"
               )}
             >
-              <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-cyan-500 to-blue-600 flex items-center justify-center overflow-hidden">
+              <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-cyan-500 to-blue-600 flex items-center justify-center overflow-hidden">
                 {collection.agent.avatar_url ? (
                   <img 
                     src={collection.agent.avatar_url} 
@@ -721,18 +754,33 @@ export default function CollectionPage() {
                 {collection.description}
               </p>
             )}
+
+            <div className="mt-6 grid gap-3 sm:grid-cols-3">
+              <div className={clsx("rounded-2xl border px-4 py-3", theme === "dark" ? "border-white/[0.06] bg-white/[0.03]" : "border-gray-200 bg-gray-50")}>
+                <p className={clsx("font-mono text-[10px] uppercase tracking-[0.18em]", theme === "dark" ? "text-gray-500" : "text-gray-400")}>Chain</p>
+                <p className="mt-1 font-semibold">{chainName}</p>
+              </div>
+              <div className={clsx("rounded-2xl border px-4 py-3", theme === "dark" ? "border-white/[0.06] bg-white/[0.03]" : "border-gray-200 bg-gray-50")}>
+                <p className={clsx("font-mono text-[10px] uppercase tracking-[0.18em]", theme === "dark" ? "text-gray-500" : "text-gray-400")}>Launched</p>
+                <p className="mt-1 font-semibold">{deployedLabel}</p>
+              </div>
+              <div className={clsx("rounded-2xl border px-4 py-3", theme === "dark" ? "border-white/[0.06] bg-white/[0.03]" : "border-gray-200 bg-gray-50")}>
+                <p className={clsx("font-mono text-[10px] uppercase tracking-[0.18em]", theme === "dark" ? "text-gray-500" : "text-gray-400")}>Royalty</p>
+                <p className="mt-1 font-semibold">{(collection.royalty_bps / 100).toFixed(1)}%</p>
+              </div>
+            </div>
           </div>
 
-          <div className="grid lg:grid-cols-5 gap-8">
+          <div className="grid xl:grid-cols-[minmax(0,1.15fr)_420px] gap-8 xl:items-start">
             {/* Image - 3 columns */}
-            <div className="lg:col-span-3">
+            <div className="space-y-6">
               <div className={clsx(
-                "rounded-2xl overflow-hidden card-shine",
+                "rounded-[32px] overflow-hidden border",
                 theme === "dark"
-                  ? "bg-[#0d1117] ring-1 ring-white/[0.06]"
-                  : "bg-white ring-1 ring-gray-200"
+                  ? "border-white/[0.08] bg-[#09111d]/92"
+                  : "border-gray-200 bg-white shadow-[0_24px_70px_rgba(15,23,42,0.08)]"
               )}>
-                <div className="relative aspect-[4/3] overflow-hidden group/img">
+                <div className="relative aspect-[4/3.2] overflow-hidden group/img">
                   {collection.image_url && !imageFailed ? (
                     <img
                       src={collection.image_url}
@@ -759,7 +807,30 @@ export default function CollectionPage() {
                       <span className="text-8xl opacity-40">🖼️</span>
                     </div>
                   )}
-                  
+
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/45 via-black/5 to-transparent" />
+                  <div className="absolute left-5 right-5 top-5 flex items-start justify-between gap-3">
+                    <span className={clsx(
+                      "inline-flex items-center gap-2 rounded-full border px-3 py-1.5 font-mono text-[10px] uppercase tracking-[0.18em] backdrop-blur-md",
+                      theme === "dark" ? "border-white/10 bg-black/35 text-white/85" : "border-white/60 bg-white/85 text-gray-800"
+                    )}>
+                      <NetworkLogo family={network.family} className="w-3.5 h-3.5" />
+                      {chainName}
+                    </span>
+                    <a
+                      href={explorerUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className={clsx(
+                        "inline-flex items-center gap-2 rounded-full border px-3 py-1.5 font-mono text-[10px] uppercase tracking-[0.18em] backdrop-blur-md transition-all",
+                        theme === "dark" ? "border-white/10 bg-black/35 text-white/80 hover:bg-black/50" : "border-white/60 bg-white/85 text-gray-700 hover:bg-white"
+                      )}
+                    >
+                      Explorer
+                      <ExternalLink className="w-3 h-3" />
+                    </a>
+                  </div>
+
                   {isSoldOut && (
                     <div className="absolute inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center">
                       <span className="text-3xl font-bold text-red-400 uppercase tracking-wider">Sold Out</span>
@@ -768,10 +839,7 @@ export default function CollectionPage() {
                 </div>
 
                 {/* Image footer - mint stats */}
-                <div className={clsx(
-                  "p-5 border-t",
-                  theme === "dark" ? "border-white/[0.06]" : "border-gray-200"
-                )}>
+                <div className={clsx("p-5 border-t", theme === "dark" ? "border-white/[0.06]" : "border-gray-200")}>
                   <div className="grid grid-cols-3 gap-4 mb-3">
                     <div>
                       <p className={clsx("text-overline uppercase mb-1", theme === "dark" ? "text-gray-500" : "text-gray-400")}>Supply</p>
@@ -788,7 +856,7 @@ export default function CollectionPage() {
                   </div>
                   
                   {/* Progress bar */}
-                  <div className={clsx("h-1.5 rounded-full overflow-hidden", theme === "dark" ? "bg-white/[0.05]" : "bg-gray-200")}>
+                  <div className={clsx("h-2 rounded-full overflow-hidden", theme === "dark" ? "bg-white/[0.05]" : "bg-gray-200")}>
                     <div 
                       className={clsx(
                         "h-full rounded-full transition-all duration-500",
@@ -804,123 +872,167 @@ export default function CollectionPage() {
                   </p>
                 </div>
               </div>
+
+              <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_320px]">
+                <div className={clsx("glass-card", theme === "light" && "bg-white/80")}>
+                  <div className="flex items-center gap-2 mb-4">
+                    <Sparkles className="w-5 h-5 text-cyan-500" />
+                    <h3 className="text-heading-sm">Collection Overview</h3>
+                  </div>
+                  <p className={clsx("text-sm leading-7", theme === "dark" ? "text-gray-400" : "text-gray-600")}>
+                    {collection.description || "This collection is live on Solana and configured through Clawdmint's agent-led Metaplex deployment flow."}
+                  </p>
+                </div>
+
+                <ShareSection
+                  address={collection.address}
+                  chain={collection.chain}
+                  name={collection.name}
+                  theme={theme}
+                />
+              </div>
             </div>
 
             {/* Details - 2 columns */}
-            <div className="lg:col-span-2 space-y-5">
+            <div className="space-y-5 xl:sticky xl:top-24">
 
               {/* Mint Section */}
-              <div className={clsx("glass-card space-y-4", theme === "light" && "bg-white/80")}>
-                <div className="flex items-center justify-between">
-                  <span className={clsx("text-body-sm", theme === "dark" ? "text-gray-400" : "text-gray-500")}>Mint Price</span>
-                  <span className="text-heading-lg">
-                    {parseFloat(mintPriceNative) === 0 ? "Free" : `${mintPriceNative} ${nativeToken}`}
+              <div className={clsx("glass-card space-y-5", theme === "light" && "bg-white/80")}>
+                <div className="flex items-start justify-between gap-4">
+                  <div>
+                    <p className={clsx("font-mono text-[11px] uppercase tracking-[0.18em]", theme === "dark" ? "text-gray-500" : "text-gray-400")}>
+                      Primary mint
+                    </p>
+                    <h2 className="mt-3 text-4xl font-semibold tracking-tight">
+                      {mintPriceValue === 0 ? "Free" : `${mintPriceNative} ${nativeToken}`}
+                    </h2>
+                    <p className={clsx("mt-2 max-w-sm text-sm leading-6", theme === "dark" ? "text-gray-400" : "text-gray-600")}>
+                      {isMetaplexMintCollection
+                        ? "Collector mints run through Metaplex Candy Machine so the flow stays familiar, wallet-native, and easy to verify."
+                        : isEvmCollection
+                          ? "Public mint is live and routed through the collection contract."
+                          : "This collection uses the older Solana runtime and does not support live collector minting."}
+                    </p>
+                  </div>
+
+                  <span className={clsx(
+                    "rounded-full px-3 py-1.5 font-mono text-[10px] uppercase tracking-[0.2em]",
+                    isSoldOut
+                      ? "bg-red-500/10 text-red-300"
+                      : metaplexLoadPending
+                        ? theme === "dark" ? "bg-amber-500/10 text-amber-300" : "bg-amber-50 text-amber-700"
+                        : theme === "dark" ? "bg-emerald-500/10 text-emerald-300" : "bg-emerald-50 text-emerald-700"
+                  )}>
+                    {availabilityLabel}
                   </span>
                 </div>
 
                 {!isSoldOut && (isEvmCollection || isMetaplexMintCollection) && (
-                  <>
-                    {/* Quantity selector */}
-                    <div className="flex items-center justify-between">
-                      <span className={theme === "dark" ? "text-gray-400" : "text-gray-500"}>Quantity</span>
+                  <div className={clsx(
+                    "rounded-[26px] border p-4",
+                    theme === "dark" ? "border-white/[0.06] bg-white/[0.03]" : "border-gray-200 bg-gray-50/80"
+                  )}>
+                    <div className="flex items-center justify-between gap-4">
+                      <div>
+                        <p className={clsx("font-mono text-[10px] uppercase tracking-[0.18em]", theme === "dark" ? "text-gray-500" : "text-gray-400")}>
+                          Quantity
+                        </p>
+                        <p className={clsx("mt-1 text-sm", theme === "dark" ? "text-gray-400" : "text-gray-600")}>
+                          Choose up to {maxMintableQuantity} in one checkout
+                        </p>
+                      </div>
                       <div className="flex items-center gap-3">
                         <button
                           onClick={() => setQuantity(Math.max(1, quantity - 1))}
                           className={clsx(
-                            "w-10 h-10 glass rounded-xl flex items-center justify-center transition-colors",
-                            theme === "dark" ? "hover:bg-white/[0.08]" : "hover:bg-gray-100"
+                            "flex h-11 w-11 items-center justify-center rounded-2xl border transition-colors",
+                            theme === "dark"
+                              ? "border-white/[0.08] bg-[#091320] hover:bg-white/[0.06]"
+                              : "border-gray-200 bg-white hover:bg-gray-100"
                           )}
                           disabled={quantity <= 1}
                         >
-                          <Minus className="w-4 h-4" />
+                          <Minus className="h-4 w-4" />
                         </button>
-                        <span className="text-xl font-bold w-12 text-center">{quantity}</span>
+                        <span className="w-12 text-center text-2xl font-semibold">{quantity}</span>
                         <button
                           onClick={() => setQuantity(Math.min(maxMintableQuantity, quantity + 1))}
                           className={clsx(
-                            "w-10 h-10 glass rounded-xl flex items-center justify-center transition-colors",
-                            theme === "dark" ? "hover:bg-white/[0.08]" : "hover:bg-gray-100"
+                            "flex h-11 w-11 items-center justify-center rounded-2xl border transition-colors",
+                            theme === "dark"
+                              ? "border-white/[0.08] bg-[#091320] hover:bg-white/[0.06]"
+                              : "border-gray-200 bg-white hover:bg-gray-100"
                           )}
                           disabled={quantity >= maxMintableQuantity}
                         >
-                          <Plus className="w-4 h-4" />
+                          <Plus className="h-4 w-4" />
                         </button>
+                      </div>
+                    </div>
+
+                    <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                      <div className={clsx("rounded-2xl px-4 py-3", theme === "dark" ? "bg-black/20" : "bg-white")}>
+                        <p className={clsx("font-mono text-[10px] uppercase tracking-[0.18em]", theme === "dark" ? "text-gray-500" : "text-gray-400")}>
+                          Total
+                        </p>
+                        <p className="mt-1 text-xl font-semibold">
+                          {totalCost === 0 ? "Free" : `${totalCost.toFixed(4)} ${nativeToken}`}
+                        </p>
+                      </div>
+                      <div className={clsx("rounded-2xl px-4 py-3", theme === "dark" ? "bg-black/20" : "bg-white")}>
+                        <p className={clsx("font-mono text-[10px] uppercase tracking-[0.18em]", theme === "dark" ? "text-gray-500" : "text-gray-400")}>
+                          Remaining
+                        </p>
+                        <p className="mt-1 text-xl font-semibold">{remainingCount}</p>
                       </div>
                     </div>
 
                     {isMetaplexMintCollection && (
-                      <p className={clsx("text-xs", theme === "dark" ? "text-gray-500" : "text-gray-500")}>
-                        Solana mints are currently capped at {MAX_SOLANA_MINTS_PER_TX} NFTs per transaction.
+                      <p className={clsx("mt-3 text-xs leading-relaxed", theme === "dark" ? "text-gray-500" : "text-gray-500")}>
+                        Solana mints are currently capped at {MAX_SOLANA_MINTS_PER_TX} NFTs per transaction to keep confirmation fast and reliable.
                       </p>
                     )}
-
-                    {/* Total */}
-                    <div className={clsx(
-                      "flex items-center justify-between pt-4 border-t",
-                      theme === "dark" ? "border-white/[0.05]" : "border-gray-200"
-                    )}>
-                      <span className={theme === "dark" ? "text-gray-400" : "text-gray-500"}>Total</span>
-                      <span className="text-2xl font-bold">
-                        {totalCost === 0 ? "Free" : `${totalCost.toFixed(4)} ${nativeToken}`}
-                      </span>
-                    </div>
-                  </>
+                  </div>
                 )}
 
                 {isMetaplexMintCollection && (
                   <div className={clsx(
-                    "rounded-2xl border p-4 space-y-3",
-                    theme === "dark" ? "border-white/[0.06] bg-white/[0.03]" : "border-gray-200 bg-gray-50"
+                    "rounded-[26px] border p-4",
+                    theme === "dark" ? "border-cyan-500/15 bg-cyan-500/[0.04]" : "border-cyan-100 bg-cyan-50/70"
                   )}>
                     <div className="flex items-center justify-between gap-3">
                       <div className="flex items-center gap-2">
-                        <ShieldCheck className="w-4 h-4 text-cyan-500" />
-                        <span className="font-medium">Metaplex Mint Engine</span>
+                        <ShieldCheck className="h-4 w-4 text-cyan-500" />
+                        <span className="font-medium">Metaplex runtime</span>
                       </div>
                       <span className={clsx(
                         "rounded-full px-2.5 py-1 font-mono text-[10px] uppercase tracking-[0.18em]",
-                        theme === "dark" ? "bg-cyan-500/10 text-cyan-300" : "bg-cyan-50 text-cyan-700"
+                        theme === "dark" ? "bg-black/20 text-cyan-200" : "bg-white text-cyan-700"
                       )}>
                         {metaplexStatusLabel}
                       </span>
                     </div>
 
-                    <p className={clsx("text-sm leading-relaxed", theme === "dark" ? "text-gray-400" : "text-gray-600")}>
-                      This collection uses Metaplex Core and Candy Machine for real Solana NFT minting. Mint becomes available as soon as all config lines settle on-chain.
+                    <p className={clsx("mt-3 text-sm leading-6", theme === "dark" ? "text-gray-300" : "text-gray-600")}>
+                      {metaplexLoadPending
+                        ? "Config lines are still settling on-chain. Mint unlocks automatically as soon as the machine is fully loaded."
+                        : "The Candy Machine is fully loaded and ready for collector mints."}
                     </p>
 
-                    <div className="grid grid-cols-2 gap-3">
-                      <div className={clsx("rounded-xl px-3 py-2", theme === "dark" ? "bg-white/[0.03]" : "bg-white")}>
-                        <p className={clsx("text-[10px] uppercase font-mono", theme === "dark" ? "text-gray-500" : "text-gray-400")}>Runtime</p>
-                        <p className="font-semibold">Metaplex</p>
+                    <div className="mt-4">
+                      <div className={clsx("h-2 overflow-hidden rounded-full", theme === "dark" ? "bg-white/[0.07]" : "bg-white/80")}>
+                        <div
+                          className="h-full rounded-full bg-gradient-to-r from-cyan-400 to-blue-500 transition-all duration-500"
+                          style={{ width: `${Math.min(configProgress, 100)}%` }}
+                        />
                       </div>
-                      <div className={clsx("rounded-xl px-3 py-2", theme === "dark" ? "bg-white/[0.03]" : "bg-white")}>
-                        <p className={clsx("text-[10px] uppercase font-mono", theme === "dark" ? "text-gray-500" : "text-gray-400")}>Mint status</p>
-                        <p className="font-semibold">{metaplexLoadPending ? "Loading config" : "Ready for collectors"}</p>
-                      </div>
-                      <div className={clsx("rounded-xl px-3 py-2", theme === "dark" ? "bg-white/[0.03]" : "bg-white")}>
-                        <p className={clsx("text-[10px] uppercase font-mono", theme === "dark" ? "text-gray-500" : "text-gray-400")}>Candy Machine</p>
-                        <p className="font-mono text-sm">{collection.mint_address ? `${collection.mint_address.slice(0, 6)}...${collection.mint_address.slice(-4)}` : "Pending"}</p>
-                      </div>
-                      <div className={clsx("rounded-xl px-3 py-2", theme === "dark" ? "bg-white/[0.03]" : "bg-white")}>
-                        <p className={clsx("text-[10px] uppercase font-mono", theme === "dark" ? "text-gray-500" : "text-gray-400")}>Config lines</p>
-                        <p className="font-semibold">
-                          {collection.onchain?.items_loaded || "0"} / {collection.onchain?.items_available || collection.max_supply}
-                        </p>
+                      <div className="mt-2 flex items-center justify-between">
+                        <span className={clsx("text-xs", theme === "dark" ? "text-gray-400" : "text-gray-600")}>
+                          {loadedItems} of {availableItems} config lines loaded
+                        </span>
+                        <span className="font-mono text-xs">{Math.round(configProgress)}%</span>
                       </div>
                     </div>
-
-                    {collection.mint_address && (
-                      <a
-                        href={getAddressExplorerUrl(collection.mint_address, collection.chain)}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="inline-flex items-center gap-1 text-sm text-cyan-500 hover:underline"
-                      >
-                        View Candy Machine
-                        <ExternalLink className="w-3 h-3" />
-                      </a>
-                    )}
                   </div>
                 )}
 
@@ -928,21 +1040,21 @@ export default function CollectionPage() {
                 {!isConnected ? (
                   <PrivyConnectButton />
                 ) : isSoldOut ? (
-                  <button disabled className="w-full btn-primary text-lg py-4 opacity-50 cursor-not-allowed">
+                  <button disabled className="w-full btn-primary py-4 text-lg opacity-50 cursor-not-allowed">
                     Sold Out
                   </button>
                 ) : isEvmCollection ? (
                   <button
                     onClick={handleMint}
                     disabled={isMinting || isWritePending || isConfirming}
-                    className="w-full btn-primary text-lg py-4 flex items-center justify-center gap-2"
+                    className="w-full btn-primary py-4 text-lg flex items-center justify-center gap-2"
                   >
-                    <Sparkles className="w-5 h-5 relative z-10" />
+                    <Sparkles className="h-5 w-5 relative z-10" />
                     <span className="relative z-10">
                       {isConfirming 
                         ? "Confirming..." 
                         : isWritePending 
-                          ? "Waiting for Wallet..." 
+                          ? "Waiting for wallet..." 
                           : isMinting 
                             ? "Minting..." 
                             : `Mint ${quantity} NFT${quantity > 1 ? "s" : ""}`}
@@ -952,12 +1064,12 @@ export default function CollectionPage() {
                   <button
                     onClick={() => void handleSolanaMint()}
                     disabled={isMinting}
-                    className="w-full btn-primary text-lg py-4 flex items-center justify-center gap-2"
+                    className="w-full btn-primary py-4 text-lg flex items-center justify-center gap-2"
                   >
                     {isMinting ? (
-                      <Loader2 className="w-5 h-5 relative z-10 animate-spin" />
+                      <Loader2 className="h-5 w-5 relative z-10 animate-spin" />
                     ) : (
-                      <Sparkles className="w-5 h-5 relative z-10" />
+                      <Sparkles className="h-5 w-5 relative z-10" />
                     )}
                     <span className="relative z-10">
                       {isMinting
@@ -967,38 +1079,68 @@ export default function CollectionPage() {
                   </button>
                 ) : isMetaplexMintCollection ? (
                   <div className="space-y-3">
-                    <button disabled className="w-full btn-primary text-lg py-4 opacity-50 cursor-not-allowed">
+                    <button disabled className="w-full btn-primary py-4 text-lg opacity-50 cursor-not-allowed">
                       Mint unavailable
                     </button>
-                    <p className={clsx("text-xs leading-relaxed", theme === "dark" ? "text-gray-400" : "text-gray-600")}>
+                    <p className={clsx("text-sm leading-6", theme === "dark" ? "text-gray-400" : "text-gray-600")}>
                       {collection.mint_disabled_reason ||
                         (metaplexLoadPending
-                          ? "This collection is still syncing Candy Machine config lines on-chain."
+                          ? "This drop is still finishing its Candy Machine configuration."
                           : "Mint is not available for this collection right now.")}
                     </p>
                   </div>
                 ) : (
                   <div className="space-y-3">
-                    <button disabled className="w-full btn-primary text-lg py-4 opacity-50 cursor-not-allowed">
-                      Legacy Solana Collection
+                    <button disabled className="w-full btn-primary py-4 text-lg opacity-50 cursor-not-allowed">
+                      Legacy runtime
                     </button>
-                    <p className={clsx("text-xs leading-relaxed", theme === "dark" ? "text-gray-400" : "text-gray-600")}>
-                      This collection was deployed on the old state-only Solana runtime, so it cannot issue real NFTs.
+                    <p className={clsx("text-sm leading-6", theme === "dark" ? "text-gray-400" : "text-gray-600")}>
+                      This collection predates the Metaplex mint flow, so collector minting is not available from this page.
                     </p>
                   </div>
                 )}
 
                 {mintError && (
                   <div className={clsx(
-                    "rounded-xl border px-3 py-2 text-sm",
+                    "rounded-2xl border px-4 py-3 text-sm leading-6",
                     theme === "dark" ? "border-red-500/20 bg-red-500/10 text-red-200" : "border-red-200 bg-red-50 text-red-700"
                   )}>
                     {mintError}
                   </div>
                 )}
 
-                {/* Success message with enhanced animation */}
                 {((isSuccess && txHash) || (mintSuccess && latestMintTxHash)) && (
+                  <div className={clsx(
+                    "rounded-[24px] border p-4",
+                    theme === "dark" ? "border-emerald-500/20 bg-emerald-500/10" : "border-emerald-200 bg-emerald-50"
+                  )}>
+                    <div className="flex items-start gap-3">
+                      <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-br from-emerald-400 to-green-500 text-white shadow-lg shadow-emerald-500/20">
+                        <CheckCircle className="h-6 w-6" />
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-lg font-semibold">Mint confirmed</p>
+                        <p className={clsx("mt-1 text-sm leading-6", theme === "dark" ? "text-emerald-100/80" : "text-emerald-800/80")}>
+                          {mintSuccess || `You minted ${quantity} NFT${quantity > 1 ? "s" : ""}.`}
+                        </p>
+                        {txExplorerUrl && (
+                          <a
+                            href={txExplorerUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="mt-3 inline-flex items-center gap-2 text-sm font-medium text-cyan-500 hover:underline"
+                          >
+                            View transaction
+                            <ExternalLink className="h-4 w-4" />
+                          </a>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Success message with enhanced animation */}
+                {false && ((isSuccess && txHash) || (mintSuccess && latestMintTxHash)) && (
                   <div className="relative">
                     {/* Confetti particles */}
                     <div className="absolute -inset-4 pointer-events-none overflow-hidden">
@@ -1075,182 +1217,75 @@ export default function CollectionPage() {
                 )}
               </div>
 
-              {/* Contract Info */}
-              <div className={clsx("glass-card space-y-3", theme === "light" && "bg-white/80")}>
-                <h3 className="text-heading-sm mb-4">Details</h3>
-                <div className="flex justify-between">
-                  <span className={theme === "dark" ? "text-gray-500" : "text-gray-400"}>Contract</span>
+              <div className={clsx("glass-card space-y-4", theme === "light" && "bg-white/80")}>
+                <div className="flex items-center gap-2">
+                  <Users className="h-5 w-5 text-cyan-500" />
+                  <h3 className="text-heading-sm">Drop Details</h3>
+                </div>
+
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <DetailTile label="Contract" value={`${collection.address.slice(0, 6)}...${collection.address.slice(-4)}`} mono theme={theme} />
+                  <DetailTile label="Mint engine" value={isMetaplexMintCollection ? "Metaplex" : "Legacy runtime"} theme={theme} />
+                  <DetailTile label="Supply" value={collection.max_supply.toString()} theme={theme} />
+                  <DetailTile label="Minted" value={mintedCount.toString()} theme={theme} />
+                  <DetailTile label="Remaining" value={remainingCount.toString()} theme={theme} />
+                  <DetailTile label="Royalty" value={`${(collection.royalty_bps / 100).toFixed(1)}%`} theme={theme} />
+                  <DetailTile label="Chain" value={chainName} theme={theme} />
+                  <DetailTile label="Launched" value={deployedLabel} theme={theme} />
+                  {collection.mint_address && (
+                    <DetailTile
+                      label="Candy Machine"
+                      value={`${collection.mint_address.slice(0, 6)}...${collection.mint_address.slice(-4)}`}
+                      mono
+                      theme={theme}
+                    />
+                  )}
+                  {isMetaplexMintCollection && (
+                    <DetailTile label="Config lines" value={`${loadedItems} / ${availableItems}`} theme={theme} />
+                  )}
+                </div>
+
+                <div className="grid gap-3 sm:grid-cols-2">
                   <a
                     href={explorerUrl}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="text-cyan-500 hover:underline font-mono inline-flex items-center gap-1"
-                  >
-                    {collection.address.slice(0, 6)}...{collection.address.slice(-4)}
-                    <ExternalLink className="w-3 h-3" />
-                  </a>
-                </div>
-                <div className="flex justify-between">
-                  <span className={theme === "dark" ? "text-gray-500" : "text-gray-400"}>Royalty</span>
-                  <span>{(collection.royalty_bps / 100).toFixed(1)}%</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className={theme === "dark" ? "text-gray-500" : "text-gray-400"}>Chain</span>
-                  <span className={clsx(
-                    "flex items-center gap-1",
-                    network.family === "solana"
-                      ? theme === "dark" ? "text-emerald-300" : "text-emerald-700"
-                      : "text-blue-500"
-                  )}>
-                    <NetworkLogo family={network.family} className="w-3.5 h-3.5" />
-                    {chainName}
-                  </span>
-                </div>
-              </div>
-
-              {isMetaplexMintCollection && (
-                <div className={clsx("glass-card space-y-4", theme === "light" && "bg-white/80")}>
-                  <div className="flex items-center gap-2">
-                    <TrendingUp className="w-5 h-5 text-cyan-500" />
-                    <h3 className="text-heading-sm">Mint Runtime</h3>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className={clsx("rounded-2xl border p-3", theme === "dark" ? "border-white/[0.06] bg-white/[0.03]" : "border-gray-200 bg-gray-50")}>
-                      <p className={clsx("text-[10px] uppercase font-mono mb-1", theme === "dark" ? "text-gray-500" : "text-gray-400")}>Mint engine</p>
-                      <p className="font-semibold">Metaplex</p>
-                    </div>
-                    <div className={clsx("rounded-2xl border p-3", theme === "dark" ? "border-white/[0.06] bg-white/[0.03]" : "border-gray-200 bg-gray-50")}>
-                      <p className={clsx("text-[10px] uppercase font-mono mb-1", theme === "dark" ? "text-gray-500" : "text-gray-400")}>Load state</p>
-                      <p className="font-semibold">{metaplexLoadPending ? "Syncing config lines" : "Collector mint ready"}</p>
-                    </div>
-                  </div>
-
-                  <div className="space-y-2">
-                    <div className="flex items-center gap-2">
-                      <Users className="w-4 h-4 text-cyan-500" />
-                      <span className="font-medium">Onchain mint state</span>
-                    </div>
-                    <div
-                      className={clsx(
-                        "rounded-2xl border px-4 py-3 flex items-center justify-between gap-3",
-                        theme === "dark" ? "border-white/[0.06] bg-white/[0.03]" : "border-gray-200 bg-gray-50"
-                      )}
-                    >
-                      <div>
-                        <p className="font-medium">Candy Machine</p>
-                        <p className={clsx("text-xs font-mono", theme === "dark" ? "text-gray-500" : "text-gray-500")}>
-                          {collection.mint_address
-                            ? `${collection.mint_address.slice(0, 6)}...${collection.mint_address.slice(-4)}`
-                            : "pending"}
-                        </p>
-                      </div>
-                      <span className="text-lg font-semibold">
-                        {collection.onchain?.items_loaded || "0"} / {collection.onchain?.items_available || collection.max_supply}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* NFT Marketplaces */}
-              {isEvmCollection && (
-              <div className={clsx("glass-card", theme === "light" && "bg-white/80")}>
-                <div className="flex items-center gap-2 mb-4">
-                  <ShoppingBag className="w-5 h-5 text-cyan-500" />
-                  <h3 className="font-semibold">View on Marketplaces</h3>
-                </div>
-                <div className="grid grid-cols-2 gap-3">
-                  {/* OpenSea */}
-                  <a
-                    href={
-                      network.id === "base"
-                        ? `https://opensea.io/assets/base/${collection.address}`
-                        : `https://testnets.opensea.io/assets/base-sepolia/${collection.address}`
-                    }
-                    target="_blank"
-                    rel="noopener noreferrer"
                     className={clsx(
-                      "flex items-center justify-center gap-2 px-4 py-3 rounded-xl border transition-all hover:scale-105",
+                      "inline-flex items-center justify-center gap-2 rounded-2xl border px-4 py-3 text-sm font-medium transition-colors",
                       theme === "dark"
-                        ? "bg-blue-500/10 border-blue-500/30 hover:bg-blue-500/20 text-blue-400"
-                        : "bg-blue-50 border-blue-200 hover:bg-blue-100 text-blue-600"
+                        ? "border-white/[0.08] bg-white/[0.03] hover:bg-white/[0.06]"
+                        : "border-gray-200 bg-gray-50 hover:bg-gray-100"
                     )}
                   >
-                    <svg className="w-5 h-5" viewBox="0 0 90 90" fill="none" xmlns="http://www.w3.org/2000/svg">
-                      <path d="M45 0C20.1 0 0 20.1 0 45C0 69.9 20.1 90 45 90C69.9 90 90 69.9 90 45C90 20.1 69.9 0 45 0ZM22.2 46.8L22.5 46.4L34.5 29.4C34.7 29.1 35.1 29.1 35.3 29.3C37.3 32.2 39 36 38.6 39.3C38.4 41.2 37.6 43.3 36.6 45.3C36.4 45.7 36.2 46.1 36 46.5C35.9 46.6 35.8 46.7 35.7 46.7H22.6C22.3 46.7 22.1 46.4 22.2 46.8ZM70.4 55.1C70.4 55.4 70.2 55.6 69.9 55.7C68.7 56 65.8 57 64.1 59.1C60.5 63.9 57.7 71.2 50.5 71.2H33.9C26 71.2 19.6 64.8 19.6 56.9V56.5C19.6 56.2 19.8 56 20.1 56H34.5C34.9 56 35.1 56.3 35.1 56.7C35 57.4 35.2 58.1 35.6 58.7C36.3 59.7 37.5 60.3 38.8 60.3H47.6V56.8H38.9C38.6 56.8 38.4 56.4 38.6 56.2C38.8 56 39.1 55.7 39.3 55.4C40.2 54.2 41.4 52.5 42.6 50.6C43.4 49.4 44.1 48.2 44.7 47C44.8 46.8 44.9 46.6 45 46.4C45.2 46 45.3 45.6 45.5 45.3C45.7 44.7 45.9 44.1 46.1 43.6C46.2 43.1 46.4 42.5 46.5 42C46.7 41 46.8 39.9 46.8 38.9C46.8 38.4 46.8 37.8 46.7 37.3C46.7 36.8 46.6 36.2 46.5 35.7C46.4 35.2 46.3 34.6 46.1 34.1C46 33.6 45.8 33 45.6 32.5L45.4 31.9C45.3 31.6 45.1 31.3 45 31C44.4 29.6 43.8 28.3 43.1 27C42.8 26.4 42.5 25.9 42.1 25.4C41.7 24.8 41.3 24.3 40.9 23.8L40.5 23.3C40.3 23.1 40.2 22.9 40 22.7L39.3 21.9C39.2 21.8 39.3 21.6 39.4 21.6H45.4V21.6H45.9C46 21.6 46.1 21.6 46.1 21.7C46.4 21.9 46.7 22.1 47 22.4C47.3 22.7 47.7 23 48 23.4C48.8 24.3 49.6 25.3 50.3 26.4C50.6 26.9 50.9 27.4 51.2 28C51.6 28.7 51.9 29.4 52.3 30.1C52.5 30.6 52.8 31.1 53 31.7C53.5 32.9 53.9 34.1 54.2 35.4C54.3 35.7 54.4 36.1 54.5 36.4V36.5C54.6 36.9 54.6 37.4 54.7 37.8C54.9 39.1 54.9 40.3 54.7 41.6C54.6 42.5 54.4 43.4 54.1 44.3C53.9 45 53.6 45.7 53.3 46.4C52.7 47.9 51.9 49.3 50.9 50.6C50.4 51.3 49.8 52 49.2 52.6C48.8 53.1 48.4 53.5 48 54L47.3 54.6C47.1 54.8 46.9 55 46.7 55.1L46.4 55.4C46.3 55.5 46.1 55.6 46 55.7C45.9 55.8 45.8 55.8 45.7 55.9H45.4V60.3H50.7C52 60.3 53.2 59.8 54.1 58.9C54.4 58.6 55.2 57.8 56.3 56.5C56.4 56.4 56.5 56.3 56.7 56.2L70.2 54.8C70.3 54.8 70.4 54.9 70.4 55.1Z" fill="currentColor"/>
-                    </svg>
-                    <span className="font-medium">OpenSea</span>
+                    View contract
+                    <ExternalLink className="h-4 w-4" />
                   </a>
-
-                  {/* Zora (Base optimized) */}
-                  {network.id === "base" && (
+                  {collection.mint_address ? (
                     <a
-                      href={`https://zora.co/collect/base:${collection.address}`}
+                      href={getAddressExplorerUrl(collection.mint_address, collection.chain)}
                       target="_blank"
                       rel="noopener noreferrer"
                       className={clsx(
-                        "flex items-center justify-center gap-2 px-4 py-3 rounded-xl border transition-all hover:scale-105",
+                        "inline-flex items-center justify-center gap-2 rounded-2xl border px-4 py-3 text-sm font-medium transition-colors",
                         theme === "dark"
-                          ? "bg-purple-500/10 border-purple-500/30 hover:bg-purple-500/20 text-purple-400"
-                          : "bg-purple-50 border-purple-200 hover:bg-purple-100 text-purple-600"
+                          ? "border-white/[0.08] bg-white/[0.03] hover:bg-white/[0.06]"
+                          : "border-gray-200 bg-gray-50 hover:bg-gray-100"
                       )}
                     >
-                      <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
-                        <path d="M12 0C5.4 0 0 5.4 0 12s5.4 12 12 12 12-5.4 12-12S18.6 0 12 0zm0 2c5.5 0 10 4.5 10 10s-4.5 10-10 10S2 17.5 2 12 6.5 2 12 2zm0 3c-3.9 0-7 3.1-7 7s3.1 7 7 7 7-3.1 7-7-3.1-7-7-7z"/>
-                      </svg>
-                      <span className="font-medium">Zora</span>
+                      View candy machine
+                      <ExternalLink className="h-4 w-4" />
                     </a>
-                  )}
-
-                  {/* Rarible */}
-                  <a
-                    href={`https://rarible.com/collection/base/${collection.address}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className={clsx(
-                      "flex items-center justify-center gap-2 px-4 py-3 rounded-xl border transition-all hover:scale-105",
-                      theme === "dark"
-                        ? "bg-yellow-500/10 border-yellow-500/30 hover:bg-yellow-500/20 text-yellow-400"
-                        : "bg-yellow-50 border-yellow-200 hover:bg-yellow-100 text-yellow-600"
-                    )}
-                  >
-                    <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
-                      <path d="M0 12C0 5.4 5.4 0 12 0s12 5.4 12 12-5.4 12-12 12S0 18.6 0 12zm12-8c-4.4 0-8 3.6-8 8s3.6 8 8 8 8-3.6 8-8-3.6-8-8-8zm0 14c-3.3 0-6-2.7-6-6s2.7-6 6-6 6 2.7 6 6-2.7 6-6 6z"/>
-                    </svg>
-                    <span className="font-medium">Rarible</span>
-                  </a>
-
-                  {/* Element */}
-                  {network.id === "base" && (
-                    <a
-                      href={`https://element.market/collections/base-${collection.address}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className={clsx(
-                        "flex items-center justify-center gap-2 px-4 py-3 rounded-xl border transition-all hover:scale-105",
-                        theme === "dark"
-                          ? "bg-pink-500/10 border-pink-500/30 hover:bg-pink-500/20 text-pink-400"
-                          : "bg-pink-50 border-pink-200 hover:bg-pink-100 text-pink-600"
-                      )}
-                    >
-                      <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
-                        <path d="M12 2L2 7v10c0 5.5 4.5 10 10 10s10-4.5 10-10V7l-10-5zm0 2.2L19.8 8 12 11.8 4.2 8 12 4.2zM4 9.5l7 3.5v7.8c-3.9-.4-7-3.7-7-7.8V9.5zm9 11.3V13l7-3.5v3.5c0 4.1-3.1 7.4-7 7.8z"/>
-                      </svg>
-                      <span className="font-medium">Element</span>
-                    </a>
+                  ) : (
+                    <div className={clsx(
+                      "inline-flex items-center justify-center rounded-2xl border px-4 py-3 text-sm",
+                      theme === "dark" ? "border-white/[0.08] bg-white/[0.03] text-gray-500" : "border-gray-200 bg-gray-50 text-gray-500"
+                    )}>
+                      Candy machine pending
+                    </div>
                   )}
                 </div>
               </div>
-              )}
 
-              {/* Share */}
-              <ShareSection
-                address={collection.address}
-                chain={collection.chain}
-                name={collection.name}
-                theme={theme}
-              />
             </div>
           </div>
 
@@ -1581,6 +1616,32 @@ function formatChatTime(dateStr: string): string {
   const diffHr = Math.floor(diffMin / 60);
   if (diffHr < 24) return `${diffHr}h`;
   return date.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+}
+
+function DetailTile({
+  label,
+  value,
+  theme,
+  mono = false,
+}: {
+  label: string;
+  value: string;
+  theme: string;
+  mono?: boolean;
+}) {
+  return (
+    <div
+      className={clsx(
+        "rounded-2xl border px-4 py-3",
+        theme === "dark" ? "border-white/[0.06] bg-white/[0.03]" : "border-gray-200 bg-gray-50"
+      )}
+    >
+      <p className={clsx("font-mono text-[10px] uppercase tracking-[0.18em]", theme === "dark" ? "text-gray-500" : "text-gray-400")}>
+        {label}
+      </p>
+      <p className={clsx("mt-1 text-sm font-semibold", mono && "font-mono")}>{value}</p>
+    </div>
+  );
 }
 
 function ShareSection({
