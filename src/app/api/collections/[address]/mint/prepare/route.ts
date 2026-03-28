@@ -1,11 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import { PublicKey } from "@solana/web3.js";
 import { prisma } from "@/lib/db";
-import { buildCollectionBagsView } from "@/lib/collection-bags";
-import { isBagsIntegrationEnabled } from "@/lib/env";
 import { isSolanaAddress } from "@/lib/network-config";
-import { getSolanaConnection } from "@/lib/solana-collections";
 import {
   fetchMetaplexCandyMachineState,
   MAX_METAPLEX_MINT_QUANTITY,
@@ -22,11 +18,6 @@ const PrepareMintSchema = z.object({
   wallet_address: z.string().min(1),
   quantity: z.number().int().min(1).max(MAX_METAPLEX_MINT_QUANTITY).default(1),
 });
-
-function parseDecimal(value: string): number {
-  const parsed = Number(value);
-  return Number.isFinite(parsed) ? parsed : 0;
-}
 
 export async function POST(
   request: NextRequest,
@@ -97,48 +88,6 @@ export async function POST(
       );
     }
 
-    const bagsEnabled = isBagsIntegrationEnabled();
-    if (!bagsEnabled && collection.bagsMintAccess === "bags_balance") {
-      return NextResponse.json(
-        { success: false, error: "Bags integration is temporarily disabled for this collection" },
-        { status: 409 }
-      );
-    }
-
-    const bags = buildCollectionBagsView(collection);
-    if (bagsEnabled && bags?.mint_access === "bags_balance") {
-      if (bags.status !== "LIVE" || !bags.token_address) {
-        return NextResponse.json(
-          { success: false, error: "Bags token gate is not live for this collection yet" },
-          { status: 409 }
-        );
-      }
-
-      const connection = getSolanaConnection();
-      const tokenAccounts = await connection.getParsedTokenAccountsByOwner(new PublicKey(walletAddress), {
-        mint: new PublicKey(bags.token_address),
-      });
-      const balance = tokenAccounts.value.reduce((total, tokenAccount) => {
-        const parsed = tokenAccount.account.data.parsed;
-        const amount =
-          parsed?.info?.tokenAmount?.uiAmountString ?? parsed?.info?.tokenAmount?.uiAmount ?? "0";
-        return total + parseDecimal(String(amount));
-      }, 0);
-      const required = parseDecimal(bags.min_token_balance || "0");
-
-      if (balance < required) {
-        return NextResponse.json(
-          {
-            success: false,
-            error: `Hold at least ${bags.min_token_balance} ${bags.token_symbol || "BAGS"} to mint`,
-            balance: balance.toString(),
-            required: bags.min_token_balance,
-          },
-          { status: 403 }
-        );
-      }
-    }
-
     const prepared = await prepareMetaplexMintTransaction({
       walletAddress,
       collectionAddress: collection.address,
@@ -146,9 +95,6 @@ export async function POST(
       payoutAddress: collection.payoutAddress,
       quantity,
       mintPriceLamports: BigInt(collection.mintPrice),
-      bagsMintAccess: (bagsEnabled ? bags?.mint_access : "public") || "public",
-      bagsTokenAddress: bagsEnabled ? bags?.token_address : undefined,
-      bagsMinTokenBalance: bagsEnabled ? bags?.min_token_balance : undefined,
     });
 
     const intent = await prisma.mintIntent.create({

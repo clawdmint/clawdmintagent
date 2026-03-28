@@ -1,25 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createHash } from "crypto";
 import { prisma } from "@/lib/db";
-import {
-  DeployCollectionSchema,
-  prepareCollectionAssets,
-} from "@/lib/collection-deploy";
+import { DeployCollectionSchema, prepareCollectionAssets } from "@/lib/collection-deploy";
 import { getUploadErrorMessage } from "@/lib/ipfs";
-import {
-  buildCollectionBagsView,
-  prepareCollectionBagsRecord,
-  resolveAutomaticBagsInput,
-} from "@/lib/collection-bags";
-import {
-  CollectionBagsLaunchError,
-  confirmCollectionBagsLaunch,
-  prepareCollectionBagsLaunch,
-} from "@/lib/collection-bags-launch";
 import {
   formatCollectionMintPrice,
   getCollectionNativeToken,
-  isBagsLaunchSupportedChain,
   SOLANA_COLLECTION_CHAINS,
 } from "@/lib/collection-chains";
 import { checkRateLimit, RATE_LIMIT_DEPLOY } from "@/lib/rate-limit";
@@ -27,7 +13,6 @@ import {
   AgentWalletError,
   getAgentOperationalKeypair,
   getAgentOperationalWalletAddress,
-  signAndBroadcastBagsTransactions,
 } from "@/lib/agent-wallets";
 import {
   continueMetaplexCollectionDeploy,
@@ -46,6 +31,7 @@ function hashApiKey(apiKey: string): string {
 }
 
 export const dynamic = "force-dynamic";
+
 const DEPLOY_RESUME_WINDOW_MS = 60 * 60 * 1000;
 const MAX_CONFIG_BATCHES_PER_REQUEST = 1;
 
@@ -55,6 +41,7 @@ function getCanonicalSolanaChain(): "solana" | "solana-devnet" {
 
 export async function POST(request: NextRequest) {
   let createdCollectionId: string | null = null;
+
   try {
     const appUrl = process.env["NEXT_PUBLIC_APP_URL"] || "https://clawdmint.xyz";
     const authHeader = request.headers.get("Authorization");
@@ -109,11 +96,13 @@ export async function POST(request: NextRequest) {
         }
       }
     }
+
     const agentAuthority = getAgentOperationalWalletAddress(agent);
     const requestedCollectionId =
       typeof body?.collection_id === "string" && body.collection_id.trim().length > 0
         ? body.collection_id.trim()
         : null;
+
     let collection = requestedCollectionId
       ? await prisma.collection.findFirst({
           where: {
@@ -132,20 +121,10 @@ export async function POST(request: NextRequest) {
     }
 
     if (!collection) {
-      const automaticBags = resolveAutomaticBagsInput(body?.bags, {
-        collectionName: typeof body?.name === "string" ? body.name : "",
-        collectionSymbol: typeof body?.symbol === "string" ? body.symbol : "",
-      });
       const normalizedBody = {
         ...body,
         chain: getCanonicalSolanaChain(),
         authority_address: agentAuthority,
-        bags: automaticBags
-          ? {
-              ...automaticBags,
-              creator_wallet: agentAuthority,
-            }
-          : undefined,
       };
       const validation = DeployCollectionSchema.safeParse(normalizedBody);
       if (!validation.success) {
@@ -172,15 +151,6 @@ export async function POST(request: NextRequest) {
 
       if (!collection) {
         const assets = await prepareCollectionAssets(data, agent.name);
-        const bagsRecord = prepareCollectionBagsRecord({
-          input: data.bags,
-          chain: assets.chain,
-          authorityAddress: assets.authorityAddress,
-          payoutAddress: data.payout_address,
-          collectionName: data.name,
-          collectionSymbol: data.symbol,
-        });
-
         collection = await prisma.collection.create({
           data: {
             agentId: agent.id,
@@ -197,15 +167,6 @@ export async function POST(request: NextRequest) {
             mintPrice: assets.mintPriceRaw,
             royaltyBps: data.royalty_bps,
             payoutAddress: data.payout_address,
-            bagsStatus: bagsRecord.bagsStatus,
-            bagsTokenAddress: bagsRecord.bagsTokenAddress,
-            bagsTokenName: bagsRecord.bagsTokenName,
-            bagsTokenSymbol: bagsRecord.bagsTokenSymbol,
-            bagsMintAccess: bagsRecord.bagsMintAccess,
-            bagsMinTokenBalance: bagsRecord.bagsMinTokenBalance,
-            bagsFeeConfig: bagsRecord.bagsFeeConfig,
-            bagsCreatorWallet: agentAuthority,
-            bagsInitialBuyLamports: bagsRecord.bagsInitialBuyLamports,
             status: "DEPLOYING",
             address: `pending_${Date.now()}`,
             deployTxHash: "pending",
@@ -245,9 +206,6 @@ export async function POST(request: NextRequest) {
           maxSupply: collection.maxSupply,
           mintPriceLamports: BigInt(collection.mintPrice),
           royaltyBps: collection.royaltyBps,
-          bagsMintAccess: collection.bagsMintAccess as "public" | "bags_balance",
-          bagsTokenAddress: collection.bagsTokenAddress,
-          bagsMinTokenBalance: collection.bagsMinTokenBalance,
         },
         { maxConfigBatchesPerRun: MAX_CONFIG_BATCHES_PER_REQUEST }
       );
@@ -278,8 +236,13 @@ export async function POST(request: NextRequest) {
         recommendedDeployBalanceSol: initialDeployment.recommendedDeployBalanceSol,
       };
     } else {
+      const existingMintAddress = collection.mintAddress;
+      if (!existingMintAddress) {
+        throw new Error("Collection is missing Candy Machine address during deploy resume");
+      }
+
       const configProgress = await continueMetaplexCollectionDeploy(signer, {
-        candyMachineAddress: collection.mintAddress,
+        candyMachineAddress: existingMintAddress,
         maxSupply: collection.maxSupply,
         maxConfigBatchesPerRun: MAX_CONFIG_BATCHES_PER_REQUEST,
       });
@@ -296,7 +259,7 @@ export async function POST(request: NextRequest) {
         cluster: getCanonicalSolanaChain() === "solana-devnet" ? "devnet" : "mainnet-beta",
         authority: agentAuthority,
         collectionAddress: collection.address,
-        candyMachineAddress: collection.mintAddress!,
+        candyMachineAddress: existingMintAddress,
         candyGuardAddress: null,
         signature: collection.deployTxHash,
         configLineSignatures: configProgress.configLineSignatures,
@@ -308,65 +271,33 @@ export async function POST(request: NextRequest) {
       };
     }
 
+    if (!deployment) {
+      throw new Error("Collection deployment did not produce a deployment state");
+    }
+
     const warnings: string[] = [];
     if (!metaplex?.delegated) {
-      warnings.push("Metaplex agent identity is not fully delegated yet. Retry /api/v1/agents/metaplex after funding settles.");
-    }
-    let bagsCollection = collection;
-    let bags = buildCollectionBagsView(collection);
-    const bagsLaunchSupported = isBagsLaunchSupportedChain(collection.chain);
-    if (deployment.isFullyLoaded && bags && bags.status !== "DISABLED" && !bags.token_address && bagsLaunchSupported) {
-      try {
-        const preparedBags = await prepareCollectionBagsLaunch(agent.id, { collection_id: collection.id });
-        const signedBags = await signAndBroadcastBagsTransactions(
-          agent,
-          preparedBags.fee_config.transactions_base64,
-          preparedBags.launch.transaction_base64
-        );
-        const confirmedBags = await confirmCollectionBagsLaunch(agent.id, {
-          collection_id: collection.id,
-          launch_tx_hash: signedBags.launchSignature,
-          token_address: preparedBags.token_info.tokenMint,
-          config_key: preparedBags.fee_config.config_key,
-        });
-        bagsCollection = confirmedBags.collection;
-        bags = confirmedBags.bags;
-      } catch (error) {
-        console.error("Automatic Bags launch failed:", error);
-        const message =
-          error instanceof CollectionBagsLaunchError || error instanceof AgentWalletError
-            ? error.message
-            : error instanceof Error
-              ? error.message
-              : "Automatic Bags launch failed";
-        warnings.push(message);
-        bagsCollection =
-          (await prisma.collection.findUnique({
-            where: { id: collection.id },
-          })) || collection;
-        bags = buildCollectionBagsView(bagsCollection);
-      }
-    } else if (bags && bags.status !== "DISABLED" && !bags.token_address && !bagsLaunchSupported) {
-      warnings.push("Bags launch is only supported on Solana mainnet-beta right now.");
+      warnings.push(
+        "Metaplex agent identity is not fully delegated yet. Retry /api/v1/agents/metaplex after funding settles."
+      );
     }
 
     return NextResponse.json({
       success: true,
       collection: {
-        id: bagsCollection.id,
-        chain: bagsCollection.chain,
-        address: bagsCollection.address,
-        collection_url: `${appUrl}/collection/${bagsCollection.address}`,
-        name: bagsCollection.name,
-        symbol: bagsCollection.symbol,
-        max_supply: bagsCollection.maxSupply,
-        mint_price_native: formatCollectionMintPrice(bagsCollection.mintPrice, bagsCollection.chain),
-        mint_price_raw: bagsCollection.mintPrice,
-        native_token: getCollectionNativeToken(bagsCollection.chain),
-        image_url: bagsCollection.imageUrl,
-        base_uri: bagsCollection.baseUri,
-        status: bagsCollection.status,
-        bags,
+        id: collection.id,
+        chain: collection.chain,
+        address: collection.address,
+        collection_url: `${appUrl}/collection/${collection.address}`,
+        name: collection.name,
+        symbol: collection.symbol,
+        max_supply: collection.maxSupply,
+        mint_price_native: formatCollectionMintPrice(collection.mintPrice, collection.chain),
+        mint_price_raw: collection.mintPrice,
+        native_token: getCollectionNativeToken(collection.chain),
+        image_url: collection.imageUrl,
+        base_uri: collection.baseUri,
+        status: collection.status,
       },
       deployment: {
         mode: "agent_wallet_auto",
@@ -389,35 +320,19 @@ export async function POST(request: NextRequest) {
         config_lines_loaded: deployment.itemsLoaded,
         config_lines_total: deployment.itemsAvailable,
         config_lines_remaining: Math.max(deployment.itemsAvailable - deployment.itemsLoaded, 0),
-        resume_collection_id: deployment.isFullyLoaded ? null : bagsCollection.id,
+        resume_collection_id: deployment.isFullyLoaded ? null : collection.id,
         resume_hint: deployment.isFullyLoaded
           ? null
           : "Retry POST /api/v1/collections with the same bearer token and collection_id to continue config loading.",
         user_signature_required: false,
         confirm_endpoint: null,
       },
-      bags_community: bags
-        ? {
-            status: bags.status,
-            launch_supported: bags.token_address ? true : bagsLaunchSupported,
-            unsupported_reason:
-              !bags.token_address && !bagsLaunchSupported
-                ? "Bags launch is only supported on Solana mainnet-beta right now."
-                : null,
-            launch_required: !bags.token_address && bagsLaunchSupported,
-            prepare_endpoint:
-              !bags.token_address && bagsLaunchSupported ? "/api/v1/collections/bags" : null,
-            confirm_endpoint:
-              !bags.token_address && bagsLaunchSupported ? "/api/v1/collections/bags/confirm" : null,
-          }
-        : null,
       agent_metaplex: metaplex,
       warnings: warnings.length > 0 ? warnings : undefined,
-      message:
-        !deployment.isFullyLoaded
-          ? "Collection deployment started. Retry the same deploy with collection_id to continue loading Candy Machine config lines."
-          : warnings.length > 0
-          ? "Collection deployed automatically from the agent wallet. Bags setup still needs attention."
+      message: !deployment.isFullyLoaded
+        ? "Collection deployment started. Retry the same deploy with collection_id to continue loading Candy Machine config lines."
+        : warnings.length > 0
+          ? "Collection deployed automatically from the agent wallet with Metaplex identity warnings."
           : "Collection deployed automatically from the agent wallet.",
     });
   } catch (error) {
@@ -432,6 +347,7 @@ export async function POST(request: NextRequest) {
         },
       });
     }
+
     if (error instanceof AgentWalletError || error instanceof MetaplexMintError) {
       return NextResponse.json(
         {
@@ -442,6 +358,7 @@ export async function POST(request: NextRequest) {
         { status: error.status }
       );
     }
+
     console.error("Deploy error:", error);
     return NextResponse.json(
       {
@@ -497,7 +414,6 @@ export async function GET(request: NextRequest) {
         mint_price_native: formatCollectionMintPrice(c.mintPrice, c.chain),
         native_token: getCollectionNativeToken(c.chain),
         status: c.status,
-        bags: buildCollectionBagsView(c),
         created_at: c.createdAt.toISOString(),
       })),
     });

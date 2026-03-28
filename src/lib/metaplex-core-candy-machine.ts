@@ -12,7 +12,6 @@ import {
   mplCandyMachine,
   type DefaultGuardSetArgs,
   type DefaultGuardSetMintArgs,
-  updateCandyGuard,
 } from "@metaplex-foundation/mpl-core-candy-machine";
 import {
   createNoopSigner,
@@ -31,7 +30,6 @@ import {
 import {
   Connection,
   Keypair,
-  PublicKey,
 } from "@solana/web3.js";
 import { getSolanaRpcUrl } from "./solana-collections";
 
@@ -41,7 +39,6 @@ export const MAX_METAPLEX_MINT_QUANTITY = 10;
 
 const CONFIG_LINE_BATCH_SIZE = 20;
 const DEPLOY_TX_FEE_BUFFER_LAMPORTS = BigInt(10_000_000);
-const BAGS_PENDING_MINT_UNLOCK_AT = new Date("2100-01-01T00:00:00.000Z");
 const CANDY_MACHINE_INIT_MAX_ATTEMPTS = 12;
 const CANDY_MACHINE_INIT_RETRY_DELAY_MS = 1500;
 
@@ -66,9 +63,6 @@ export interface MetaplexDeployCollectionParams {
   maxSupply: number;
   mintPriceLamports: bigint;
   royaltyBps: number;
-  bagsMintAccess: "public" | "bags_balance";
-  bagsTokenAddress?: string | null;
-  bagsMinTokenBalance?: string | null;
 }
 
 export interface MetaplexDeployCollectionResult {
@@ -111,9 +105,6 @@ export interface MetaplexMintPrepareParams {
   payoutAddress: string;
   quantity: number;
   mintPriceLamports: bigint;
-  bagsMintAccess: "public" | "bags_balance";
-  bagsTokenAddress?: string | null;
-  bagsMinTokenBalance?: string | null;
 }
 
 export interface MetaplexMintPrepareResult {
@@ -199,43 +190,9 @@ function buildConfigLines(maxSupply: number) {
   }));
 }
 
-async function getMintDecimals(mintAddress: string): Promise<number> {
-  const connection = new Connection(getSolanaRpcUrl(), "confirmed");
-  const accountInfo = await connection.getParsedAccountInfo(new PublicKey(mintAddress), "confirmed");
-  const parsedData = accountInfo.value?.data;
-
-  if (!parsedData || typeof parsedData !== "object" || !("parsed" in parsedData)) {
-    throw new MetaplexMintError(400, "Failed to read Bags token mint decimals");
-  }
-
-  const decimals = Number(
-    (parsedData as { parsed?: { info?: { decimals?: number | string } } }).parsed?.info?.decimals ?? NaN
-  );
-  if (!Number.isFinite(decimals)) {
-    throw new MetaplexMintError(400, "Bags token mint decimals are missing");
-  }
-
-  return decimals;
-}
-
-function parseTokenAmount(value: string, decimals: number): bigint {
-  const normalized = value.trim();
-  if (!/^\d+(\.\d+)?$/.test(normalized)) {
-    throw new MetaplexMintError(400, "Invalid Bags minimum token balance");
-  }
-
-  const [whole, fraction = ""] = normalized.split(".");
-  const paddedFraction = fraction.padEnd(decimals, "0").slice(0, decimals);
-  const scale = BigInt(`1${"0".repeat(decimals)}`);
-  return BigInt(whole) * scale + BigInt(paddedFraction || "0");
-}
-
 async function buildGuardArgs(input: {
   payoutAddress: string;
   mintPriceLamports: bigint;
-  bagsMintAccess: "public" | "bags_balance";
-  bagsTokenAddress?: string | null;
-  bagsMinTokenBalance?: string | null;
 }): Promise<Partial<DefaultGuardSetArgs>> {
   const guards: Partial<DefaultGuardSetArgs> = {};
 
@@ -246,45 +203,18 @@ async function buildGuardArgs(input: {
     };
   }
 
-  if (input.bagsMintAccess === "bags_balance") {
-    if (input.bagsTokenAddress && input.bagsMinTokenBalance) {
-      const decimals = await getMintDecimals(input.bagsTokenAddress);
-      guards.tokenGate = {
-        mint: publicKey(input.bagsTokenAddress),
-        amount: parseTokenAmount(input.bagsMinTokenBalance, decimals),
-      };
-      guards.startDate = null;
-    } else {
-      guards.startDate = {
-        date: BAGS_PENDING_MINT_UNLOCK_AT,
-      };
-      guards.tokenGate = null;
-    }
-  } else {
-    guards.startDate = null;
-    guards.tokenGate = null;
-  }
-
   return guards;
 }
 
 function buildMintArgs(input: {
   payoutAddress: string;
   mintPriceLamports: bigint;
-  bagsMintAccess: "public" | "bags_balance";
-  bagsTokenAddress?: string | null;
 }): Partial<DefaultGuardSetMintArgs> {
   const mintArgs: Partial<DefaultGuardSetMintArgs> = {};
 
   if (input.mintPriceLamports > BigInt(0)) {
     mintArgs.solPayment = {
       destination: publicKey(input.payoutAddress),
-    };
-  }
-
-  if (input.bagsMintAccess === "bags_balance" && input.bagsTokenAddress) {
-    mintArgs.tokenGate = {
-      mint: publicKey(input.bagsTokenAddress),
     };
   }
 
@@ -609,10 +539,6 @@ export async function prepareMetaplexMintTransaction(
     throw new MetaplexMintError(409, "Requested quantity exceeds remaining supply");
   }
 
-  if (params.bagsMintAccess === "bags_balance" && !params.bagsTokenAddress) {
-    throw new MetaplexMintError(409, "Bags token gate is not live for this collection yet");
-  }
-
   const umi = createMintPreparationUmi(params.walletAddress);
   const mintArgs = buildMintArgs(params);
   const candyGuard = findCandyGuardPda(umi, {
@@ -658,36 +584,4 @@ export async function prepareMetaplexMintTransaction(
     assetAddresses: assetSigners.map((signer) => signer.publicKey),
     totalPaidLamports: (params.mintPriceLamports * BigInt(params.quantity)).toString(),
   };
-}
-
-export async function syncMetaplexCandyMachineForBags(options: {
-  signer: Keypair;
-  candyMachineAddress: string;
-  payoutAddress: string;
-  mintPriceLamports: bigint;
-  bagsMintAccess: "public" | "bags_balance";
-  bagsTokenAddress?: string | null;
-  bagsMinTokenBalance?: string | null;
-}): Promise<void> {
-  const umi = createServerUmi(options.signer);
-  const candyGuard = findCandyGuardPda(umi, {
-    base: publicKey(options.candyMachineAddress),
-  })[0];
-
-  const guards = await buildGuardArgs({
-    payoutAddress: options.payoutAddress,
-    mintPriceLamports: options.mintPriceLamports,
-    bagsMintAccess: options.bagsMintAccess,
-    bagsTokenAddress: options.bagsTokenAddress,
-    bagsMinTokenBalance: options.bagsMinTokenBalance,
-  });
-
-  await updateCandyGuard(umi, {
-    candyGuard,
-    authority: umi.identity,
-    guards,
-    groups: [],
-  })
-    .useLegacyVersion()
-    .sendAndConfirm(umi);
 }

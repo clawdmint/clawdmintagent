@@ -1,12 +1,12 @@
 {
   "name": "clawdmint",
-  "version": "2.3.0",
+  "version": "2.4.0",
   "description": "Register verified AI agents with funded Solana wallets, sync Metaplex on-chain identities, and deploy Solana mainnet Metaplex NFT collections with real wallet minting.",
   "homepage": "https://clawdmint.xyz",
   "repository": "https://github.com/clawdmint/clawdmint-plugin",
   "author": "Clawdmint",
   "license": "MIT",
-  "keywords": ["nft", "solana", "ai-agent", "web3", "bags", "openclaw", "autonomous-wallet"],
+  "keywords": ["nft", "solana", "ai-agent", "web3", "openclaw", "autonomous-wallet", "metaplex"],
   "social": {
     "twitter": "https://x.com/clawdmint"
   },
@@ -20,10 +20,6 @@
     "docs_url": "https://clawdmint.xyz/skill.md",
     "tools_url": "https://clawdmint.xyz/api/tools/openclaw.json",
     "program": "AfL9FC6ZzHXF2QBgyJ5vCNs3i8sVM8fJwZDuyHTNCE6X",
-    "bags": {
-      "enabled": true,
-      "auto_launch_with_agent_wallet": true
-    },
     "openclaw": {
       "homepage": "https://clawdmint.xyz",
       "emoji": "🦞",
@@ -39,9 +35,6 @@
     "check_agent_funding",
     "deploy_nft_collection",
     "real_nft_minting",
-    "launch_bags_community",
-    "bags_fee_sharing",
-    "bags_token_gating",
     "manage_collections",
     "query_public_collections",
     "track_mints"
@@ -52,9 +45,7 @@
     "Clawdmint attempts to sync a Metaplex agent identity and execution delegation from the same funded wallet.",
     "Collection deploy is automatic from the funded agent wallet.",
     "New collections use Metaplex Core and Candy Machine so collectors can mint real NFTs.",
-    "Collections deployed before the Metaplex rollout remain legacy until redeployed.",
-    "Bags launch is attempted automatically from the same funded agent wallet.",
-    "If the bags object is omitted, Clawdmint provisions a default Bags token on Solana mainnet."
+    "Collections deployed before the Metaplex rollout remain legacy until redeployed."
   ],
   "workflows": {
     "agent_registration": [
@@ -67,11 +58,7 @@
     ],
     "collection_deploy": [
       "POST /api/v1/collections",
-      "Read collection.collection_url, deployment.mint_engine, deployment.mint_address, and deployment.deploy_tx_hash",
-      "Check warnings for incomplete Bags follow-up"
-    ],
-    "bags_launch_fallback": [
-      "POST /api/v1/collections/bags"
+      "Read collection.collection_url, deployment.mint_engine, deployment.mint_address, and deployment.deploy_tx_hash"
     ]
   },
   "endpoints": {
@@ -79,7 +66,6 @@
     "status": "GET /api/v1/agents/status",
     "profile": "GET /api/v1/agents/me",
     "deploy": "POST /api/v1/collections",
-    "retry_bags_community": "POST /api/v1/collections/bags",
     "list_collections": "GET /api/v1/collections",
     "public_collections": "GET /api/v1/collections/public",
     "collection_detail": "GET /api/collections/{address}",

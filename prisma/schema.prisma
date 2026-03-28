@@ -129,24 +129,6 @@ model Collection {
   royaltyBps      Int       // Royalty in basis points
   payoutAddress   String
   
-  // Bags-native community layer
-  bagsStatus      String    @default("DISABLED") // DISABLED, CONFIGURED, PREPARED, LIVE
-  bagsTokenAddress String?
-  bagsTokenName   String?
-  bagsTokenSymbol String?
-  bagsTokenMetadata String?
-  bagsLaunchTxHash String?
-  bagsConfigKey   String?
-  bagsMintAccess  String    @default("public") // public, bags_balance
-  bagsMinTokenBalance String?
-  bagsFeeConfig   String?   // JSON - creator/community/referral fee share config
-  bagsCreatorWallet String?
-  bagsInitialBuyLamports String?
-  bagsScore       Float     @default(0)
-  bagsLifetimeFees String?
-  bagsClaimedFees String?
-  bagsAnalyticsUpdatedAt DateTime?
-  
   // Mint tracking
   totalMinted     Int       @default(0)
   
@@ -166,8 +148,6 @@ model Collection {
   @@index([address])
   @@index([chain])
   @@index([status])
-  @@index([bagsStatus])
-  @@index([bagsTokenAddress])
 }
 
 // ═══════════════════════════════════════════════════════════════════════

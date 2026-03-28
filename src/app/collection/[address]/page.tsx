@@ -20,48 +20,12 @@ import {
   getAddressExplorerUrl,
   getNetworkFromValue,
   getTransactionExplorerUrl,
-  isSolanaAddress,
 } from "@/lib/network-config";
 import { NetworkLogo } from "@/components/network-icons";
 import { getClientEnv } from "@/lib/env";
-import { buildCollectionOwnerAuthMessage } from "@/lib/collection-owner-auth";
 const AGENTS_CONTRACT = (process.env["NEXT_PUBLIC_AGENTS_CONTRACT"] || "").toLowerCase();
 const MIN_COLLECTION_IMAGE_DIMENSION = 256;
 const MAX_SOLANA_MINTS_PER_TX = 10;
-
-interface BagsFeeShare {
-  label: string;
-  provider: string;
-  bps: number;
-  wallet?: string | null;
-  username?: string | null;
-}
-
-interface BagsAnalytics {
-  lifetime_fees_lamports: string | null;
-  lifetime_fees_sol: string | null;
-  claimed_fees_lamports: string | null;
-  claimed_fees_sol: string | null;
-  score: number;
-  updated_at: string | null;
-}
-
-interface BagsConfig {
-  enabled: boolean;
-  status: string;
-  token_address: string | null;
-  token_name: string | null;
-  token_symbol: string | null;
-  token_metadata: string | null;
-  launch_tx_hash: string | null;
-  config_key: string | null;
-  mint_access: "public" | "bags_balance";
-  min_token_balance: string | null;
-  creator_wallet: string | null;
-  initial_buy_sol: string | null;
-  fee_shares: BagsFeeShare[];
-  analytics: BagsAnalytics | null;
-}
 
 interface Collection {
   id: string;
@@ -89,8 +53,6 @@ interface Collection {
   status: string;
   deployed_at: string;
   deploy_tx_hash: string;
-  bags?: BagsConfig | null;
-  bags_managed_by_agent?: boolean;
   agent: {
     id: string;
     name: string;
@@ -107,42 +69,6 @@ interface Collection {
     items_loaded?: string;
     is_fully_loaded?: boolean;
   };
-}
-
-interface OwnerBagsLaunchPayload {
-  success: boolean;
-  error?: string;
-  collection?: Collection;
-  bags_launch?: {
-    token_info: {
-      token_mint: string;
-      token_metadata?: string | null;
-      token_launch?: string | null;
-      ipfs?: string | null;
-      metadata_uri?: string | null;
-    };
-    fee_config: {
-      config_key: string;
-      transactions: string[];
-      transactions_base64: string[];
-      transaction_bundle_ids: string[];
-    };
-    launch: {
-      wallet: string;
-      transaction: string;
-      transaction_base64: string;
-      initial_buy_lamports: string;
-    };
-    confirm_endpoint: string;
-  };
-}
-
-function bytesToBase64(bytes: Uint8Array): string {
-  let binary = "";
-  for (let index = 0; index < bytes.length; index += 1) {
-    binary += String.fromCharCode(bytes[index]);
-  }
-  return window.btoa(binary);
 }
 
 function base64ToBytes(value: string): Uint8Array {
@@ -188,7 +114,7 @@ export default function CollectionPage() {
     }
   }, [address, router]);
 
-  const { address: userAddress, solanaAddress, isConnected, connectSolana, solanaAvailable } = useWallet();
+  const { address: userAddress, solanaAddress, isConnected } = useWallet();
   
   const [collection, setCollection] = useState<Collection | null>(null);
   const [loading, setLoading] = useState(true);
@@ -198,18 +124,6 @@ export default function CollectionPage() {
   const [mintSuccess, setMintSuccess] = useState("");
   const [solanaMintTxHash, setSolanaMintTxHash] = useState<string | null>(null);
   const [imageFailed, setImageFailed] = useState(false);
-  const [isLaunchingBags, setIsLaunchingBags] = useState(false);
-  const [bagsOwnerStep, setBagsOwnerStep] = useState("");
-  const [bagsOwnerError, setBagsOwnerError] = useState("");
-  const [bagsOwnerSuccess, setBagsOwnerSuccess] = useState("");
-  const [bagsOwnerLaunchTx, setBagsOwnerLaunchTx] = useState<string | null>(null);
-  const [eligibility, setEligibility] = useState<{
-    eligible: boolean;
-    balance?: string;
-    required?: string | null;
-    reason?: string;
-  } | null>(null);
-  const [eligibilityLoading, setEligibilityLoading] = useState(false);
 
   const { writeContract, data: txHash, isPending: isWritePending } = useWriteContract();
   
@@ -250,40 +164,6 @@ export default function CollectionPage() {
 
     setQuantity((current) => Math.min(Math.max(1, current), limit));
   }, [collection]);
-
-  useEffect(() => {
-    if (!collection?.bags || collection.bags.mint_access !== "bags_balance" || !solanaAddress || !isSolanaAddress(solanaAddress)) {
-      setEligibility(null);
-      return;
-    }
-
-    let cancelled = false;
-    setEligibilityLoading(true);
-    fetch(`/api/collections/${address}/eligibility?wallet=${solanaAddress}`)
-      .then((res) => res.json())
-      .then((data) => {
-        if (!cancelled && data.success) {
-          setEligibility({
-            eligible: Boolean(data.eligible),
-            balance: data.balance,
-            required: data.required,
-            reason: data.reason,
-          });
-        }
-      })
-      .catch((error) => {
-        console.error("Failed to load Bags eligibility:", error);
-      })
-      .finally(() => {
-        if (!cancelled) {
-          setEligibilityLoading(false);
-        }
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [address, collection?.bags, solanaAddress]);
 
   // Track if we've already recorded this transaction
   const [recordedTxHash, setRecordedTxHash] = useState<string | null>(null);
@@ -348,37 +228,6 @@ export default function CollectionPage() {
       setIsMinting(false);
     }
   };
-
-  const signOwnerAuth = useCallback(
-    async (action: "prepare_bags" | "confirm_bags", launchTxHash?: string) => {
-      if (!collection?.bags?.creator_wallet || !solanaAddress) {
-        throw new Error("Connect the configured Solana owner wallet first");
-      }
-
-      const provider = getPhantomProvider();
-      if (!provider?.signMessage) {
-        throw new Error("Phantom message signing is unavailable");
-      }
-
-      const timestamp = Date.now();
-      const message = buildCollectionOwnerAuthMessage({
-        action,
-        collectionAddress: collection.address,
-        wallet: solanaAddress,
-        timestamp,
-        launchTxHash,
-      });
-      const response = await provider.signMessage(new TextEncoder().encode(message), "utf8");
-      const signatureBytes = response instanceof Uint8Array ? response : response.signature;
-
-      return {
-        wallet: solanaAddress,
-        timestamp,
-        signature: bytesToBase64(signatureBytes),
-      };
-    },
-    [collection?.address, collection?.bags?.creator_wallet, solanaAddress]
-  );
 
   const signAndBroadcastSolanaTransaction = useCallback(
     async (connection: Connection, serializedBase64: string) => {
@@ -487,86 +336,6 @@ export default function CollectionPage() {
     signAndBroadcastSolanaTransaction,
     solanaAddress,
   ]);
-
-  const handleBagsOwnerLaunch = useCallback(async () => {
-    if (!collection?.bags?.creator_wallet) {
-      return;
-    }
-
-    if (!solanaAddress || solanaAddress !== collection.bags.creator_wallet) {
-      if (!solanaAvailable) {
-        window.open("https://phantom.app/download", "_blank", "noopener,noreferrer");
-      } else {
-        await connectSolana();
-      }
-      return;
-    }
-
-    setIsLaunchingBags(true);
-    setBagsOwnerError("");
-    setBagsOwnerSuccess("");
-    setBagsOwnerLaunchTx(null);
-
-    try {
-      setBagsOwnerStep("Authorizing owner session...");
-      const ownerAuth = await signOwnerAuth("prepare_bags");
-      const prepareResponse = await fetch(`/api/collections/${collection.address}/bags`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(ownerAuth),
-      });
-      const preparePayload = (await prepareResponse.json()) as OwnerBagsLaunchPayload;
-      if (!prepareResponse.ok || !preparePayload.success || !preparePayload.bags_launch) {
-        throw new Error(preparePayload.error || "Failed to prepare Bags launch");
-      }
-
-      const { solanaCluster, solanaRpcUrl } = getClientEnv();
-      const connection = new Connection(
-        solanaRpcUrl || clusterApiUrl(solanaCluster === "devnet" ? "devnet" : "mainnet-beta"),
-        "confirmed"
-      );
-      const feeConfigTransactions = preparePayload.bags_launch.fee_config.transactions_base64 || [];
-
-      for (let index = 0; index < feeConfigTransactions.length; index += 1) {
-        setBagsOwnerStep(`Signing fee share transaction ${index + 1} of ${feeConfigTransactions.length}...`);
-        await signAndBroadcastSolanaTransaction(connection, feeConfigTransactions[index]);
-      }
-
-      setBagsOwnerStep("Launching Bags community token...");
-      const launchSignature = await signAndBroadcastSolanaTransaction(
-        connection,
-        preparePayload.bags_launch.launch.transaction_base64
-      );
-      setBagsOwnerLaunchTx(launchSignature);
-
-      setBagsOwnerStep("Finalizing Bags analytics and token gate...");
-      const confirmAuth = await signOwnerAuth("confirm_bags", launchSignature);
-      const confirmResponse = await fetch(preparePayload.bags_launch.confirm_endpoint, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          ...confirmAuth,
-          launch_tx_hash: launchSignature,
-          token_address: preparePayload.bags_launch.token_info.token_mint,
-          config_key: preparePayload.bags_launch.fee_config.config_key,
-        }),
-      });
-      const confirmPayload = (await confirmResponse.json()) as { success: boolean; error?: string };
-      if (!confirmResponse.ok || !confirmPayload.success) {
-        throw new Error(confirmPayload.error || "Failed to confirm Bags launch");
-      }
-
-      await loadCollection();
-      setBagsOwnerSuccess("Bags community is now live. Fee sharing, token gating, and Bags analytics are active.");
-      setBagsOwnerStep("");
-    } catch (error) {
-      console.error("Bags owner launch failed:", error);
-      setBagsOwnerError(error instanceof Error ? error.message : "Failed to launch Bags community");
-      setBagsOwnerStep("");
-    } finally {
-      setIsLaunchingBags(false);
-    }
-  }, [collection, connectSolana, loadCollection, signAndBroadcastSolanaTransaction, signOwnerAuth, solanaAddress, solanaAvailable]);
 
   if (loading) {
     return (

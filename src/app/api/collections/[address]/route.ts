@@ -5,9 +5,6 @@ import {
   getCollectionNativeToken,
   SOLANA_COLLECTION_CHAINS,
 } from "@/lib/collection-chains";
-import { buildCollectionBagsView } from "@/lib/collection-bags";
-import { fetchBagsCollectionAnalytics, isBagsConfigured } from "@/lib/bags";
-import { isBagsIntegrationEnabled } from "@/lib/env";
 import { ipfsToHttp } from "@/lib/ipfs";
 import {
   fetchMetaplexCandyMachineState,
@@ -64,13 +61,13 @@ export async function GET(
       );
     }
 
+    let currentCollection = collection;
     const onchain = await fetchOnchainData(collection.mintAddress, collection.mintEngine, collection.maxSupply);
-    let bagsCollection = collection;
     const resolvedImageUrl = await resolveCollectionImageUrl(collection.imageUrl, collection.baseUri);
 
     if (resolvedImageUrl && resolvedImageUrl !== collection.imageUrl) {
       try {
-        bagsCollection = await prisma.collection.update({
+        currentCollection = await prisma.collection.update({
           where: { id: collection.id },
           data: { imageUrl: resolvedImageUrl },
           include: {
@@ -92,31 +89,6 @@ export async function GET(
       }
     }
 
-    if (collection.bagsStatus === "LIVE" && collection.bagsTokenAddress && isBagsConfigured()) {
-      try {
-        const analytics = await fetchBagsCollectionAnalytics(collection.bagsTokenAddress);
-        bagsCollection = {
-          ...collection,
-          bagsLifetimeFees: analytics.lifetimeFeesLamports,
-          bagsClaimedFees: analytics.claimedFeesLamports,
-          bagsScore: analytics.score,
-          bagsAnalyticsUpdatedAt: new Date(),
-        };
-
-        await prisma.collection.update({
-          where: { id: collection.id },
-          data: {
-            bagsLifetimeFees: analytics.lifetimeFeesLamports,
-            bagsClaimedFees: analytics.claimedFeesLamports,
-            bagsScore: analytics.score,
-            bagsAnalyticsUpdatedAt: new Date(),
-          },
-        });
-      } catch (error) {
-        console.warn("[Bags] Collection analytics refresh failed:", error);
-      }
-    }
-
     const derivedOnchainStatus =
       onchain?.is_sold_out
         ? "SOLD_OUT"
@@ -130,14 +102,11 @@ export async function GET(
         derivedOnchainStatus !== collection.status)
     ) {
       try {
-        bagsCollection = await prisma.collection.update({
+        currentCollection = await prisma.collection.update({
           where: { id: collection.id },
           data: {
             totalMinted: Number(onchain.total_minted),
-            status:
-              collection.status === "FAILED"
-                ? "FAILED"
-                : derivedOnchainStatus,
+            status: collection.status === "FAILED" ? "FAILED" : derivedOnchainStatus,
           },
           include: {
             agent: {
@@ -158,80 +127,60 @@ export async function GET(
       }
     }
 
-    const bagsEnabled = isBagsIntegrationEnabled();
-    const bagsView = buildCollectionBagsView(bagsCollection);
-    const publicCollectionUrl = `${appUrl}/collection/${bagsCollection.address}`;
-    const mintEngine = bagsCollection.mintEngine || LEGACY_SOLANA_MINT_ENGINE;
-    const isMetaplexMint = mintEngine === METAPLEX_MINT_ENGINE && Boolean(bagsCollection.mintAddress);
-    const bagsGateBlockedWhileDisabled =
-      !bagsEnabled && bagsCollection.bagsMintAccess === "bags_balance";
-    const bagsTokenGatePending =
-      !bagsGateBlockedWhileDisabled &&
-      bagsView?.mint_access === "bags_balance" &&
-      (!bagsView.token_address || bagsView.status !== "LIVE");
+    const publicCollectionUrl = `${appUrl}/collection/${currentCollection.address}`;
+    const mintEngine = currentCollection.mintEngine || LEGACY_SOLANA_MINT_ENGINE;
+    const isMetaplexMint = mintEngine === METAPLEX_MINT_ENGINE && Boolean(currentCollection.mintAddress);
     const mintEnabled =
       isMetaplexMint &&
-      bagsCollection.status !== "FAILED" &&
+      currentCollection.status !== "FAILED" &&
       Boolean(onchain?.is_fully_loaded ?? true) &&
-      !bagsGateBlockedWhileDisabled &&
-      !bagsTokenGatePending &&
       !onchain?.is_sold_out;
 
     return NextResponse.json({
       success: true,
       collection: {
-        id: bagsCollection.id,
-        address: bagsCollection.address,
+        id: currentCollection.id,
+        address: currentCollection.address,
         collection_url: publicCollectionUrl,
-        chain: bagsCollection.chain,
-        native_token: getCollectionNativeToken(bagsCollection.chain),
+        chain: currentCollection.chain,
+        native_token: getCollectionNativeToken(currentCollection.chain),
         mint_engine: mintEngine,
-        mint_address: bagsCollection.mintAddress,
+        mint_address: currentCollection.mintAddress,
         mint_enabled: mintEnabled,
-        mint_prepare_endpoint: mintEnabled ? `/api/collections/${bagsCollection.address}/mint/prepare` : null,
-        mint_confirm_endpoint: mintEnabled ? `/api/collections/${bagsCollection.address}/mint/confirm` : null,
+        mint_prepare_endpoint: mintEnabled ? `/api/collections/${currentCollection.address}/mint/prepare` : null,
+        mint_confirm_endpoint: mintEnabled ? `/api/collections/${currentCollection.address}/mint/confirm` : null,
         mint_disabled_reason: mintEnabled
           ? null
           : mintEngine !== METAPLEX_MINT_ENGINE
             ? "This legacy Solana collection uses the old state-only runtime and cannot issue NFTs."
-            : bagsGateBlockedWhileDisabled
-              ? "Bags integration is temporarily disabled for this collection."
             : onchain && !onchain.is_fully_loaded
               ? "This collection is still loading Candy Machine config lines. Retry the staged deploy until it is fully loaded."
-            : bagsTokenGatePending
-              ? "This collection is waiting for its Bags token gate to go live before mint opens."
-            : onchain?.is_sold_out
+              : onchain?.is_sold_out
                 ? "This collection is sold out."
                 : "Mint is not available for this collection yet.",
-        name: bagsCollection.name,
-        symbol: bagsCollection.symbol,
-        description: bagsCollection.description,
-        image_url: resolvedImageUrl || bagsCollection.imageUrl,
-        base_uri: bagsCollection.baseUri,
-        max_supply: bagsCollection.maxSupply,
-        total_minted: bagsCollection.totalMinted,
-        mint_price_raw: bagsCollection.mintPrice,
-        mint_price_native: formatCollectionMintPrice(bagsCollection.mintPrice, bagsCollection.chain),
-        royalty_bps: bagsCollection.royaltyBps,
-        payout_address: bagsCollection.payoutAddress,
-        authority_address: bagsCollection.authorityAddress,
-        status: bagsCollection.status,
-        deployed_at: bagsCollection.deployedAt?.toISOString(),
-        deploy_tx_hash: bagsCollection.deployTxHash,
-        bags: bagsEnabled ? bagsView : null,
-        bags_managed_by_agent: Boolean(
-          bagsEnabled &&
-          bagsCollection.bagsCreatorWallet &&
-            bagsCollection.agent.solanaWalletAddress &&
-            bagsCollection.bagsCreatorWallet === bagsCollection.agent.solanaWalletAddress
-        ),
+        name: currentCollection.name,
+        symbol: currentCollection.symbol,
+        description: currentCollection.description,
+        image_url: resolvedImageUrl || currentCollection.imageUrl,
+        base_uri: currentCollection.baseUri,
+        max_supply: currentCollection.maxSupply,
+        total_minted: currentCollection.totalMinted,
+        mint_price_raw: currentCollection.mintPrice,
+        mint_price_native: formatCollectionMintPrice(currentCollection.mintPrice, currentCollection.chain),
+        royalty_bps: currentCollection.royaltyBps,
+        payout_address: currentCollection.payoutAddress,
+        authority_address: currentCollection.authorityAddress,
+        status: currentCollection.status,
+        deployed_at: currentCollection.deployedAt?.toISOString(),
+        deploy_tx_hash: currentCollection.deployTxHash,
         agent: {
-          id: bagsCollection.agent.id,
-          name: bagsCollection.agent.name,
-          description: bagsCollection.agent.description,
-          avatar_url: bagsCollection.agent.avatarUrl,
-          eoa: bagsCollection.agent.eoa,
-          x_handle: bagsCollection.agent.xHandle,
+          id: currentCollection.agent.id,
+          name: currentCollection.agent.name,
+          description: currentCollection.agent.description,
+          avatar_url: currentCollection.agent.avatarUrl,
+          eoa: currentCollection.agent.eoa,
+          x_handle: currentCollection.agent.xHandle,
+          solana_wallet_address: currentCollection.agent.solanaWalletAddress,
         },
         onchain,
       },

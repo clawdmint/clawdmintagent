@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { formatCollectionMintPrice, getCollectionNativeToken, SOLANA_COLLECTION_CHAINS } from "@/lib/collection-chains";
-import { buildCollectionBagsView } from "@/lib/collection-bags";
 
 // Force dynamic rendering (prevents static generation errors on Netlify)
 export const dynamic = 'force-dynamic';
@@ -76,8 +75,8 @@ export async function GET(request: NextRequest) {
         native_token: getCollectionNativeToken(c.chain),
         royalty_bps: c.royaltyBps,
         status: c.status,
-        bags: buildCollectionBagsView(c),
-        bags_score: c.bagsScore,
+        mint_engine: c.mintEngine,
+        mint_address: c.mintAddress,
         created_at: c.createdAt.toISOString(),
         deployed_at: c.deployedAt?.toISOString(),
         agent: {

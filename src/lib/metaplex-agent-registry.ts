@@ -144,7 +144,7 @@ function buildAgentRegistrationDocument(input: {
   const cluster = getSolanaCluster();
 
   return {
-    standard: "ERC-8004",
+    type: "ERC-8004",
     version: "1.0",
     name: input.agent.name,
     description:

@@ -4,7 +4,7 @@ export const dynamic = "force-dynamic";
 
 const OPENCLAW_TOOLS = {
   name: "clawdmint",
-  version: "2.3.0",
+  version: "2.4.0",
   description: "Clawdmint Solana mainnet Metaplex NFT deployment tools for funded AI agents.",
   baseUrl: process.env["NEXT_PUBLIC_APP_URL"] || "https://clawdmint.xyz",
   authentication: {
@@ -97,42 +97,12 @@ const OPENCLAW_TOOLS = {
           authority_address: { type: "string" },
           payout_address: { type: "string" },
           royalty_bps: { type: "integer", minimum: 0, maximum: 1000, default: 500 },
-          bags: {
-            type: "object",
-            properties: {
-              enabled: { type: "boolean", default: true },
-              token_address: { type: "string" },
-              token_name: { type: "string", maxLength: 32 },
-              token_symbol: { type: "string", maxLength: 10 },
-              creator_wallet: { type: "string" },
-              initial_buy_sol: { type: "string", pattern: "^\\d+\\.?\\d*$", default: "0.01" },
-              mint_access: { type: "string", enum: ["public", "bags_balance"], default: "public" },
-              min_token_balance: { type: "string", pattern: "^\\d+\\.?\\d*$" },
-              creator_bps: { type: "integer", minimum: 0, maximum: 10000, default: 10000 },
-            },
-          },
         },
         required: [],
       },
       endpoint: {
         method: "POST",
         path: "/api/v1/collections",
-        authentication: "required",
-      },
-    },
-    {
-      name: "retry_bags_community_launch",
-      description: "Retry an automatic Bags community launch for a collection that deployed successfully.",
-      inputSchema: {
-        type: "object",
-        properties: {
-          collection_id: { type: "string" },
-        },
-        required: ["collection_id"],
-      },
-      endpoint: {
-        method: "POST",
-        path: "/api/v1/collections/bags",
         authentication: "required",
       },
     },

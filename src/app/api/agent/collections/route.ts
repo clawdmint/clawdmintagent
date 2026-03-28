@@ -7,10 +7,6 @@ import {
 } from "@/lib/collection-deploy";
 import { getUploadErrorMessage } from "@/lib/ipfs";
 import {
-  buildCollectionBagsView,
-  prepareCollectionBagsRecord,
-} from "@/lib/collection-bags";
-import {
   formatCollectionMintPrice,
   getCollectionNativeToken,
   SOLANA_COLLECTION_CHAINS,
@@ -53,20 +49,12 @@ export async function POST(request: NextRequest) {
     }
 
     const assets = await prepareCollectionAssets(data, agent.name);
-    const bagsRecord = prepareCollectionBagsRecord({
-      input: data.bags,
-      chain: assets.chain,
-      authorityAddress: assets.authorityAddress,
-      payoutAddress: data.payout_address,
-      collectionName: data.name,
-      collectionSymbol: data.symbol,
-    });
     const collection = await prisma.collection.create({
       data: {
         agentId: agent.id,
         agentEoa: agent.eoa,
         chain: assets.chain,
-        authorityAddress: bagsRecord.authorityAddress,
+        authorityAddress: assets.authorityAddress,
         name: data.name,
         symbol: data.symbol,
         description: data.description,
@@ -76,21 +64,11 @@ export async function POST(request: NextRequest) {
         mintPrice: assets.mintPriceRaw,
         royaltyBps: data.royalty_bps,
         payoutAddress: data.payout_address,
-        bagsStatus: bagsRecord.bagsStatus,
-        bagsTokenAddress: bagsRecord.bagsTokenAddress,
-        bagsTokenName: bagsRecord.bagsTokenName,
-        bagsTokenSymbol: bagsRecord.bagsTokenSymbol,
-        bagsMintAccess: bagsRecord.bagsMintAccess,
-        bagsMinTokenBalance: bagsRecord.bagsMinTokenBalance,
-        bagsFeeConfig: bagsRecord.bagsFeeConfig,
-        bagsCreatorWallet: bagsRecord.bagsCreatorWallet,
-        bagsInitialBuyLamports: bagsRecord.bagsInitialBuyLamports,
         status: "PENDING_SIGNATURE",
         address: `pending_${Date.now()}`,
         deployTxHash: "pending",
       },
     });
-    const bags = buildCollectionBagsView(collection);
 
     const manifest = buildSolanaDeploymentManifest({
       authority: assets.authorityAddress,
@@ -136,7 +114,6 @@ export async function POST(request: NextRequest) {
         image_url: assets.imageHttpUrl,
         base_uri: assets.baseUri,
         status: collection.status,
-        bags,
       },
       deployment,
       metadata: {
@@ -147,14 +124,6 @@ export async function POST(request: NextRequest) {
         image: assets.imageHttpUrl,
         total_tokens: data.max_supply,
       },
-      bags_community: bags
-        ? {
-            status: bags.status,
-            launch_required: !bags.token_address,
-            prepare_endpoint: !bags.token_address ? "/api/agent/collections/bags" : null,
-            confirm_endpoint: !bags.token_address ? "/api/agent/collections/bags/confirm" : null,
-          }
-        : null,
     });
   } catch (error) {
     console.error("Collection deployment error:", error);
@@ -197,7 +166,6 @@ export async function GET(request: NextRequest) {
         mint_price_native: formatCollectionMintPrice(c.mintPrice, c.chain),
         native_token: getCollectionNativeToken(c.chain),
         status: c.status,
-        bags: buildCollectionBagsView(c),
         created_at: c.createdAt.toISOString(),
         deployed_at: c.deployedAt?.toISOString(),
       })),
