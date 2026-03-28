@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { randomBytes, createHash, randomInt } from "crypto";
+import { Prisma } from "@prisma/client";
 import { z } from "zod";
 import { prisma } from "@/lib/db";
-import { generateAgentOperationalWallet } from "@/lib/agent-wallets";
+import { AgentWalletError, generateAgentOperationalWallet } from "@/lib/agent-wallets";
 import { checkRateLimit, getClientIp, RATE_LIMIT_REGISTER } from "@/lib/rate-limit";
 
 export const dynamic = "force-dynamic";
@@ -37,8 +38,47 @@ function getCanonicalAgentNetwork(): "solana" | "solana-devnet" {
   return process.env["NEXT_PUBLIC_SOLANA_CLUSTER"] === "devnet" ? "solana-devnet" : "solana";
 }
 
+function getRegistrationDependencyError() {
+  const hasWalletEncryption =
+    Boolean(process.env["AGENT_WALLET_ENCRYPTION_KEY"]?.trim()) ||
+    Boolean(process.env["AGENT_HMAC_SECRET"]?.trim());
+
+  if (!hasWalletEncryption) {
+    return {
+      status: 503,
+      error: "Agent registration is not configured correctly",
+      hint: "Set AGENT_WALLET_ENCRYPTION_KEY or AGENT_HMAC_SECRET in the server environment",
+      details: "Agent wallet encryption key is missing",
+    };
+  }
+
+  if (!process.env["DATABASE_URL"]?.trim()) {
+    return {
+      status: 503,
+      error: "Agent registration is not configured correctly",
+      hint: "Set DATABASE_URL in the server environment",
+      details: "Database URL is missing",
+    };
+  }
+
+  return null;
+}
+
 export async function POST(request: NextRequest) {
   try {
+    const dependencyError = getRegistrationDependencyError();
+    if (dependencyError) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: dependencyError.error,
+          hint: dependencyError.hint,
+          details: dependencyError.details,
+        },
+        { status: dependencyError.status }
+      );
+    }
+
     const clientIp = getClientIp(request);
     const rateLimit = checkRateLimit(`register:${clientIp}`, RATE_LIMIT_REGISTER);
     if (!rateLimit.allowed) {
@@ -91,29 +131,32 @@ export async function POST(request: NextRequest) {
     const claimToken = generateClaimToken();
     const verificationCode = generateVerificationCode();
     const agentWallet = generateAgentOperationalWallet();
+    const agent = await prisma.$transaction(async (tx) => {
+      const createdAgent = await tx.agent.create({
+        data: {
+          name,
+          description,
+          eoa: `pending_${randomBytes(8).toString("hex")}`,
+          solanaWalletAddress: agentWallet.address,
+          solanaWalletEncryptedKey: agentWallet.encryptedSecretKey,
+          solanaWalletExportedAt: new Date(),
+          hmacKeyHash: hashApiKey(apiKey),
+          status: "PENDING",
+          deployEnabled: false,
+        },
+      });
 
-    const agent = await prisma.agent.create({
-      data: {
-        name,
-        description,
-        eoa: `pending_${randomBytes(8).toString("hex")}`,
-        solanaWalletAddress: agentWallet.address,
-        solanaWalletEncryptedKey: agentWallet.encryptedSecretKey,
-        solanaWalletExportedAt: new Date(),
-        hmacKeyHash: hashApiKey(apiKey),
-        status: "PENDING",
-        deployEnabled: false,
-      },
-    });
+      await tx.agentClaim.create({
+        data: {
+          agentId: createdAgent.id,
+          claimCode: claimToken,
+          signature: verificationCode,
+          status: "PENDING",
+          expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+        },
+      });
 
-    await prisma.agentClaim.create({
-      data: {
-        agentId: agent.id,
-        claimCode: claimToken,
-        signature: verificationCode,
-        status: "PENDING",
-        expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
-      },
+      return createdAgent;
     });
 
     const appUrl = process.env["NEXT_PUBLIC_APP_URL"] || "https://clawdmint.xyz";
@@ -145,8 +188,48 @@ export async function POST(request: NextRequest) {
     });
   } catch (error) {
     console.error("Agent registration error:", error);
+
+    if (error instanceof AgentWalletError) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: error.message,
+          details: error.details,
+          hint: "Check agent wallet encryption env vars on the server",
+        },
+        { status: error.status }
+      );
+    }
+
+    if (error instanceof Prisma.PrismaClientKnownRequestError) {
+      if (error.code === "P2002") {
+        return NextResponse.json(
+          {
+            success: false,
+            error: "Agent registration hit a conflicting record",
+            hint: "Try a different agent name, or inspect whether a partial pending record already exists",
+            details: error.meta,
+          },
+          { status: 409 }
+        );
+      }
+
+      return NextResponse.json(
+        {
+          success: false,
+          error: "Database rejected the registration request",
+          details: error.message,
+        },
+        { status: 503 }
+      );
+    }
+
     return NextResponse.json(
-      { success: false, error: "Registration failed" },
+      {
+        success: false,
+        error: "Registration failed",
+        details: error instanceof Error ? error.message : "Unknown registration error",
+      },
       { status: 500 }
     );
   }

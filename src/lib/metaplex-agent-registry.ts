@@ -358,7 +358,6 @@ async function ensureCollectionAndAsset(agent: AgentRegistryRecord): Promise<Age
       asset: assetSigner,
       collection: collectionAccount,
       owner: umi.identity.publicKey,
-      updateAuthority: umi.identity.publicKey,
       name: current.name,
       uri: current.metaplexAssetUri!,
     })
