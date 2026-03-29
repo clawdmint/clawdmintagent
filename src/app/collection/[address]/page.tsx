@@ -45,6 +45,7 @@ interface Collection {
   base_uri: string;
   max_supply: number;
   total_minted: number;
+  holders_count?: number;
   mint_price_raw: string;
   mint_price_native: string;
   royalty_bps: number;
@@ -89,6 +90,49 @@ function deserializeSolanaTransaction(serializedBase64: string): Transaction | V
   }
 }
 
+async function confirmSolanaMintWithRetry(
+  endpoint: string,
+  payload: {
+    intent_id: string;
+    wallet_address: string;
+    tx_hash: string;
+  },
+  options?: {
+    maxAttempts?: number;
+    retryDelayMs?: number;
+  }
+) {
+  const maxAttempts = options?.maxAttempts ?? 24;
+  const retryDelayMs = options?.retryDelayMs ?? 2500;
+
+  let lastError = "Failed to confirm Solana mint";
+
+  for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
+    const response = await fetch(endpoint, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    const responseBody = await response.json().catch(() => null);
+
+    if (response.ok && responseBody?.success) {
+      return responseBody;
+    }
+
+    lastError = responseBody?.error || lastError;
+
+    if (response.status !== 409) {
+      throw new Error(lastError);
+    }
+
+    if (attempt < maxAttempts - 1) {
+      await new Promise((resolve) => window.setTimeout(resolve, retryDelayMs));
+    }
+  }
+
+  throw new Error(lastError);
+}
+
 function PrivyConnectButton() {
   const { login } = useWallet();
   return (
@@ -124,6 +168,7 @@ export default function CollectionPage() {
   const [mintSuccess, setMintSuccess] = useState("");
   const [solanaMintTxHash, setSolanaMintTxHash] = useState<string | null>(null);
   const [imageFailed, setImageFailed] = useState(false);
+  const [showFullDescription, setShowFullDescription] = useState(false);
 
   const { writeContract, data: txHash, isPending: isWritePending } = useWriteContract();
   
@@ -247,8 +292,6 @@ export default function CollectionPage() {
             preflightCommitment: "confirmed",
           }
         );
-
-        await connection.confirmTransaction(signature, "confirmed");
         return signature;
       }
 
@@ -264,8 +307,6 @@ export default function CollectionPage() {
         skipPreflight: false,
         maxRetries: 3,
       });
-
-      await connection.confirmTransaction(signature, "confirmed");
       return signature;
     },
     []
@@ -306,19 +347,14 @@ export default function CollectionPage() {
       );
       setSolanaMintTxHash(signature);
 
-      const confirmResponse = await fetch(collection.mint_confirm_endpoint, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
+      await confirmSolanaMintWithRetry(
+        collection.mint_confirm_endpoint,
+        {
           intent_id: preparePayload.mint.intent_id,
           wallet_address: solanaAddress,
           tx_hash: signature,
-        }),
-      });
-      const confirmPayload = await confirmResponse.json();
-      if (!confirmResponse.ok || !confirmPayload.success) {
-        throw new Error(confirmPayload.error || "Failed to confirm Solana mint");
-      }
+        }
+      );
 
       setMintSuccess(`Minted ${quantity} NFT${quantity > 1 ? "s" : ""} on Solana.`);
       await loadCollection();
@@ -412,6 +448,7 @@ export default function CollectionPage() {
     : Math.min(parseInt(remaining, 10), MAX_SOLANA_MINTS_PER_TX);
   const remainingCount = Math.max(0, parseInt(remaining, 10) || 0);
   const mintedCount = Math.max(0, parseInt(totalMinted, 10) || 0);
+  const holdersCount = Math.max(0, collection.holders_count || 0);
   const deployedLabel = new Date(collection.deployed_at).toLocaleDateString("en-US", {
     month: "short",
     day: "numeric",
@@ -420,6 +457,12 @@ export default function CollectionPage() {
   const loadedItems = Number(collection.onchain?.items_loaded || 0);
   const availableItems = Number(collection.onchain?.items_available || collection.max_supply);
   const configProgress = availableItems > 0 ? (loadedItems / availableItems) * 100 : 0;
+  const collectionDescription = collection.description?.trim() || "";
+  const hasLongDescription = collectionDescription.length > 170;
+  const displayedDescription =
+    showFullDescription || !hasLongDescription
+      ? collectionDescription
+      : `${collectionDescription.slice(0, 170).trimEnd()}...`;
   const availabilityLabel = isSoldOut
     ? "Sold out"
     : isMetaplexMintCollection
@@ -518,29 +561,25 @@ export default function CollectionPage() {
             </Link>
 
             {/* Description */}
-            {collection.description && (
-              <p className={clsx("mt-4 text-body-lg max-w-3xl", theme === "dark" ? "text-gray-400" : "text-gray-600")}>
-                {collection.description}
-              </p>
-            )}
-
-            <div className="mt-6 grid gap-3 sm:grid-cols-3">
-              <div className={clsx("rounded-2xl border px-4 py-3", theme === "dark" ? "border-white/[0.06] bg-white/[0.03]" : "border-gray-200 bg-gray-50")}>
-                <p className={clsx("font-mono text-[10px] uppercase tracking-[0.18em]", theme === "dark" ? "text-gray-500" : "text-gray-400")}>Chain</p>
-                <p className="mt-1 font-semibold">{chainName}</p>
+            {collectionDescription ? (
+              <div className="mt-4 max-w-3xl">
+                <p className={clsx("text-body max-w-3xl", theme === "dark" ? "text-gray-400" : "text-gray-600")}>
+                  {displayedDescription}
+                </p>
+                {hasLongDescription ? (
+                  <button
+                    type="button"
+                    onClick={() => setShowFullDescription((current) => !current)}
+                    className="mt-2 text-[12px] font-mono uppercase tracking-[0.18em] text-cyan-400 transition-colors hover:text-cyan-300"
+                  >
+                    {showFullDescription ? "Show less" : "Read more"}
+                  </button>
+                ) : null}
               </div>
-              <div className={clsx("rounded-2xl border px-4 py-3", theme === "dark" ? "border-white/[0.06] bg-white/[0.03]" : "border-gray-200 bg-gray-50")}>
-                <p className={clsx("font-mono text-[10px] uppercase tracking-[0.18em]", theme === "dark" ? "text-gray-500" : "text-gray-400")}>Launched</p>
-                <p className="mt-1 font-semibold">{deployedLabel}</p>
-              </div>
-              <div className={clsx("rounded-2xl border px-4 py-3", theme === "dark" ? "border-white/[0.06] bg-white/[0.03]" : "border-gray-200 bg-gray-50")}>
-                <p className={clsx("font-mono text-[10px] uppercase tracking-[0.18em]", theme === "dark" ? "text-gray-500" : "text-gray-400")}>Royalty</p>
-                <p className="mt-1 font-semibold">{(collection.royalty_bps / 100).toFixed(1)}%</p>
-              </div>
-            </div>
+            ) : null}
           </div>
 
-          <div className="grid xl:grid-cols-[minmax(0,1.15fr)_420px] gap-8 xl:items-start">
+          <div className="grid xl:grid-cols-[minmax(0,1.15fr)_420px] gap-6 xl:items-start">
             {/* Image - 3 columns */}
             <div className="space-y-6">
               <div className={clsx(
@@ -608,24 +647,43 @@ export default function CollectionPage() {
                 </div>
 
                 {/* Image footer - mint stats */}
-                <div className={clsx("p-5 border-t", theme === "dark" ? "border-white/[0.06]" : "border-gray-200")}>
-                  <div className="grid grid-cols-3 gap-4 mb-3">
-                    <div>
-                      <p className={clsx("text-overline uppercase mb-1", theme === "dark" ? "text-gray-500" : "text-gray-400")}>Supply</p>
-                      <p className="text-heading-sm">{collection.max_supply.toLocaleString()}</p>
-                    </div>
-                    <div>
-                      <p className={clsx("text-overline uppercase mb-1", theme === "dark" ? "text-gray-500" : "text-gray-400")}>Minted</p>
-                      <p className="text-heading-sm">{parseInt(totalMinted).toLocaleString()}</p>
-                    </div>
-                    <div>
-                      <p className={clsx("text-overline uppercase mb-1", theme === "dark" ? "text-gray-500" : "text-gray-400")}>Left</p>
-                      <p className="text-heading-sm">{parseInt(remaining).toLocaleString()}</p>
-                    </div>
+                <div className={clsx("border-t px-5 py-4 md:px-6 md:py-4", theme === "dark" ? "border-white/[0.06]" : "border-gray-200")}>
+                  <div className="grid grid-cols-2 gap-x-4 gap-y-4 md:grid-cols-4">
+                    {[
+                      { label: "Supply", value: collection.max_supply.toLocaleString() },
+                      { label: "Minted", value: mintedCount.toLocaleString() },
+                      { label: "Owners", value: holdersCount.toLocaleString() },
+                      { label: "Remaining", value: remainingCount.toLocaleString() },
+                    ].map((item, index) => (
+                      <div
+                        key={item.label}
+                        className={clsx(
+                          "relative",
+                          index < 3 && "md:pr-4",
+                          index < 3 && theme === "dark" ? "md:border-r md:border-white/[0.06]" : "",
+                          index < 3 && theme !== "dark" ? "md:border-r md:border-gray-200" : ""
+                        )}
+                      >
+                        <p className={clsx("text-[9px] font-mono uppercase tracking-[0.22em]", theme === "dark" ? "text-gray-500" : "text-gray-400")}>
+                          {item.label}
+                        </p>
+                        <p className="mt-1.5 text-[24px] font-semibold leading-none tracking-tight md:text-[26px]">
+                          {item.value}
+                        </p>
+                      </div>
+                    ))}
                   </div>
-                  
-                  {/* Progress bar */}
-                  <div className={clsx("h-2 rounded-full overflow-hidden", theme === "dark" ? "bg-white/[0.05]" : "bg-gray-200")}>
+
+                  <div className="mt-4">
+                    <div className="mb-2 flex items-center justify-between">
+                      <p className={clsx("text-[9px] font-mono uppercase tracking-[0.2em]", theme === "dark" ? "text-gray-500" : "text-gray-400")}>
+                        Mint progress
+                      </p>
+                      <p className={clsx("text-xs", theme === "dark" ? "text-gray-400" : "text-gray-500")}>
+                        {progress.toFixed(1)}%
+                      </p>
+                    </div>
+                    <div className={clsx("h-2 rounded-full overflow-hidden", theme === "dark" ? "bg-white/[0.05]" : "bg-gray-200")}>
                     <div 
                       className={clsx(
                         "h-full rounded-full transition-all duration-500",
@@ -636,37 +694,17 @@ export default function CollectionPage() {
                       style={{ width: `${Math.min(progress, 100)}%` }}
                     />
                   </div>
-                  <p className={clsx("text-caption mt-2 text-right", theme === "dark" ? "text-gray-500" : "text-gray-400")}>
-                    {progress.toFixed(1)}%
-                  </p>
-                </div>
-              </div>
-
-              <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_320px]">
-                <div className={clsx("glass-card", theme === "light" && "bg-white/80")}>
-                  <div className="flex items-center gap-2 mb-4">
-                    <Sparkles className="w-5 h-5 text-cyan-500" />
-                    <h3 className="text-heading-sm">Collection Overview</h3>
                   </div>
-                  <p className={clsx("text-sm leading-7", theme === "dark" ? "text-gray-400" : "text-gray-600")}>
-                    {collection.description || "This collection is live on Solana and configured through Clawdmint's agent-led Metaplex deployment flow."}
-                  </p>
                 </div>
-
-                <ShareSection
-                  address={collection.address}
-                  chain={collection.chain}
-                  name={collection.name}
-                  theme={theme}
-                />
               </div>
+
             </div>
 
             {/* Details - 2 columns */}
-            <div className="space-y-5 xl:sticky xl:top-24">
+            <div className="space-y-4 xl:sticky xl:top-24">
 
               {/* Mint Section */}
-              <div className={clsx("glass-card space-y-5", theme === "light" && "bg-white/80")}>
+              <div className={clsx("glass-card space-y-6", theme === "light" && "bg-white/80")}>
                 <div className="flex items-start justify-between gap-4">
                   <div>
                     <p className={clsx("font-mono text-[11px] uppercase tracking-[0.18em]", theme === "dark" ? "text-gray-500" : "text-gray-400")}>
@@ -675,7 +713,7 @@ export default function CollectionPage() {
                     <h2 className="mt-3 text-4xl font-semibold tracking-tight">
                       {mintPriceValue === 0 ? "Free" : `${mintPriceNative} ${nativeToken}`}
                     </h2>
-                    <p className={clsx("mt-2 max-w-sm text-sm leading-6", theme === "dark" ? "text-gray-400" : "text-gray-600")}>
+                    <p className={clsx("mt-3 max-w-sm text-[15px] leading-7", theme === "dark" ? "text-gray-400" : "text-gray-600")}>
                       {isMetaplexMintCollection
                         ? "Collector mints run through Metaplex Candy Machine so the flow stays familiar, wallet-native, and easy to verify."
                         : isEvmCollection
@@ -698,10 +736,10 @@ export default function CollectionPage() {
 
                 {!isSoldOut && (isEvmCollection || isMetaplexMintCollection) && (
                   <div className={clsx(
-                    "rounded-[26px] border p-4",
+                    "rounded-[28px] border p-5",
                     theme === "dark" ? "border-white/[0.06] bg-white/[0.03]" : "border-gray-200 bg-gray-50/80"
                   )}>
-                    <div className="flex items-center justify-between gap-4">
+                    <div className="flex items-center justify-between gap-5">
                       <div>
                         <p className={clsx("font-mono text-[10px] uppercase tracking-[0.18em]", theme === "dark" ? "text-gray-500" : "text-gray-400")}>
                           Quantity
@@ -710,7 +748,7 @@ export default function CollectionPage() {
                           Choose up to {maxMintableQuantity} in one checkout
                         </p>
                       </div>
-                      <div className="flex items-center gap-3">
+                      <div className="flex items-center gap-4">
                         <button
                           onClick={() => setQuantity(Math.max(1, quantity - 1))}
                           className={clsx(
@@ -739,8 +777,8 @@ export default function CollectionPage() {
                       </div>
                     </div>
 
-                    <div className="mt-4 grid gap-3 sm:grid-cols-2">
-                      <div className={clsx("rounded-2xl px-4 py-3", theme === "dark" ? "bg-black/20" : "bg-white")}>
+                    <div className="mt-5 grid gap-3 sm:grid-cols-2">
+                      <div className={clsx("rounded-2xl px-4 py-4", theme === "dark" ? "bg-black/20" : "bg-white")}>
                         <p className={clsx("font-mono text-[10px] uppercase tracking-[0.18em]", theme === "dark" ? "text-gray-500" : "text-gray-400")}>
                           Total
                         </p>
@@ -748,7 +786,7 @@ export default function CollectionPage() {
                           {totalCost === 0 ? "Free" : `${totalCost.toFixed(4)} ${nativeToken}`}
                         </p>
                       </div>
-                      <div className={clsx("rounded-2xl px-4 py-3", theme === "dark" ? "bg-black/20" : "bg-white")}>
+                      <div className={clsx("rounded-2xl px-4 py-4", theme === "dark" ? "bg-black/20" : "bg-white")}>
                         <p className={clsx("font-mono text-[10px] uppercase tracking-[0.18em]", theme === "dark" ? "text-gray-500" : "text-gray-400")}>
                           Remaining
                         </p>
@@ -757,51 +795,43 @@ export default function CollectionPage() {
                     </div>
 
                     {isMetaplexMintCollection && (
-                      <p className={clsx("mt-3 text-xs leading-relaxed", theme === "dark" ? "text-gray-500" : "text-gray-500")}>
-                        Solana mints are currently capped at {MAX_SOLANA_MINTS_PER_TX} NFTs per transaction to keep confirmation fast and reliable.
-                      </p>
-                    )}
-                  </div>
-                )}
-
-                {isMetaplexMintCollection && (
-                  <div className={clsx(
-                    "rounded-[26px] border p-4",
-                    theme === "dark" ? "border-cyan-500/15 bg-cyan-500/[0.04]" : "border-cyan-100 bg-cyan-50/70"
-                  )}>
-                    <div className="flex items-center justify-between gap-3">
-                      <div className="flex items-center gap-2">
-                        <ShieldCheck className="h-4 w-4 text-cyan-500" />
-                        <span className="font-medium">Metaplex runtime</span>
-                      </div>
-                      <span className={clsx(
-                        "rounded-full px-2.5 py-1 font-mono text-[10px] uppercase tracking-[0.18em]",
-                        theme === "dark" ? "bg-black/20 text-cyan-200" : "bg-white text-cyan-700"
+                      <div className={clsx(
+                        "mt-4 rounded-2xl border px-4 py-3",
+                        theme === "dark" ? "border-cyan-500/15 bg-cyan-500/[0.04]" : "border-cyan-100 bg-cyan-50/70"
                       )}>
-                        {metaplexStatusLabel}
-                      </span>
-                    </div>
-
-                    <p className={clsx("mt-3 text-sm leading-6", theme === "dark" ? "text-gray-300" : "text-gray-600")}>
-                      {metaplexLoadPending
-                        ? "Config lines are still settling on-chain. Mint unlocks automatically as soon as the machine is fully loaded."
-                        : "The Candy Machine is fully loaded and ready for collector mints."}
-                    </p>
-
-                    <div className="mt-4">
-                      <div className={clsx("h-2 overflow-hidden rounded-full", theme === "dark" ? "bg-white/[0.07]" : "bg-white/80")}>
-                        <div
-                          className="h-full rounded-full bg-gradient-to-r from-cyan-400 to-blue-500 transition-all duration-500"
-                          style={{ width: `${Math.min(configProgress, 100)}%` }}
-                        />
+                        <div className="flex items-center justify-between gap-3">
+                          <div className="flex items-center gap-2">
+                            <ShieldCheck className="h-4 w-4 text-cyan-500" />
+                            <span className="text-sm font-medium">Metaplex runtime</span>
+                          </div>
+                          <span className={clsx(
+                            "rounded-full px-2.5 py-1 font-mono text-[10px] uppercase tracking-[0.18em]",
+                            theme === "dark" ? "bg-black/20 text-cyan-200" : "bg-white text-cyan-700"
+                          )}>
+                            {metaplexStatusLabel}
+                          </span>
+                        </div>
+                        <div className="mt-3">
+                          <div className={clsx("h-2 overflow-hidden rounded-full", theme === "dark" ? "bg-white/[0.07]" : "bg-white/80")}>
+                            <div
+                              className="h-full rounded-full bg-gradient-to-r from-cyan-400 to-blue-500 transition-all duration-500"
+                              style={{ width: `${Math.min(configProgress, 100)}%` }}
+                            />
+                          </div>
+                          <div className="mt-2 flex items-center justify-between">
+                            <span className={clsx("text-xs", theme === "dark" ? "text-gray-400" : "text-gray-600")}>
+                              {loadedItems}/{availableItems} config lines
+                            </span>
+                            <span className="font-mono text-xs">{Math.round(configProgress)}%</span>
+                          </div>
+                        </div>
+                        <p className={clsx("mt-3 text-xs leading-relaxed", theme === "dark" ? "text-gray-400" : "text-gray-600")}>
+                          {metaplexLoadPending
+                            ? "Configuration is still settling on-chain."
+                            : `Ready for collector mints. Up to ${MAX_SOLANA_MINTS_PER_TX} NFTs per transaction.`}
+                        </p>
                       </div>
-                      <div className="mt-2 flex items-center justify-between">
-                        <span className={clsx("text-xs", theme === "dark" ? "text-gray-400" : "text-gray-600")}>
-                          {loadedItems} of {availableItems} config lines loaded
-                        </span>
-                        <span className="font-mono text-xs">{Math.round(configProgress)}%</span>
-                      </div>
-                    </div>
+                    )}
                   </div>
                 )}
 
@@ -986,37 +1016,51 @@ export default function CollectionPage() {
                 )}
               </div>
 
-              <div className={clsx("glass-card space-y-4", theme === "light" && "bg-white/80")}>
+              <ShareSection
+                address={collection.address}
+                chain={collection.chain}
+                name={collection.name}
+                theme={theme}
+              />
+
+            </div>
+          </div>
+
+          <div className={clsx(
+            "mt-5 rounded-[30px] border p-5 md:p-6",
+            theme === "dark"
+              ? "border-white/[0.08] bg-[#08111d]/84"
+              : "border-gray-200 bg-white/92 shadow-[0_24px_70px_rgba(15,23,42,0.08)]"
+          )}>
+            <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+              <div>
                 <div className="flex items-center gap-2">
                   <Users className="h-5 w-5 text-cyan-500" />
-                  <h3 className="text-heading-sm">Drop Details</h3>
+                  <h3 className="text-heading-sm">Collection details</h3>
                 </div>
+                <p className={clsx("mt-2 text-sm", theme === "dark" ? "text-gray-400" : "text-gray-600")}>
+                  Core metadata, launch context, and explorer actions for this drop.
+                </p>
+              </div>
 
-                <div className="grid gap-3 sm:grid-cols-2">
-                  <DetailTile label="Contract" value={`${collection.address.slice(0, 6)}...${collection.address.slice(-4)}`} mono theme={theme} />
-                  <DetailTile label="Mint engine" value={isMetaplexMintCollection ? "Metaplex" : "Legacy runtime"} theme={theme} />
-                  <DetailTile label="Supply" value={collection.max_supply.toString()} theme={theme} />
-                  <DetailTile label="Minted" value={mintedCount.toString()} theme={theme} />
-                  <DetailTile label="Remaining" value={remainingCount.toString()} theme={theme} />
-                  <DetailTile label="Royalty" value={`${(collection.royalty_bps / 100).toFixed(1)}%`} theme={theme} />
-                  <DetailTile label="Chain" value={chainName} theme={theme} />
-                  <DetailTile label="Launched" value={deployedLabel} theme={theme} />
-                  {collection.mint_address && (
-                    <DetailTile
-                      label="Candy Machine"
-                      value={`${collection.mint_address.slice(0, 6)}...${collection.mint_address.slice(-4)}`}
-                      mono
-                      theme={theme}
-                    />
+              <div className="flex flex-wrap gap-2">
+                <a
+                  href={explorerUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className={clsx(
+                    "inline-flex items-center justify-center gap-2 rounded-2xl border px-4 py-3 text-sm font-medium transition-colors",
+                    theme === "dark"
+                      ? "border-white/[0.08] bg-white/[0.03] hover:bg-white/[0.06]"
+                      : "border-gray-200 bg-gray-50 hover:bg-gray-100"
                   )}
-                  {isMetaplexMintCollection && (
-                    <DetailTile label="Config lines" value={`${loadedItems} / ${availableItems}`} theme={theme} />
-                  )}
-                </div>
-
-                <div className="grid gap-3 sm:grid-cols-2">
+                >
+                  View contract
+                  <ExternalLink className="h-4 w-4" />
+                </a>
+                {collection.mint_address ? (
                   <a
-                    href={explorerUrl}
+                    href={getAddressExplorerUrl(collection.mint_address, collection.chain)}
                     target="_blank"
                     rel="noopener noreferrer"
                     className={clsx(
@@ -1026,35 +1070,31 @@ export default function CollectionPage() {
                         : "border-gray-200 bg-gray-50 hover:bg-gray-100"
                     )}
                   >
-                    View contract
+                    View candy machine
                     <ExternalLink className="h-4 w-4" />
                   </a>
-                  {collection.mint_address ? (
-                    <a
-                      href={getAddressExplorerUrl(collection.mint_address, collection.chain)}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className={clsx(
-                        "inline-flex items-center justify-center gap-2 rounded-2xl border px-4 py-3 text-sm font-medium transition-colors",
-                        theme === "dark"
-                          ? "border-white/[0.08] bg-white/[0.03] hover:bg-white/[0.06]"
-                          : "border-gray-200 bg-gray-50 hover:bg-gray-100"
-                      )}
-                    >
-                      View candy machine
-                      <ExternalLink className="h-4 w-4" />
-                    </a>
-                  ) : (
-                    <div className={clsx(
-                      "inline-flex items-center justify-center rounded-2xl border px-4 py-3 text-sm",
-                      theme === "dark" ? "border-white/[0.08] bg-white/[0.03] text-gray-500" : "border-gray-200 bg-gray-50 text-gray-500"
-                    )}>
-                      Candy machine pending
-                    </div>
-                  )}
-                </div>
+                ) : null}
               </div>
+            </div>
 
+            <div className="mt-5 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+              <DetailTile label="Contract" value={`${collection.address.slice(0, 6)}...${collection.address.slice(-4)}`} mono theme={theme} />
+              <DetailTile label="Mint engine" value={isMetaplexMintCollection ? "Metaplex" : "Legacy runtime"} theme={theme} />
+              <DetailTile label="Chain" value={chainName} theme={theme} />
+              <DetailTile label="Launched" value={deployedLabel} theme={theme} />
+              <DetailTile label="Royalty" value={`${(collection.royalty_bps / 100).toFixed(1)}%`} theme={theme} />
+              {collection.mint_address ? (
+                <DetailTile
+                  label="Candy Machine"
+                  value={`${collection.mint_address.slice(0, 6)}...${collection.mint_address.slice(-4)}`}
+                  mono
+                  theme={theme}
+                />
+              ) : null}
+              {isMetaplexMintCollection ? (
+                <DetailTile label="Config lines" value={`${loadedItems} / ${availableItems}`} theme={theme} />
+              ) : null}
+              <DetailTile label="Availability" value={availabilityLabel} theme={theme} />
             </div>
           </div>
 
@@ -1454,14 +1494,14 @@ function ShareSection({
         <Share2 className="w-5 h-5 text-cyan-500" />
         <h3 className="font-semibold">Share</h3>
       </div>
-      <div className="grid grid-cols-3 gap-3">
+      <div className="grid grid-cols-3 gap-2.5">
         {/* Twitter/X */}
         <a
           href={`https://twitter.com/intent/tweet?text=${encodeURIComponent(shareText)}&url=${encodeURIComponent(shareUrl)}`}
           target="_blank"
           rel="noopener noreferrer"
           className={clsx(
-            "flex items-center justify-center gap-2 px-4 py-3 rounded-xl border transition-all hover:scale-105 text-sm font-medium",
+            "flex items-center justify-center gap-2 px-4 py-3 rounded-2xl border transition-colors text-sm font-medium",
             theme === "dark"
               ? "bg-white/[0.03] border-white/[0.06] hover:bg-white/[0.08] text-gray-300"
               : "bg-gray-50 border-gray-200 hover:bg-gray-100 text-gray-700"
@@ -1479,7 +1519,7 @@ function ShareSection({
           target="_blank"
           rel="noopener noreferrer"
           className={clsx(
-            "flex items-center justify-center gap-2 px-4 py-3 rounded-xl border transition-all hover:scale-105 text-sm font-medium",
+            "flex items-center justify-center gap-2 px-4 py-3 rounded-2xl border transition-colors text-sm font-medium",
             theme === "dark"
               ? "bg-white/[0.03] border-white/[0.06] hover:bg-white/[0.08] text-gray-300"
               : "bg-gray-50 border-gray-200 hover:bg-gray-100 text-gray-700"
@@ -1495,7 +1535,7 @@ function ShareSection({
         <button
           onClick={copyLink}
           className={clsx(
-            "flex items-center justify-center gap-2 px-4 py-3 rounded-xl border transition-all hover:scale-105 text-sm font-medium",
+            "flex items-center justify-center gap-2 px-4 py-3 rounded-2xl border transition-colors text-sm font-medium",
             copied
               ? "bg-emerald-500/15 border-emerald-500/30 text-emerald-400"
               : theme === "dark"

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { formatCollectionMintPrice, getCollectionNativeToken, SOLANA_COLLECTION_CHAINS } from "@/lib/collection-chains";
+import { filterVisiblePublicCollections, PUBLIC_COLLECTION_STATUSES } from "@/lib/public-collections";
 
 // Force dynamic rendering (prevents static generation errors on Netlify)
 export const dynamic = 'force-dynamic';
@@ -9,16 +10,6 @@ export const dynamic = 'force-dynamic';
 // GET /api/collections/public
 // Get all public collections (no auth required)
 // ═══════════════════════════════════════════════════════════════════════
-
-// Hidden collections (removed from public listings)
-const HIDDEN_COLLECTIONS = new Set([
-  "0xa36bfea4b27ff26a8e4c580a925761025ae6e551",
-  "dsujau9vnaqrmyv7u8dx4xg6azffzsh4fzn4g95dytx",
-  "4pk6vwfnxyja3whksgsmevtkpzr2efskpuvlre82yvjd",
-  "2fls53pygxtbacud3sy6bs3supw4u8makdpwd8iguvec",
-  "5jzbocsrm6n8hf1qc7wh62ws19jqmxnd9dmljcgrdyrr",
-  "2nb5hy1qbfeseyfx2ep1ecxwzdcbplkxq7adwf465nyq",
-]);
 
 export async function GET(request: NextRequest) {
   try {
@@ -37,7 +28,7 @@ export async function GET(request: NextRequest) {
       whereClause.status = "SOLD_OUT";
     } else {
       // "all" — show both ACTIVE and SOLD_OUT, exclude FAILED/DEPLOYING
-      whereClause.status = { in: ["ACTIVE", "SOLD_OUT"] };
+      whereClause.status = { in: [...PUBLIC_COLLECTION_STATUSES] };
     }
 
     // Get collections with agent info
@@ -56,9 +47,7 @@ export async function GET(request: NextRequest) {
     });
 
     // Filter out hidden collections in JS (more reliable than Prisma NOT/in)
-    const filtered = allCollections.filter(
-      (c) => !HIDDEN_COLLECTIONS.has(c.address.toLowerCase())
-    );
+    const filtered = filterVisiblePublicCollections(allCollections);
 
     const total = filtered.length;
     const collections = filtered.slice(offset, offset + limit);

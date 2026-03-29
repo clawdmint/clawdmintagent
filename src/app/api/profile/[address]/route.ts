@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { isSupportedWalletAddress, normalizeWalletAddress } from "@/lib/network-config";
 import { formatCollectionMintPrice, getCollectionNativeToken, SOLANA_COLLECTION_CHAINS } from "@/lib/collection-chains";
+import { syncRecentMetaplexMintsForWallet } from "@/lib/metaplex-mint-backfill";
 
 // Force dynamic rendering
 export const dynamic = 'force-dynamic';
@@ -27,6 +28,12 @@ export async function GET(
     }
 
     const normalizedAddress = normalizeWalletAddress(address);
+
+    if (normalizedAddress && !normalizedAddress.startsWith("0x")) {
+      await syncRecentMetaplexMintsForWallet(normalizedAddress).catch((error) => {
+        console.warn("[Profile] Mint sync warning:", error);
+      });
+    }
 
     // Get all mints for this wallet
     const mints = await prisma.mint.findMany({

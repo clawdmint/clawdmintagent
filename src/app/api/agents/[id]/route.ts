@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { formatCollectionMintPrice, getCollectionNativeToken, SOLANA_COLLECTION_CHAINS } from "@/lib/collection-chains";
+import { filterVisiblePublicCollections, PUBLIC_COLLECTION_STATUSES } from "@/lib/public-collections";
 
 // Force dynamic rendering (prevents static generation errors on Netlify)
 export const dynamic = 'force-dynamic';
@@ -23,7 +24,7 @@ export async function GET(
       include: {
         collections: {
           where: {
-            status: { in: ["ACTIVE", "SOLD_OUT"] },
+            status: { in: [...PUBLIC_COLLECTION_STATUSES] },
             chain: { in: SOLANA_COLLECTION_CHAINS },
           },
           orderBy: { createdAt: "desc" },
@@ -51,6 +52,8 @@ export async function GET(
       );
     }
 
+    const publicCollections = filterVisiblePublicCollections(agent.collections);
+
     return NextResponse.json({
       success: true,
       agent: {
@@ -74,7 +77,7 @@ export async function GET(
         },
         x_handle: agent.xHandle,
         verified_at: agent.verifiedAt?.toISOString(),
-        collections: agent.collections.map((c) => ({
+        collections: publicCollections.map((c) => ({
           id: c.id,
           address: c.address,
           collection_url: `${appUrl}/collection/${c.address}`,

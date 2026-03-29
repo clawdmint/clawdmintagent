@@ -47,6 +47,57 @@ interface Agent {
   }>;
 }
 
+function RegistryField({
+  label,
+  value,
+  href,
+  theme,
+}: {
+  label: string;
+  value: string | null;
+  href: string | null;
+  theme: string;
+}) {
+  return (
+    <div
+      className={clsx(
+        "rounded-2xl border px-4 py-3",
+        theme === "dark"
+          ? "border-white/[0.08] bg-white/[0.02]"
+          : "border-gray-200 bg-gray-50/80"
+      )}
+    >
+      <p className="text-[11px] font-mono uppercase tracking-[0.2em] text-gray-500">{label}</p>
+      <div className="mt-2 flex items-center gap-2">
+        <span
+          className={clsx(
+            "font-mono text-sm",
+            theme === "dark" ? "text-gray-200" : "text-gray-700"
+          )}
+          title={value || ""}
+        >
+          {value ? truncateAddress(value, 8, 6) : "n/a"}
+        </span>
+        {href ? (
+          <a
+            href={href}
+            target="_blank"
+            rel="noopener noreferrer"
+            className={clsx(
+              "rounded-full p-1.5 transition-colors",
+              theme === "dark"
+                ? "text-gray-400 hover:bg-white/[0.06] hover:text-white"
+                : "text-gray-500 hover:bg-white hover:text-gray-900"
+            )}
+          >
+            <ExternalLink className="w-3.5 h-3.5" />
+          </a>
+        ) : null}
+      </div>
+    </div>
+  );
+}
+
 export default function AgentPage() {
   const { theme } = useTheme();
   const params = useParams();
@@ -70,22 +121,33 @@ export default function AgentPage() {
         setLoading(false);
       }
     }
+
     if (id) {
-      fetchAgent();
+      void fetchAgent();
     }
   }, [id]);
 
   if (loading) {
     return (
       <div className="container mx-auto px-4 py-20">
-        <div className="max-w-4xl mx-auto">
-          <div className="glass-card animate-pulse">
-            <div className="flex items-start gap-6">
-              <div className="w-24 h-24 bg-white/10 rounded-full" />
-              <div className="flex-1 space-y-4">
-                <div className="h-8 bg-white/10 rounded w-1/3" />
-                <div className="h-4 bg-white/10 rounded w-1/4" />
-                <div className="h-16 bg-white/10 rounded" />
+        <div className="mx-auto max-w-6xl">
+          <div className="grid gap-6 xl:grid-cols-[minmax(0,1.65fr)_minmax(320px,0.95fr)]">
+            <div className="glass-card animate-pulse">
+              <div className="flex items-start gap-6">
+                <div className="h-24 w-24 rounded-full bg-white/10" />
+                <div className="flex-1 space-y-4">
+                  <div className="h-8 w-1/3 rounded bg-white/10" />
+                  <div className="h-4 w-1/4 rounded bg-white/10" />
+                  <div className="h-16 rounded bg-white/10" />
+                </div>
+              </div>
+            </div>
+            <div className="glass-card animate-pulse">
+              <div className="space-y-4">
+                <div className="h-6 w-1/2 rounded bg-white/10" />
+                <div className="h-20 rounded bg-white/10" />
+                <div className="h-20 rounded bg-white/10" />
+                <div className="h-20 rounded bg-white/10" />
               </div>
             </div>
           </div>
@@ -97,9 +159,11 @@ export default function AgentPage() {
   if (!agent) {
     return (
       <div className="container mx-auto px-4 py-20 text-center">
-        <div className="text-5xl mb-4">🤖</div>
+        <div className="mb-4 text-5xl">AI</div>
         <h1 className="text-heading-lg mb-2">Agent Not Found</h1>
-        <p className="text-body text-gray-400 mb-6">This agent doesn&apos;t exist or hasn&apos;t been verified yet.</p>
+        <p className="mb-6 text-body text-gray-400">
+          This agent does not exist or has not been verified yet.
+        </p>
         <Link href="/agents" className="btn-primary">
           View All Agents
         </Link>
@@ -107,212 +171,282 @@ export default function AgentPage() {
     );
   }
 
+  const totalMinted = agent.collections.reduce((sum, collection) => sum + collection.total_minted, 0);
+
   return (
     <div className="min-h-screen relative noise">
-      {/* Background */}
       <div className="fixed inset-0 pointer-events-none">
         <div className="absolute inset-0 tech-grid opacity-30" />
         <div className="absolute inset-0 gradient-mesh" />
       </div>
-      {/* Header */}
+
       <section className="py-12 border-b border-white/5">
-        <div className="container mx-auto px-4">
-          <Link href="/agents" className="text-gray-400 hover:text-white transition-colors mb-6 inline-block">
-            ← Back to Agents
+        <div className="container mx-auto max-w-6xl px-4">
+          <Link href="/agents" className="mb-6 inline-block text-gray-400 transition-colors hover:text-white">
+            Back to Agents
           </Link>
 
-          <div className="glass-card max-w-4xl">
-            <div className="flex flex-col md:flex-row items-start gap-6">
-              {/* Avatar */}
-              <div className="w-24 h-24 rounded-full bg-gradient-to-br from-brand-500 to-accent-500 flex items-center justify-center flex-shrink-0">
-                {agent.avatar_url ? (
-                  <img
-                    src={agent.avatar_url}
-                    alt={agent.name}
-                    className="w-full h-full rounded-full object-cover"
-                  />
-                ) : (
-                  <span className="text-4xl">🤖</span>
-                )}
-              </div>
-
-              {/* Info */}
-              <div className="flex-1">
-                <div className="flex items-start justify-between gap-4">
-                  <div>
-                    <h1 className="text-display mb-2">{agent.name}</h1>
-                    <p className="text-gray-400 font-mono text-sm mb-2">
-                      {agent.eoa}
-                    </p>
-                    {agent.solana_wallet_address ? (
-                      <div className="flex flex-wrap items-center gap-2 mb-2">
-                        <span className="rounded-full bg-violet-500/10 px-2.5 py-1 text-[11px] font-mono uppercase tracking-[0.2em] text-violet-300">
-                          Solana
-                        </span>
-                        <span className="font-mono text-sm text-gray-300" title={agent.solana_wallet_address}>
-                          {truncateAddress(agent.solana_wallet_address, 8, 6)}
-                        </span>
-                        <button
-                          type="button"
-                          onClick={async () => {
-                            try {
-                              await navigator.clipboard.writeText(agent.solana_wallet_address || "");
-                              setCopiedWallet(true);
-                              window.setTimeout(() => setCopiedWallet(false), 1800);
-                            } catch (error) {
-                              console.error("Failed to copy Solana wallet:", error);
-                            }
-                          }}
-                          className="rounded-full p-1.5 text-gray-400 transition-colors hover:bg-white/[0.06] hover:text-white"
-                          aria-label="Copy Solana wallet"
-                        >
-                          {copiedWallet ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
-                        </button>
-                        <a
-                          href={getAddressExplorerUrl(agent.solana_wallet_address, "solana")}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="rounded-full p-1.5 text-gray-400 transition-colors hover:bg-white/[0.06] hover:text-white"
-                          aria-label="Open Solana wallet in explorer"
-                        >
-                          <ExternalLink className="w-3.5 h-3.5" />
-                        </a>
-                      </div>
-                    ) : null}
-                    <div className="flex items-center gap-4">
-                      {agent.x_handle && (
-                        <a
-                          href={`https://x.com/${agent.x_handle}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-brand-400 hover:underline text-sm"
-                        >
-                          @{agent.x_handle}
-                        </a>
-                      )}
-                      <span className="flex items-center gap-1 text-green-400 text-sm">
-                        <span className="w-2 h-2 bg-green-400 rounded-full" />
-                        Verified
-                      </span>
-                      {agent.metaplex?.registered ? (
-                        <span className="flex items-center gap-1 text-fuchsia-300 text-sm">
-                          <span className="w-2 h-2 bg-fuchsia-400 rounded-full" />
-                          Metaplex Registered
-                        </span>
-                      ) : null}
-                    </div>
-                  </div>
-
+          <div className="space-y-6">
+            <div className="glass-card">
+              <div className="flex flex-col items-start gap-6 md:flex-row">
+                <div className="flex h-24 w-24 flex-shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-brand-500 to-accent-500">
+                  {agent.avatar_url ? (
+                    <img
+                      src={agent.avatar_url}
+                      alt={agent.name}
+                      className="h-full w-full rounded-full object-cover"
+                    />
+                  ) : (
+                    <span className="text-3xl font-semibold text-white">AI</span>
+                  )}
                 </div>
 
-                {agent.description && (
-                  <p className="text-gray-400 mt-4">{agent.description}</p>
-                )}
+                <div className="flex-1">
+                  <h1 className="text-display mb-2">{agent.name}</h1>
+                  <p className="mb-3 font-mono text-sm text-gray-400">{agent.eoa}</p>
 
-                {/* Stats */}
-                <div className="flex items-center gap-6 mt-6 pt-6 border-t border-white/10">
-                  <div>
-                    <p className="text-2xl font-bold text-brand-400">
-                      {agent.collections.length}
-                    </p>
-                    <p className="text-sm text-gray-400">Collections</p>
+                  {agent.solana_wallet_address ? (
+                    <div className="mb-3 flex flex-wrap items-center gap-2">
+                      <span className="rounded-full bg-violet-500/10 px-2.5 py-1 text-[11px] font-mono uppercase tracking-[0.2em] text-violet-300">
+                        Solana
+                      </span>
+                      <span
+                        className="font-mono text-sm text-gray-300"
+                        title={agent.solana_wallet_address}
+                      >
+                        {truncateAddress(agent.solana_wallet_address, 8, 6)}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          try {
+                            await navigator.clipboard.writeText(agent.solana_wallet_address || "");
+                            setCopiedWallet(true);
+                            window.setTimeout(() => setCopiedWallet(false), 1800);
+                          } catch (error) {
+                            console.error("Failed to copy Solana wallet:", error);
+                          }
+                        }}
+                        className="rounded-full p-1.5 text-gray-400 transition-colors hover:bg-white/[0.06] hover:text-white"
+                        aria-label="Copy Solana wallet"
+                      >
+                        {copiedWallet ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
+                      </button>
+                      <a
+                        href={getAddressExplorerUrl(agent.solana_wallet_address, "solana")}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="rounded-full p-1.5 text-gray-400 transition-colors hover:bg-white/[0.06] hover:text-white"
+                        aria-label="Open Solana wallet in explorer"
+                      >
+                        <ExternalLink className="h-3.5 w-3.5" />
+                      </a>
+                    </div>
+                  ) : null}
+
+                  <div className="flex flex-wrap items-center gap-4">
+                    {agent.x_handle ? (
+                      <a
+                        href={`https://x.com/${agent.x_handle}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-sm text-brand-400 hover:underline"
+                      >
+                        @{agent.x_handle}
+                      </a>
+                    ) : null}
+                    <span className="flex items-center gap-1 text-sm text-green-400">
+                      <span className="h-2 w-2 rounded-full bg-green-400" />
+                      Verified
+                    </span>
+                    {agent.metaplex?.registered ? (
+                      <span className="flex items-center gap-1 text-sm text-fuchsia-300">
+                        <span className="h-2 w-2 rounded-full bg-fuchsia-400" />
+                        Metaplex Registered
+                      </span>
+                    ) : null}
                   </div>
-                  <div>
-                    <p className="text-2xl font-bold">
-                      {agent.collections.reduce((acc, c) => acc + c.total_minted, 0)}
-                    </p>
-                    <p className="text-sm text-gray-400">Total Minted</p>
+
+                  {agent.description ? (
+                    <p className="mt-4 max-w-2xl text-gray-400">{agent.description}</p>
+                  ) : null}
+
+                  <div
+                    className={clsx(
+                      "mt-6 flex flex-wrap items-center gap-3 border-t border-white/10 pt-5",
+                      theme === "dark" ? "text-gray-300" : "text-gray-700"
+                    )}
+                  >
+                    {[
+                      {
+                        label: "Collections",
+                        value: agent.collections.length.toString(),
+                        accent: "text-brand-400",
+                      },
+                      {
+                        label: "Total minted",
+                        value: totalMinted.toString(),
+                        accent: theme === "dark" ? "text-white" : "text-gray-900",
+                      },
+                      {
+                        label: "Verified",
+                        value: new Date(agent.verified_at).toLocaleDateString(),
+                        accent: theme === "dark" ? "text-gray-300" : "text-gray-700",
+                      },
+                    ].map((item) => (
+                      <div
+                        key={item.label}
+                        className={clsx(
+                          "inline-flex items-center gap-2 rounded-full border px-3 py-2",
+                          theme === "dark"
+                            ? "border-white/[0.08] bg-white/[0.02]"
+                            : "border-gray-200 bg-gray-50/80"
+                        )}
+                      >
+                        <span className="text-[11px] font-mono uppercase tracking-[0.18em] text-gray-500">
+                          {item.label}
+                        </span>
+                        <span className={clsx("text-sm font-semibold", item.accent)}>
+                          {item.value}
+                        </span>
+                      </div>
+                    ))}
                   </div>
-                  <div>
-                    <p className="text-sm text-gray-400">
-                      Verified {new Date(agent.verified_at).toLocaleDateString()}
-                    </p>
+
+                  <div
+                    className={clsx(
+                      "mt-6 grid gap-3 border-t border-white/10 pt-6 sm:grid-cols-3",
+                      theme === "dark" ? "text-gray-300" : "text-gray-700"
+                    )}
+                  >
+                    {[
+                      {
+                        label: "Runtime",
+                        value: "Solana mainnet",
+                        accent: "text-cyan-300",
+                      },
+                      {
+                        label: "Mint Stack",
+                        value: "Core + Candy Machine",
+                        accent: "text-fuchsia-300",
+                      },
+                      {
+                        label: "Execution",
+                        value: agent.metaplex?.delegated ? "Delegated" : "Registered",
+                        accent: agent.metaplex?.delegated ? "text-emerald-300" : "text-amber-300",
+                      },
+                    ].map((item) => (
+                      <div
+                        key={item.label}
+                        className={clsx(
+                          "rounded-2xl border px-4 py-3",
+                          theme === "dark"
+                            ? "border-white/[0.08] bg-white/[0.02]"
+                            : "border-gray-200 bg-gray-50/80"
+                        )}
+                      >
+                        <p className="text-[11px] font-mono uppercase tracking-[0.2em] text-gray-500">
+                          {item.label}
+                        </p>
+                        <p className={clsx("mt-2 text-sm font-medium", item.accent)}>
+                          {item.value}
+                        </p>
+                      </div>
+                    ))}
                   </div>
                 </div>
               </div>
             </div>
+
+            {agent.metaplex?.registered ? (
+              <div className="glass-card">
+                <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                  <div>
+                    <p className="text-[11px] font-mono uppercase tracking-[0.22em] text-fuchsia-300/90">
+                      Metaplex Registry
+                    </p>
+                    <h2 className="mt-2 text-2xl font-semibold">On-chain identity active</h2>
+                    <p className="mt-2 text-sm text-gray-400">
+                      Core asset, collection, and execution delegation are attached to this agent.
+                    </p>
+                  </div>
+                  <span className="rounded-full bg-fuchsia-500/10 px-3 py-1 text-[11px] font-mono uppercase tracking-[0.2em] text-fuchsia-300">
+                    {agent.metaplex.delegated ? "delegated" : "registered"}
+                  </span>
+                </div>
+
+                <div className="mt-5 grid gap-3 lg:grid-cols-2 2xl:grid-cols-5">
+                  <RegistryField
+                    label="Asset"
+                    value={agent.metaplex.asset_address}
+                    href={agent.metaplex.asset_address ? getAddressExplorerUrl(agent.metaplex.asset_address, "solana") : null}
+                    theme={theme}
+                  />
+                  <RegistryField
+                    label="Collection"
+                    value={agent.metaplex.collection_address}
+                    href={agent.metaplex.collection_address ? getAddressExplorerUrl(agent.metaplex.collection_address, "solana") : null}
+                    theme={theme}
+                  />
+                  <RegistryField
+                    label="Identity PDA"
+                    value={agent.metaplex.identity_pda}
+                    href={agent.metaplex.identity_pda ? getAddressExplorerUrl(agent.metaplex.identity_pda, "solana") : null}
+                    theme={theme}
+                  />
+                  <RegistryField
+                    label="Executive PDA"
+                    value={agent.metaplex.executive_profile_pda}
+                    href={agent.metaplex.executive_profile_pda ? getAddressExplorerUrl(agent.metaplex.executive_profile_pda, "solana") : null}
+                    theme={theme}
+                  />
+                  {agent.metaplex.registration_uri ? (
+                    <a
+                      href={agent.metaplex.registration_uri}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className={clsx(
+                        "flex items-center justify-between rounded-2xl border px-4 py-3 transition-colors",
+                        theme === "dark"
+                          ? "border-white/[0.08] bg-white/[0.02] hover:bg-white/[0.04]"
+                          : "border-gray-200 bg-gray-50/80 hover:bg-white"
+                      )}
+                    >
+                      <div>
+                        <p className="text-[11px] font-mono uppercase tracking-[0.2em] text-gray-500">
+                          Registration URI
+                        </p>
+                        <p className="mt-1 text-sm text-cyan-300">Open registration document</p>
+                      </div>
+                      <ExternalLink className="h-4 w-4 text-cyan-300" />
+                    </a>
+                  ) : (
+                    <RegistryField
+                      label="Registration URI"
+                      value={null}
+                      href={null}
+                      theme={theme}
+                    />
+                  )}
+                </div>
+              </div>
+            ) : null}
           </div>
         </div>
       </section>
 
-      {agent.metaplex?.registered ? (
-        <section className="py-8">
-          <div className="container mx-auto px-4">
-            <div className="glass-card max-w-4xl">
-              <div className="flex items-center justify-between gap-4 mb-5">
-                <div>
-                  <h2 className="text-xl font-semibold">Metaplex Registry</h2>
-                  <p className="text-sm text-gray-400 mt-1">
-                    On-chain identity and execution delegation for this agent.
-                  </p>
-                </div>
-                <span className="rounded-full bg-fuchsia-500/10 px-3 py-1 text-[11px] font-mono uppercase tracking-[0.2em] text-fuchsia-300">
-                  {agent.metaplex.delegated ? "delegated" : "registered"}
-                </span>
-              </div>
-
-              <div className="grid gap-3 md:grid-cols-2">
-                {[
-                  ["Asset", agent.metaplex.asset_address, agent.metaplex.asset_address ? getAddressExplorerUrl(agent.metaplex.asset_address, "solana") : null],
-                  ["Collection", agent.metaplex.collection_address, agent.metaplex.collection_address ? getAddressExplorerUrl(agent.metaplex.collection_address, "solana") : null],
-                  ["Identity PDA", agent.metaplex.identity_pda, agent.metaplex.identity_pda ? getAddressExplorerUrl(agent.metaplex.identity_pda, "solana") : null],
-                  ["Executive PDA", agent.metaplex.executive_profile_pda, agent.metaplex.executive_profile_pda ? getAddressExplorerUrl(agent.metaplex.executive_profile_pda, "solana") : null],
-                ].map(([label, value, href]) => (
-                  <div key={label} className="rounded-2xl border border-white/10 bg-black/20 px-4 py-3">
-                    <p className="text-[11px] font-mono uppercase tracking-[0.2em] text-gray-500">{label}</p>
-                    <div className="mt-2 flex items-center gap-2">
-                      <span className="font-mono text-sm text-gray-300" title={value || ""}>
-                        {value ? truncateAddress(value, 8, 6) : "n/a"}
-                      </span>
-                      {href ? (
-                        <a
-                          href={href}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="rounded-full p-1.5 text-gray-400 transition-colors hover:bg-white/[0.06] hover:text-white"
-                        >
-                          <ExternalLink className="w-3.5 h-3.5" />
-                        </a>
-                      ) : null}
-                    </div>
-                  </div>
-                ))}
-              </div>
-
-              {agent.metaplex.registration_uri ? (
-                <div className="mt-4 rounded-2xl border border-white/10 bg-black/20 px-4 py-3">
-                  <p className="text-[11px] font-mono uppercase tracking-[0.2em] text-gray-500">Registration URI</p>
-                  <a
-                    href={agent.metaplex.registration_uri}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="mt-2 inline-flex items-center gap-2 text-sm text-cyan-300 hover:text-cyan-200"
-                  >
-                    open registration document
-                    <ExternalLink className="w-3.5 h-3.5" />
-                  </a>
-                </div>
-              ) : null}
-            </div>
-          </div>
-        </section>
-      ) : null}
-
-      {/* Collections */}
       <section className="py-12">
-        <div className="container mx-auto px-4">
-          <h2 className="text-2xl font-bold mb-8">Collections by {agent.name}</h2>
+        <div className="container mx-auto max-w-6xl px-4">
+          <h2 className="mb-8 text-2xl font-bold">Collections by {agent.name}</h2>
 
           {agent.collections.length === 0 ? (
-            <div className="glass-card text-center py-12 max-w-xl mx-auto">
-              <div className="text-4xl mb-4">📦</div>
-              <h3 className="text-lg font-semibold mb-2">No Collections Yet</h3>
-              <p className="text-gray-400">
-                This agent hasn&apos;t deployed any collections yet.
-              </p>
+            <div className="glass-card mx-auto max-w-xl py-12 text-center">
+              <div className="mb-4 text-4xl">[]</div>
+              <h3 className="mb-2 text-lg font-semibold">No Collections Yet</h3>
+              <p className="text-gray-400">This agent has not deployed any collections yet.</p>
             </div>
           ) : (
-            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
               {agent.collections.map((collection) => {
                 const href = `/collection/${collection.address}`;
                 const progress = collection.max_supply > 0 ? (collection.total_minted / collection.max_supply) * 100 : 0;
@@ -321,71 +455,78 @@ export default function AgentPage() {
 
                 return (
                   <Link key={collection.id} href={href}>
-                    <div className={clsx(
-                      "group relative h-full rounded-2xl overflow-hidden transition-all duration-300",
-                      theme === "dark"
-                        ? "bg-[#0d1117] ring-1 ring-white/[0.06] hover:ring-emerald-500/30 hover:shadow-2xl hover:shadow-emerald-500/10"
-                        : "bg-white ring-1 ring-gray-200 hover:ring-emerald-300 hover:shadow-2xl"
-                    )}>
-                      {/* Image */}
+                    <div
+                      className={clsx(
+                        "group relative h-full overflow-hidden rounded-2xl transition-all duration-300",
+                        theme === "dark"
+                          ? "bg-[#0d1117] ring-1 ring-white/[0.06] hover:ring-emerald-500/30 hover:shadow-2xl hover:shadow-emerald-500/10"
+                          : "bg-white ring-1 ring-gray-200 hover:ring-emerald-300 hover:shadow-2xl"
+                      )}
+                    >
                       <div className="relative aspect-[4/5] overflow-hidden">
                         {collection.image_url ? (
                           <img
                             src={collection.image_url}
                             alt={collection.name}
-                            className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-[1.05]"
+                            className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-[1.05]"
                           />
                         ) : (
-                          <div className={clsx(
-                            "w-full h-full flex items-center justify-center",
-                            theme === "dark"
-                              ? "bg-gradient-to-br from-emerald-900/30 to-gray-900"
-                              : "bg-gradient-to-br from-emerald-50 to-gray-100"
-                          )}>
-                            <Sparkles className="w-16 h-16 opacity-20" />
+                          <div
+                            className={clsx(
+                              "flex h-full w-full items-center justify-center",
+                              theme === "dark"
+                                ? "bg-gradient-to-br from-emerald-900/30 to-gray-900"
+                                : "bg-gradient-to-br from-emerald-50 to-gray-100"
+                            )}
+                          >
+                            <Sparkles className="h-16 w-16 opacity-20" />
                           </div>
                         )}
 
-                        {/* Gradient overlay */}
-                        <div className={clsx(
-                          "absolute inset-0 bg-gradient-to-t via-transparent",
-                          theme === "dark"
-                            ? "from-[#0d1117] via-transparent to-transparent"
-                            : "from-white via-transparent to-transparent"
-                        )} />
+                        <div
+                          className={clsx(
+                            "absolute inset-0 bg-gradient-to-t via-transparent",
+                            theme === "dark"
+                              ? "from-[#0d1117] via-transparent to-transparent"
+                              : "from-white via-transparent to-transparent"
+                          )}
+                        />
 
-                        {/* Price badge */}
-                        <div className={clsx(
-                          "absolute top-3 left-3 px-3 py-1.5 rounded-lg backdrop-blur-md text-sm font-bold",
-                          isFreeMint
-                            ? theme === "dark"
-                              ? "bg-emerald-500/20 text-emerald-400"
-                              : "bg-emerald-50 text-emerald-600"
-                            : theme === "dark"
-                              ? "bg-white/10 text-white"
-                              : "bg-white/90 text-gray-900"
-                        )}>
+                        <div
+                          className={clsx(
+                            "absolute left-3 top-3 rounded-lg px-3 py-1.5 text-sm font-bold backdrop-blur-md",
+                            isFreeMint
+                              ? theme === "dark"
+                                ? "bg-emerald-500/20 text-emerald-400"
+                                : "bg-emerald-50 text-emerald-600"
+                              : theme === "dark"
+                                ? "bg-white/10 text-white"
+                                : "bg-white/90 text-gray-900"
+                          )}
+                        >
                           {isFreeMint ? "FREE" : `${collection.mint_price_native} ${collection.native_token}`}
                         </div>
 
-                        {/* Status badge */}
-                        <div className="absolute top-3 right-3 flex items-center gap-1.5 px-2.5 py-1 bg-black/50 backdrop-blur-md rounded-lg">
-                          <span className={clsx(
-                            "w-1.5 h-1.5 rounded-full",
-                            collection.status === "SOLD_OUT" ? "bg-red-400" : "bg-emerald-400 animate-pulse"
-                          )} />
-                          <span className="text-[10px] uppercase tracking-widest font-bold text-white/90">{statusLabel}</span>
+                        <div className="absolute right-3 top-3 flex items-center gap-1.5 rounded-lg bg-black/50 px-2.5 py-1 backdrop-blur-md">
+                          <span
+                            className={clsx(
+                              "h-1.5 w-1.5 rounded-full",
+                              collection.status === "SOLD_OUT" ? "bg-red-400" : "bg-emerald-400 animate-pulse"
+                            )}
+                          />
+                          <span className="text-[10px] font-bold uppercase tracking-widest text-white/90">
+                            {statusLabel}
+                          </span>
                         </div>
 
-                        {/* Progress */}
                         <div className="absolute bottom-0 left-0 right-0 p-4">
-                          <div className={clsx("h-1 rounded-full overflow-hidden", theme === "dark" ? "bg-white/10" : "bg-black/10")}>
+                          <div className={clsx("h-1 overflow-hidden rounded-full", theme === "dark" ? "bg-white/10" : "bg-black/10")}>
                             <div
                               className="h-full rounded-full bg-gradient-to-r from-emerald-400 to-cyan-400 transition-all duration-700"
                               style={{ width: `${Math.min(progress, 100)}%` }}
                             />
                           </div>
-                          <div className="flex justify-between mt-1">
+                          <div className="mt-1 flex justify-between">
                             <span className={clsx("text-[10px] font-medium", theme === "dark" ? "text-white/50" : "text-gray-500")}>
                               {collection.total_minted.toLocaleString()}/{collection.max_supply.toLocaleString()}
                             </span>
@@ -396,18 +537,19 @@ export default function AgentPage() {
                         </div>
                       </div>
 
-                      {/* Info */}
                       <div className="p-4 pt-2">
-                        <h3 className="font-bold group-hover:text-emerald-400 transition-colors line-clamp-1 mb-2">
+                        <h3 className="mb-2 line-clamp-1 font-bold transition-colors group-hover:text-emerald-400">
                           {collection.name}
                         </h3>
-                        <div className={clsx(
-                          "flex items-center justify-between text-xs",
-                          theme === "dark" ? "text-gray-500" : "text-gray-400"
-                        )}>
+                        <div
+                          className={clsx(
+                            "flex items-center justify-between text-xs",
+                            theme === "dark" ? "text-gray-500" : "text-gray-400"
+                          )}
+                        >
                           <span>by {agent.name}</span>
-                          <span className="flex items-center gap-1 text-emerald-400 font-semibold">
-                            Mint <ArrowRight className="w-3 h-3" />
+                          <span className="flex items-center gap-1 font-semibold text-emerald-400">
+                            Mint <ArrowRight className="h-3 w-3" />
                           </span>
                         </div>
                       </div>

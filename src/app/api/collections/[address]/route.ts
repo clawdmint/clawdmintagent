@@ -64,6 +64,11 @@ export async function GET(
     let currentCollection = collection;
     const onchain = await fetchOnchainData(collection.mintAddress, collection.mintEngine, collection.maxSupply);
     const resolvedImageUrl = await resolveCollectionImageUrl(collection.imageUrl, collection.baseUri);
+    const holderRows = await prisma.mint.findMany({
+      where: { collectionId: collection.id },
+      distinct: ["minterAddress"],
+      select: { minterAddress: true },
+    });
 
     if (resolvedImageUrl && resolvedImageUrl !== collection.imageUrl) {
       try {
@@ -165,6 +170,7 @@ export async function GET(
         base_uri: currentCollection.baseUri,
         max_supply: currentCollection.maxSupply,
         total_minted: currentCollection.totalMinted,
+        holders_count: holderRows.length,
         mint_price_raw: currentCollection.mintPrice,
         mint_price_native: formatCollectionMintPrice(currentCollection.mintPrice, currentCollection.chain),
         royalty_bps: currentCollection.royaltyBps,

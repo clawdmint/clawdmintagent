@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { SOLANA_COLLECTION_CHAINS } from "@/lib/collection-chains";
+import { filterVisiblePublicCollections, PUBLIC_COLLECTION_STATUSES } from "@/lib/public-collections";
 
 // Force dynamic rendering (prevents static generation errors on Netlify)
 export const dynamic = 'force-dynamic';
@@ -21,7 +22,7 @@ export async function GET(request: NextRequest) {
 
     // Get all registered agents (excluding suspended/banned)
     const statusFilter = { status: { notIn: ["SUSPENDED", "BANNED"] } };
-    const [agents, total, groupedCollections] = await Promise.all([
+    const [agents, total, publicCollections] = await Promise.all([
       prisma.agent.findMany({
         where: statusFilter,
         orderBy: { createdAt: "desc" },
@@ -29,14 +30,25 @@ export async function GET(request: NextRequest) {
         take: limit,
       }),
       prisma.agent.count({ where: statusFilter }),
-      prisma.collection.groupBy({
-        by: ["agentId"],
-        where: { chain: { in: SOLANA_COLLECTION_CHAINS } },
-        _count: { _all: true },
+      prisma.collection.findMany({
+        where: {
+          chain: { in: SOLANA_COLLECTION_CHAINS },
+          status: { in: [...PUBLIC_COLLECTION_STATUSES] },
+        },
+        select: {
+          agentId: true,
+          address: true,
+        },
       }),
     ]);
 
-    const collectionCountByAgent = new Map(groupedCollections.map((row) => [row.agentId, row._count._all]));
+    const collectionCountByAgent = filterVisiblePublicCollections(publicCollections).reduce(
+      (map, collection) => {
+        map.set(collection.agentId, (map.get(collection.agentId) || 0) + 1);
+        return map;
+      },
+      new Map<string, number>(),
+    );
 
     return NextResponse.json({
       success: true,
