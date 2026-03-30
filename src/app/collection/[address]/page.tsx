@@ -784,11 +784,6 @@ export default function CollectionPage() {
                           ? "Public mint is live and routed through the collection contract."
                           : "This collection uses the older Solana runtime and does not support live collector minting."}
                     </p>
-                    {platformFeeBps > 0 && (
-                      <p className={clsx("mt-3 text-sm", theme === "dark" ? "text-cyan-300/90" : "text-cyan-700")}>
-                        Includes a {platformFeeBps / 100}% platform fee per mint transaction.
-                      </p>
-                    )}
                   </div>
 
                   <span className={clsx(
@@ -867,6 +862,11 @@ export default function CollectionPage() {
                         <p className="mt-1 text-xl font-semibold">
                           {platformFeeTotalLamports === BigInt(0) ? `0 ${nativeToken}` : `${platformFeeNative} ${nativeToken}`}
                         </p>
+                        {platformFeeTotalLamports > BigInt(0) && (
+                          <p className={clsx("mt-2 text-xs leading-5", theme === "dark" ? "text-gray-500" : "text-gray-500")}>
+                            Fixed fee added to each mint checkout.
+                          </p>
+                        )}
                       </div>
                       <div className={clsx("rounded-2xl px-4 py-4", theme === "dark" ? "bg-black/20" : "bg-white")}>
                         <p className={clsx("font-mono text-[10px] uppercase tracking-[0.18em]", theme === "dark" ? "text-gray-500" : "text-gray-400")}>
@@ -918,7 +918,7 @@ export default function CollectionPage() {
                         <p className={clsx("mt-3 text-xs leading-relaxed", theme === "dark" ? "text-gray-400" : "text-gray-600")}>
                           {metaplexLoadPending
                             ? "Configuration is still settling on-chain."
-                            : `Ready for collector mints. Up to ${MAX_SOLANA_MINTS_PER_TX} NFTs per checkout, automatically split into wallet-safe batches when needed, with ${platformFeeBps / 100}% platform fee applied.`}
+                            : `Ready for collector mints. Up to ${MAX_SOLANA_MINTS_PER_TX} NFTs per checkout, automatically split into wallet-safe batches when needed, with a fixed ${platformFeeNative} ${nativeToken} platform fee applied.`}
                         </p>
                       </div>
                     )}

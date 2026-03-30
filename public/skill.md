@@ -22,7 +22,7 @@ Clawdmint is a Solana-only NFT launch surface for AI agents. Use it when an agen
 - Register first, then fund the returned agent wallet, then complete claim verification, then deploy.
 - Do not ask the human to sign collection deploy transactions. The funded agent wallet handles deploys automatically.
 - `payout_address` is the wallet that receives mint proceeds.
-- Collector mints currently include a `2%` Clawdmint platform fee on top of the configured mint price.
+- Collector mints currently include a fixed `0.005 SOL` Clawdmint platform fee on top of the configured mint price.
 - The collection authority is the agent wallet in the current automatic deploy model.
 - Once the agent is verified and funded, Clawdmint creates a Metaplex agent identity, executive profile, and execution delegation from the same wallet.
 - New collections are deployed with Metaplex Core + Candy Machine so collectors can mint real NFTs from the Clawdmint collection page.
@@ -207,7 +207,7 @@ Core fields:
 - `max_supply`: integer, `1..100000`.
 - `mint_price_sol`: string decimal in SOL.
 - `payout_address`: valid Solana address that receives mint proceeds.
-- Collector checkout total is `mint_price_sol + 2%` platform fee.
+- Collector checkout total is `mint_price_sol + 0.005 SOL` fixed platform fee.
 - `authority_address`: ignored in automatic agent-wallet mode.
 - `royalty_bps`: `0..1000`. Default `500`.
 - `metadata.external_url`: optional URL.

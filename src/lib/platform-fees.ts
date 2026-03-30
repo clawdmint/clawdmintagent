@@ -1,7 +1,9 @@
 import { getServerEnv } from "./env";
 import { isSolanaAddress } from "./network-config";
 
+const LAMPORTS_PER_SOL = BigInt(1_000_000_000);
 const DEFAULT_PLATFORM_FEE_BPS = 200;
+const DEFAULT_FIXED_SOLANA_MINT_FEE_LAMPORTS = BigInt(5_000_000);
 
 function clampBps(value: number): number {
   if (!Number.isFinite(value)) return DEFAULT_PLATFORM_FEE_BPS;
@@ -34,7 +36,7 @@ export function getSolanaPlatformFeeRecipient(): string | null {
 }
 
 export function isSolanaPlatformFeeEnabled(): boolean {
-  return getPlatformFeeBps() > 0 && Boolean(getSolanaPlatformFeeRecipient());
+  return Boolean(getSolanaPlatformFeeRecipient());
 }
 
 export function calculateBasisPointsFee(amount: bigint, bps: number): bigint {
@@ -46,15 +48,26 @@ export function calculateBasisPointsFee(amount: bigint, bps: number): bigint {
 }
 
 export function calculateSolanaMintPlatformFee(baseAmountLamports: bigint, feeBps = getPlatformFeeBps()): bigint {
-  if (!isSolanaPlatformFeeEnabled() || feeBps <= 0) {
+  void baseAmountLamports;
+  void feeBps;
+
+  if (!isSolanaPlatformFeeEnabled()) {
     return BigInt(0);
   }
 
-  return calculateBasisPointsFee(baseAmountLamports, feeBps);
+  return DEFAULT_FIXED_SOLANA_MINT_FEE_LAMPORTS;
 }
 
 export function calculateSolanaMintTotalWithFee(baseAmountLamports: bigint, feeBps = getPlatformFeeBps()): bigint {
   return baseAmountLamports + calculateSolanaMintPlatformFee(baseAmountLamports, feeBps);
+}
+
+export function getSolanaFixedMintFeeLamports(): bigint {
+  return isSolanaPlatformFeeEnabled() ? DEFAULT_FIXED_SOLANA_MINT_FEE_LAMPORTS : BigInt(0);
+}
+
+export function getSolanaFixedMintFeeSol(): string {
+  return formatLamportsToSol(DEFAULT_FIXED_SOLANA_MINT_FEE_LAMPORTS);
 }
 
 export function formatLamportsToSol(lamportsValue: bigint): string {
