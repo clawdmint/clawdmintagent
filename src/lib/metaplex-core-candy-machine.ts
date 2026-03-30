@@ -25,13 +25,21 @@ import {
 import { createUmi } from "@metaplex-foundation/umi-bundle-defaults";
 import {
   fromWeb3JsKeypair,
+  fromWeb3JsInstruction,
   toWeb3JsLegacyTransaction,
 } from "@metaplex-foundation/umi-web3js-adapters";
 import {
   Connection,
   Keypair,
+  PublicKey as Web3PublicKey,
+  SystemProgram,
 } from "@solana/web3.js";
 import { getSolanaRpcUrl } from "./solana-collections";
+import {
+  calculateSolanaMintPlatformFee,
+  getPlatformFeeBps,
+  getSolanaPlatformFeeRecipient,
+} from "./platform-fees";
 
 export const METAPLEX_MINT_ENGINE = "metaplex_core_candy_machine";
 export const LEGACY_SOLANA_MINT_ENGINE = "legacy_solana_program";
@@ -105,11 +113,15 @@ export interface MetaplexMintPrepareParams {
   payoutAddress: string;
   quantity: number;
   mintPriceLamports: bigint;
+  platformFeeRecipient?: string | null;
+  platformFeeBps?: number;
 }
 
 export interface MetaplexMintPrepareResult {
   serializedTransactionBase64: string;
   assetAddresses: string[];
+  basePaidLamports: string;
+  platformFeeLamports: string;
   totalPaidLamports: string;
 }
 
@@ -545,6 +557,13 @@ export async function prepareMetaplexMintTransaction(
     base: publicKey(params.candyMachineAddress),
   })[0];
   const assetSigners = Array.from({ length: params.quantity }, () => generateSigner(umi));
+  const basePaidLamports = params.mintPriceLamports * BigInt(params.quantity);
+  const configuredPlatformFeeBps = params.platformFeeBps ?? getPlatformFeeBps();
+  const platformFeeRecipient = params.platformFeeRecipient ?? getSolanaPlatformFeeRecipient();
+  const platformFeeLamports =
+    platformFeeRecipient && configuredPlatformFeeBps > 0
+      ? calculateSolanaMintPlatformFee(basePaidLamports, configuredPlatformFeeBps)
+      : BigInt(0);
 
   let builder = transactionBuilder().useLegacyVersion();
   for (const assetSigner of assetSigners) {
@@ -560,6 +579,20 @@ export async function prepareMetaplexMintTransaction(
         mintArgs,
       })
     );
+  }
+
+  if (platformFeeLamports > BigInt(0) && platformFeeRecipient) {
+    builder = builder.add({
+      instruction: fromWeb3JsInstruction(
+        SystemProgram.transfer({
+          fromPubkey: new Web3PublicKey(params.walletAddress),
+          toPubkey: new Web3PublicKey(platformFeeRecipient),
+          lamports: Number(platformFeeLamports),
+        })
+      ),
+      signers: [],
+      bytesCreatedOnChain: 0,
+    });
   }
 
   if (!builder.fitsInOneTransaction(umi)) {
@@ -582,6 +615,8 @@ export async function prepareMetaplexMintTransaction(
   return {
     serializedTransactionBase64: Buffer.from(serialized).toString("base64"),
     assetAddresses: assetSigners.map((signer) => signer.publicKey),
-    totalPaidLamports: (params.mintPriceLamports * BigInt(params.quantity)).toString(),
+    basePaidLamports: basePaidLamports.toString(),
+    platformFeeLamports: platformFeeLamports.toString(),
+    totalPaidLamports: (basePaidLamports + platformFeeLamports).toString(),
   };
 }

@@ -11,6 +11,12 @@ import {
   LEGACY_SOLANA_MINT_ENGINE,
   METAPLEX_MINT_ENGINE,
 } from "@/lib/metaplex-core-candy-machine";
+import {
+  calculateSolanaMintPlatformFee,
+  formatLamportsToSol,
+  getPlatformFeeBps,
+  getSolanaPlatformFeeRecipient,
+} from "@/lib/platform-fees";
 
 export const dynamic = "force-dynamic";
 
@@ -135,6 +141,11 @@ export async function GET(
     const publicCollectionUrl = `${appUrl}/collection/${currentCollection.address}`;
     const mintEngine = currentCollection.mintEngine || LEGACY_SOLANA_MINT_ENGINE;
     const isMetaplexMint = mintEngine === METAPLEX_MINT_ENGINE && Boolean(currentCollection.mintAddress);
+    const mintPriceLamports = BigInt(currentCollection.mintPrice);
+    const platformFeeRecipient = getSolanaPlatformFeeRecipient();
+    const platformFeeBps = platformFeeRecipient ? getPlatformFeeBps() : 0;
+    const platformFeeLamports = calculateSolanaMintPlatformFee(mintPriceLamports, platformFeeBps);
+    const totalMintCostLamports = mintPriceLamports + platformFeeLamports;
     const mintEnabled =
       isMetaplexMint &&
       currentCollection.status !== "FAILED" &&
@@ -173,6 +184,11 @@ export async function GET(
         holders_count: holderRows.length,
         mint_price_raw: currentCollection.mintPrice,
         mint_price_native: formatCollectionMintPrice(currentCollection.mintPrice, currentCollection.chain),
+        platform_fee_bps: platformFeeBps,
+        platform_fee_raw: platformFeeLamports.toString(),
+        platform_fee_native: formatLamportsToSol(platformFeeLamports),
+        total_mint_price_raw: totalMintCostLamports.toString(),
+        total_mint_price_native: formatLamportsToSol(totalMintCostLamports),
         royalty_bps: currentCollection.royaltyBps,
         payout_address: currentCollection.payoutAddress,
         authority_address: currentCollection.authorityAddress,

@@ -6,7 +6,7 @@ import { useWriteContract, useWaitForTransactionReceipt } from "wagmi";
 import { getPhantomProvider, useWallet } from "@/components/wallet-context";
 import Link from "next/link";
 import Image from "next/image";
-import { Connection, Transaction, VersionedTransaction, clusterApiUrl } from "@solana/web3.js";
+import { Transaction, VersionedTransaction } from "@solana/web3.js";
 import { COLLECTION_ABI } from "@/lib/contracts";
 import { useTheme } from "@/components/theme-provider";
 import { clsx } from "clsx";
@@ -22,7 +22,6 @@ import {
   getTransactionExplorerUrl,
 } from "@/lib/network-config";
 import { NetworkLogo } from "@/components/network-icons";
-import { getClientEnv } from "@/lib/env";
 const AGENTS_CONTRACT = (process.env["NEXT_PUBLIC_AGENTS_CONTRACT"] || "").toLowerCase();
 const MIN_COLLECTION_IMAGE_DIMENSION = 256;
 const MAX_SOLANA_MINTS_PER_TX = 10;
@@ -48,6 +47,11 @@ interface Collection {
   holders_count?: number;
   mint_price_raw: string;
   mint_price_native: string;
+  platform_fee_bps?: number;
+  platform_fee_raw?: string;
+  platform_fee_native?: string;
+  total_mint_price_raw?: string;
+  total_mint_price_native?: string;
   royalty_bps: number;
   payout_address: string;
   authority_address?: string | null;
@@ -88,6 +92,25 @@ function deserializeSolanaTransaction(serializedBase64: string): Transaction | V
   } catch {
     return Transaction.from(bytes);
   }
+}
+
+function formatSolLamports(value: bigint): string {
+  const whole = value / BigInt(1_000_000_000);
+  const fraction = value % BigInt(1_000_000_000);
+
+  if (fraction === BigInt(0)) {
+    return whole.toString();
+  }
+
+  return `${whole}.${fraction.toString().padStart(9, "0").replace(/0+$/, "")}`;
+}
+
+function bytesToBase64(bytes: Uint8Array): string {
+  let binary = "";
+  for (let index = 0; index < bytes.length; index += 1) {
+    binary += String.fromCharCode(bytes[index]);
+  }
+  return window.btoa(binary);
 }
 
 async function confirmSolanaMintWithRetry(
@@ -275,25 +298,16 @@ export default function CollectionPage() {
   };
 
   const signAndBroadcastSolanaTransaction = useCallback(
-    async (connection: Connection, serializedBase64: string) => {
+    async (
+      serializedBase64: string,
+      broadcastEndpoint: string
+    ) => {
       const provider = getPhantomProvider();
       if (!provider) {
         throw new Error("Phantom transaction signing is unavailable");
       }
 
       const transaction = deserializeSolanaTransaction(serializedBase64);
-
-      if (provider.signAndSendTransaction) {
-        const { signature } = await provider.signAndSendTransaction(
-          transaction as Transaction | VersionedTransaction,
-          {
-            skipPreflight: false,
-            maxRetries: 3,
-            preflightCommitment: "confirmed",
-          }
-        );
-        return signature;
-      }
 
       if (!provider.signTransaction) {
         throw new Error("Phantom transaction signing is unavailable");
@@ -303,11 +317,25 @@ export default function CollectionPage() {
         transaction as Transaction | VersionedTransaction
       )) as Transaction | VersionedTransaction;
 
-      const signature = await connection.sendRawTransaction(signedTransaction.serialize(), {
-        skipPreflight: false,
-        maxRetries: 3,
+      const serializedSignedTransaction =
+        signedTransaction instanceof VersionedTransaction
+          ? signedTransaction.serialize()
+          : signedTransaction.serialize();
+
+      const broadcastResponse = await fetch(broadcastEndpoint, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          signed_transaction_base64: bytesToBase64(serializedSignedTransaction),
+        }),
       });
-      return signature;
+
+      const broadcastPayload = await broadcastResponse.json().catch(() => null);
+      if (!broadcastResponse.ok || !broadcastPayload?.success || !broadcastPayload?.tx_hash) {
+        throw new Error(broadcastPayload?.error || "Failed to broadcast Solana mint transaction");
+      }
+
+      return broadcastPayload.tx_hash as string;
     },
     []
   );
@@ -336,14 +364,9 @@ export default function CollectionPage() {
         throw new Error(preparePayload.error || "Failed to prepare Solana mint");
       }
 
-      const { solanaCluster, solanaRpcUrl } = getClientEnv();
-      const connection = new Connection(
-        solanaRpcUrl || clusterApiUrl(solanaCluster === "devnet" ? "devnet" : "mainnet-beta"),
-        "confirmed"
-      );
       const signature = await signAndBroadcastSolanaTransaction(
-        connection,
-        preparePayload.mint.transaction_base64
+        preparePayload.mint.transaction_base64,
+        preparePayload.mint.broadcast_endpoint
       );
       setSolanaMintTxHash(signature);
 
@@ -431,12 +454,19 @@ export default function CollectionPage() {
   const isMetaplexMintCollection = collection.mint_engine === "metaplex_core_candy_machine";
   const nativeToken = collection.native_token || getCollectionNativeToken(collection.chain);
   const mintPriceNative = collection.mint_price_native || formatCollectionMintPrice(collection.mint_price_raw, collection.chain);
-  const totalCost = parseFloat(mintPriceNative || "0") * quantity;
+  const mintPriceLamports = BigInt(collection.mint_price_raw || "0");
+  const unitPlatformFeeLamports = BigInt(collection.platform_fee_raw || "0");
+  const platformFeeBps = collection.platform_fee_bps || 0;
+  const baseSubtotalLamports = mintPriceLamports * BigInt(quantity);
+  const platformFeeTotalLamports = unitPlatformFeeLamports * BigInt(quantity);
+  const totalCostLamports = baseSubtotalLamports + platformFeeTotalLamports;
+  const baseSubtotalNative = formatSolLamports(baseSubtotalLamports);
+  const platformFeeNative = formatSolLamports(platformFeeTotalLamports);
+  const totalCostNative = formatSolLamports(totalCostLamports);
   const isSoldOut = collection.onchain?.is_sold_out || collection.status === "SOLD_OUT";
   const remaining = collection.onchain?.remaining || (collection.max_supply - collection.total_minted).toString();
   const totalMinted = collection.onchain?.total_minted || collection.total_minted.toString();
   const progress = (parseInt(totalMinted) / collection.max_supply) * 100;
-  const mintPriceValue = parseFloat(mintPriceNative || "0");
   const metaplexLoadPending = Boolean(isMetaplexMintCollection && collection.onchain?.is_fully_loaded === false);
   const metaplexStatusLabel = !isMetaplexMintCollection
     ? "Legacy"
@@ -474,6 +504,10 @@ export default function CollectionPage() {
       : isEvmCollection
         ? "Mint live"
         : "Legacy";
+  const topMintPriceLabel =
+    mintPriceLamports === BigInt(0) && unitPlatformFeeLamports === BigInt(0)
+      ? "Free"
+      : `${formatSolLamports(mintPriceLamports + unitPlatformFeeLamports)} ${nativeToken}`;
 
   return (
     <div className="min-h-screen relative noise">
@@ -711,7 +745,7 @@ export default function CollectionPage() {
                       Primary mint
                     </p>
                     <h2 className="mt-3 text-4xl font-semibold tracking-tight">
-                      {mintPriceValue === 0 ? "Free" : `${mintPriceNative} ${nativeToken}`}
+                      {topMintPriceLabel}
                     </h2>
                     <p className={clsx("mt-3 max-w-sm text-[15px] leading-7", theme === "dark" ? "text-gray-400" : "text-gray-600")}>
                       {isMetaplexMintCollection
@@ -720,6 +754,11 @@ export default function CollectionPage() {
                           ? "Public mint is live and routed through the collection contract."
                           : "This collection uses the older Solana runtime and does not support live collector minting."}
                     </p>
+                    {platformFeeBps > 0 && (
+                      <p className={clsx("mt-3 text-sm", theme === "dark" ? "text-cyan-300/90" : "text-cyan-700")}>
+                        Includes a {platformFeeBps / 100}% platform fee per mint transaction.
+                      </p>
+                    )}
                   </div>
 
                   <span className={clsx(
@@ -780,10 +819,26 @@ export default function CollectionPage() {
                     <div className="mt-5 grid gap-3 sm:grid-cols-2">
                       <div className={clsx("rounded-2xl px-4 py-4", theme === "dark" ? "bg-black/20" : "bg-white")}>
                         <p className={clsx("font-mono text-[10px] uppercase tracking-[0.18em]", theme === "dark" ? "text-gray-500" : "text-gray-400")}>
-                          Total
+                          Base subtotal
                         </p>
                         <p className="mt-1 text-xl font-semibold">
-                          {totalCost === 0 ? "Free" : `${totalCost.toFixed(4)} ${nativeToken}`}
+                          {baseSubtotalLamports === BigInt(0) ? "Free" : `${baseSubtotalNative} ${nativeToken}`}
+                        </p>
+                      </div>
+                      <div className={clsx("rounded-2xl px-4 py-4", theme === "dark" ? "bg-black/20" : "bg-white")}>
+                        <p className={clsx("font-mono text-[10px] uppercase tracking-[0.18em]", theme === "dark" ? "text-gray-500" : "text-gray-400")}>
+                          Platform fee
+                        </p>
+                        <p className="mt-1 text-xl font-semibold">
+                          {platformFeeTotalLamports === BigInt(0) ? `0 ${nativeToken}` : `${platformFeeNative} ${nativeToken}`}
+                        </p>
+                      </div>
+                      <div className={clsx("rounded-2xl px-4 py-4", theme === "dark" ? "bg-black/20" : "bg-white")}>
+                        <p className={clsx("font-mono text-[10px] uppercase tracking-[0.18em]", theme === "dark" ? "text-gray-500" : "text-gray-400")}>
+                          Total due
+                        </p>
+                        <p className="mt-1 text-xl font-semibold">
+                          {totalCostLamports === BigInt(0) ? "Free" : `${totalCostNative} ${nativeToken}`}
                         </p>
                       </div>
                       <div className={clsx("rounded-2xl px-4 py-4", theme === "dark" ? "bg-black/20" : "bg-white")}>
@@ -828,7 +883,7 @@ export default function CollectionPage() {
                         <p className={clsx("mt-3 text-xs leading-relaxed", theme === "dark" ? "text-gray-400" : "text-gray-600")}>
                           {metaplexLoadPending
                             ? "Configuration is still settling on-chain."
-                            : `Ready for collector mints. Up to ${MAX_SOLANA_MINTS_PER_TX} NFTs per transaction.`}
+                            : `Ready for collector mints. Up to ${MAX_SOLANA_MINTS_PER_TX} NFTs per transaction, with ${platformFeeBps / 100}% platform fee applied to checkout.`}
                         </p>
                       </div>
                     )}

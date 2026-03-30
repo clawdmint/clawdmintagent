@@ -9,6 +9,7 @@ import {
   prepareMetaplexMintTransaction,
   MetaplexMintError,
 } from "@/lib/metaplex-core-candy-machine";
+import { getPlatformFeeBps, getSolanaPlatformFeeRecipient } from "@/lib/platform-fees";
 
 export const dynamic = "force-dynamic";
 
@@ -88,6 +89,9 @@ export async function POST(
       );
     }
 
+    const platformFeeRecipient = getSolanaPlatformFeeRecipient();
+    const platformFeeBps = platformFeeRecipient ? getPlatformFeeBps() : 0;
+
     const prepared = await prepareMetaplexMintTransaction({
       walletAddress,
       collectionAddress: collection.address,
@@ -95,6 +99,8 @@ export async function POST(
       payoutAddress: collection.payoutAddress,
       quantity,
       mintPriceLamports: BigInt(collection.mintPrice),
+      platformFeeBps,
+      platformFeeRecipient,
     });
 
     const intent = await prisma.mintIntent.create({
@@ -115,9 +121,13 @@ export async function POST(
         collection_address: collection.address,
         mint_address: collection.mintAddress,
         quantity,
+        base_paid_lamports: prepared.basePaidLamports,
+        platform_fee_bps: platformFeeBps,
+        platform_fee_lamports: prepared.platformFeeLamports,
         total_paid_lamports: prepared.totalPaidLamports,
         transaction_base64: prepared.serializedTransactionBase64,
         asset_addresses: prepared.assetAddresses,
+        broadcast_endpoint: `/api/collections/${collection.address}/mint/broadcast`,
         confirm_endpoint: `/api/collections/${collection.address}/mint/confirm`,
         expires_at: intent.expiresAt.toISOString(),
       },

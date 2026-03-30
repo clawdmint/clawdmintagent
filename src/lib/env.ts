@@ -88,7 +88,8 @@ export function getServerEnv() {
     // Deployer (sensitive)
     deployerPrivateKey: getEnv("DEPLOYER_PRIVATE_KEY", ""),
     treasuryAddress: getEnv("TREASURY_ADDRESS", ""),
-    platformFeeBps: parseInt(getEnv("PLATFORM_FEE_BPS", "250")),
+    platformFeeBps: parseInt(getEnv("PLATFORM_FEE_BPS", "200")),
+    solanaPlatformFeeRecipient: getEnv("SOLANA_PLATFORM_FEE_RECIPIENT", getEnv("SOLANA_DEPLOYER_ADDRESS", "")),
     
     // IPFS (sensitive)
     pinataApiKey: getEnv("PINATA_API_KEY", ""),
@@ -215,6 +216,17 @@ export function validateEnv(forProduction = false): EnvValidationResult {
 
   if (walletEncryptionKey && walletEncryptionKey.length < 32) {
     warnings.push("AGENT_WALLET_ENCRYPTION_KEY should be at least 32 characters");
+  }
+
+  const platformFeeBps = parseInt(process.env["PLATFORM_FEE_BPS"] || "200");
+  const solanaFeeRecipient =
+    process.env["SOLANA_PLATFORM_FEE_RECIPIENT"] || process.env["SOLANA_DEPLOYER_ADDRESS"] || "";
+  if (
+    (process.env["NEXT_PUBLIC_NETWORK_FAMILY"] || "solana") === "solana" &&
+    platformFeeBps > 0 &&
+    !solanaFeeRecipient
+  ) {
+    warnings.push("SOLANA_PLATFORM_FEE_RECIPIENT not set - Solana platform fee collection will be disabled");
   }
   
   return {

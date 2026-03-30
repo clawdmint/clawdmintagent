@@ -2,6 +2,7 @@ import { PublicKey } from "@solana/web3.js";
 import { prisma } from "@/lib/db";
 import { SOLANA_COLLECTION_CHAINS } from "@/lib/collection-chains";
 import { METAPLEX_MINT_ENGINE, fetchMetaplexCandyMachineState } from "@/lib/metaplex-core-candy-machine";
+import { calculateSolanaMintTotalWithFee, getPlatformFeeBps, getSolanaPlatformFeeRecipient } from "@/lib/platform-fees";
 import { getSolanaConnection } from "@/lib/solana-collections";
 
 const PROFILE_MINT_SCAN_LIMIT = 25;
@@ -29,6 +30,8 @@ function getParsedTransactionAccountKeys(
 }
 
 export async function syncRecentMetaplexMintsForWallet(walletAddress: string) {
+  const platformFeeRecipient = getSolanaPlatformFeeRecipient();
+  const platformFeeBps = platformFeeRecipient ? getPlatformFeeBps() : 0;
   const connection = getSolanaConnection();
   const signatures = await connection.getSignaturesForAddress(new PublicKey(walletAddress), {
     limit: PROFILE_MINT_SCAN_LIMIT,
@@ -100,7 +103,10 @@ export async function syncRecentMetaplexMintsForWallet(walletAddress: string) {
         collectionId: collection.id,
         minterAddress: walletAddress,
         quantity,
-        totalPaid: (BigInt(collection.mintPrice) * BigInt(quantity)).toString(),
+        totalPaid: calculateSolanaMintTotalWithFee(
+          BigInt(collection.mintPrice) * BigInt(quantity),
+          platformFeeBps
+        ).toString(),
         txHash: signatureInfo.signature,
         startTokenId,
         endTokenId,
