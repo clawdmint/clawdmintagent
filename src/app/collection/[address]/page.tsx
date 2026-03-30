@@ -25,6 +25,7 @@ import { NetworkLogo } from "@/components/network-icons";
 const AGENTS_CONTRACT = (process.env["NEXT_PUBLIC_AGENTS_CONTRACT"] || "").toLowerCase();
 const MIN_COLLECTION_IMAGE_DIMENSION = 256;
 const MAX_SOLANA_MINTS_PER_TX = 10;
+const PHANTOM_SAFE_SOLANA_MINT_BATCH_SIZE = 3;
 
 interface Collection {
   id: string;
@@ -111,6 +112,19 @@ function bytesToBase64(bytes: Uint8Array): string {
     binary += String.fromCharCode(bytes[index]);
   }
   return window.btoa(binary);
+}
+
+function buildSolanaMintBatchPlan(quantity: number): number[] {
+  const batches: number[] = [];
+  let remaining = quantity;
+
+  while (remaining > 0) {
+    const nextBatch = Math.min(PHANTOM_SAFE_SOLANA_MINT_BATCH_SIZE, remaining);
+    batches.push(nextBatch);
+    remaining -= nextBatch;
+  }
+
+  return batches;
 }
 
 async function confirmSolanaMintWithRetry(
@@ -299,6 +313,7 @@ export default function CollectionPage() {
 
   const signAndBroadcastSolanaTransaction = useCallback(
     async (
+      intentId: string,
       serializedBase64: string,
       broadcastEndpoint: string
     ) => {
@@ -320,12 +335,16 @@ export default function CollectionPage() {
       const serializedSignedTransaction =
         signedTransaction instanceof VersionedTransaction
           ? signedTransaction.serialize()
-          : signedTransaction.serialize();
+          : signedTransaction.serialize({
+              requireAllSignatures: false,
+              verifySignatures: false,
+            });
 
       const broadcastResponse = await fetch(broadcastEndpoint, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
+          intent_id: intentId,
           signed_transaction_base64: bytesToBase64(serializedSignedTransaction),
         }),
       });
@@ -351,35 +370,46 @@ export default function CollectionPage() {
     setSolanaMintTxHash(null);
 
     try {
-      const prepareResponse = await fetch(collection.mint_prepare_endpoint, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          wallet_address: solanaAddress,
-          quantity,
-        }),
-      });
-      const preparePayload = await prepareResponse.json();
-      if (!prepareResponse.ok || !preparePayload.success || !preparePayload.mint?.transaction_base64) {
-        throw new Error(preparePayload.error || "Failed to prepare Solana mint");
+      const batchPlan = buildSolanaMintBatchPlan(quantity);
+      const signatures: string[] = [];
+
+      for (const batchQuantity of batchPlan) {
+        const prepareResponse = await fetch(collection.mint_prepare_endpoint, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            wallet_address: solanaAddress,
+            quantity: batchQuantity,
+          }),
+        });
+        const preparePayload = await prepareResponse.json();
+        if (!prepareResponse.ok || !preparePayload.success || !preparePayload.mint?.transaction_base64) {
+          throw new Error(preparePayload.error || "Failed to prepare Solana mint");
+        }
+
+        const signature = await signAndBroadcastSolanaTransaction(
+          preparePayload.mint.intent_id,
+          preparePayload.mint.transaction_base64,
+          preparePayload.mint.broadcast_endpoint
+        );
+        signatures.push(signature);
+        setSolanaMintTxHash(signature);
+
+        await confirmSolanaMintWithRetry(
+          collection.mint_confirm_endpoint,
+          {
+            intent_id: preparePayload.mint.intent_id,
+            wallet_address: solanaAddress,
+            tx_hash: signature,
+          }
+        );
       }
 
-      const signature = await signAndBroadcastSolanaTransaction(
-        preparePayload.mint.transaction_base64,
-        preparePayload.mint.broadcast_endpoint
+      setMintSuccess(
+        batchPlan.length > 1
+          ? `Minted ${quantity} NFTs on Solana across ${batchPlan.length} wallet-safe transactions.`
+          : `Minted ${quantity} NFT${quantity > 1 ? "s" : ""} on Solana.`
       );
-      setSolanaMintTxHash(signature);
-
-      await confirmSolanaMintWithRetry(
-        collection.mint_confirm_endpoint,
-        {
-          intent_id: preparePayload.mint.intent_id,
-          wallet_address: solanaAddress,
-          tx_hash: signature,
-        }
-      );
-
-      setMintSuccess(`Minted ${quantity} NFT${quantity > 1 ? "s" : ""} on Solana.`);
       await loadCollection();
     } catch (error) {
       console.error("Solana mint failed:", error);
@@ -786,6 +816,11 @@ export default function CollectionPage() {
                         <p className={clsx("mt-1 text-sm", theme === "dark" ? "text-gray-400" : "text-gray-600")}>
                           Choose up to {maxMintableQuantity} in one checkout
                         </p>
+                        {!isEvmCollection && maxMintableQuantity > 1 && (
+                          <p className={clsx("mt-2 text-xs leading-5", theme === "dark" ? "text-gray-500" : "text-gray-500")}>
+                            Larger Solana checkouts are split into smaller Phantom-safe signing batches.
+                          </p>
+                        )}
                       </div>
                       <div className="flex items-center gap-4">
                         <button
@@ -883,7 +918,7 @@ export default function CollectionPage() {
                         <p className={clsx("mt-3 text-xs leading-relaxed", theme === "dark" ? "text-gray-400" : "text-gray-600")}>
                           {metaplexLoadPending
                             ? "Configuration is still settling on-chain."
-                            : `Ready for collector mints. Up to ${MAX_SOLANA_MINTS_PER_TX} NFTs per transaction, with ${platformFeeBps / 100}% platform fee applied to checkout.`}
+                            : `Ready for collector mints. Up to ${MAX_SOLANA_MINTS_PER_TX} NFTs per checkout, automatically split into wallet-safe batches when needed, with ${platformFeeBps / 100}% platform fee applied.`}
                         </p>
                       </div>
                     )}

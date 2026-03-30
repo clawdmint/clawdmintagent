@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/db";
+import { parseMintIntentAssetPayload } from "@/lib/metaplex-mint-intent";
 import { getSolanaConnection } from "@/lib/solana-collections";
 import {
   fetchMetaplexCandyMachineState,
@@ -118,7 +119,9 @@ export async function POST(
       );
     }
 
-    const expectedAssetAddresses = JSON.parse(intent.assetAddresses) as string[];
+    const { assetAddresses: expectedAssetAddresses } = parseMintIntentAssetPayload(
+      intent.assetAddresses
+    );
     const connection = getSolanaConnection();
     const signatureStatus = await connection.getSignatureStatus(txHash, {
       searchTransactionHistory: true,

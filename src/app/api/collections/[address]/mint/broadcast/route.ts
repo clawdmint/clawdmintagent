@@ -1,13 +1,16 @@
 import { Buffer } from "buffer";
 import { NextRequest, NextResponse } from "next/server";
+import { Keypair, Transaction } from "@solana/web3.js";
 import { z } from "zod";
 import { prisma } from "@/lib/db";
+import { parseMintIntentAssetPayload } from "@/lib/metaplex-mint-intent";
 import { getSolanaConnection } from "@/lib/solana-collections";
 import { METAPLEX_MINT_ENGINE } from "@/lib/metaplex-core-candy-machine";
 
 export const dynamic = "force-dynamic";
 
 const BroadcastMintSchema = z.object({
+  intent_id: z.string().min(1),
   signed_transaction_base64: z.string().min(1),
 });
 
@@ -53,15 +56,58 @@ export async function POST(
       );
     }
 
-    const connection = getSolanaConnection();
-    const txHash = await connection.sendRawTransaction(
-      Buffer.from(validation.data.signed_transaction_base64, "base64"),
-      {
-        skipPreflight: false,
-        maxRetries: 3,
-        preflightCommitment: "confirmed",
-      }
+    const mintIntent = await prisma.mintIntent.findFirst({
+      where: {
+        id: validation.data.intent_id,
+        collectionId: collection.id,
+      },
+      select: {
+        id: true,
+        expiresAt: true,
+        consumedAt: true,
+        assetAddresses: true,
+      },
+    });
+
+    if (!mintIntent) {
+      return NextResponse.json(
+        { success: false, error: "Mint intent not found" },
+        { status: 404 }
+      );
+    }
+
+    if (mintIntent.consumedAt) {
+      return NextResponse.json(
+        { success: false, error: "Mint intent was already consumed" },
+        { status: 409 }
+      );
+    }
+
+    if (mintIntent.expiresAt.getTime() < Date.now()) {
+      return NextResponse.json(
+        { success: false, error: "Mint intent expired. Prepare a fresh transaction and try again." },
+        { status: 410 }
+      );
+    }
+
+    const { assetSignerSecretKeysBase64 } = parseMintIntentAssetPayload(mintIntent.assetAddresses);
+    const transaction = Transaction.from(
+      Buffer.from(validation.data.signed_transaction_base64, "base64")
     );
+
+    if (assetSignerSecretKeysBase64.length > 0) {
+      const assetKeypairs = assetSignerSecretKeysBase64.map((value) =>
+        Keypair.fromSecretKey(Buffer.from(value, "base64"))
+      );
+      transaction.partialSign(...assetKeypairs);
+    }
+
+    const connection = getSolanaConnection();
+    const txHash = await connection.sendRawTransaction(transaction.serialize(), {
+      skipPreflight: false,
+      maxRetries: 3,
+      preflightCommitment: "confirmed",
+    });
 
     return NextResponse.json({
       success: true,
@@ -72,7 +118,10 @@ export async function POST(
     return NextResponse.json(
       {
         success: false,
-        error: error instanceof Error ? error.message : "Failed to broadcast Solana mint transaction",
+        error:
+          error instanceof Error
+            ? error.message
+            : "Failed to broadcast Solana mint transaction",
       },
       { status: 500 }
     );

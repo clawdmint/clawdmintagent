@@ -120,6 +120,7 @@ export interface MetaplexMintPrepareParams {
 export interface MetaplexMintPrepareResult {
   serializedTransactionBase64: string;
   assetAddresses: string[];
+  assetSignerSecretKeysBase64: string[];
   basePaidLamports: string;
   platformFeeLamports: string;
   totalPaidLamports: string;
@@ -605,8 +606,8 @@ export async function prepareMetaplexMintTransaction(
     );
   }
 
-  const signedTransaction = await builder.buildAndSign(umi);
-  const web3Transaction = toWeb3JsLegacyTransaction(signedTransaction);
+  const builtTransaction = await builder.buildWithLatestBlockhash(umi);
+  const web3Transaction = toWeb3JsLegacyTransaction(builtTransaction);
   const serialized = web3Transaction.serialize({
     requireAllSignatures: false,
     verifySignatures: false,
@@ -615,6 +616,9 @@ export async function prepareMetaplexMintTransaction(
   return {
     serializedTransactionBase64: Buffer.from(serialized).toString("base64"),
     assetAddresses: assetSigners.map((signer) => signer.publicKey),
+    assetSignerSecretKeysBase64: assetSigners.map((signer) =>
+      Buffer.from(signer.secretKey).toString("base64")
+    ),
     basePaidLamports: basePaidLamports.toString(),
     platformFeeLamports: platformFeeLamports.toString(),
     totalPaidLamports: (basePaidLamports + platformFeeLamports).toString(),

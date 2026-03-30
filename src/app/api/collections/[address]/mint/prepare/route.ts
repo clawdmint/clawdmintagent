@@ -9,6 +9,7 @@ import {
   prepareMetaplexMintTransaction,
   MetaplexMintError,
 } from "@/lib/metaplex-core-candy-machine";
+import { serializeMintIntentAssetPayload } from "@/lib/metaplex-mint-intent";
 import { getPlatformFeeBps, getSolanaPlatformFeeRecipient } from "@/lib/platform-fees";
 
 export const dynamic = "force-dynamic";
@@ -109,7 +110,10 @@ export async function POST(
         walletAddress,
         quantity,
         totalPaid: prepared.totalPaidLamports,
-        assetAddresses: JSON.stringify(prepared.assetAddresses),
+        assetAddresses: serializeMintIntentAssetPayload({
+          assetAddresses: prepared.assetAddresses,
+          assetSignerSecretKeysBase64: prepared.assetSignerSecretKeysBase64,
+        }),
         expiresAt: new Date(Date.now() + PREPARE_MINT_INTENT_TTL_MS),
       },
     });
