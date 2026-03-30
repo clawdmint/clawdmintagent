@@ -535,9 +535,9 @@ export default function CollectionPage() {
         ? "Mint live"
         : "Legacy";
   const topMintPriceLabel =
-    mintPriceLamports === BigInt(0) && unitPlatformFeeLamports === BigInt(0)
+    mintPriceLamports === BigInt(0)
       ? "Free"
-      : `${formatSolLamports(mintPriceLamports + unitPlatformFeeLamports)} ${nativeToken}`;
+      : `${formatSolLamports(mintPriceLamports)} ${nativeToken}`;
 
   return (
     <div className="min-h-screen relative noise">
@@ -777,13 +777,6 @@ export default function CollectionPage() {
                     <h2 className="mt-3 text-4xl font-semibold tracking-tight">
                       {topMintPriceLabel}
                     </h2>
-                    <p className={clsx("mt-3 max-w-sm text-[15px] leading-7", theme === "dark" ? "text-gray-400" : "text-gray-600")}>
-                      {isMetaplexMintCollection
-                        ? "Collector mints run through Metaplex Candy Machine so the flow stays familiar, wallet-native, and easy to verify."
-                        : isEvmCollection
-                          ? "Public mint is live and routed through the collection contract."
-                          : "This collection uses the older Solana runtime and does not support live collector minting."}
-                    </p>
                   </div>
 
                   <span className={clsx(
@@ -811,11 +804,6 @@ export default function CollectionPage() {
                         <p className={clsx("mt-1 text-sm", theme === "dark" ? "text-gray-400" : "text-gray-600")}>
                           Choose up to {maxMintableQuantity} in one checkout
                         </p>
-                        {!isEvmCollection && maxMintableQuantity > 1 && (
-                          <p className={clsx("mt-2 text-xs leading-5", theme === "dark" ? "text-gray-500" : "text-gray-500")}>
-                            Larger Solana checkouts are split into smaller Phantom-safe signing batches.
-                          </p>
-                        )}
                       </div>
                       <div className="flex items-center gap-4">
                         <button
@@ -849,7 +837,7 @@ export default function CollectionPage() {
                     <div className="mt-5 grid gap-3 sm:grid-cols-2">
                       <div className={clsx("rounded-2xl px-4 py-4", theme === "dark" ? "bg-black/20" : "bg-white")}>
                         <p className={clsx("font-mono text-[10px] uppercase tracking-[0.18em]", theme === "dark" ? "text-gray-500" : "text-gray-400")}>
-                          Base subtotal
+                          Mint price
                         </p>
                         <p className="mt-1 text-xl font-semibold">
                           {baseSubtotalLamports === BigInt(0) ? "Free" : `${baseSubtotalNative} ${nativeToken}`}
@@ -864,7 +852,7 @@ export default function CollectionPage() {
                         </p>
                         {platformFeeTotalLamports > BigInt(0) && (
                           <p className={clsx("mt-2 text-xs leading-5", theme === "dark" ? "text-gray-500" : "text-gray-500")}>
-                            Fixed fee added to each mint checkout.
+                            {quantity > 1 ? `Fixed ${formatSolLamports(unitPlatformFeeLamports)} ${nativeToken} per mint.` : "Fixed per mint."}
                           </p>
                         )}
                       </div>
@@ -918,7 +906,7 @@ export default function CollectionPage() {
                         <p className={clsx("mt-3 text-xs leading-relaxed", theme === "dark" ? "text-gray-400" : "text-gray-600")}>
                           {metaplexLoadPending
                             ? "Configuration is still settling on-chain."
-                            : `Ready for collector mints. Up to ${MAX_SOLANA_MINTS_PER_TX} NFTs per checkout, automatically split into wallet-safe batches when needed, with a fixed ${platformFeeNative} ${nativeToken} platform fee applied.`}
+                            : "Candy Machine is fully loaded and ready for collector mints."}
                         </p>
                       </div>
                     )}
