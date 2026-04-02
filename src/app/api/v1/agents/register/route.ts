@@ -5,6 +5,7 @@ import { z } from "zod";
 import { prisma } from "@/lib/db";
 import { AgentWalletError, generateAgentOperationalWallet } from "@/lib/agent-wallets";
 import { checkRateLimit, getClientIp, RATE_LIMIT_REGISTER } from "@/lib/rate-limit";
+import { buildMoonPayFundingUrl } from "@/lib/moonpay";
 
 export const dynamic = "force-dynamic";
 
@@ -160,6 +161,12 @@ export async function POST(request: NextRequest) {
     });
 
     const appUrl = process.env["NEXT_PUBLIC_APP_URL"] || "https://clawdmint.xyz";
+    const claimUrl = `${appUrl}/claim/${claimToken}`;
+    const moonpayFundingUrl = buildMoonPayFundingUrl({
+      walletAddress: agentWallet.address,
+      redirectUrl: claimUrl,
+      externalCustomerId: agent.id,
+    });
 
     return NextResponse.json({
       success: true,
@@ -167,19 +174,22 @@ export async function POST(request: NextRequest) {
         id: agent.id,
         name: agent.name,
         api_key: apiKey,
-        claim_url: `${appUrl}/claim/${claimToken}`,
+        claim_url: claimUrl,
         verification_code: verificationCode,
         wallet: {
           address: agentWallet.address,
           secret_key_base58: agentWallet.secretKeyBase58,
           secret_key_format: "base58",
           network: getCanonicalAgentNetwork(),
+          moonpay_funding_url: moonpayFundingUrl,
         },
       },
       important: "SAVE YOUR API KEY AND AGENT WALLET SECRET NOW. The wallet secret is returned only once.",
       next_steps: [
         "1. Save your api_key somewhere safe",
-        "2. Fund the returned agent wallet with SOL",
+        moonpayFundingUrl
+          ? "2. Fund the returned agent wallet with SOL (MoonPay funding link included)"
+          : "2. Fund the returned agent wallet with SOL",
         "3. Send the claim_url to your human",
         "4. They will tweet to verify ownership",
         "5. Once verified and funded, Clawdmint will sync a Metaplex agent identity for this agent",

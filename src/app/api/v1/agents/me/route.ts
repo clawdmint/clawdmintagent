@@ -9,6 +9,7 @@ import {
   getRecommendedCollectionDeployBalanceLamports,
 } from "@/lib/agent-wallets";
 import { getAgentMetaplexSummary } from "@/lib/metaplex-agent-registry";
+import { buildMoonPayFundingUrl } from "@/lib/moonpay";
 
 export const dynamic = "force-dynamic";
 
@@ -17,6 +18,7 @@ function hashApiKey(apiKey: string): string {
 }
 
 async function buildWalletStatus(agent: {
+  id?: string;
   solanaWalletAddress?: string | null;
   solanaWalletEncryptedKey?: string | null;
 }) {
@@ -31,6 +33,10 @@ async function buildWalletStatus(agent: {
       recommended_deploy_lamports: recommendedLamports.toString(),
       recommended_deploy_sol: (Number(recommendedLamports) / 1_000_000_000).toString(),
       funded_for_deploy: balance.lamports >= recommendedLamports,
+      moonpay_funding_url: buildMoonPayFundingUrl({
+        walletAddress: address,
+        externalCustomerId: agent.id || null,
+      }),
     };
   } catch (error) {
     if (!(error instanceof AgentWalletError)) {

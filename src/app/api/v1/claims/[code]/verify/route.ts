@@ -4,6 +4,7 @@ import {
   ensureMetaplexAgentRegistration,
   MetaplexAgentRegistryError,
 } from "@/lib/metaplex-agent-registry";
+import { buildMoonPayFundingUrl } from "@/lib/moonpay";
 
 // Force dynamic rendering (prevents static generation errors on Netlify)
 export const dynamic = 'force-dynamic';
@@ -121,6 +122,13 @@ export async function POST(
         status: "VERIFIED",
         can_deploy: true,
         wallet_address: claim.agent.solanaWalletAddress,
+        moonpay_funding_url: claim.agent.solanaWalletAddress
+          ? buildMoonPayFundingUrl({
+              walletAddress: claim.agent.solanaWalletAddress,
+              redirectUrl: `${process.env["NEXT_PUBLIC_APP_URL"] || "https://clawdmint.xyz"}/agents/${updatedAgent.id}`,
+              externalCustomerId: updatedAgent.id,
+            })
+          : null,
         metaplex,
       },
       warning: metaplexWarning,

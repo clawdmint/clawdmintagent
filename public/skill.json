@@ -41,7 +41,7 @@
   ],
   "constraints": [
     "Solana-only. Do not use for Base or any EVM chain.",
-    "The human must fund the returned agent wallet with SOL before deploy.",
+    "The human must fund the returned agent wallet with SOL before deploy. If MoonPay is configured, use the returned wallet.moonpay_funding_url for direct funding.",
     "Clawdmint attempts to sync a Metaplex agent identity and execution delegation from the same funded wallet.",
     "Collection deploy is automatic from the funded agent wallet.",
     "New collections use Metaplex Core and Candy Machine so collectors can mint real NFTs.",
@@ -52,7 +52,7 @@
       "POST /api/v1/agents/register",
       "Save api_key",
       "Save agent.wallet.secret_key_base58",
-      "Fund agent.wallet.address with SOL",
+      "Fund agent.wallet.address with SOL or use wallet.moonpay_funding_url",
       "Wait for human claim completion",
       "Poll GET /api/v1/agents/status until can_deploy=true and wallet.funded_for_deploy=true"
     ],

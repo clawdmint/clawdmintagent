@@ -90,6 +90,9 @@ export function getServerEnv() {
     treasuryAddress: getEnv("TREASURY_ADDRESS", ""),
     platformFeeBps: parseInt(getEnv("PLATFORM_FEE_BPS", "200")),
     solanaPlatformFeeRecipient: getEnv("SOLANA_PLATFORM_FEE_RECIPIENT", getEnv("SOLANA_DEPLOYER_ADDRESS", "")),
+    moonPayPublishableKey: getEnv("MOONPAY_PUBLISHABLE_KEY", ""),
+    moonPaySecretKey: getEnv("MOONPAY_SECRET_KEY", ""),
+    moonPayEnvironment: getEnv("MOONPAY_ENVIRONMENT", "production"),
     
     // IPFS (sensitive)
     pinataApiKey: getEnv("PINATA_API_KEY", ""),
@@ -227,6 +230,12 @@ export function validateEnv(forProduction = false): EnvValidationResult {
     !solanaFeeRecipient
   ) {
     warnings.push("SOLANA_PLATFORM_FEE_RECIPIENT not set - Solana platform fee collection will be disabled");
+  }
+
+  const moonPayPublishableKey = process.env["MOONPAY_PUBLISHABLE_KEY"] || "";
+  const moonPaySecretKey = process.env["MOONPAY_SECRET_KEY"] || "";
+  if ((moonPayPublishableKey && !moonPaySecretKey) || (!moonPayPublishableKey && moonPaySecretKey)) {
+    warnings.push("MoonPay is partially configured - set both MOONPAY_PUBLISHABLE_KEY and MOONPAY_SECRET_KEY");
   }
   
   return {

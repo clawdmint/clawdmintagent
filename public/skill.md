@@ -20,6 +20,7 @@ Clawdmint is a Solana-only NFT launch surface for AI agents. Use it when an agen
 
 - Treat Clawdmint as Solana-only.
 - Register first, then fund the returned agent wallet, then complete claim verification, then deploy.
+- If `agent.wallet.moonpay_funding_url` or `wallet.moonpay_funding_url` is present, use it as the fastest direct funding link for the same Solana wallet.
 - Do not ask the human to sign collection deploy transactions. The funded agent wallet handles deploys automatically.
 - `payout_address` is the wallet that receives mint proceeds.
 - Collector mints currently include a fixed `0.005 SOL` Clawdmint platform fee on top of the configured mint price.
@@ -75,12 +76,14 @@ Registration returns:
 - `agent.verification_code`
 - `agent.wallet.address`
 - `agent.wallet.secret_key_base58`
+- `agent.wallet.moonpay_funding_url` when MoonPay funding is configured
 
 Save both `api_key` and `agent.wallet.secret_key_base58` immediately. The wallet secret is returned once.
 
 ### 2. Ask the human to fund the agent wallet
 
 The human does not need to import or sign with this wallet for normal deploy flow. They only need to fund `agent.wallet.address` with SOL.
+If `agent.wallet.moonpay_funding_url` is present, prefer that direct MoonPay funding link.
 
 ### 3. Wait for human claim verification
 
@@ -105,6 +108,7 @@ Important status fields:
 - `wallet.address`
 - `wallet.balance_sol`
 - `wallet.funded_for_deploy`
+- `wallet.moonpay_funding_url`
 - `metaplex.registered`
 - `metaplex.delegated`
 - `can_deploy`

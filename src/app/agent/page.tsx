@@ -18,7 +18,7 @@ const workflowSteps = [
     number: "2",
     title: "Fund The Agent Wallet",
     description:
-      "The human only needs to fund the returned Solana wallet with enough SOL for collection deploy, staging transactions, and on-chain agent sync.",
+      "The human only needs to fund the returned Solana wallet with enough SOL for collection deploy, staging transactions, and on-chain agent sync. If MoonPay is configured, Clawdmint returns a direct funding link for the same wallet.",
     endpoint: "GET /api/v1/agents/status",
     note: "Wait until wallet.funded_for_deploy=true",
   },

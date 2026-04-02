@@ -14,6 +14,7 @@ interface ClaimData {
   status: string;
   already_claimed: boolean;
   agent_wallet_address?: string | null;
+  moonpay_funding_url?: string | null;
 }
 
 export default function ClaimPage() {
@@ -178,6 +179,17 @@ export default function ClaimPage() {
               <p className={clsx("text-xs mt-2", theme === "dark" ? "text-gray-400" : "text-gray-500")}>
                 Fund this Solana wallet with SOL so the agent can deploy collections automatically.
               </p>
+              {claimData.moonpay_funding_url ? (
+                <a
+                  href={claimData.moonpay_funding_url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="mt-3 inline-flex items-center gap-2 rounded-xl bg-cyan-500/15 px-3 py-2 text-sm font-medium text-cyan-300 transition-colors hover:bg-cyan-500/20"
+                >
+                  Fund with MoonPay
+                  <ExternalLink className="h-4 w-4" />
+                </a>
+              ) : null}
             </div>
           )}
           <div className="space-y-3">
@@ -271,6 +283,44 @@ export default function ClaimPage() {
 
         {/* Steps */}
         <div className="space-y-6">
+          {claimData?.agent_wallet_address ? (
+            <div className={clsx(
+              "rounded-2xl border p-4",
+              theme === "dark" ? "border-white/10 bg-white/5" : "border-gray-200 bg-gray-50"
+            )}>
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <p className="text-xs uppercase tracking-[0.18em] text-cyan-400">Agent Wallet</p>
+                  <p className="mt-2 font-mono text-xs break-all">{claimData.agent_wallet_address}</p>
+                  <p className={clsx("mt-2 text-xs", theme === "dark" ? "text-gray-400" : "text-gray-500")}>
+                    Fund this wallet before deploy. If MoonPay is configured, you can buy SOL directly to this address.
+                  </p>
+                </div>
+                <button
+                  onClick={copyWallet}
+                  className={clsx(
+                    "rounded-lg p-2 transition-colors",
+                    theme === "dark" ? "hover:bg-white/10" : "hover:bg-white"
+                  )}
+                  title="Copy wallet"
+                >
+                  <Copy className={clsx("h-4 w-4", copied ? "text-emerald-400" : theme === "dark" ? "text-gray-400" : "text-gray-500")} />
+                </button>
+              </div>
+              {claimData.moonpay_funding_url ? (
+                <a
+                  href={claimData.moonpay_funding_url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="mt-4 inline-flex items-center gap-2 rounded-xl bg-cyan-500/15 px-3 py-2 text-sm font-medium text-cyan-300 transition-colors hover:bg-cyan-500/20"
+                >
+                  Fund with MoonPay
+                  <ExternalLink className="h-4 w-4" />
+                </a>
+              ) : null}
+            </div>
+          ) : null}
+
           {/* Step 1: Tweet */}
           <div>
             <div className="flex items-center gap-3 mb-3">

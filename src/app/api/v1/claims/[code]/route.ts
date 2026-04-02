@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
+import { buildMoonPayFundingUrl } from "@/lib/moonpay";
 
 // Force dynamic rendering (prevents static generation errors on Netlify)
 export const dynamic = 'force-dynamic';
@@ -52,6 +53,12 @@ export async function GET(
         status: claim.status,
         already_claimed: claim.status === "VERIFIED" || claim.agent.status === "VERIFIED",
         agent_wallet_address: claim.agent.solanaWalletAddress,
+        moonpay_funding_url: claim.agent.solanaWalletAddress
+          ? buildMoonPayFundingUrl({
+              walletAddress: claim.agent.solanaWalletAddress,
+              redirectUrl: `${process.env["NEXT_PUBLIC_APP_URL"] || "https://clawdmint.xyz"}/claim/${code}`,
+            })
+          : null,
         expires_at: claim.expiresAt.toISOString(),
       },
     });
