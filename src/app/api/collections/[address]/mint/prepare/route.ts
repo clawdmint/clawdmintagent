@@ -3,6 +3,7 @@ import { z } from "zod";
 import { prisma } from "@/lib/db";
 import { isSolanaAddress } from "@/lib/network-config";
 import {
+  ensureMetaplexOnchainPlatformFeeGuard,
   fetchMetaplexCandyMachineState,
   MAX_METAPLEX_MINT_QUANTITY,
   METAPLEX_MINT_ENGINE,
@@ -10,6 +11,7 @@ import {
   MetaplexMintError,
 } from "@/lib/metaplex-core-candy-machine";
 import { serializeMintIntentAssetPayload } from "@/lib/metaplex-mint-intent";
+import { getAgentOperationalKeypair } from "@/lib/agent-wallets";
 import { getPlatformFeeBps, getSolanaPlatformFeeRecipient } from "@/lib/platform-fees";
 
 export const dynamic = "force-dynamic";
@@ -48,6 +50,16 @@ export async function POST(
     const collection = await prisma.collection.findFirst({
       where: {
         OR: [{ address }, { address: address.toLowerCase() }],
+      },
+      include: {
+        agent: {
+          select: {
+            id: true,
+            name: true,
+            solanaWalletAddress: true,
+            solanaWalletEncryptedKey: true,
+          },
+        },
       },
     });
 
@@ -92,6 +104,15 @@ export async function POST(
 
     const platformFeeRecipient = getSolanaPlatformFeeRecipient();
     const platformFeeBps = platformFeeRecipient ? getPlatformFeeBps() : 0;
+
+    if (platformFeeRecipient) {
+      const authoritySigner = getAgentOperationalKeypair(collection.agent);
+      await ensureMetaplexOnchainPlatformFeeGuard(authoritySigner, {
+        candyMachineAddress: collection.mintAddress,
+        payoutAddress: collection.payoutAddress,
+        mintPriceLamports: BigInt(collection.mintPrice),
+      });
+    }
 
     const prepared = await prepareMetaplexMintTransaction({
       walletAddress,

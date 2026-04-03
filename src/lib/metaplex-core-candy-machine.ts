@@ -10,8 +10,11 @@ import {
   findCandyGuardPda,
   mintV1,
   mplCandyMachine,
+  safeFetchCandyGuard,
+  updateCandyGuard,
   type DefaultGuardSetArgs,
   type DefaultGuardSetMintArgs,
+  type GuardGroupArgs,
 } from "@metaplex-foundation/mpl-core-candy-machine";
 import {
   createNoopSigner,
@@ -208,11 +211,20 @@ async function buildGuardArgs(input: {
   mintPriceLamports: bigint;
 }): Promise<Partial<DefaultGuardSetArgs>> {
   const guards: Partial<DefaultGuardSetArgs> = {};
+  const platformFeeRecipient = getSolanaPlatformFeeRecipient();
+  const platformFeeLamports = calculateSolanaMintPlatformFee(input.mintPriceLamports, getPlatformFeeBps());
 
   if (input.mintPriceLamports > BigInt(0)) {
     guards.solPayment = {
       lamports: lamports(input.mintPriceLamports),
       destination: publicKey(input.payoutAddress),
+    };
+  }
+
+  if (platformFeeRecipient && platformFeeLamports > BigInt(0)) {
+    guards.solFixedFee = {
+      lamports: lamports(platformFeeLamports),
+      destination: publicKey(platformFeeRecipient),
     };
   }
 
@@ -222,6 +234,8 @@ async function buildGuardArgs(input: {
 function buildMintArgs(input: {
   payoutAddress: string;
   mintPriceLamports: bigint;
+  platformFeeRecipient?: string | null;
+  includeOnchainPlatformFee?: boolean;
 }): Partial<DefaultGuardSetMintArgs> {
   const mintArgs: Partial<DefaultGuardSetMintArgs> = {};
 
@@ -231,7 +245,96 @@ function buildMintArgs(input: {
     };
   }
 
+  if (input.includeOnchainPlatformFee && input.platformFeeRecipient) {
+    mintArgs.solFixedFee = {
+      destination: publicKey(input.platformFeeRecipient),
+    };
+  }
+
   return mintArgs;
+}
+
+function isConfiguredGuard(value: unknown): boolean {
+  if (!value) {
+    return false;
+  }
+
+  if (typeof value === "object" && value !== null && "__option" in value) {
+    return (value as { __option?: string }).__option !== "None";
+  }
+
+  return true;
+}
+
+export async function fetchMetaplexCandyGuardFeatures(candyMachineAddress: string) {
+  const umi = createUmi(getSolanaRpcUrl());
+  umi.use(mplCore());
+  umi.use(mplCandyMachine());
+
+  const candyGuardAddress = findCandyGuardPda(umi, {
+    base: publicKey(candyMachineAddress),
+  })[0];
+  const candyGuard = await safeFetchCandyGuard(umi, candyGuardAddress);
+  const guards = (candyGuard as { guards?: Record<string, unknown> } | null)?.guards;
+
+  return {
+    hasSolPayment: isConfiguredGuard(guards?.solPayment),
+    hasSolFixedFee: isConfiguredGuard(guards?.solFixedFee),
+  };
+}
+
+export async function ensureMetaplexOnchainPlatformFeeGuard(
+  signer: Keypair,
+  params: {
+    candyMachineAddress: string;
+    payoutAddress: string;
+    mintPriceLamports: bigint;
+  }
+): Promise<boolean> {
+  const platformFeeRecipient = getSolanaPlatformFeeRecipient();
+  const platformFeeLamports = calculateSolanaMintPlatformFee(params.mintPriceLamports, getPlatformFeeBps());
+
+  if (!platformFeeRecipient || platformFeeLamports <= BigInt(0)) {
+    return false;
+  }
+
+  const guardFeatures = await fetchMetaplexCandyGuardFeatures(params.candyMachineAddress);
+  if (guardFeatures.hasSolFixedFee) {
+    return false;
+  }
+
+  const umi = createServerUmi(signer);
+  const candyGuardAddress = findCandyGuardPda(umi, {
+    base: publicKey(params.candyMachineAddress),
+  })[0];
+  const existingCandyGuard = await safeFetchCandyGuard(umi, candyGuardAddress);
+
+  if (!existingCandyGuard) {
+    throw new MetaplexMintError(
+      404,
+      "Candy Guard account not found for this collection"
+    );
+  }
+
+  const existingGuardData = existingCandyGuard as unknown as {
+    groups?: Array<GuardGroupArgs<DefaultGuardSetArgs>>;
+  };
+  const updatedGuards = await buildGuardArgs({
+    payoutAddress: params.payoutAddress,
+    mintPriceLamports: params.mintPriceLamports,
+  });
+
+  await updateCandyGuard(umi, {
+    candyGuard: candyGuardAddress,
+    guards: updatedGuards,
+    groups: existingGuardData.groups ?? [],
+  })
+    .useLegacyVersion()
+    .sendAndConfirm(umi, {
+      confirm: { commitment: "finalized" },
+    });
+
+  return true;
 }
 
 async function getRecommendedDeployBalanceLamports(
@@ -553,7 +656,6 @@ export async function prepareMetaplexMintTransaction(
   }
 
   const umi = createMintPreparationUmi(params.walletAddress);
-  const mintArgs = buildMintArgs(params);
   const candyGuard = findCandyGuardPda(umi, {
     base: publicKey(params.candyMachineAddress),
   })[0];
@@ -565,6 +667,16 @@ export async function prepareMetaplexMintTransaction(
     platformFeeRecipient && configuredPlatformFeeBps > 0
       ? calculateSolanaMintPlatformFee(basePaidLamports, configuredPlatformFeeBps)
       : BigInt(0);
+  const guardFeatures = await fetchMetaplexCandyGuardFeatures(params.candyMachineAddress);
+  const usesOnchainPlatformFee =
+    Boolean(platformFeeRecipient) &&
+    platformFeeLamports > BigInt(0) &&
+    guardFeatures.hasSolFixedFee;
+  const mintArgs = buildMintArgs({
+    ...params,
+    platformFeeRecipient,
+    includeOnchainPlatformFee: usesOnchainPlatformFee,
+  });
 
   let builder = transactionBuilder().useLegacyVersion();
   for (const assetSigner of assetSigners) {
@@ -582,7 +694,7 @@ export async function prepareMetaplexMintTransaction(
     );
   }
 
-  if (platformFeeLamports > BigInt(0) && platformFeeRecipient) {
+  if (platformFeeLamports > BigInt(0) && platformFeeRecipient && !usesOnchainPlatformFee) {
     builder = builder.add({
       instruction: fromWeb3JsInstruction(
         SystemProgram.transfer({
