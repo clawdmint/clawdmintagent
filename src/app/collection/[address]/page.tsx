@@ -25,7 +25,9 @@ import { NetworkLogo } from "@/components/network-icons";
 const AGENTS_CONTRACT = (process.env["NEXT_PUBLIC_AGENTS_CONTRACT"] || "").toLowerCase();
 const MIN_COLLECTION_IMAGE_DIMENSION = 256;
 const MAX_SOLANA_MINTS_PER_TX = 10;
-const PHANTOM_SAFE_SOLANA_MINT_BATCH_SIZE = 3;
+// Keep Solana mint batches at 1 until we introduce ALTs; larger multi-signer
+// transactions are much more likely to trigger Phantom safety warnings.
+const PHANTOM_SAFE_SOLANA_MINT_BATCH_SIZE = 1;
 
 interface Collection {
   id: string;
