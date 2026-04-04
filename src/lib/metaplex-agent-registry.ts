@@ -3,6 +3,7 @@ import {
   createCollection,
   fetchCollectionV1,
   mplCore,
+  updatePlugin,
   safeFetchAssetV1,
   safeFetchCollectionV1,
 } from "@metaplex-foundation/mpl-core";
@@ -132,6 +133,14 @@ function buildAgentAssetMetadata(agent: AgentRegistryRecord) {
   };
 }
 
+function getAgentRegistrationUri(agentId: string): string {
+  return `${getAppUrl()}/api/agents/${agentId}/registration`;
+}
+
+function getAgentRegistryChainId(): string {
+  return getSolanaCluster() === "devnet" ? "devnet" : "mainnet";
+}
+
 function buildAgentRegistrationDocument(input: {
   agent: AgentRegistryRecord;
   collectionAddress: string;
@@ -141,20 +150,49 @@ function buildAgentRegistrationDocument(input: {
   executionDelegatePda: string;
 }) {
   const appUrl = getAppUrl();
-  const cluster = getSolanaCluster();
 
   return {
-    type: "ERC-8004",
-    version: "1.0",
+    type: "agent-registration-v1",
     name: input.agent.name,
     description:
       input.agent.description ||
       `${input.agent.name} is a verified Clawdmint agent with Solana deploy capability.`,
     image: buildAgentImageUrl(input.agent),
-    external_url: `${appUrl}/agents/${input.agent.id}`,
+    active: input.agent.status === "VERIFIED" && input.agent.deployEnabled,
+    services: [
+      {
+        name: "web",
+        endpoint: `${appUrl}/agents/${input.agent.id}`,
+        domains: ["solana", "nft-launch"],
+      },
+      {
+        name: "skill",
+        endpoint: `${appUrl}/skill.md`,
+        skills: ["solana-nft-deploy", "metaplex-candy-machine", "agent-wallet-automation"],
+        domains: ["solana", "nft-launch"],
+      },
+      {
+        name: "openclaw",
+        endpoint: `${appUrl}/api/tools/openclaw.json`,
+        skills: ["register_agent", "deploy_collection", "get_agent_profile"],
+        domains: ["solana", "nft-launch"],
+      },
+    ],
+    registrations: [
+      {
+        agentId: input.assetAddress,
+        agentRegistry: `solana:${getAgentRegistryChainId()}:${IDENTITY_ID}`,
+      },
+    ],
+    supportedTrust: ["reputation", "crypto-economic"],
+    links: {
+      profile: `${appUrl}/agents/${input.agent.id}`,
+      tools: `${appUrl}/api/tools/openclaw.json`,
+      skill: `${appUrl}/skill.md`,
+    },
     owner: {
       wallet: input.agent.solanaWalletAddress,
-      chain: cluster,
+      chain: "solana",
     },
     onchain: {
       collection: input.collectionAddress,
@@ -163,28 +201,6 @@ function buildAgentRegistrationDocument(input: {
       executive_profile_pda: input.executiveProfilePda,
       execution_delegate_record_pda: input.executionDelegatePda,
     },
-    services: [
-      {
-        name: "web",
-        endpoint: `${appUrl}/agents/${input.agent.id}`,
-      },
-      {
-        name: "skill",
-        endpoint: `${appUrl}/skill.md`,
-        capabilities: ["solana-nft-deploy", "metaplex-candy-machine", "agent-wallet-automation"],
-      },
-      {
-        name: "openclaw",
-        endpoint: `${appUrl}/api/tools/openclaw.json`,
-        capabilities: ["register_agent", "deploy_collection", "get_agent_profile"],
-      },
-    ],
-    registrations: [
-      {
-        address: input.identityPda,
-        registry: `solana:${cluster}:${IDENTITY_ID}`,
-      },
-    ],
   };
 }
 
@@ -196,6 +212,14 @@ function createRegistryUmi(agent: AgentRegistryRecord) {
   umi.use(mplAgentTools());
   umi.use(keypairIdentity(fromWeb3JsKeypair(signer)));
   return { umi, signer };
+}
+
+function createReadOnlyRegistryUmi() {
+  const umi = createUmi(getSolanaRpcUrl());
+  umi.use(mplCore());
+  umi.use(mplAgentIdentity());
+  umi.use(mplAgentTools());
+  return umi;
 }
 
 function getMetaplexSummary(agent: AgentRegistryRecord): AgentMetaplexSummary {
@@ -375,40 +399,13 @@ async function ensureCollectionAndAsset(agent: AgentRegistryRecord): Promise<Age
 }
 
 async function ensureRegistrationUri(agent: AgentRegistryRecord): Promise<AgentRegistryRecord> {
-  if (agent.metaplexRegistrationUri) {
+  const registrationUri = getAgentRegistrationUri(agent.id);
+  if (agent.metaplexRegistrationUri === registrationUri) {
     return agent;
   }
 
-  const { umi } = createRegistryUmi(agent);
-  const identityPda = findAgentIdentityV1Pda(umi, {
-    asset: publicKey(agent.metaplexAssetAddress!),
-  })[0];
-  const executiveProfilePda = findExecutiveProfileV1Pda(umi, {
-    authority: publicKey(agent.solanaWalletAddress!),
-  })[0];
-  const delegateRecordPda = findExecutionDelegateRecordV1Pda(umi, {
-    executiveProfile: publicKey(executiveProfilePda),
-    agentAsset: publicKey(agent.metaplexAssetAddress!),
-  })[0];
-
-  const uploaded = await uploadJson(
-    buildAgentRegistrationDocument({
-      agent,
-      collectionAddress: agent.metaplexCollectionAddress!,
-      assetAddress: agent.metaplexAssetAddress!,
-      identityPda,
-      executiveProfilePda,
-      executionDelegatePda: delegateRecordPda,
-    }),
-    `${agent.name}-metaplex-registration`
-  );
-
-  if (!uploaded.success) {
-    throw new MetaplexAgentRegistryError(502, "Failed to upload Metaplex agent registration document", uploaded.error);
-  }
-
   return updateAgent(agent.id, {
-    metaplexRegistrationUri: toGatewayUrl(uploaded.url, uploaded.cid),
+    metaplexRegistrationUri: registrationUri,
   });
 }
 
@@ -416,6 +413,7 @@ async function ensureIdentityAndDelegation(agent: AgentRegistryRecord): Promise<
   let current = agent;
   const { umi } = createRegistryUmi(current);
   const assetPublicKey = publicKey(current.metaplexAssetAddress!);
+  const collectionPublicKey = publicKey(current.metaplexCollectionAddress!);
   const authorityPublicKey = publicKey(current.solanaWalletAddress!);
   const identityPda = findAgentIdentityV1Pda(umi, { asset: assetPublicKey })[0];
   const executiveProfilePda = findExecutiveProfileV1Pda(umi, { authority: authorityPublicKey })[0];
@@ -428,10 +426,30 @@ async function ensureIdentityAndDelegation(agent: AgentRegistryRecord): Promise<
   if (!existingIdentity) {
     await registerIdentityV1(umi, {
       asset: assetPublicKey,
-      collection: publicKey(current.metaplexCollectionAddress!),
+      collection: collectionPublicKey,
       authority: umi.identity,
       payer: umi.identity,
       agentRegistrationUri: current.metaplexRegistrationUri!,
+    })
+      .useLegacyVersion()
+      .sendAndConfirm(umi, {
+        confirm: { commitment: "finalized" },
+      });
+  }
+
+  const assetAccount = await safeFetchAssetV1(umi, assetPublicKey);
+  const agentIdentityPluginUri = assetAccount?.agentIdentities?.[0]?.uri || null;
+  if (agentIdentityPluginUri !== current.metaplexRegistrationUri) {
+    await updatePlugin(umi, {
+      asset: assetPublicKey,
+      collection: collectionPublicKey,
+      authority: umi.identity,
+      payer: umi.identity,
+      plugin: {
+        type: "AgentIdentity",
+        key: { type: "AgentIdentity" },
+        uri: current.metaplexRegistrationUri!,
+      },
     })
       .useLegacyVersion()
       .sendAndConfirm(umi, {
@@ -480,6 +498,39 @@ async function ensureIdentityAndDelegation(agent: AgentRegistryRecord): Promise<
   });
 
   return current;
+}
+
+export async function getAgentRegistrationDocument(agentId: string) {
+  const agent = await loadAgent(agentId);
+
+  if (
+    !agent.metaplexCollectionAddress ||
+    !agent.metaplexAssetAddress ||
+    !agent.solanaWalletAddress
+  ) {
+    throw new MetaplexAgentRegistryError(404, "Metaplex registration is not active for this agent");
+  }
+
+  const umi = createReadOnlyRegistryUmi();
+  const identityPda = findAgentIdentityV1Pda(umi, {
+    asset: publicKey(agent.metaplexAssetAddress),
+  })[0];
+  const executiveProfilePda = findExecutiveProfileV1Pda(umi, {
+    authority: publicKey(agent.solanaWalletAddress),
+  })[0];
+  const delegateRecordPda = findExecutionDelegateRecordV1Pda(umi, {
+    executiveProfile: publicKey(executiveProfilePda),
+    agentAsset: publicKey(agent.metaplexAssetAddress),
+  })[0];
+
+  return buildAgentRegistrationDocument({
+    agent,
+    collectionAddress: agent.metaplexCollectionAddress,
+    assetAddress: agent.metaplexAssetAddress,
+    identityPda,
+    executiveProfilePda,
+    executionDelegatePda: delegateRecordPda,
+  });
 }
 
 export async function ensureMetaplexAgentRegistration(agentId: string): Promise<AgentMetaplexSummary> {
