@@ -125,6 +125,14 @@ function hasMarketplaceTransferDelegate(
   return authority?.type === "Address" && authority.address?.toString() === delegateAddress;
 }
 
+function hasTransferDelegatePlugin(asset: Awaited<ReturnType<typeof fetchAsset>>) {
+  return Boolean(
+    (asset as {
+      transferDelegate?: unknown;
+    }).transferDelegate
+  );
+}
+
 export async function buildMarketplaceListingDelegateTransaction(input: {
   walletAddress: string;
   assetAddress: string;
@@ -139,7 +147,7 @@ export async function buildMarketplaceListingDelegateTransaction(input: {
   };
   const { asset, collection } = await fetchMarketChainContext(input);
 
-  const builder = hasMarketplaceTransferDelegate(asset, delegateAddress)
+  const builder = hasTransferDelegatePlugin(asset)
     ? approvePluginAuthority(umi, {
         asset: asset.publicKey,
         collection: collection?.publicKey,
