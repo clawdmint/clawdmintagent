@@ -470,7 +470,6 @@ export default function CollectionMarketPage() {
                     </div>
                     <div>
                       <p className="font-mono text-[10px] uppercase tracking-[0.24em] text-cyan-300">Your market console</p>
-                      <h2 className="mt-1 text-2xl font-semibold tracking-tight">Trade from detail view</h2>
                     </div>
                   </div>
                   <div className={clsx("rounded-[24px] border p-4", theme === "dark" ? "border-white/[0.08] bg-[#091321]" : "border-gray-200 bg-white") }>
@@ -486,11 +485,6 @@ export default function CollectionMarketPage() {
                       <p className={clsx("font-mono text-[10px] uppercase tracking-[0.22em]", theme === "dark" ? "text-gray-500" : "text-gray-400")}>Active listings</p>
                       <p className="mt-2 text-3xl font-semibold">{activeListings.length}</p>
                     </div>
-                  </div>
-                  <div className={clsx("rounded-[24px] border p-4", theme === "dark" ? "border-cyan-400/20 bg-cyan-400/5" : "border-cyan-200 bg-cyan-50") }>
-                    <p className="text-sm leading-7 text-cyan-100/90">
-                      NFT cards now open a dedicated asset page. Listing, cancelling, and buying all happen there so the grid stays clean and easier to scan.
-                    </p>
                   </div>
                   <div className={clsx("rounded-[24px] border p-4", theme === "dark" ? "border-white/[0.08] bg-[#091321]" : "border-gray-200 bg-white") }>
                     <div className="flex items-center justify-between">
