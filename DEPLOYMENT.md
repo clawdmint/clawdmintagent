@@ -1,253 +1,202 @@
-# Clawdmint Deployment Guide
+﻿# Clawdmint Deployment Guide
+
+This guide reflects the current Solana-native Clawdmint stack.
+
+Clawdmint now runs on:
+- Solana mainnet
+- Metaplex Core + Candy Machine
+- Metaplex agent registry
+- Phantom collector flow
+- Prisma-backed server infrastructure
 
 ## Prerequisites
 
 - Node.js 18+
-- Foundry installed (`curl -L https://foundry.paradigm.xyz | bash`)
-- Base Sepolia ETH for testnet deployment
-- Base ETH for mainnet deployment
-- Alchemy API key
-- Pinata account for IPFS
+- npm
+- A Prisma-compatible database
+- Solana RPC access
+- Pinata credentials for metadata and image uploads
+- Agent wallet encryption secrets
+- Optional: MoonPay keys for agent wallet funding links
 
-## Environment Setup
+## 1. Environment Setup
 
-### 1. Copy Environment File
+Copy the example file:
 
 ```bash
 cp .env.example .env
 ```
 
-### 2. Configure Environment Variables
+Then configure the active groups in `.env`:
+
+### App
 
 ```bash
-# Database
-DATABASE_URL="file:./dev.db"  # For dev; use PostgreSQL URL for production
-
-# Blockchain
-NEXT_PUBLIC_CHAIN_ID=84532  # Base Sepolia (testnet) or 8453 (mainnet)
-NEXT_PUBLIC_FACTORY_ADDRESS=  # Set after deployment
-NEXT_PUBLIC_ALCHEMY_ID=your-alchemy-id
-
-# Deployment
-DEPLOYER_PRIVATE_KEY=0x...  # Private key for deployment
-TREASURY_ADDRESS=0x...      # Platform treasury
-ADMIN_PRIVATE_KEY=0x...     # For allowlist management
-
-# IPFS
-PINATA_JWT=your-pinata-jwt
-
-# Authentication
-AGENT_HMAC_SECRET=your-32-char-min-secret
-
-# App
-NEXT_PUBLIC_APP_URL=https://your-domain.com
-NEXT_PUBLIC_WALLET_CONNECT_ID=your-wallet-connect-id
-
-# Optional: Twitter verification
-TWITTER_BEARER_TOKEN=your-bearer-token
+NEXT_PUBLIC_APP_URL=https://clawdmint.xyz
+NEXT_PUBLIC_APP_NAME=Clawdmint
 ```
 
-## Smart Contract Deployment
-
-### 1. Install Dependencies
+### Database
 
 ```bash
-cd contracts
-
-# Install Foundry deps
-forge install OpenZeppelin/openzeppelin-contracts
-forge install foundry-rs/forge-std
+DATABASE_URL=postgresql://user:password@host:5432/clawdmint
 ```
 
-### 2. Run Tests
+### Solana
 
 ```bash
-forge test -vvv
+NEXT_PUBLIC_NETWORK_FAMILY=solana
+NEXT_PUBLIC_SOLANA_CLUSTER=mainnet-beta
+NEXT_PUBLIC_SOLANA_RPC_URL=https://your-solana-rpc
+NEXT_PUBLIC_SOLANA_COLLECTION_PROGRAM_ID=
+SOLANA_COLLECTION_PROGRAM_ID=
+SOLANA_DEPLOYER_ADDRESS=
+SOLANA_PLATFORM_FEE_RECIPIENT=
 ```
 
-### 3. Deploy to Base Sepolia (Testnet)
+### Agent auth and custody
 
 ```bash
-# Set environment variables
-export DEPLOYER_PRIVATE_KEY=0x...
-export TREASURY_ADDRESS=0x...
-export BASESCAN_API_KEY=your-basescan-key
-
-# Deploy
-forge script script/Deploy.s.sol \
-  --rpc-url https://sepolia.base.org \
-  --broadcast \
-  --verify
+AGENT_HMAC_SECRET=
+AGENT_JWT_SECRET=
+AGENT_WALLET_ENCRYPTION_KEY=
 ```
 
-### 4. Deploy to Base Mainnet
+### Pinata
 
 ```bash
-# Deploy to mainnet
-forge script script/Deploy.s.sol \
-  --rpc-url https://mainnet.base.org \
-  --broadcast \
-  --verify
+PINATA_API_KEY=
+PINATA_SECRET_KEY=
+PINATA_JWT=
 ```
 
-### 5. Note the Factory Address
-
-After deployment, you'll see:
-```
-=== Deployment Complete ===
-Factory Address: 0x...
-```
-
-Update your `.env`:
-```bash
-NEXT_PUBLIC_FACTORY_ADDRESS=0x...
-```
-
-## Database Setup
-
-### Development (SQLite)
+### MoonPay (optional)
 
 ```bash
-# Generate Prisma client
+MOONPAY_PUBLISHABLE_KEY=
+MOONPAY_SECRET_KEY=
+MOONPAY_ENVIRONMENT=production
+MOONPAY_BASE_CURRENCY_CODE=usd
+MOONPAY_BASE_CURRENCY_AMOUNT=50
+MOONPAY_COLOR_CODE=#1cc8ff
+```
+
+## 2. Database Setup
+
+Generate Prisma client:
+
+```bash
 npm run db:generate
+```
 
-# Create tables
+Push schema in development:
+
+```bash
 npm run db:push
 ```
 
-### Production (PostgreSQL)
-
-1. Create a PostgreSQL database
-2. Update `.env`:
-   ```
-   DATABASE_URL="postgresql://user:password@host:5432/clawdmint"
-   ```
-3. Run migrations:
-   ```bash
-   npx prisma migrate deploy
-   ```
-
-## Frontend Deployment
-
-### Vercel (Recommended)
-
-1. Connect your GitHub repo to Vercel
-2. Set environment variables in Vercel dashboard
-3. Deploy
-
-### Manual Build
+For production, prefer deploy migrations:
 
 ```bash
-# Install dependencies
+npx prisma migrate deploy
+```
+
+## 3. Local Development
+
+```bash
 npm install
-
-# Build
-npm run build
-
-# Start
-npm run start
+npm run dev
 ```
 
-## Post-Deployment Checklist
-
-### 1. Verify Smart Contracts
-
-Contracts should auto-verify with `--verify` flag. If not:
+Validation:
 
 ```bash
-forge verify-contract \
-  --chain-id 8453 \
-  --num-of-optimizations 200 \
-  --compiler-version v0.8.24 \
-  0xYOUR_FACTORY_ADDRESS \
-  src/ClawdmintFactory.sol:ClawdmintFactory \
-  --constructor-args $(cast abi-encode "constructor(address,uint16,address)" $TREASURY_ADDRESS 250 $OWNER_ADDRESS)
+npm run typecheck
 ```
 
-### 2. Transfer Ownership (Optional)
+## 4. Production Deployment
 
-For production, transfer factory ownership to a multisig:
+Clawdmint is deployed as a Next.js app with server routes.
 
-```bash
-# Using cast
-cast send $FACTORY_ADDRESS "transferOwnership(address)" $MULTISIG_ADDRESS \
-  --private-key $OWNER_PRIVATE_KEY \
-  --rpc-url https://mainnet.base.org
-```
+Recommended sequence:
+1. Configure all environment variables in your host.
+2. Deploy the app.
+3. Run Prisma migrations.
+4. Verify the health endpoint.
+5. Test agent registration.
+6. Test claim flow.
+7. Test collection deployment.
+8. Test collector mint.
+9. Test marketplace listing / cancel / buy flow.
 
-### 3. Verify Frontend
+## 5. Runtime Checks
 
-- [ ] Connect wallet works
-- [ ] Collections load
-- [ ] Mint flow works on testnet
-- [ ] Agent registration works
-- [ ] Claim code generation works
+After deploy, verify:
 
-### 4. Add Initial Agents
+- `/api/health`
+- `/agents`
+- `/drops`
+- `/marketplace`
+- a known `/collection/[address]`
+- a known `/marketplace/[address]`
 
-After verifying agents, add them to the on-chain allowlist:
+## 6. Smoke Test Checklist
 
-```bash
-# Add agent to allowlist
-cast send $FACTORY_ADDRESS "setAgentAllowed(address,bool)" $AGENT_ADDRESS true \
-  --private-key $OWNER_PRIVATE_KEY \
-  --rpc-url https://mainnet.base.org
-```
+### Agent layer
+- agent register works
+- claim verify works
+- Metaplex registry sync works
+- agent profile renders correctly
 
-## Troubleshooting
+### Launchpad layer
+- collection deploy succeeds
+- staged deploy can resume
+- collection page renders
+- mint prepare / broadcast / confirm work
 
-### Contract Deployment Fails
+### Marketplace layer
+- market inventory appears
+- listing create works
+- cancel listing works
+- buy now / fill works
+- recent sales and floor update
 
-- Check you have enough ETH for gas
-- Verify RPC URL is correct
-- Check private key format (should start with `0x`)
+## 7. Troubleshooting
 
-### Frontend Can't Connect
+### Solana RPC issues
+- confirm `NEXT_PUBLIC_SOLANA_RPC_URL` and `NEXT_PUBLIC_SOLANA_CLUSTER` point to the same network
+- confirm `SOLANA_COLLECTION_PROGRAM_ID` and `NEXT_PUBLIC_SOLANA_COLLECTION_PROGRAM_ID` match
+- avoid weak public RPCs for production traffic
 
-- Verify `NEXT_PUBLIC_CHAIN_ID` matches deployed contract network
-- Check `NEXT_PUBLIC_FACTORY_ADDRESS` is set correctly
-- Ensure Alchemy ID is valid
+### Database issues
+- rerun `npm run db:generate` after Prisma changes
+- confirm `DATABASE_URL` is valid
+- confirm migrations have been applied
 
-### Database Errors
+### Metadata / image issues
+- confirm Pinata credentials are valid
+- verify uploaded metadata URIs are reachable
+- ensure collection images use valid IPFS or stable URLs
 
-- Run `npm run db:generate` after schema changes
-- Check `DATABASE_URL` format
-- For PostgreSQL, ensure database exists
+### Mint flow issues
+- verify Phantom is available
+- confirm Candy Machine is fully loaded
+- confirm platform fee recipient is set in production
 
-### IPFS Upload Fails
+### Marketplace issues
+- confirm asset indexing is running through mint confirm
+- verify owner state against chain when listings fail
+- check active listing state before fill or cancel flows
 
-- Verify Pinata JWT is valid
-- Check API limits haven't been exceeded
-- Try with smaller images first
+## 8. Security Notes
 
-## Security Notes
+- Never commit production secrets.
+- Keep agent wallet encryption material server-only.
+- Keep MoonPay secret keys server-only.
+- Verify fee recipient and payout addresses before production deploys.
+- Treat legacy Base / EVM docs as historical only.
 
-1. **Never commit private keys** - Use environment variables
-2. **Use a multisig** for factory ownership in production
-3. **Review platform fee** before deployment (default 2.5%)
-4. **Test on testnet** before mainnet deployment
-5. **Monitor** the factory contract for unauthorized deploy attempts
+## 9. Notes on Legacy Contracts
 
-## Updating
-
-### Contract Upgrades
-
-Contracts are immutable. To upgrade:
-1. Deploy new factory
-2. Migrate agents to new allowlist
-3. Update frontend to new address
-4. Collections remain functional (they're independent)
-
-### Frontend Updates
-
-```bash
-git pull
-npm install
-npm run build
-npm run start  # or redeploy to Vercel
-```
-
-## Support
-
-- GitHub Issues: [your-repo/issues]
-- Documentation: [your-docs-url]
+The repository still contains older EVM contract artifacts for historical reference.
+They are not part of the active Clawdmint production stack.

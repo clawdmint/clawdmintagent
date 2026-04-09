@@ -1,76 +1,91 @@
-# Netlify Environment Variables Setup
+﻿# Netlify Environment Variables Setup
 
-Set these values in Netlify Dashboard only. Do not commit a production `.env` file.
+Set these values in Netlify only. Do not commit production secrets into `.env`.
+
+This guide reflects the current Solana-native Clawdmint stack.
 
 ## Public Variables
 
-These are safe to expose to the browser.
+These can be exposed to the browser.
 
 | Key | Scope | Secret | Example |
 |---|---|---|---|
 | `NEXT_PUBLIC_NETWORK_FAMILY` | All | No | `solana` |
 | `NEXT_PUBLIC_APP_URL` | All | No | `https://clawdmint.xyz` |
 | `NEXT_PUBLIC_APP_NAME` | All | No | `Clawdmint` |
-| `NEXT_PUBLIC_WALLET_CONNECT_ID` | All | No | `your_project_id` |
-| `NEXT_PUBLIC_SOLANA_CLUSTER` | All | No | `devnet` or `mainnet-beta` |
-| `NEXT_PUBLIC_SOLANA_RPC_URL` | All | No | `https://api.devnet.solana.com` |
+| `NEXT_PUBLIC_SOLANA_CLUSTER` | All | No | `mainnet-beta` |
+| `NEXT_PUBLIC_SOLANA_RPC_URL` | All | No | `https://your-solana-rpc` |
 | `NEXT_PUBLIC_SOLANA_COLLECTION_PROGRAM_ID` | All | No | `YourProgramId` |
-| `NEXT_PUBLIC_BAGS_APP_URL` | All | No | `https://bags.fm` |
 
-## Secret Variables
+## Secret / Server Variables
 
-Mark these as secret and scope them to Functions.
+Scope these to Functions or server runtime.
 
 | Key | Scope | Secret | Notes |
 |---|---|---|---|
-| `DATABASE_URL` | Functions | Yes | PostgreSQL connection string |
+| `DATABASE_URL` | Functions | Yes | Prisma database URL |
 | `PINATA_API_KEY` | Functions | Yes | Pinata API key |
-| `PINATA_SECRET_KEY` | Functions | Yes | Pinata secret key |
+| `PINATA_SECRET_KEY` | Functions | Yes | Pinata secret |
 | `PINATA_JWT` | Functions | Yes | Pinata JWT |
-| `SOLANA_COLLECTION_PROGRAM_ID` | Functions | No | Server-side Solana program id |
-| `BAGS_API_KEY` | Functions | Yes | Bags API access |
-| `BAGS_API_BASE_URL` | Functions | No | Usually `https://public-api-v2.bags.fm` |
-| `AGENT_HMAC_SECRET` | Functions | Yes | Min 32 chars |
-| `AGENT_JWT_SECRET` | Functions | Yes | Min 32 chars |
-| `AGENT_WALLET_ENCRYPTION_KEY` | Functions | Yes | Min 32 chars, encrypts stored agent wallets |
+| `SOLANA_COLLECTION_PROGRAM_ID` | Functions | No | Server-side program id |
+| `SOLANA_DEPLOYER_ADDRESS` | Functions | No | Operational deployer / signer address |
+| `SOLANA_PLATFORM_FEE_RECIPIENT` | Functions | No | On-chain platform fee destination |
+| `AGENT_HMAC_SECRET` | Functions | Yes | Minimum 32 chars |
+| `AGENT_JWT_SECRET` | Functions | Yes | Minimum 32 chars |
+| `AGENT_WALLET_ENCRYPTION_KEY` | Functions | Yes | Encrypts stored agent wallets |
+| `MOONPAY_PUBLISHABLE_KEY` | Functions | No | Optional funding links |
+| `MOONPAY_SECRET_KEY` | Functions | Yes | Optional signed MoonPay URLs |
+| `MOONPAY_ENVIRONMENT` | Functions | No | `sandbox` or `production` |
+| `MOONPAY_BASE_CURRENCY_CODE` | Functions | No | Example `usd` |
+| `MOONPAY_BASE_CURRENCY_AMOUNT` | Functions | No | Example `50` |
+| `MOONPAY_COLOR_CODE` | Functions | No | Example `#1cc8ff` |
 
 ## Solana Pairing Rules
 
-- `NEXT_PUBLIC_SOLANA_CLUSTER` and `NEXT_PUBLIC_SOLANA_RPC_URL` must point to the same network.
-- `SOLANA_COLLECTION_PROGRAM_ID` and `NEXT_PUBLIC_SOLANA_COLLECTION_PROGRAM_ID` should usually be identical.
-
-Use one of these exact pairs:
+These must stay aligned:
 
 ```text
-Devnet:
-NEXT_PUBLIC_SOLANA_CLUSTER=devnet
-NEXT_PUBLIC_SOLANA_RPC_URL=https://api.devnet.solana.com
-
-Mainnet:
 NEXT_PUBLIC_SOLANA_CLUSTER=mainnet-beta
-NEXT_PUBLIC_SOLANA_RPC_URL=https://api.mainnet-beta.solana.com
+NEXT_PUBLIC_SOLANA_RPC_URL=https://your-mainnet-rpc
 ```
 
-## Quick Copy
+And these usually match:
+
+```text
+NEXT_PUBLIC_SOLANA_COLLECTION_PROGRAM_ID=...
+SOLANA_COLLECTION_PROGRAM_ID=...
+```
+
+## Quick Copy Template
 
 ```text
 NEXT_PUBLIC_NETWORK_FAMILY=solana
 NEXT_PUBLIC_APP_URL=https://clawdmint.xyz
 NEXT_PUBLIC_APP_NAME=Clawdmint
-NEXT_PUBLIC_WALLET_CONNECT_ID=
-NEXT_PUBLIC_SOLANA_CLUSTER=devnet
-NEXT_PUBLIC_SOLANA_RPC_URL=https://api.devnet.solana.com
+NEXT_PUBLIC_SOLANA_CLUSTER=mainnet-beta
+NEXT_PUBLIC_SOLANA_RPC_URL=
 NEXT_PUBLIC_SOLANA_COLLECTION_PROGRAM_ID=
-NEXT_PUBLIC_BAGS_APP_URL=https://bags.fm
 
 DATABASE_URL=
 PINATA_API_KEY=
 PINATA_SECRET_KEY=
 PINATA_JWT=
 SOLANA_COLLECTION_PROGRAM_ID=
-BAGS_API_KEY=
-BAGS_API_BASE_URL=https://public-api-v2.bags.fm
+SOLANA_DEPLOYER_ADDRESS=
+SOLANA_PLATFORM_FEE_RECIPIENT=
 AGENT_HMAC_SECRET=
 AGENT_JWT_SECRET=
 AGENT_WALLET_ENCRYPTION_KEY=
+MOONPAY_PUBLISHABLE_KEY=
+MOONPAY_SECRET_KEY=
+MOONPAY_ENVIRONMENT=production
+MOONPAY_BASE_CURRENCY_CODE=usd
+MOONPAY_BASE_CURRENCY_AMOUNT=50
+MOONPAY_COLOR_CODE=#1cc8ff
 ```
+
+## Notes
+
+- Bags variables are no longer part of the active product.
+- WalletConnect / Base / EVM public envs are no longer part of the active product path.
+- Keep MoonPay secret keys server-only.

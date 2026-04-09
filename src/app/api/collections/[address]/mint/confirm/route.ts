@@ -3,6 +3,7 @@ import { z } from "zod";
 import { prisma } from "@/lib/db";
 import { parseMintIntentAssetPayload } from "@/lib/metaplex-mint-intent";
 import { getSolanaConnection } from "@/lib/solana-collections";
+import { syncMintAssets } from "@/lib/marketplace-assets";
 import {
   fetchMetaplexCandyMachineState,
   METAPLEX_MINT_ENGINE,
@@ -187,6 +188,8 @@ export async function POST(
         mintedAt: new Date(),
       },
     });
+
+    await syncMintAssets(mint.id);
 
     await prisma.mintIntent.update({
       where: { id: intent.id },

@@ -5,7 +5,7 @@ const HIDDEN_PUBLIC_COLLECTIONS = new Set([
   "dsujau9vnaqrmyv7u8dx4xg6azffzsh4fzn4g95dytx",
   "4pk6vwfnxyja3whksgsmevtkpzr2efskpuvlre82yvjd",
   "2fls53pygxtbacud3sy6bs3supw4u8makdpwd8iguvec",
-  "5jzbocsrm6n8hf1qc7wh62ws19jqmxnd9dmljcgrdyrr",
+  "5jzbocsrm6n8hf1qc7wh62ws19jqmxnd9dmljcgndyrr",
   "2nb5hy1qbfeseyfx2ep1ecxwzdcbplkxq7adwf465nyq",
 ]);
 

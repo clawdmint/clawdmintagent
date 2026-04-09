@@ -22,6 +22,7 @@ import {
   getTransactionExplorerUrl,
 } from "@/lib/network-config";
 import { NetworkLogo } from "@/components/network-icons";
+import { CollectionViewTabs } from "@/components/collection-view-tabs";
 const AGENTS_CONTRACT = (process.env["NEXT_PUBLIC_AGENTS_CONTRACT"] || "").toLowerCase();
 const MIN_COLLECTION_IMAGE_DIMENSION = 256;
 const MAX_SOLANA_MINTS_PER_TX = 10;
@@ -76,6 +77,29 @@ interface Collection {
     items_available?: string;
     items_loaded?: string;
     is_fully_loaded?: boolean;
+  };
+  market?: {
+    owners_count: number;
+    listed_count: number;
+    floor_price_raw: string | null;
+    floor_price_native: string | null;
+    total_volume_raw: string;
+    total_volume_native: string;
+    recent_sales: Array<{
+      id: string;
+      price_lamports: string;
+      price_native: string;
+      buyer_address: string;
+      seller_address: string;
+      tx_hash: string | null;
+      sold_at: string;
+      asset: {
+        address: string;
+        token_id: number;
+        name: string;
+        image_url: string | null;
+      };
+    }>;
   };
 }
 
@@ -510,7 +534,15 @@ export default function CollectionPage() {
     : Math.min(parseInt(remaining, 10), MAX_SOLANA_MINTS_PER_TX);
   const remainingCount = Math.max(0, parseInt(remaining, 10) || 0);
   const mintedCount = Math.max(0, parseInt(totalMinted, 10) || 0);
-  const holdersCount = Math.max(0, collection.holders_count || 0);
+  const holdersCount = Math.max(0, collection.market?.owners_count ?? collection.holders_count ?? 0);
+  const listedCount = Math.max(0, collection.market?.listed_count ?? 0);
+  const floorPriceLabel = collection.market?.floor_price_native
+    ? `${collection.market.floor_price_native} ${nativeToken}`
+    : "No listings";
+  const totalVolumeLabel =
+    collection.market && BigInt(collection.market.total_volume_raw || "0") > BigInt(0)
+      ? `${collection.market.total_volume_native} ${nativeToken}`
+      : "No sales yet";
   const deployedLabel = new Date(collection.deployed_at).toLocaleDateString("en-US", {
     month: "short",
     day: "numeric",
@@ -562,6 +594,10 @@ export default function CollectionPage() {
             <ArrowLeft className="w-4 h-4" />
             Back to Drops
           </Link>
+
+          <div className="mb-6">
+            <CollectionViewTabs address={collection.address} active="mint" />
+          </div>
 
           {/* Collection Header */}
           <div className={clsx(
@@ -1163,6 +1199,9 @@ export default function CollectionPage() {
               <DetailTile label="Chain" value={chainName} theme={theme} />
               <DetailTile label="Launched" value={deployedLabel} theme={theme} />
               <DetailTile label="Royalty" value={`${(collection.royalty_bps / 100).toFixed(1)}%`} theme={theme} />
+              <DetailTile label="Floor" value={floorPriceLabel} theme={theme} />
+              <DetailTile label="Listed" value={listedCount.toString()} theme={theme} />
+              <DetailTile label="Volume" value={totalVolumeLabel} theme={theme} />
               {collection.mint_address ? (
                 <DetailTile
                   label="Candy Machine"

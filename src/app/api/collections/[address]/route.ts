@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
+import { ensureCollectionAssetsIndexed } from "@/lib/marketplace-assets";
 import {
   formatCollectionMintPrice,
   getCollectionNativeToken,
@@ -17,8 +18,18 @@ import {
   getPlatformFeeBps,
   getSolanaPlatformFeeRecipient,
 } from "@/lib/platform-fees";
+import { getCollectionMarketSummary } from "@/lib/marketplace-data";
 
 export const dynamic = "force-dynamic";
+
+const ONCHAIN_CACHE_TTL_MS = 30_000;
+const onchainStateCache = new Map<
+  string,
+  {
+    value: Awaited<ReturnType<typeof fetchOnchainData>>;
+    expiresAt: number;
+  }
+>();
 
 export async function GET(
   request: NextRequest,
@@ -68,13 +79,30 @@ export async function GET(
     }
 
     let currentCollection = collection;
-    const onchain = await fetchOnchainData(collection.mintAddress, collection.mintEngine, collection.maxSupply);
-    const resolvedImageUrl = await resolveCollectionImageUrl(collection.imageUrl, collection.baseUri);
-    const holderRows = await prisma.mint.findMany({
-      where: { collectionId: collection.id },
-      distinct: ["minterAddress"],
-      select: { minterAddress: true },
+    const onchain = await fetchCachedOnchainData(collection.mintAddress, collection.mintEngine, collection.maxSupply);
+    const resolvedImageUrl =
+      !collection.imageUrl || collection.imageUrl.startsWith("ipfs://")
+        ? await resolveCollectionImageUrl(collection.imageUrl, collection.baseUri)
+        : collection.imageUrl;
+    void ensureCollectionAssetsIndexed(collection.id, {
+      forceChainSync: true,
+      awaitChainSync: false,
+    }).catch((error) => {
+      console.warn("[Collection] Background asset indexing failed:", error);
     });
+    const [holderRows, marketSummary] = await Promise.all([
+      prisma.asset.findMany({
+        where: {
+          collectionId: collection.id,
+          ownerAddress: {
+            not: "",
+          },
+        },
+        distinct: ["ownerAddress"],
+        select: { ownerAddress: true },
+      }),
+      getCollectionMarketSummary(collection.id),
+    ]);
 
     if (resolvedImageUrl && resolvedImageUrl !== collection.imageUrl) {
       try {
@@ -195,6 +223,15 @@ export async function GET(
         status: currentCollection.status,
         deployed_at: currentCollection.deployedAt?.toISOString(),
         deploy_tx_hash: currentCollection.deployTxHash,
+        market: {
+          owners_count: marketSummary.ownersCount,
+          listed_count: marketSummary.listedCount,
+          floor_price_raw: marketSummary.floorPriceLamports,
+          floor_price_native: marketSummary.floorPriceNative,
+          total_volume_raw: marketSummary.totalVolumeLamports,
+          total_volume_native: marketSummary.totalVolumeNative,
+          recent_sales: marketSummary.recentSales,
+        },
         agent: {
           id: currentCollection.agent.id,
           name: currentCollection.agent.name,
@@ -241,6 +278,27 @@ async function fetchOnchainData(
   }
 }
 
+async function fetchCachedOnchainData(
+  mintAddress: string | null,
+  mintEngine: string | null,
+  fallbackMaxSupply: number
+) {
+  const cacheKey = `${mintEngine || "none"}:${mintAddress || "none"}:${fallbackMaxSupply}`;
+  const cached = onchainStateCache.get(cacheKey);
+  const now = Date.now();
+
+  if (cached && cached.expiresAt > now) {
+    return cached.value;
+  }
+
+  const value = await fetchOnchainData(mintAddress, mintEngine, fallbackMaxSupply);
+  onchainStateCache.set(cacheKey, {
+    value,
+    expiresAt: now + ONCHAIN_CACHE_TTL_MS,
+  });
+  return value;
+}
+
 function ensureTrailingSlash(value: string): string {
   return value.endsWith("/") ? value : `${value}/`;
 }
@@ -284,3 +342,5 @@ async function resolveCollectionImageUrl(imageUrl: string | null, baseUri: strin
 
   return imageUrl.startsWith("ipfs://") ? ipfsToHttp(imageUrl) : imageUrl;
 }
+
+

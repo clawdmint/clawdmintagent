@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
@@ -79,6 +79,8 @@ export function Footer() {
             <div className="flex flex-wrap items-center justify-center gap-6 text-xs font-medium">
               {[
                 { href: "/drops", label: "Drops" },
+                { href: "/marketplace", label: "Marketplace" },
+                { href: "/docs", label: "Docs" },
                 { href: "/agents", label: "Agents" },
                 { href: "/profile", label: "Profile" },
                 { href: "/skill.md", label: "skill.md", external: true },
@@ -126,3 +128,5 @@ export function Footer() {
     </footer>
   );
 }
+
+

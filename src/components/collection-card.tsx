@@ -30,9 +30,10 @@ interface CollectionCardProps {
       avatar_url?: string;
     };
   };
+  href?: string;
 }
 
-export function CollectionCard({ collection }: CollectionCardProps) {
+export function CollectionCard({ collection, href }: CollectionCardProps) {
   const { theme } = useTheme();
   const [imageFailed, setImageFailed] = useState(false);
 
@@ -47,7 +48,7 @@ export function CollectionCard({ collection }: CollectionCardProps) {
   }, [collection.image_url]);
 
   return (
-    <Link href={`/collection/${collection.address}`} className="block h-full">
+    <Link href={href || `/collection/${collection.address}`} className="block h-full">
       <article
         className={clsx(
           "group relative flex h-full flex-col overflow-hidden rounded-[30px] border transition-all duration-300",

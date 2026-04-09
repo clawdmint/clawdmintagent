@@ -68,6 +68,33 @@ interface MintRecord {
   };
 }
 
+interface OwnedAssetRecord {
+  id: string;
+  asset_address: string;
+  token_id: number;
+  name: string;
+  image_url: string | null;
+  metadata_uri: string | null;
+  minted_at: string;
+  collection: {
+    id: string;
+    name: string;
+    symbol: string;
+    address: string;
+    chain: string;
+    image_url: string | null;
+    status: string;
+    agent_name: string;
+    agent_avatar: string | null;
+  };
+  active_listing: {
+    id: string;
+    price_lamports: string;
+    price_native: string;
+    created_at: string;
+  } | null;
+}
+
 function ChainBadge({ chain, theme }: { chain: string; theme: string }) {
   return (
     <span className={clsx(
@@ -87,6 +114,7 @@ export default function ProfilePage() {
   const { address, isConnected, logout, displayAddress, connectSolana, solanaAvailable } = useWallet();
 
   const [profile, setProfile] = useState<ProfileData | null>(null);
+  const [ownedAssets, setOwnedAssets] = useState<OwnedAssetRecord[]>([]);
   const [mints, setMints] = useState<MintRecord[]>([]);
   const [tokenLaunches, setTokenLaunches] = useState<TokenLaunchRecord[]>([]);
   const [loading, setLoading] = useState(false);
@@ -95,6 +123,7 @@ export default function ProfilePage() {
   useEffect(() => {
     if (!address) {
       setProfile(null);
+      setOwnedAssets([]);
       setMints([]);
       setTokenLaunches([]);
       return;
@@ -109,6 +138,7 @@ export default function ProfilePage() {
 
         if (data.success) {
           setProfile(data.profile);
+          setOwnedAssets(data.owned_assets || []);
           setMints(data.mints);
           setTokenLaunches(data.tokenLaunches || []);
         }
@@ -343,6 +373,95 @@ export default function ProfilePage() {
           </div>
         </div>
       )}
+
+      <div className="mb-6">
+        <div className={clsx(
+          "text-xs font-semibold uppercase tracking-[0.15em] mb-3",
+          theme === "dark" ? "text-gray-600" : "text-gray-400"
+        )}>
+          Owned NFTs
+        </div>
+
+        {ownedAssets.length === 0 ? (
+          <div className={clsx(
+            "rounded-2xl border p-8 text-center",
+            theme === "dark" ? "bg-white/[0.01] border-white/[0.04]" : "bg-gray-50 border-gray-200"
+          )}>
+            <Package className={clsx("w-8 h-8 mx-auto mb-3", theme === "dark" ? "text-gray-700" : "text-gray-300")} />
+            <p className={clsx("text-sm mb-4", theme === "dark" ? "text-gray-500" : "text-gray-400")}>
+              No owned NFTs yet
+            </p>
+            <Link href="/marketplace" className="inline-flex items-center gap-1 text-sm text-cyan-400 hover:underline">
+              Browse Marketplace <ExternalLink className="w-3 h-3" />
+            </Link>
+          </div>
+        ) : (
+          <div className="space-y-2">
+            {ownedAssets.map((asset) => (
+              <div
+                key={asset.id}
+                className={clsx(
+                  "flex items-center gap-3 p-3 rounded-xl border transition-colors",
+                  theme === "dark"
+                    ? "bg-white/[0.01] border-white/[0.05] hover:bg-white/[0.03]"
+                    : "bg-white border-gray-200 hover:bg-gray-50"
+                )}
+              >
+                <Link href={`/marketplace/${asset.collection.address}/${asset.asset_address}`} className="shrink-0">
+                  <div className={clsx(
+                    "w-12 h-12 rounded-xl overflow-hidden",
+                    theme === "dark" ? "bg-gray-800" : "bg-gray-100"
+                  )}>
+                    {asset.image_url ? (
+                      <img src={asset.image_url} alt={asset.name} className="w-full h-full object-cover" />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center text-lg opacity-40">[]</div>
+                    )}
+                  </div>
+                </Link>
+
+                <div className="flex-1 min-w-0">
+                  <Link href={`/marketplace/${asset.collection.address}/${asset.asset_address}`}>
+                    <div className="font-semibold text-sm truncate hover:text-cyan-400 transition-colors">
+                      {asset.name}
+                    </div>
+                  </Link>
+                  <div className="flex items-center gap-2 flex-wrap mt-1">
+                    <div className={clsx("text-xs", theme === "dark" ? "text-gray-600" : "text-gray-400")}>
+                      {asset.collection.name}
+                    </div>
+                    <ChainBadge chain={asset.collection.chain} theme={theme} />
+                    {asset.active_listing ? (
+                      <span className={clsx(
+                        "rounded-full px-2 py-0.5 font-mono text-[10px] uppercase tracking-[0.16em]",
+                        theme === "dark" ? "bg-cyan-500/10 text-cyan-300" : "bg-cyan-50 text-cyan-700"
+                      )}>
+                        Listed {asset.active_listing.price_native} SOL
+                      </span>
+                    ) : null}
+                  </div>
+                </div>
+
+                <div className="shrink-0 text-right">
+                  <div className={clsx("text-[11px]", theme === "dark" ? "text-gray-700" : "text-gray-400")}>
+                    {new Date(asset.minted_at).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
+                  </div>
+                </div>
+
+                <Link
+                  href={`/marketplace/${asset.collection.address}/${asset.asset_address}`}
+                  className={clsx(
+                    "shrink-0 p-1.5 rounded-lg transition-colors",
+                    theme === "dark" ? "text-gray-600 hover:text-gray-400 hover:bg-white/[0.04]" : "text-gray-300 hover:text-gray-500 hover:bg-gray-100"
+                  )}
+                >
+                  <ExternalLink className="w-3.5 h-3.5" />
+                </Link>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
 
       <div>
         <div className={clsx(

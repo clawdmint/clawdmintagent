@@ -3,8 +3,21 @@ import { prisma } from "@/lib/db";
 
 export const dynamic = "force-dynamic";
 
+const LEADERBOARD_CACHE_TTL_MS = 30_000;
+let leaderboardCache:
+  | {
+      payload: unknown;
+      expiresAt: number;
+    }
+  | null = null;
+
 export async function GET() {
   try {
+    const now = Date.now();
+    if (leaderboardCache && leaderboardCache.expiresAt > now) {
+      return NextResponse.json(leaderboardCache.payload);
+    }
+
     const agents = await prisma.agent.findMany({
       where: { status: { notIn: ["SUSPENDED", "BANNED"] } },
       include: {
@@ -105,7 +118,7 @@ export async function GET() {
       }))
       .sort((a, b) => b.score - a.score);
 
-    return NextResponse.json({
+    const payload = {
       success: true,
       leaderboard: board,
       minters,
@@ -119,7 +132,14 @@ export async function GET() {
       total: board.length,
       total_minters: minters.length,
       updated_at: new Date().toISOString(),
-    });
+    };
+
+    leaderboardCache = {
+      payload,
+      expiresAt: now + LEADERBOARD_CACHE_TTL_MS,
+    };
+
+    return NextResponse.json(payload);
   } catch (error) {
     console.error("Leaderboard error:", error);
     return NextResponse.json(

@@ -143,6 +143,9 @@ model Collection {
   // Relations
   mints           Mint[]
   mintIntents     MintIntent[]
+  assets          Asset[]
+  listings        Listing[]
+  sales           Sale[]
   
   @@index([agentId])
   @@index([address])
@@ -175,10 +178,108 @@ model Mint {
   // Timestamps
   createdAt     DateTime   @default(now())
   mintedAt      DateTime   // Block timestamp
+
+  // Relations
+  assets        Asset[]
   
   @@index([collectionId])
   @@index([minterAddress])
   @@index([txHash])
+}
+
+model Asset {
+  id            String     @id @default(cuid())
+
+  // Relations
+  collectionId  String
+  collection    Collection @relation(fields: [collectionId], references: [id], onDelete: Cascade)
+  mintId        String?
+  mint          Mint?      @relation(fields: [mintId], references: [id], onDelete: SetNull)
+
+  // On-chain identity
+  assetAddress  String     @unique
+  tokenId       Int
+  ownerAddress  String
+
+  // Metadata
+  name          String
+  imageUrl      String?
+  metadataUri   String?
+
+  // Timestamps
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+  mintedAt      DateTime
+
+  // Relations
+  listings      Listing[]
+  sales         Sale[]
+
+  @@unique([collectionId, tokenId])
+  @@index([collectionId, ownerAddress])
+  @@index([ownerAddress])
+}
+
+// ListingStatus values: ACTIVE, CANCELLED, FILLED, EXPIRED
+model Listing {
+  id             String     @id @default(cuid())
+
+  // Relations
+  assetId        String
+  asset          Asset      @relation(fields: [assetId], references: [id], onDelete: Cascade)
+  collectionId   String
+  collection     Collection @relation(fields: [collectionId], references: [id], onDelete: Cascade)
+
+  // Listing details
+  sellerAddress  String
+  priceLamports  String
+  status         String     @default("ACTIVE")
+  signature      String
+  message        String
+  nonce          String     @unique
+  expiresAt      DateTime
+
+  // Timestamps
+  createdAt      DateTime   @default(now())
+  updatedAt      DateTime   @updatedAt
+  cancelledAt    DateTime?
+  filledAt       DateTime?
+
+  // Relations
+  sales          Sale[]
+
+  @@index([collectionId, status, createdAt])
+  @@index([assetId, status])
+  @@index([sellerAddress, status])
+}
+
+model Sale {
+  id                   String     @id @default(cuid())
+
+  // Relations
+  assetId              String
+  asset                Asset      @relation(fields: [assetId], references: [id], onDelete: Cascade)
+  collectionId         String
+  collection           Collection @relation(fields: [collectionId], references: [id], onDelete: Cascade)
+  listingId            String?
+  listing              Listing?   @relation(fields: [listingId], references: [id], onDelete: SetNull)
+
+  // Sale details
+  buyerAddress         String
+  sellerAddress        String
+  priceLamports        String
+  marketplaceFeeLamports String?
+  royaltyLamports      String?
+  txHash               String?    @unique
+
+  // Timestamps
+  createdAt            DateTime   @default(now())
+  soldAt               DateTime
+
+  @@index([collectionId, soldAt])
+  @@index([assetId, soldAt])
+  @@index([buyerAddress])
+  @@index([sellerAddress])
 }
 
 model MintIntent {

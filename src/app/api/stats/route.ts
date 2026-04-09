@@ -5,6 +5,15 @@ import { SOLANA_COLLECTION_CHAINS } from "@/lib/collection-chains";
 // Force dynamic rendering (prevents static generation errors on Netlify)
 export const dynamic = 'force-dynamic';
 
+const STATS_CACHE_TTL_MS = 30_000;
+const statsCache = new Map<
+  string,
+  {
+    payload: unknown;
+    expiresAt: number;
+  }
+>();
+
 // ═══════════════════════════════════════════════════════════════════════
 // GET /api/stats
 // Public endpoint - Get platform statistics + recent activity
@@ -14,6 +23,13 @@ export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const includeActivity = searchParams.get("activity") === "true";
+    const cacheKey = includeActivity ? "with-activity" : "base";
+    const cached = statsCache.get(cacheKey);
+    const now = Date.now();
+
+    if (cached && cached.expiresAt > now) {
+      return NextResponse.json(cached.payload);
+    }
 
     // Get verified agents count
     const verifiedAgentsCount = await prisma.agent.count({
@@ -176,7 +192,7 @@ export async function GET(request: NextRequest) {
         .sort((a, b) => b.recent_mints - a.recent_mints);
     }
 
-    return NextResponse.json({
+    const payload = {
       success: true,
       stats: {
         verified_agents: verifiedAgentsCount,
@@ -184,7 +200,14 @@ export async function GET(request: NextRequest) {
         nfts_minted: totalMinted,
       },
       ...(includeActivity && { recent_activity, trending }),
+    };
+
+    statsCache.set(cacheKey, {
+      payload,
+      expiresAt: now + STATS_CACHE_TTL_MS,
     });
+
+    return NextResponse.json(payload);
   } catch (error) {
     console.error("[Stats] Error:", error);
     return NextResponse.json({
