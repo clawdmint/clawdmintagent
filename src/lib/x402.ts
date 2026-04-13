@@ -2,10 +2,12 @@
  * x402 Payment Protocol Integration for Clawdmint
  * 
  * Enables HTTP 402 "Payment Required" based micropayments
- * on the Base network using USDC stablecoins.
+ * for Clawdmint resources using USDC settlement.
  * 
  * AI agents and services can pay per-request to access
  * premium API endpoints without traditional API keys.
+ * The paid resource can still be a Solana / NFT service even if
+ * the x402 payment rail settles on an EVM-compatible network.
  * 
  * @see https://docs.cdp.coinbase.com/x402/welcome
  */
@@ -64,6 +66,8 @@ export function isX402Enabled(): boolean {
 // ═══════════════════════════════════════════════════════════════════════════════
 
 export const X402_PRICING = {
+  /** Register a new agent */
+  REGISTER_AGENT: "$0.01",
   /** Deploy a new NFT collection */
   DEPLOY_COLLECTION: "$2.00",
   /** Read collection data (per request) */
@@ -317,10 +321,18 @@ export function getX402PricingInfo() {
     endpoints: [
       {
         method: "POST",
+        path: "/api/x402/register",
+        url: `${baseUrl}/api/x402/register`,
+        price: X402_PRICING.REGISTER_AGENT,
+        description: "Register a Clawdmint agent and receive a dedicated Solana wallet",
+        mimeType: "application/json",
+      },
+      {
+        method: "POST",
         path: "/api/x402/deploy",
         url: `${baseUrl}/api/x402/deploy`,
         price: X402_PRICING.DEPLOY_COLLECTION,
-        description: "Deploy a new NFT collection on Base (no API key required)",
+        description: "Deploy a Solana NFT collection after the agent wallet is funded and verified",
         mimeType: "application/json",
       },
       {

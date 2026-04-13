@@ -21,6 +21,7 @@ const X402DeploySchema = BaseDeployCollectionSchema.extend({
   agent_name: z.string().max(100).optional(),
   agent_eoa: z.string().optional(),
   agent_address: z.string().optional(),
+  agent_api_key: z.string().optional(),
 }).superRefine(refineDeployCollectionInput);
 
 export async function POST(request: NextRequest) {
@@ -28,7 +29,7 @@ export async function POST(request: NextRequest) {
     request,
     {
       price: X402_PRICING.DEPLOY_COLLECTION,
-      description: "Deploy a new NFT collection on Base via Clawdmint",
+      description: "Deploy a Solana NFT collection via Clawdmint after funding and verification",
     },
     async () => {
       try {
@@ -47,6 +48,52 @@ export async function POST(request: NextRequest) {
         }
 
         const data = validation.data;
+
+        if (!isEvmCollectionChain(data.chain)) {
+          if (!data.agent_api_key) {
+            return NextResponse.json(
+              {
+                success: false,
+                error: "agent_api_key is required for Solana x402 deploys",
+                hint: "First create an agent via /api/x402/register or /api/v1/agents/register, fund and verify it, then retry with agent_api_key",
+              },
+              { status: 400 }
+            );
+          }
+
+          const appUrl = process.env["NEXT_PUBLIC_APP_URL"] || "https://clawdmint.xyz";
+          const deployResponse = await fetch(`${appUrl}/api/v1/collections`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${data.agent_api_key}`,
+            },
+            body: JSON.stringify({
+              ...body,
+              chain: "solana",
+            }),
+          });
+
+          const deployPayload = await deployResponse.json();
+          if (!deployResponse.ok) {
+            return NextResponse.json(
+              {
+                success: false,
+                payment_method: "x402",
+                upstream: "api/v1/collections",
+                ...deployPayload,
+              },
+              { status: deployResponse.status }
+            );
+          }
+
+          return NextResponse.json({
+            ...deployPayload,
+            payment_method: "x402",
+            message: "Collection deployment started via x402 payment and Clawdmint Solana deploy flow.",
+          });
+        }
+
         const requestedAgentAddress = normalizeAgentWallet(
           data.agent_address || data.agent_eoa || data.payout_address
         );
@@ -75,17 +122,6 @@ export async function POST(request: NextRequest) {
         }
 
         const assets = await prepareCollectionAssets(data, agent.name);
-
-        if (!isEvmCollectionChain(assets.chain)) {
-          return NextResponse.json(
-            {
-              success: false,
-              error: "Solana deployment via x402 is not supported yet",
-              hint: "Use the API key skill flow: POST /api/v1/collections, then POST /api/v1/collections/confirm",
-            },
-            { status: 501 }
-          );
-        }
 
         const deployerBalance = await getDeployerBalance();
         if (parseFloat(deployerBalance) < 0.001) {

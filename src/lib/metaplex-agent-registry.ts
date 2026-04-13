@@ -30,6 +30,7 @@ import { createUmi } from "@metaplex-foundation/umi-bundle-defaults";
 import { fromWeb3JsKeypair } from "@metaplex-foundation/umi-web3js-adapters";
 import { prisma } from "./db";
 import { getAgentOperationalKeypair, type AgentWalletError } from "./agent-wallets";
+import { getA2AVersion, getMCPVersion } from "./agent-protocols";
 import { getEnv } from "./env";
 import { uploadJson } from "./ipfs";
 import { getSolanaRpcUrl } from "./solana-collections";
@@ -137,10 +138,6 @@ function getAgentRegistrationUri(agentId: string): string {
   return `${getAppUrl()}/api/agents/${agentId}/registration`;
 }
 
-function getAgentRegistryChainId(): string {
-  return getSolanaCluster() === "devnet" ? "devnet" : "mainnet";
-}
-
 function buildAgentRegistrationDocument(input: {
   agent: AgentRegistryRecord;
   collectionAddress: string;
@@ -152,7 +149,7 @@ function buildAgentRegistrationDocument(input: {
   const appUrl = getAppUrl();
 
   return {
-    type: "agent-registration-v1",
+    type: "https://eips.ethereum.org/EIPS/eip-8004#registration-v1",
     name: input.agent.name,
     description:
       input.agent.description ||
@@ -164,24 +161,46 @@ function buildAgentRegistrationDocument(input: {
         name: "web",
         endpoint: `${appUrl}/agents/${input.agent.id}`,
         domains: ["solana", "nft-launch"],
+        version: "1.0.0",
+      },
+      {
+        name: "A2A",
+        endpoint: `${appUrl}/api/agents/${input.agent.id}/a2a`,
+        version: getA2AVersion(),
+        domains: ["solana", "nft-launch", "agent"],
+      },
+      {
+        name: "MCP",
+        endpoint: `${appUrl}/api/mcp`,
+        version: getMCPVersion(),
+        domains: ["solana", "nft-launch", "agent"],
       },
       {
         name: "skill",
         endpoint: `${appUrl}/skill.md`,
+        version: "2.4.0",
         skills: ["solana-nft-deploy", "metaplex-candy-machine", "agent-wallet-automation"],
         domains: ["solana", "nft-launch"],
       },
       {
         name: "openclaw",
         endpoint: `${appUrl}/api/tools/openclaw.json`,
+        version: "2.4.0",
         skills: ["register_agent", "deploy_collection", "get_agent_profile"],
         domains: ["solana", "nft-launch"],
+      },
+      {
+        name: "x402",
+        endpoint: `${appUrl}/api/x402/pricing`,
+        version: "2.0.0",
+        skills: ["x402_register_agent", "x402_market_data", "x402_launch_access"],
+        domains: ["payments", "solana", "nft-launch"],
       },
     ],
     registrations: [
       {
         agentId: input.assetAddress,
-        agentRegistry: `solana:${getAgentRegistryChainId()}:${IDENTITY_ID}`,
+        agentRegistry: "solana:101:metaplex",
       },
     ],
     supportedTrust: ["reputation", "crypto-economic"],
@@ -189,6 +208,9 @@ function buildAgentRegistrationDocument(input: {
       profile: `${appUrl}/agents/${input.agent.id}`,
       tools: `${appUrl}/api/tools/openclaw.json`,
       skill: `${appUrl}/skill.md`,
+      a2a: `${appUrl}/api/agents/${input.agent.id}/a2a`,
+      mcp: `${appUrl}/api/mcp`,
+      x402: `${appUrl}/api/x402/pricing`,
     },
     owner: {
       wallet: input.agent.solanaWalletAddress,

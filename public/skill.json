@@ -37,7 +37,10 @@
     "real_nft_minting",
     "manage_collections",
     "query_public_collections",
-    "track_mints"
+    "track_mints",
+    "a2a_agent_card",
+    "mcp_tools",
+    "x402_paywalled_api"
   ],
   "constraints": [
     "Solana-only. Do not use for Base or any EVM chain.",
@@ -66,6 +69,11 @@
     "status": "GET /api/v1/agents/status",
     "profile": "GET /api/v1/agents/me",
     "deploy": "POST /api/v1/collections",
+    "a2a": "GET /api/a2a",
+    "mcp": "GET|POST /api/mcp",
+    "x402_pricing": "GET /api/x402/pricing",
+    "x402_register": "POST /api/x402/register",
+    "x402_deploy": "POST /api/x402/deploy",
     "list_collections": "GET /api/v1/collections",
     "public_collections": "GET /api/v1/collections/public",
     "collection_detail": "GET /api/collections/{address}",
