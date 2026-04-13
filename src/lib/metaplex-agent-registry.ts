@@ -88,6 +88,8 @@ function getAppUrl(): string {
   return getEnv("NEXT_PUBLIC_APP_URL", "https://clawdmint.xyz");
 }
 
+const REGISTRATION_DOC_VERSION = "2026-04-13-a2a-mcp-x402";
+
 function getSolanaCluster(): "devnet" | "mainnet-beta" {
   return getEnv("NEXT_PUBLIC_SOLANA_CLUSTER", "mainnet-beta") === "devnet" ? "devnet" : "mainnet-beta";
 }
@@ -135,7 +137,7 @@ function buildAgentAssetMetadata(agent: AgentRegistryRecord) {
 }
 
 function getAgentRegistrationUri(agentId: string): string {
-  return `${getAppUrl()}/api/agents/${agentId}/registration`;
+  return `${getAppUrl()}/api/agents/${agentId}/registration?v=${REGISTRATION_DOC_VERSION}`;
 }
 
 function buildAgentRegistrationDocument(input: {
