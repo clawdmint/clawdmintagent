@@ -118,6 +118,7 @@ export default function AgentPage() {
   const [agent, setAgent] = useState<Agent | null>(null);
   const [loading, setLoading] = useState(true);
   const [copiedWallet, setCopiedWallet] = useState(false);
+  const [activeShowcaseTab, setActiveShowcaseTab] = useState<"collections" | "tokens">("collections");
 
   useEffect(() => {
     async function fetchAgent() {
@@ -138,6 +139,17 @@ export default function AgentPage() {
       void fetchAgent();
     }
   }, [id]);
+
+  useEffect(() => {
+    if (!agent) return;
+    if (agent.collections.length > 0) {
+      setActiveShowcaseTab("collections");
+      return;
+    }
+    if (agent.token_launches.length > 0) {
+      setActiveShowcaseTab("tokens");
+    }
+  }, [agent]);
 
   if (loading) {
     return (
@@ -185,6 +197,9 @@ export default function AgentPage() {
 
   const totalMinted = agent.collections.reduce((sum, collection) => sum + collection.total_minted, 0);
   const totalTokenLaunches = agent.token_launches.length;
+  const hasCollections = agent.collections.length > 0;
+  const hasTokens = agent.token_launches.length > 0;
+  const canToggleShowcase = hasCollections && hasTokens;
 
   return (
     <div className="min-h-screen relative noise">
@@ -450,26 +465,193 @@ export default function AgentPage() {
               </div>
             ) : null}
 
-            {agent.token_launches.length > 0 ? (
+            {(hasCollections || hasTokens) ? (
               <div className="glass-card">
                 <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                   <div>
                     <p className="text-[11px] font-mono uppercase tracking-[0.22em] text-cyan-300/90">
-                      Agent Tokens
+                      Agent Output
                     </p>
-                    <h2 className="mt-2 text-2xl font-semibold">Metaplex Genesis launches</h2>
+                    <h2 className="mt-2 text-2xl font-semibold">
+                      {activeShowcaseTab === "collections" ? "Collection launches" : "Metaplex Genesis launches"}
+                    </h2>
                     <p className="mt-2 text-sm text-gray-400">
-                      Tokens launched from the same verified Solana execution flow used by this
-                      agent for collection deployment and public market discovery.
+                      {activeShowcaseTab === "collections"
+                        ? "Collections deployed from this verified agent are surfaced here with mint status and direct access."
+                        : "Tokens launched from the same verified Solana execution flow used by this agent for collection deployment and public market discovery."}
                     </p>
                   </div>
-                  <span className="rounded-full bg-cyan-500/10 px-3 py-1 text-[11px] font-mono uppercase tracking-[0.2em] text-cyan-300">
-                    {agent.token_launches.length} live
-                  </span>
+                  <div className="flex flex-wrap items-center gap-2">
+                    {canToggleShowcase ? (
+                      <div
+                        className={clsx(
+                          "inline-flex rounded-full border p-1",
+                          theme === "dark"
+                            ? "border-white/[0.08] bg-white/[0.03]"
+                            : "border-gray-200 bg-gray-50/80"
+                        )}
+                      >
+                        <button
+                          type="button"
+                          onClick={() => setActiveShowcaseTab("collections")}
+                          className={clsx(
+                            "rounded-full px-3 py-1.5 text-[11px] font-mono uppercase tracking-[0.18em] transition-colors",
+                            activeShowcaseTab === "collections"
+                              ? "bg-emerald-400 text-black"
+                              : theme === "dark"
+                                ? "text-gray-400 hover:text-white"
+                                : "text-gray-500 hover:text-gray-900"
+                          )}
+                        >
+                          Collections
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setActiveShowcaseTab("tokens")}
+                          className={clsx(
+                            "rounded-full px-3 py-1.5 text-[11px] font-mono uppercase tracking-[0.18em] transition-colors",
+                            activeShowcaseTab === "tokens"
+                              ? "bg-cyan-400 text-black"
+                              : theme === "dark"
+                                ? "text-gray-400 hover:text-white"
+                                : "text-gray-500 hover:text-gray-900"
+                          )}
+                        >
+                          Tokens
+                        </button>
+                      </div>
+                    ) : null}
+                    <span className="rounded-full bg-cyan-500/10 px-3 py-1 text-[11px] font-mono uppercase tracking-[0.2em] text-cyan-300">
+                      {activeShowcaseTab === "collections" ? `${agent.collections.length} live` : `${agent.token_launches.length} live`}
+                    </span>
+                  </div>
                 </div>
 
-                <div className="mt-6 grid gap-5 md:grid-cols-2 xl:grid-cols-3">
-                  {agent.token_launches.map((launch) => (
+                {activeShowcaseTab === "collections" ? (
+                  hasCollections ? (
+                    <div className="mt-6 grid gap-6 md:grid-cols-2 xl:grid-cols-3">
+                      {agent.collections.map((collection) => {
+                        const href = `/collection/${collection.address}`;
+                        const progress =
+                          collection.max_supply > 0
+                            ? (collection.total_minted / collection.max_supply) * 100
+                            : 0;
+                        const isFreeMint = Number(collection.mint_price_raw) === 0;
+                        const statusLabel = collection.status === "SOLD_OUT" ? "Sold Out" : "Live";
+
+                        return (
+                          <Link key={collection.id} href={href}>
+                            <div
+                              className={clsx(
+                                "group relative h-full overflow-hidden rounded-[28px] transition-all duration-300",
+                                theme === "dark"
+                                  ? "bg-[#0d1117] ring-1 ring-white/[0.06] hover:ring-emerald-500/30 hover:shadow-2xl hover:shadow-emerald-500/10"
+                                  : "bg-white ring-1 ring-gray-200 hover:ring-emerald-300 hover:shadow-2xl"
+                              )}
+                            >
+                              <div className="relative aspect-[4/5] overflow-hidden">
+                                {collection.image_url ? (
+                                  <img
+                                    src={collection.image_url}
+                                    alt={collection.name}
+                                    className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-[1.05]"
+                                  />
+                                ) : (
+                                  <div
+                                    className={clsx(
+                                      "flex h-full w-full items-center justify-center",
+                                      theme === "dark"
+                                        ? "bg-gradient-to-br from-emerald-900/30 to-gray-900"
+                                        : "bg-gradient-to-br from-emerald-50 to-gray-100"
+                                    )}
+                                  >
+                                    <Sparkles className="h-16 w-16 opacity-20" />
+                                  </div>
+                                )}
+
+                                <div
+                                  className={clsx(
+                                    "absolute inset-0 bg-gradient-to-t via-transparent",
+                                    theme === "dark"
+                                      ? "from-[#0d1117] via-transparent to-transparent"
+                                      : "from-white via-transparent to-transparent"
+                                  )}
+                                />
+
+                                <div
+                                  className={clsx(
+                                    "absolute left-3 top-3 rounded-lg px-3 py-1.5 text-sm font-bold backdrop-blur-md",
+                                    isFreeMint
+                                      ? theme === "dark"
+                                        ? "bg-emerald-500/20 text-emerald-400"
+                                        : "bg-emerald-50 text-emerald-600"
+                                      : theme === "dark"
+                                        ? "bg-white/10 text-white"
+                                        : "bg-white/90 text-gray-900"
+                                  )}
+                                >
+                                  {isFreeMint ? "FREE" : `${collection.mint_price_native} ${collection.native_token}`}
+                                </div>
+
+                                <div className="absolute right-3 top-3 flex items-center gap-1.5 rounded-lg bg-black/50 px-2.5 py-1 backdrop-blur-md">
+                                  <span
+                                    className={clsx(
+                                      "h-1.5 w-1.5 rounded-full",
+                                      collection.status === "SOLD_OUT" ? "bg-red-400" : "bg-emerald-400 animate-pulse"
+                                    )}
+                                  />
+                                  <span className="text-[10px] font-bold uppercase tracking-widest text-white/90">
+                                    {statusLabel}
+                                  </span>
+                                </div>
+
+                                <div className="absolute bottom-0 left-0 right-0 p-4">
+                                  <div className={clsx("h-1 overflow-hidden rounded-full", theme === "dark" ? "bg-white/10" : "bg-black/10")}>
+                                    <div
+                                      className="h-full rounded-full bg-gradient-to-r from-emerald-400 to-cyan-400 transition-all duration-700"
+                                      style={{ width: `${Math.min(progress, 100)}%` }}
+                                    />
+                                  </div>
+                                  <div className="mt-1 flex justify-between">
+                                    <span className={clsx("text-[10px] font-medium", theme === "dark" ? "text-white/50" : "text-gray-500")}>
+                                      {collection.total_minted.toLocaleString()}/{collection.max_supply.toLocaleString()}
+                                    </span>
+                                    <span className={clsx("text-[10px] font-bold", theme === "dark" ? "text-white/70" : "text-gray-700")}>
+                                      {Math.round(progress)}%
+                                    </span>
+                                  </div>
+                                </div>
+                              </div>
+
+                              <div className="p-4 pt-2">
+                                <h3 className="mb-2 line-clamp-1 font-bold transition-colors group-hover:text-emerald-400">
+                                  {collection.name}
+                                </h3>
+                                <div
+                                  className={clsx(
+                                    "flex items-center justify-between text-xs",
+                                    theme === "dark" ? "text-gray-500" : "text-gray-400"
+                                  )}
+                                >
+                                  <span>by {agent.name}</span>
+                                  <span className="flex items-center gap-1 font-semibold text-emerald-400">
+                                    Mint <ArrowRight className="h-3 w-3" />
+                                  </span>
+                                </div>
+                              </div>
+                            </div>
+                          </Link>
+                        );
+                      })}
+                    </div>
+                  ) : (
+                    <div className="mt-6 rounded-2xl border border-white/[0.06] bg-white/[0.02] p-8 text-center text-gray-400">
+                      This agent has not deployed any collections yet.
+                    </div>
+                  )
+                ) : (
+                  <div className="mt-6 grid gap-5 md:grid-cols-2 xl:grid-cols-3">
+                    {agent.token_launches.map((launch) => (
                     <div
                       key={launch.id}
                       className={clsx(
@@ -618,138 +800,12 @@ export default function AgentPage() {
                         )}
                       </div>
                     </div>
-                  ))}
-                </div>
+                    ))}
+                  </div>
+                )}
               </div>
             ) : null}
           </div>
-        </div>
-      </section>
-
-      <section className="py-12">
-        <div className="container mx-auto max-w-6xl px-4">
-          <h2 className="mb-8 text-2xl font-bold">Collections by {agent.name}</h2>
-
-          {agent.collections.length === 0 ? (
-            <div className="glass-card mx-auto max-w-xl py-12 text-center">
-              <div className="mb-4 text-4xl">[]</div>
-              <h3 className="mb-2 text-lg font-semibold">No Collections Yet</h3>
-              <p className="text-gray-400">This agent has not deployed any collections yet.</p>
-            </div>
-          ) : (
-            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-              {agent.collections.map((collection) => {
-                const href = `/collection/${collection.address}`;
-                const progress = collection.max_supply > 0 ? (collection.total_minted / collection.max_supply) * 100 : 0;
-                const isFreeMint = Number(collection.mint_price_raw) === 0;
-                const statusLabel = collection.status === "SOLD_OUT" ? "Sold Out" : "Live";
-
-                return (
-                  <Link key={collection.id} href={href}>
-                    <div
-                      className={clsx(
-                        "group relative h-full overflow-hidden rounded-2xl transition-all duration-300",
-                        theme === "dark"
-                          ? "bg-[#0d1117] ring-1 ring-white/[0.06] hover:ring-emerald-500/30 hover:shadow-2xl hover:shadow-emerald-500/10"
-                          : "bg-white ring-1 ring-gray-200 hover:ring-emerald-300 hover:shadow-2xl"
-                      )}
-                    >
-                      <div className="relative aspect-[4/5] overflow-hidden">
-                        {collection.image_url ? (
-                          <img
-                            src={collection.image_url}
-                            alt={collection.name}
-                            className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-[1.05]"
-                          />
-                        ) : (
-                          <div
-                            className={clsx(
-                              "flex h-full w-full items-center justify-center",
-                              theme === "dark"
-                                ? "bg-gradient-to-br from-emerald-900/30 to-gray-900"
-                                : "bg-gradient-to-br from-emerald-50 to-gray-100"
-                            )}
-                          >
-                            <Sparkles className="h-16 w-16 opacity-20" />
-                          </div>
-                        )}
-
-                        <div
-                          className={clsx(
-                            "absolute inset-0 bg-gradient-to-t via-transparent",
-                            theme === "dark"
-                              ? "from-[#0d1117] via-transparent to-transparent"
-                              : "from-white via-transparent to-transparent"
-                          )}
-                        />
-
-                        <div
-                          className={clsx(
-                            "absolute left-3 top-3 rounded-lg px-3 py-1.5 text-sm font-bold backdrop-blur-md",
-                            isFreeMint
-                              ? theme === "dark"
-                                ? "bg-emerald-500/20 text-emerald-400"
-                                : "bg-emerald-50 text-emerald-600"
-                              : theme === "dark"
-                                ? "bg-white/10 text-white"
-                                : "bg-white/90 text-gray-900"
-                          )}
-                        >
-                          {isFreeMint ? "FREE" : `${collection.mint_price_native} ${collection.native_token}`}
-                        </div>
-
-                        <div className="absolute right-3 top-3 flex items-center gap-1.5 rounded-lg bg-black/50 px-2.5 py-1 backdrop-blur-md">
-                          <span
-                            className={clsx(
-                              "h-1.5 w-1.5 rounded-full",
-                              collection.status === "SOLD_OUT" ? "bg-red-400" : "bg-emerald-400 animate-pulse"
-                            )}
-                          />
-                          <span className="text-[10px] font-bold uppercase tracking-widest text-white/90">
-                            {statusLabel}
-                          </span>
-                        </div>
-
-                        <div className="absolute bottom-0 left-0 right-0 p-4">
-                          <div className={clsx("h-1 overflow-hidden rounded-full", theme === "dark" ? "bg-white/10" : "bg-black/10")}>
-                            <div
-                              className="h-full rounded-full bg-gradient-to-r from-emerald-400 to-cyan-400 transition-all duration-700"
-                              style={{ width: `${Math.min(progress, 100)}%` }}
-                            />
-                          </div>
-                          <div className="mt-1 flex justify-between">
-                            <span className={clsx("text-[10px] font-medium", theme === "dark" ? "text-white/50" : "text-gray-500")}>
-                              {collection.total_minted.toLocaleString()}/{collection.max_supply.toLocaleString()}
-                            </span>
-                            <span className={clsx("text-[10px] font-bold", theme === "dark" ? "text-white/70" : "text-gray-700")}>
-                              {Math.round(progress)}%
-                            </span>
-                          </div>
-                        </div>
-                      </div>
-
-                      <div className="p-4 pt-2">
-                        <h3 className="mb-2 line-clamp-1 font-bold transition-colors group-hover:text-emerald-400">
-                          {collection.name}
-                        </h3>
-                        <div
-                          className={clsx(
-                            "flex items-center justify-between text-xs",
-                            theme === "dark" ? "text-gray-500" : "text-gray-400"
-                          )}
-                        >
-                          <span>by {agent.name}</span>
-                          <span className="flex items-center gap-1 font-semibold text-emerald-400">
-                            Mint <ArrowRight className="h-3 w-3" />
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-                  </Link>
-                );
-              })}
-            </div>
-          )}
         </div>
       </section>
     </div>

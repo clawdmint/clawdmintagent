@@ -31,6 +31,7 @@ interface Agent {
   status: string;
   deploy_enabled: boolean;
   collections_count: number;
+  token_launches_count: number;
   verified_at: string | null;
   created_at: string;
 }
@@ -85,7 +86,7 @@ function sortAgents(list: Agent[], sort: SortOption) {
 function matchesStatusFilter(agent: Agent, filter: StatusFilter) {
   if (filter === "VERIFIED") return agent.status === "VERIFIED";
   if (filter === "DEPLOY_READY") return agent.deploy_enabled;
-  if (filter === "BUILDERS") return agent.collections_count > 0;
+  if (filter === "BUILDERS") return agent.collections_count > 0 || agent.token_launches_count > 0;
   if (filter === "CLAIMED") return agent.status === "CLAIMED";
   return true;
 }
@@ -201,6 +202,7 @@ export default function AgentsPage() {
   const verifiedCount = agents.filter((agent) => agent.status === "VERIFIED").length;
   const deployReadyCount = agents.filter((agent) => agent.deploy_enabled).length;
   const builderCount = agents.filter((agent) => agent.collections_count > 0).length;
+  const tokenBuilderCount = agents.filter((agent) => agent.token_launches_count > 0).length;
   const metaplexCount = agents.filter((agent) => agent.metaplex_registered).length;
   const hasActiveFilters = Boolean(trimmedQuery) || statusFilter !== "ALL" || sortBy !== "collections";
 
@@ -260,6 +262,13 @@ export default function AgentsPage() {
               value={builderCount}
               detail="at least one collection"
               icon={<Bot className="w-4 h-4" />}
+            />
+            <MetricTile
+              theme={theme}
+              label="Token Launchers"
+              value={tokenBuilderCount}
+              detail="at least one token"
+              icon={<Sparkles className="w-4 h-4" />}
             />
             <MetricTile
               theme={theme}
@@ -756,7 +765,17 @@ function AgentCard({ agent, theme }: { agent: Agent; theme: string }) {
                 theme === "dark" ? "bg-emerald-500/10 text-emerald-400" : "bg-emerald-50 text-emerald-600",
               )}
             >
-              {agent.collections_count} collection{agent.collections_count === 1 ? "" : "s"}
+              NFT
+            </span>
+          ) : null}
+          {agent.token_launches_count > 0 ? (
+            <span
+              className={clsx(
+                "rounded-full px-2.5 py-1 text-[11px] font-mono uppercase tracking-[0.18em]",
+                theme === "dark" ? "bg-cyan-500/10 text-cyan-300" : "bg-cyan-50 text-cyan-700",
+              )}
+            >
+              TOKEN
             </span>
           ) : null}
           {agent.metaplex_registered ? (
@@ -800,7 +819,7 @@ function AgentCard({ agent, theme }: { agent: Agent; theme: string }) {
 
         <div
           className={clsx(
-            "mt-5 grid grid-cols-2 gap-3 border-t pt-4",
+            "mt-5 grid gap-3 border-t pt-4 sm:grid-cols-3",
             theme === "dark" ? "border-white/[0.06]" : "border-gray-200",
           )}
         >
@@ -808,6 +827,12 @@ function AgentCard({ agent, theme }: { agent: Agent; theme: string }) {
             <p className="text-2xl font-semibold">{agent.collections_count}</p>
             <p className={clsx("text-xs mt-1", theme === "dark" ? "text-gray-500" : "text-gray-400")}>
               collections launched
+            </p>
+          </div>
+          <div>
+            <p className="text-2xl font-semibold">{agent.token_launches_count}</p>
+            <p className={clsx("text-xs mt-1", theme === "dark" ? "text-gray-500" : "text-gray-400")}>
+              tokens launched
             </p>
           </div>
           <div>

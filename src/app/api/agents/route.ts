@@ -22,7 +22,7 @@ export async function GET(request: NextRequest) {
 
     // Get all registered agents (excluding suspended/banned)
     const statusFilter = { status: { notIn: ["SUSPENDED", "BANNED"] } };
-    const [agents, total, publicCollections] = await Promise.all([
+    const [agents, total, publicCollections, tokenLaunches] = await Promise.all([
       prisma.agent.findMany({
         where: statusFilter,
         orderBy: { createdAt: "desc" },
@@ -40,6 +40,15 @@ export async function GET(request: NextRequest) {
           address: true,
         },
       }),
+      prisma.tokenLaunch.findMany({
+        where: {
+          agentId: { not: null },
+          chain: { in: ["solana", "solana-devnet"] },
+        },
+        select: {
+          agentId: true,
+        },
+      }),
     ]);
 
     const collectionCountByAgent = filterVisiblePublicCollections(publicCollections).reduce(
@@ -49,6 +58,12 @@ export async function GET(request: NextRequest) {
       },
       new Map<string, number>(),
     );
+
+    const tokenCountByAgent = tokenLaunches.reduce((map, launch) => {
+      if (!launch.agentId) return map;
+      map.set(launch.agentId, (map.get(launch.agentId) || 0) + 1);
+      return map;
+    }, new Map<string, number>());
 
     return NextResponse.json({
       success: true,
@@ -66,6 +81,7 @@ export async function GET(request: NextRequest) {
         status: a.status,
         deploy_enabled: a.deployEnabled,
         collections_count: collectionCountByAgent.get(a.id) || 0,
+        token_launches_count: tokenCountByAgent.get(a.id) || 0,
         verified_at: a.verifiedAt?.toISOString(),
         created_at: a.createdAt.toISOString(),
       })),
