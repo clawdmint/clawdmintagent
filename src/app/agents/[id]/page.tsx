@@ -293,6 +293,18 @@ export default function AgentPage() {
                         Metaplex Registered
                       </span>
                     ) : null}
+                    {hasCollections ? (
+                      <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-400/20 bg-emerald-500/10 px-3 py-1 text-[11px] font-mono uppercase tracking-[0.18em] text-emerald-300">
+                        <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
+                        NFT
+                      </span>
+                    ) : null}
+                    {hasTokens ? (
+                      <span className="inline-flex items-center gap-1.5 rounded-full border border-cyan-400/20 bg-cyan-500/10 px-3 py-1 text-[11px] font-mono uppercase tracking-[0.18em] text-cyan-300">
+                        <span className="h-1.5 w-1.5 rounded-full bg-cyan-400" />
+                        TOKEN
+                      </span>
+                    ) : null}
                   </div>
 
                   {agent.description ? (
@@ -481,7 +493,7 @@ export default function AgentPage() {
                         : "Tokens launched from the same verified Solana execution flow used by this agent for collection deployment and public market discovery."}
                     </p>
                   </div>
-                  <div className="flex flex-wrap items-center gap-2">
+                  <div className="flex min-w-[220px] flex-col items-start gap-2 lg:items-end">
                     {canToggleShowcase ? (
                       <div
                         className={clsx(
