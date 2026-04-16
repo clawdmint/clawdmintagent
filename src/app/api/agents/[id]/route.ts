@@ -42,6 +42,24 @@ export async function GET(
             createdAt: true,
           },
         },
+        tokenLaunches: {
+          where: {
+            chain: { in: ["solana", "solana-devnet"] },
+          },
+          orderBy: { createdAt: "desc" },
+          select: {
+            id: true,
+            tokenName: true,
+            tokenSymbol: true,
+            tokenAddress: true,
+            txHash: true,
+            launchType: true,
+            network: true,
+            launchUrl: true,
+            imageUrl: true,
+            createdAt: true,
+          },
+        },
       },
     });
 
@@ -92,6 +110,18 @@ export async function GET(
           native_token: getCollectionNativeToken(c.chain),
           status: c.status,
           created_at: c.createdAt.toISOString(),
+        })),
+        token_launches: agent.tokenLaunches.map((launch) => ({
+          id: launch.id,
+          name: launch.tokenName,
+          symbol: launch.tokenSymbol,
+          token_address: launch.tokenAddress,
+          tx_hash: launch.txHash,
+          launch_type: launch.launchType,
+          network: launch.network,
+          launch_url: launch.launchUrl,
+          image_url: launch.imageUrl,
+          created_at: launch.createdAt.toISOString(),
         })),
       },
     });

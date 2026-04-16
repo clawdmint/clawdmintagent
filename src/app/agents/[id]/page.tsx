@@ -45,6 +45,18 @@ interface Agent {
     status: string;
     created_at: string;
   }>;
+  token_launches: Array<{
+    id: string;
+    name: string;
+    symbol: string;
+    token_address: string;
+    tx_hash: string | null;
+    launch_type: string | null;
+    network: string | null;
+    launch_url: string | null;
+    image_url: string | null;
+    created_at: string;
+  }>;
 }
 
 function RegistryField({
@@ -172,6 +184,7 @@ export default function AgentPage() {
   }
 
   const totalMinted = agent.collections.reduce((sum, collection) => sum + collection.total_minted, 0);
+  const totalTokenLaunches = agent.token_launches.length;
 
   return (
     <div className="min-h-screen relative noise">
@@ -282,6 +295,11 @@ export default function AgentPage() {
                         label: "Collections",
                         value: agent.collections.length.toString(),
                         accent: "text-brand-400",
+                      },
+                      {
+                        label: "Tokens",
+                        value: totalTokenLaunches.toString(),
+                        accent: "text-cyan-300",
                       },
                       {
                         label: "Total minted",
@@ -428,6 +446,118 @@ export default function AgentPage() {
                       theme={theme}
                     />
                   )}
+                </div>
+              </div>
+            ) : null}
+
+            {agent.token_launches.length > 0 ? (
+              <div className="glass-card">
+                <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                  <div>
+                    <p className="text-[11px] font-mono uppercase tracking-[0.22em] text-cyan-300/90">
+                      Agent Tokens
+                    </p>
+                    <h2 className="mt-2 text-2xl font-semibold">Metaplex Genesis launches</h2>
+                    <p className="mt-2 text-sm text-gray-400">
+                      Tokens launched from the same verified Solana execution flow used by this
+                      agent for collection deployment.
+                    </p>
+                  </div>
+                  <span className="rounded-full bg-cyan-500/10 px-3 py-1 text-[11px] font-mono uppercase tracking-[0.2em] text-cyan-300">
+                    {agent.token_launches.length} live
+                  </span>
+                </div>
+
+                <div className="mt-5 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+                  {agent.token_launches.map((launch) => (
+                    <div
+                      key={launch.id}
+                      className={clsx(
+                        "rounded-2xl border p-4",
+                        theme === "dark"
+                          ? "border-white/[0.08] bg-white/[0.02]"
+                          : "border-gray-200 bg-gray-50/80"
+                      )}
+                    >
+                      <div className="flex items-start gap-3">
+                        <div
+                          className={clsx(
+                            "flex h-12 w-12 flex-shrink-0 items-center justify-center overflow-hidden rounded-2xl",
+                            theme === "dark"
+                              ? "bg-gradient-to-br from-cyan-500/10 to-brand-500/10"
+                              : "bg-gradient-to-br from-cyan-50 to-brand-50"
+                          )}
+                        >
+                          {launch.image_url ? (
+                            <img
+                              src={launch.image_url}
+                              alt={launch.name}
+                              className="h-full w-full object-cover"
+                            />
+                          ) : (
+                            <Sparkles className="h-5 w-5 text-cyan-300" />
+                          )}
+                        </div>
+
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-2">
+                            <h3 className="truncate font-semibold">{launch.name}</h3>
+                            <span className="rounded-full bg-cyan-500/10 px-2 py-0.5 text-[10px] font-mono uppercase tracking-[0.16em] text-cyan-300">
+                              {launch.symbol}
+                            </span>
+                          </div>
+                          <p
+                            className={clsx(
+                              "mt-1 font-mono text-xs",
+                              theme === "dark" ? "text-gray-400" : "text-gray-500"
+                            )}
+                            title={launch.token_address}
+                          >
+                            {truncateAddress(launch.token_address, 8, 6)}
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="mt-4 flex flex-wrap gap-2">
+                        {launch.launch_type ? (
+                          <span className="rounded-full bg-white/[0.05] px-2.5 py-1 text-[10px] font-mono uppercase tracking-[0.16em] text-gray-300">
+                            {launch.launch_type}
+                          </span>
+                        ) : null}
+                        {launch.network ? (
+                          <span className="rounded-full bg-white/[0.05] px-2.5 py-1 text-[10px] font-mono uppercase tracking-[0.16em] text-gray-300">
+                            {launch.network}
+                          </span>
+                        ) : null}
+                        <span className="rounded-full bg-white/[0.05] px-2.5 py-1 text-[10px] font-mono uppercase tracking-[0.16em] text-gray-300">
+                          {new Date(launch.created_at).toLocaleDateString()}
+                        </span>
+                      </div>
+
+                      <div className="mt-4 flex flex-wrap gap-2">
+                        <a
+                          href={getAddressExplorerUrl(launch.token_address, "solana")}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1 rounded-full border border-white/[0.08] px-3 py-2 text-xs font-medium text-cyan-300 transition-colors hover:bg-white/[0.04]"
+                        >
+                          Token
+                          <ExternalLink className="h-3.5 w-3.5" />
+                        </a>
+                        {launch.launch_url ? (
+                          <a
+                            href={launch.launch_url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-1 rounded-full border border-white/[0.08] px-3 py-2 text-xs font-medium text-gray-200 transition-colors hover:bg-white/[0.04]"
+                          >
+                            Launch
+                            <ExternalLink className="h-3.5 w-3.5" />
+                          </a>
+                        ) : null}
+                      </div>
+                    </div>
+                  ))}
                 </div>
               </div>
             ) : null}

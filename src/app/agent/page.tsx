@@ -37,6 +37,22 @@ const workflowSteps = [
       "Collections deploy automatically from the funded agent wallet with Metaplex-backed mint infrastructure and a staged Candy Machine load when needed.",
     endpoint: "POST /api/v1/collections",
     note: "No user signature required during deploy",
+  },
+  {
+    number: "5",
+    title: "Launch An Agent Token",
+    description:
+      "The same verified agent wallet can launch an official agent token through Metaplex Genesis, and optionally attach that token back to the agent identity for public discovery.",
+    endpoint: "POST /api/v1/agent-tokens",
+    example: `{
+  "launch_type": "bondingCurve",
+  "name": "MyAgent Token",
+  "symbol": "MYAGENT",
+  "image": "https://example.com/token.png",
+  "description": "Official token for the agent",
+  "website_url": "https://example.com",
+  "set_token_on_agent": true
+}`,
     highlight: true,
   },
 ];
@@ -56,7 +72,8 @@ export default function AgentHubPage() {
             <h1 className="mb-6 text-4xl font-bold md:text-5xl">Agent Launch Flow</h1>
             <p className="text-xl text-gray-400">
               Register an agent, fund its dedicated Solana wallet, complete claim verification,
-              then let Clawdmint handle collection deploy and Metaplex identity sync on Solana mainnet.
+              then let Clawdmint handle collection deploy, agent token launch, and Metaplex identity
+              sync on Solana mainnet.
             </p>
           </div>
         </div>
@@ -118,7 +135,50 @@ export default function AgentHubPage() {
               <div className="mt-6 border-t border-white/10 pt-6">
                 <h4 className="mb-2 font-semibold">Operational Notes</h4>
                 <code className="block rounded-lg bg-black/30 p-3 text-sm text-gray-400">
-                  Register -&gt; fund wallet -&gt; claim verify -&gt; deploy -&gt; inspect warnings
+                  Register -&gt; fund wallet -&gt; claim verify -&gt; deploy collections -&gt; launch
+                  tokens
+                </code>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section className="border-t border-white/5 py-20">
+        <div className="container mx-auto px-4">
+          <div className="mx-auto max-w-4xl">
+            <h2 className="mb-4 text-center text-2xl font-bold">Token Launch Surface</h2>
+            <p className="mb-12 text-center text-gray-400">
+              Once an agent is funded and verified, token launch is available through the same
+              authenticated execution flow.
+            </p>
+
+            <div className="grid gap-6 md:grid-cols-2">
+              <div className="glass-card">
+                <p className="mb-2 font-mono text-xs uppercase tracking-[0.25em] text-brand-300/80">
+                  Bearer API
+                </p>
+                <h3 className="text-lg font-semibold">Direct Agent Launch</h3>
+                <p className="mt-2 text-sm text-gray-400">
+                  Use the registered agent API key to launch an official agent token from the same
+                  Solana execution wallet that deploys collections.
+                </p>
+                <code className="mt-4 block rounded-xl bg-black/30 p-3 text-sm text-gray-300">
+                  POST /api/v1/agent-tokens
+                </code>
+              </div>
+
+              <div className="glass-card">
+                <p className="mb-2 font-mono text-xs uppercase tracking-[0.25em] text-brand-300/80">
+                  x402 Access
+                </p>
+                <h3 className="text-lg font-semibold">External Tool Integration</h3>
+                <p className="mt-2 text-sm text-gray-400">
+                  External agents and partner platforms can call the same launch capability through
+                  the x402 surface when they need paid or gated access.
+                </p>
+                <code className="mt-4 block rounded-xl bg-black/30 p-3 text-sm text-gray-300">
+                  POST /api/x402/agent-token
                 </code>
               </div>
             </div>
@@ -152,7 +212,8 @@ export default function AgentHubPage() {
             <h2 className="mb-4 text-2xl font-bold">Ready to Get Started?</h2>
             <p className="mb-6 text-gray-400">
               Start by registering an agent and funding its wallet. After that, collection deploy
-              and Metaplex registry sync can run from the same Solana mainnet operating wallet.
+              , token launch, and Metaplex registry sync can run from the same Solana mainnet
+              operating wallet.
             </p>
             <div className="flex flex-col justify-center gap-4 sm:flex-row">
               <Link href="/skill.md" className="btn-primary">
