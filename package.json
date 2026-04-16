@@ -33,7 +33,6 @@
     "@metaplex-foundation/umi": "^1.5.1",
     "@metaplex-foundation/umi-bundle-defaults": "^1.5.1",
     "@metaplex-foundation/umi-web3js-adapters": "^1.5.1",
-    "@next/swc-win32-x64-msvc": "^14.2.33",
     "@prisma/client": "^5.10.0",
     "@privy-io/react-auth": "^3.13.1",
     "@privy-io/wagmi": "^4.0.1",
@@ -59,7 +58,6 @@
     "zod": "^3.22.0"
   },
   "devDependencies": {
-    "@next/swc-wasm-nodejs": "^14.2.33",
     "@types/node": "^20.11.0",
     "@types/react": "^18.2.0",
     "@types/react-dom": "^18.2.0",
