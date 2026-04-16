@@ -460,7 +460,7 @@ export default function AgentPage() {
                     <h2 className="mt-2 text-2xl font-semibold">Metaplex Genesis launches</h2>
                     <p className="mt-2 text-sm text-gray-400">
                       Tokens launched from the same verified Solana execution flow used by this
-                      agent for collection deployment.
+                      agent for collection deployment and public market discovery.
                     </p>
                   </div>
                   <span className="rounded-full bg-cyan-500/10 px-3 py-1 text-[11px] font-mono uppercase tracking-[0.2em] text-cyan-300">
@@ -468,24 +468,26 @@ export default function AgentPage() {
                   </span>
                 </div>
 
-                <div className="mt-5 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+                <div className="mt-6 grid gap-5 md:grid-cols-2 xl:grid-cols-3">
                   {agent.token_launches.map((launch) => (
                     <div
                       key={launch.id}
                       className={clsx(
-                        "rounded-2xl border p-4",
+                        "group relative overflow-hidden rounded-[28px] border p-5 transition-all duration-300",
                         theme === "dark"
-                          ? "border-white/[0.08] bg-white/[0.02]"
-                          : "border-gray-200 bg-gray-50/80"
+                          ? "border-cyan-500/10 bg-[radial-gradient(circle_at_top_left,rgba(34,211,238,0.12),transparent_36%),linear-gradient(180deg,rgba(255,255,255,0.04),rgba(255,255,255,0.02))] hover:border-cyan-400/30 hover:shadow-[0_24px_80px_rgba(16,185,129,0.08)]"
+                          : "border-gray-200 bg-[radial-gradient(circle_at_top_left,rgba(34,211,238,0.08),transparent_34%),linear-gradient(180deg,rgba(255,255,255,0.96),rgba(248,250,252,0.9))] hover:border-cyan-300 hover:shadow-2xl"
                       )}
                     >
-                      <div className="flex items-start gap-3">
+                      <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-cyan-300/60 to-transparent opacity-70" />
+
+                      <div className="flex items-start justify-between gap-3">
                         <div
                           className={clsx(
-                            "flex h-12 w-12 flex-shrink-0 items-center justify-center overflow-hidden rounded-2xl",
+                            "flex h-14 w-14 flex-shrink-0 items-center justify-center overflow-hidden rounded-2xl ring-1",
                             theme === "dark"
-                              ? "bg-gradient-to-br from-cyan-500/10 to-brand-500/10"
-                              : "bg-gradient-to-br from-cyan-50 to-brand-50"
+                              ? "bg-gradient-to-br from-cyan-500/10 to-brand-500/10 ring-white/10"
+                              : "bg-gradient-to-br from-cyan-50 to-brand-50 ring-gray-200"
                           )}
                         >
                           {launch.image_url ? (
@@ -500,8 +502,8 @@ export default function AgentPage() {
                         </div>
 
                         <div className="min-w-0 flex-1">
-                          <div className="flex items-center gap-2">
-                            <h3 className="truncate font-semibold">{launch.name}</h3>
+                          <div className="flex flex-wrap items-center gap-2">
+                            <h3 className="truncate text-lg font-semibold">{launch.name}</h3>
                             <span className="rounded-full bg-cyan-500/10 px-2 py-0.5 text-[10px] font-mono uppercase tracking-[0.16em] text-cyan-300">
                               {launch.symbol}
                             </span>
@@ -516,6 +518,61 @@ export default function AgentPage() {
                             {truncateAddress(launch.token_address, 8, 6)}
                           </p>
                         </div>
+
+                        <span className="rounded-full border border-cyan-400/20 bg-cyan-500/10 px-2.5 py-1 text-[10px] font-mono uppercase tracking-[0.18em] text-cyan-300">
+                          live
+                        </span>
+                      </div>
+
+                      <div
+                        className={clsx(
+                          "mt-4 rounded-2xl border p-4",
+                          theme === "dark"
+                            ? "border-white/[0.06] bg-black/20"
+                            : "border-gray-200 bg-white/70"
+                        )}
+                      >
+                        <div className="flex items-center justify-between gap-3">
+                          <div>
+                            <p className="text-[10px] font-mono uppercase tracking-[0.18em] text-gray-500">
+                              Token Address
+                            </p>
+                            <p className="mt-1 font-mono text-sm text-gray-200" title={launch.token_address}>
+                              {truncateAddress(launch.token_address, 10, 8)}
+                            </p>
+                          </div>
+                          <a
+                            href={getAddressExplorerUrl(launch.token_address, "solana")}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="rounded-full p-2 text-cyan-300 transition-colors hover:bg-white/[0.06] hover:text-white"
+                            aria-label="Open token in explorer"
+                          >
+                            <ExternalLink className="h-4 w-4" />
+                          </a>
+                        </div>
+
+                        {launch.tx_hash ? (
+                          <div className="mt-3 flex items-center justify-between gap-3 border-t border-white/10 pt-3">
+                            <div>
+                              <p className="text-[10px] font-mono uppercase tracking-[0.18em] text-gray-500">
+                                Launch Tx
+                              </p>
+                              <p className="mt-1 font-mono text-xs text-gray-400" title={launch.tx_hash}>
+                                {truncateAddress(launch.tx_hash, 8, 6)}
+                              </p>
+                            </div>
+                            <a
+                              href={getAddressExplorerUrl(launch.tx_hash, "solana")}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="rounded-full p-2 text-gray-400 transition-colors hover:bg-white/[0.06] hover:text-white"
+                              aria-label="Open launch transaction in explorer"
+                            >
+                              <ExternalLink className="h-4 w-4" />
+                            </a>
+                          </div>
+                        ) : null}
                       </div>
 
                       <div className="mt-4 flex flex-wrap gap-2">
@@ -534,12 +591,12 @@ export default function AgentPage() {
                         </span>
                       </div>
 
-                      <div className="mt-4 flex flex-wrap gap-2">
+                      <div className="mt-5 grid gap-2 sm:grid-cols-2">
                         <a
                           href={getAddressExplorerUrl(launch.token_address, "solana")}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="inline-flex items-center gap-1 rounded-full border border-white/[0.08] px-3 py-2 text-xs font-medium text-cyan-300 transition-colors hover:bg-white/[0.04]"
+                          className="inline-flex items-center justify-center gap-1 rounded-full border border-cyan-400/20 bg-cyan-500/10 px-3 py-2.5 text-xs font-medium text-cyan-300 transition-colors hover:bg-cyan-500/15 hover:text-white"
                         >
                           Token
                           <ExternalLink className="h-3.5 w-3.5" />
@@ -549,12 +606,16 @@ export default function AgentPage() {
                             href={launch.launch_url}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="inline-flex items-center gap-1 rounded-full border border-white/[0.08] px-3 py-2 text-xs font-medium text-gray-200 transition-colors hover:bg-white/[0.04]"
+                            className="inline-flex items-center justify-center gap-1 rounded-full border border-white/[0.08] px-3 py-2.5 text-xs font-medium text-gray-200 transition-colors hover:bg-white/[0.04]"
                           >
                             Launch
                             <ExternalLink className="h-3.5 w-3.5" />
                           </a>
-                        ) : null}
+                        ) : (
+                          <div className="rounded-full border border-dashed border-white/[0.08] px-3 py-2.5 text-center text-[11px] font-mono uppercase tracking-[0.16em] text-gray-500">
+                            launch page unavailable
+                          </div>
+                        )}
                       </div>
                     </div>
                   ))}
