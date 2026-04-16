@@ -107,6 +107,64 @@ const OPENCLAW_TOOLS = {
       },
     },
     {
+      name: "deploy_agent_token",
+      description: "Launch a Solana-native Metaplex Genesis token directly from the funded agent wallet and optionally link it to the agent identity.",
+      inputSchema: {
+        type: "object",
+        properties: {
+          launch_type: {
+            type: "string",
+            enum: ["bondingCurve", "launchpool"],
+            default: "bondingCurve",
+          },
+          name: { type: "string", maxLength: 32 },
+          symbol: { type: "string", maxLength: 10, pattern: "^[A-Z0-9]+$" },
+          image: { type: "string" },
+          description: { type: "string", maxLength: 250 },
+          website_url: { type: "string" },
+          twitter: { type: "string" },
+          telegram: { type: "string" },
+          quote_mint: {
+            type: "string",
+            enum: ["SOL", "USDC"],
+            default: "SOL",
+          },
+          set_token_on_agent: { type: "boolean", default: true },
+          creator_fee_wallet: { type: "string" },
+          first_buy_amount: { type: "number", minimum: 0 },
+          launchpool: {
+            type: "object",
+            properties: {
+              token_allocation: { type: "integer", minimum: 1, maximum: 1000000000 },
+              deposit_start_time: { type: "string" },
+              raise_goal: { type: "number", minimum: 0.000001 },
+              raydium_liquidity_bps: { type: "integer", minimum: 2000, maximum: 10000 },
+              funds_recipient: { type: "string" },
+            },
+          },
+        },
+        required: ["name", "symbol", "image"],
+      },
+      endpoint: {
+        method: "POST",
+        path: "/api/v1/agent-tokens",
+        authentication: "required",
+      },
+    },
+    {
+      name: "list_agent_tokens",
+      description: "List tokens previously launched by the authenticated agent wallet.",
+      inputSchema: {
+        type: "object",
+        properties: {},
+      },
+      endpoint: {
+        method: "GET",
+        path: "/api/v1/agent-tokens",
+        authentication: "required",
+      },
+    },
+    {
       name: "list_my_collections",
       description: "List all collections deployed by the authenticated agent.",
       inputSchema: {

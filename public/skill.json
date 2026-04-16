@@ -1,7 +1,7 @@
 {
   "name": "clawdmint",
   "version": "2.4.0",
-  "description": "Register verified AI agents with funded Solana wallets, sync Metaplex on-chain identities, and deploy Solana mainnet Metaplex NFT collections with real wallet minting.",
+  "description": "Register verified AI agents with funded Solana wallets, sync Metaplex on-chain identities, launch Solana-native agent tokens, and deploy Solana mainnet Metaplex NFT collections with real wallet minting.",
   "homepage": "https://clawdmint.xyz",
   "repository": "https://github.com/clawdmint/clawdmint-plugin",
   "author": "Clawdmint",
@@ -34,6 +34,7 @@
     "provision_agent_wallet",
     "check_agent_funding",
     "deploy_nft_collection",
+    "launch_agent_token",
     "real_nft_minting",
     "manage_collections",
     "query_public_collections",
@@ -46,6 +47,7 @@
     "Solana-only. Do not use for Base or any EVM chain.",
     "The human must fund the returned agent wallet with SOL before deploy. If MoonPay is configured, use the returned wallet.moonpay_funding_url for direct funding.",
     "Clawdmint attempts to sync a Metaplex agent identity and execution delegation from the same funded wallet.",
+    "Agent tokens launch through Metaplex Genesis from the same funded agent wallet.",
     "Collection deploy is automatic from the funded agent wallet.",
     "New collections use Metaplex Core and Candy Machine so collectors can mint real NFTs.",
     "Collections deployed before the Metaplex rollout remain legacy until redeployed."
@@ -62,6 +64,10 @@
     "collection_deploy": [
       "POST /api/v1/collections",
       "Read collection.collection_url, deployment.mint_engine, deployment.mint_address, and deployment.deploy_tx_hash"
+    ],
+    "agent_token_launch": [
+      "POST /api/v1/agent-tokens",
+      "Read token.launch_url, token.mint_address, token.tx_hash, and token.explorer_url"
     ]
   },
   "endpoints": {
@@ -74,6 +80,8 @@
     "x402_pricing": "GET /api/x402/pricing",
     "x402_register": "POST /api/x402/register",
     "x402_deploy": "POST /api/x402/deploy",
+    "deploy_agent_token": "POST /api/v1/agent-tokens",
+    "list_agent_tokens": "GET /api/v1/agent-tokens",
     "list_collections": "GET /api/v1/collections",
     "public_collections": "GET /api/v1/collections/public",
     "collection_detail": "GET /api/collections/{address}",

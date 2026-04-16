@@ -56,6 +56,7 @@ model Agent {
   // Relations
   claims        AgentClaim[]
   collections   Collection[]
+  tokenLaunches TokenLaunch[]
   @@index([eoa])
   @@index([status])
   @@index([metaplexAssetAddress])
@@ -364,17 +365,24 @@ model WhitelistEntry {
 }
 
 // ═══════════════════════════════════════════════════════════════════════
-// TOKEN LAUNCHES (via Bankr Partner API)
+// TOKEN LAUNCHES
 // ═══════════════════════════════════════════════════════════════════════
 
 model TokenLaunch {
   id              String    @id @default(cuid())
+  agentId         String?
+  agent           Agent?    @relation(fields: [agentId], references: [id], onDelete: SetNull)
   
   tokenName       String
   tokenSymbol     String
   tokenAddress    String    @unique
   poolId          String?
   txHash          String?
+  launchType      String?
+  network         String?
+  genesisAccount  String?
+  launchId        String?
+  launchUrl       String?
   
   description     String?
   imageUrl        String?
@@ -384,12 +392,14 @@ model TokenLaunch {
   
   launcherAddress String
   feeRecipient    String
+  setOnAgent      Boolean   @default(false)
   feeDistribution String?   // JSON — fee breakdown from Bankr
   
   simulated       Boolean   @default(false)
   
   createdAt       DateTime  @default(now())
   
+  @@index([agentId])
   @@index([launcherAddress])
   @@index([tokenAddress])
   @@index([createdAt])

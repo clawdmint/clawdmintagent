@@ -51,6 +51,12 @@ export function buildA2ACard(agent?: Pick<Agent, "id" | "name" | "description" |
           description: "Read collection market state, listings, recent fills, and marketplace activity.",
           tags: ["marketplace", "solana", "nft"],
         },
+        {
+          id: "agent_token_launch",
+          name: "Agent Token Launch",
+          description: "Launch Solana-native Metaplex Genesis tokens from the agent wallet and attach them to agent identity.",
+          tags: ["solana", "metaplex", "token", "genesis"],
+        },
       ],
       defaultInputModes: ["application/json"],
       defaultOutputModes: ["application/json"],
@@ -102,6 +108,20 @@ export function getMCPTools() {
         required: ["name"],
       },
     },
+    {
+      name: "deploy_agent_token",
+      description: "Launch a Metaplex Genesis token from the authenticated agent wallet.",
+      inputSchema: {
+        type: "object",
+        properties: {
+          launch_type: { type: "string", enum: ["bondingCurve", "launchpool"] },
+          name: { type: "string" },
+          symbol: { type: "string" },
+          image: { type: "string" },
+        },
+        required: ["name", "symbol", "image"],
+      },
+    },
   ];
 }
 
@@ -124,4 +144,3 @@ export function buildMCPManifest() {
     tools: getMCPTools(),
   };
 }
-

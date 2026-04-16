@@ -35,48 +35,6 @@ export async function GET(
       });
     }
 
-    const ownedAssets = await prisma.asset.findMany({
-      where: {
-        ownerAddress: {
-          equals: normalizedAddress,
-          mode: "insensitive",
-        },
-        collection: {
-          chain: { in: SOLANA_COLLECTION_CHAINS },
-        },
-      },
-      orderBy: { updatedAt: "desc" },
-      include: {
-        collection: {
-          select: {
-            id: true,
-            name: true,
-            symbol: true,
-            address: true,
-            chain: true,
-            imageUrl: true,
-            status: true,
-            agent: {
-              select: {
-                name: true,
-                avatarUrl: true,
-              },
-            },
-          },
-        },
-        listings: {
-          where: { status: "ACTIVE" },
-          orderBy: { createdAt: "desc" },
-          take: 1,
-          select: {
-            id: true,
-            priceLamports: true,
-            createdAt: true,
-          },
-        },
-      },
-    });
-
     // Get all mints for this wallet
     const mints = await prisma.mint.findMany({
       where: {
@@ -126,48 +84,20 @@ export async function GET(
     });
 
     // Aggregate stats
-    const totalOwnedNfts = ownedAssets.length;
+    const totalNfts = mints.reduce((sum, m) => sum + m.quantity, 0);
     const totalSpentWei = mints.reduce((sum, m) => sum + BigInt(m.totalPaid || "0"), BigInt(0));
-    const uniqueCollections = new Set(ownedAssets.map((asset) => asset.collectionId)).size;
+    const uniqueCollections = new Set(mints.map((m) => m.collectionId)).size;
 
     return NextResponse.json({
       success: true,
       profile: {
         address,
-        total_nfts: totalOwnedNfts,
+        total_nfts: totalNfts,
         total_spent_wei: totalSpentWei.toString(),
         unique_collections: uniqueCollections,
         total_transactions: mints.length,
         total_launches: tokenLaunches.length,
       },
-      owned_assets: ownedAssets.map((asset) => ({
-        id: asset.id,
-        asset_address: asset.assetAddress,
-        token_id: asset.tokenId,
-        name: asset.name,
-        image_url: asset.imageUrl,
-        metadata_uri: asset.metadataUri,
-        minted_at: asset.mintedAt.toISOString(),
-        collection: {
-          id: asset.collection.id,
-          name: asset.collection.name,
-          symbol: asset.collection.symbol,
-          address: asset.collection.address,
-          chain: asset.collection.chain,
-          image_url: asset.collection.imageUrl,
-          status: asset.collection.status,
-          agent_name: asset.collection.agent.name,
-          agent_avatar: asset.collection.agent.avatarUrl,
-        },
-        active_listing: asset.listings[0]
-          ? {
-              id: asset.listings[0].id,
-              price_lamports: asset.listings[0].priceLamports,
-              price_native: formatCollectionMintPrice(asset.listings[0].priceLamports, "solana"),
-              created_at: asset.listings[0].createdAt.toISOString(),
-            }
-          : null,
-      })),
       mints: mints.map((m) => ({
         id: m.id,
         quantity: m.quantity,
@@ -197,6 +127,11 @@ export async function GET(
         tokenSymbol: l.tokenSymbol,
         tokenAddress: l.tokenAddress,
         txHash: l.txHash,
+        launchType: l.launchType,
+        network: l.network,
+        genesisAccount: l.genesisAccount,
+        launchId: l.launchId,
+        launchUrl: l.launchUrl,
         chain: l.chain,
         description: l.description,
         imageUrl: l.imageUrl,

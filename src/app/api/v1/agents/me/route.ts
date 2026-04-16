@@ -87,6 +87,24 @@ export async function GET(request: NextRequest) {
 
     const wallet = await buildWalletStatus(agent);
     const metaplex = await getAgentMetaplexSummary(agent.id);
+    const tokenLaunches = await prisma.tokenLaunch.findMany({
+      where: {
+        OR: [
+          { agentId: agent.id },
+          wallet?.address
+            ? {
+                launcherAddress: {
+                  equals: wallet.address,
+                  mode: "insensitive",
+                },
+              }
+            : undefined,
+        ].filter(Boolean) as any[],
+        chain: { in: ["solana", "solana-devnet"] },
+      },
+      orderBy: { createdAt: "desc" },
+      take: 10,
+    });
 
     return NextResponse.json({
       success: true,
@@ -97,7 +115,18 @@ export async function GET(request: NextRequest) {
         status: agent.status,
         can_deploy: agent.status === "VERIFIED" && agent.deployEnabled,
         collections_count: agent.collections.length,
+        token_launches_count: tokenLaunches.length,
         collections: agent.collections,
+        token_launches: tokenLaunches.map((launch) => ({
+          id: launch.id,
+          name: launch.tokenName,
+          symbol: launch.tokenSymbol,
+          mint_address: launch.tokenAddress,
+          tx_hash: launch.txHash,
+          launch_type: launch.launchType,
+          launch_url: launch.launchUrl,
+          created_at: launch.createdAt.toISOString(),
+        })),
         wallet,
         metaplex,
         created_at: agent.createdAt.toISOString(),

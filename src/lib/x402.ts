@@ -70,6 +70,8 @@ export const X402_PRICING = {
   REGISTER_AGENT: "$0.01",
   /** Deploy a new NFT collection */
   DEPLOY_COLLECTION: "$2.00",
+  /** Launch a new agent token */
+  DEPLOY_AGENT_TOKEN: "$2.00",
   /** Read collection data (per request) */
   API_COLLECTIONS_READ: "$0.001",
   /** Premium analytics/stats */
@@ -333,6 +335,14 @@ export function getX402PricingInfo() {
         url: `${baseUrl}/api/x402/deploy`,
         price: X402_PRICING.DEPLOY_COLLECTION,
         description: "Deploy a Solana NFT collection after the agent wallet is funded and verified",
+        mimeType: "application/json",
+      },
+      {
+        method: "POST",
+        path: "/api/x402/agent-token",
+        url: `${baseUrl}/api/x402/agent-token`,
+        price: X402_PRICING.DEPLOY_AGENT_TOKEN,
+        description: "Launch a Solana-native Metaplex Genesis agent token after the agent wallet is funded and verified",
         mimeType: "application/json",
       },
       {

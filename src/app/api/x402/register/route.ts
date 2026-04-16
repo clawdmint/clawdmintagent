@@ -128,7 +128,7 @@ export async function POST(request: NextRequest) {
             ? "Fund the agent wallet with SOL using the included MoonPay URL or a direct transfer"
             : "Fund the agent wallet with SOL",
           "Complete the human claim flow from claim_url",
-          "After verification and funding, use the bearer API or x402 deploy surface to launch collections",
+          "After verification and funding, use the bearer API or x402 deploy surfaces to launch collections and agent tokens",
         ],
       });
     }

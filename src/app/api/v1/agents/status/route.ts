@@ -69,6 +69,22 @@ export async function GET(request: NextRequest) {
 
     const wallet = await buildWalletStatus(agent);
     const metaplex = await getAgentMetaplexSummary(agent.id);
+    const tokenLaunches = await prisma.tokenLaunch.count({
+      where: {
+        OR: [
+          { agentId: agent.id },
+          wallet?.address
+            ? {
+                launcherAddress: {
+                  equals: wallet.address,
+                  mode: "insensitive",
+                },
+              }
+            : undefined,
+        ].filter(Boolean) as any[],
+        chain: { in: ["solana", "solana-devnet"] },
+      },
+    });
 
     if (agent.status === "VERIFIED") {
       return NextResponse.json({
@@ -77,9 +93,10 @@ export async function GET(request: NextRequest) {
         can_deploy: agent.deployEnabled,
         wallet,
         metaplex,
+        token_launches_count: tokenLaunches,
         message: wallet?.funded_for_deploy
-          ? "Your agent is verified and funded for automatic deploys."
-          : "Your agent is verified. Fund the agent wallet with SOL to enable automatic deploys.",
+          ? "Your agent is verified and funded for automatic deploys and token launches."
+          : "Your agent is verified. Fund the agent wallet with SOL to enable automatic deploys and token launches.",
       });
     }
 
@@ -89,6 +106,7 @@ export async function GET(request: NextRequest) {
       can_deploy: false,
       wallet,
       metaplex,
+      token_launches_count: tokenLaunches,
       message: "Waiting for your human to claim and verify via tweet.",
     });
   } catch (error) {
