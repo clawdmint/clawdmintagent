@@ -32,6 +32,46 @@ export function requireEnv(key: string): string {
 // ═══════════════════════════════════════════════════════════════════════════════
 // CLIENT-SIDE VARIABLES (NEXT_PUBLIC_* - safe to inline)
 // These are PUBLIC and intentionally exposed to the client
+
+function appendApiKeyToRpcUrl(endpoint: string, apiKey: string): string {
+  if (!endpoint) return "";
+  if (!apiKey || endpoint.includes("api_key=") || endpoint.includes("api-key=") || endpoint.includes("x-api-key=")) {
+    return endpoint;
+  }
+
+  const separator = endpoint.includes("?") ? "&" : "?";
+  return `${endpoint}${separator}api_key=${encodeURIComponent(apiKey)}`;
+}
+
+export function getSynapseSolanaRpcUrl(): string {
+  const endpoint =
+    getEnv("SYNAPSE_SOLANA_RPC_URL", "") ||
+    getEnv("SYNAPSE_RPC_ENDPOINT", "") ||
+    getEnv("SYNAPSE_RPC_URL", "");
+  const apiKey = getEnv("SYNAPSE_API_KEY", "");
+
+  if (!endpoint) {
+    return "";
+  }
+
+  return appendApiKeyToRpcUrl(endpoint, apiKey);
+}
+
+export function getPreferredSolanaRpcUrl(): string {
+  const synapseRpc = getSynapseSolanaRpcUrl();
+  if (synapseRpc) {
+    return synapseRpc;
+  }
+
+  const customSolanaRpc = getEnv("NEXT_PUBLIC_SOLANA_RPC_URL", "");
+  if (customSolanaRpc) {
+    return customSolanaRpc;
+  }
+
+  return getEnv("NEXT_PUBLIC_SOLANA_CLUSTER", "mainnet-beta") === "devnet"
+    ? "https://api.devnet.solana.com"
+    : "https://api.mainnet-beta.solana.com";
+}
 // ═══════════════════════════════════════════════════════════════════════════════
 
 export function getClientEnv() {
@@ -193,7 +233,7 @@ export function validateEnv(forProduction = false): EnvValidationResult {
   }
 
   const solanaCluster = process.env["NEXT_PUBLIC_SOLANA_CLUSTER"] || "mainnet-beta";
-  const solanaRpcUrl = process.env["NEXT_PUBLIC_SOLANA_RPC_URL"] || "";
+  const solanaRpcUrl = process.env["NEXT_PUBLIC_SOLANA_RPC_URL"] || process.env["SYNAPSE_SOLANA_RPC_URL"] || process.env["SYNAPSE_RPC_ENDPOINT"] || process.env["SYNAPSE_RPC_URL"] || "";
   if (solanaRpcUrl) {
     const rpcLooksDevnet = /devnet/i.test(solanaRpcUrl);
     const rpcLooksMainnet = /mainnet/i.test(solanaRpcUrl);
@@ -254,14 +294,7 @@ export function validateEnv(forProduction = false): EnvValidationResult {
  */
 export function getRpcUrl(): string {
   if (getEnv("NEXT_PUBLIC_NETWORK_FAMILY", "solana") === "solana") {
-    const customSolanaRpc = getEnv("NEXT_PUBLIC_SOLANA_RPC_URL", "");
-    if (customSolanaRpc) {
-      return customSolanaRpc;
-    }
-
-    return getEnv("NEXT_PUBLIC_SOLANA_CLUSTER", "mainnet-beta") === "devnet"
-      ? "https://api.devnet.solana.com"
-      : "https://api.mainnet-beta.solana.com";
+    return getPreferredSolanaRpcUrl();
   }
 
   const alchemyId = getEnv("NEXT_PUBLIC_ALCHEMY_ID", "");

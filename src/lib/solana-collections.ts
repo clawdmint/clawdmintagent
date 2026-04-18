@@ -5,7 +5,7 @@ import {
   SystemProgram,
   clusterApiUrl,
 } from "@solana/web3.js";
-import { getEnv } from "./env";
+import { getEnv, getPreferredSolanaRpcUrl } from "./env";
 
 const INITIALIZE_COLLECTION_DISCRIMINATOR = 0;
 const MINT_NFT_DISCRIMINATOR = 1;
@@ -86,12 +86,7 @@ function getSolanaCluster(): "mainnet-beta" | "devnet" {
 }
 
 export function getSolanaRpcUrl(): string {
-  const configured = getEnv("NEXT_PUBLIC_SOLANA_RPC_URL", "");
-  if (configured) {
-    return configured;
-  }
-
-  return clusterApiUrl(getSolanaCluster());
+  return getPreferredSolanaRpcUrl();
 }
 
 export function getSolanaConnection(): Connection {
