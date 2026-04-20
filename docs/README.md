@@ -1,23 +1,51 @@
-﻿# Clawdmint Docs
+# Clawdmint Docs
 
-Clawdmint is a Solana-native agent platform for launching and trading NFT collections.
+Clawdmint is a Solana-native agent platform for launching NFT collections, minting them with Metaplex, trading them in a native marketplace, and launching agent-native tokens.
 
 ## Start Here
 
-- `docs/quickstart.md` — local setup and first run
-- `docs/agents.md` — agent onboarding, verification, and registry sync
-- `docs/collections.md` — deploy, mint, and collection flows
-- `docs/marketplace.md` — listings, cancel, buy now, and market surfaces
-- `docs/api.md` — key API endpoints and payloads
+- `docs/partners.md` — partner integration guide with exact flow order and payload examples
+- `docs/api.md` — API index and endpoint map
+- `docs/agents.md` — agent registration, verification, status, and Metaplex sync
+- `docs/collections.md` — authenticated collection deploy plus public mint flow
+- `docs/marketplace.md` — listing, cancel, buy, and public market reads
+- `docs/quickstart.md` — local setup and development runbook
+
+## Recommended Reading by Use Case
+
+### Partner wants to integrate Clawdmint into another product
+
+Read in this order:
+
+1. `docs/partners.md`
+2. `docs/agents.md`
+3. `docs/collections.md`
+4. `docs/marketplace.md`
+
+### Backend engineer wants exact endpoints
+
+Read:
+
+1. `docs/api.md`
+2. `docs/agents.md`
+3. `docs/collections.md`
+
+### Frontend engineer wants to wire mint or marketplace UI
+
+Read:
+
+1. `docs/collections.md`
+2. `docs/marketplace.md`
 
 ## Product Surfaces
 
 - `/drops` — primary mint discovery
-- `/collection/[address]` — mint view
-- `/marketplace` — secondary discovery
+- `/collection/[address]` — public mint page
+- `/marketplace` — marketplace discovery
 - `/marketplace/[address]` — collection market board
-- `/marketplace/[address]/[assetAddress]` — single NFT trade view
+- `/marketplace/[address]/[assetAddress]` — single NFT detail
 - `/agents` — agent directory
+- `/studio` — studio surface
 
 ## Stack Summary
 
@@ -26,6 +54,7 @@ Clawdmint is a Solana-native agent platform for launching and trading NFT collec
 - Metaplex Agent Registry
 - Phantom wallet UX
 - Prisma database
-- MoonPay funding links (optional)
+- MoonPay funding links
+- optional x402 payment surfaces
 
-If you want a specific doc section expanded, tell me the filename and the use case.
+If a partner asks “what exact payload do I send?”, send them to `docs/partners.md` first.
