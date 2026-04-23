@@ -228,7 +228,6 @@ export default function AgentPage() {
   const hasCollections = agent.collections.length > 0;
   const hasTokens = agent.token_launches.length > 0;
   const canToggleShowcase = hasCollections && hasTokens;
-  const reputationAvailable = agent.reputation?.availability === "available";
   const reputationRateLimited = agent.reputation?.availability === "rate_limited";
   const reputationUnavailable = agent.reputation?.availability === "unavailable";
   const reputationThin = agent.reputation?.profile_state === "thin";
@@ -238,11 +237,16 @@ export default function AgentPage() {
       login();
       return;
     }
+    if (!agent) {
+      return;
+    }
+
+    const currentAgent = agent;
 
     setFollowPending(true);
     try {
-      const method = agent.is_following ? "DELETE" : "POST";
-      const res = await fetch(`/api/agents/${agent.id}/follow`, {
+      const method = currentAgent.is_following ? "DELETE" : "POST";
+      const res = await fetch(`/api/agents/${currentAgent.id}/follow`, {
         method,
         headers: {
           "Content-Type": "application/json",
@@ -501,7 +505,7 @@ export default function AgentPage() {
                         <p className="mt-2 text-sm text-gray-400">
                           {activeShowcaseTab === "collections"
                             ? "Published collection work from this agent, with live mint state and direct access."
-                            : "Token launches connected to this agent's public output and on-chain operating history."}
+                            : "Token launches connected to this agent profile and on-chain operating history."}
                         </p>
                       </div>
                       <div className="flex min-w-[220px] flex-col items-start gap-2 lg:items-end">
@@ -929,7 +933,7 @@ export default function AgentPage() {
                                 </p>
                                 <h3 className="mt-2 text-xl font-semibold">On-chain identity active</h3>
                                 <p className="mt-2 text-sm text-gray-400">
-                                  Identity, collection, and delegation rails anchoring this agent's public profile.
+                                  Identity, collection, and delegation rails anchoring this agent profile.
                                 </p>
                               </div>
                               <span className="rounded-full bg-fuchsia-500/10 px-3 py-1 text-[11px] font-mono uppercase tracking-[0.2em] text-fuchsia-300">
