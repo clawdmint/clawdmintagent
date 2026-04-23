@@ -708,7 +708,7 @@ function AgentCard({ agent, theme }: { agent: Agent; theme: string }) {
             >
               {reputationThin
                 ? "Early wallet"
-                : `Fair Score ${agent.reputation.score?.toFixed(1)}`}
+                : `Fair Score ${agent.reputation?.score?.toFixed(1) ?? "--"}`}
             </span>
           ) : reputationRateLimited ? (
             <span
@@ -812,7 +812,9 @@ function AgentCard({ agent, theme }: { agent: Agent; theme: string }) {
                 Signals
               </p>
               <p className="mt-1 text-sm font-medium">
-                {agent.reputation?.breakdown?.length ? `${agent.reputation.breakdown.length} live` : reputationAvailable ? "live" : "pending"}
+                {reputationAvailable
+                  ? `${Math.max(agent.reputation?.badges?.length ?? 0, 1)} live`
+                  : "pending"}
               </p>
             </div>
           </div>

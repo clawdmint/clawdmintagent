@@ -8,7 +8,9 @@ import { getWalletReputation } from "@/lib/fairscale";
 export const dynamic = 'force-dynamic';
 
 async function buildReputationMap(wallets: string[]) {
-  const uniqueWallets = [...new Set(wallets.map((wallet) => wallet.trim()).filter(Boolean))];
+  const uniqueWallets = Array.from(
+    new Set(wallets.map((wallet) => wallet.trim()).filter(Boolean)),
+  );
   const reputationMap = new Map<string, Awaited<ReturnType<typeof getWalletReputation>>>();
   const batchSize = 5;
 
