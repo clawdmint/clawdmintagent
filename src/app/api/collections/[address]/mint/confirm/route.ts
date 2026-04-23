@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/db";
 import { parseMintIntentAssetPayload } from "@/lib/metaplex-mint-intent";
-import { getSolanaConnection } from "@/lib/solana-collections";
+import { getLaunchSolanaConnection } from "@/lib/synapse-sap";
 import { syncMintAssets } from "@/lib/marketplace-assets";
 import {
   fetchMetaplexCandyMachineState,
@@ -18,7 +18,7 @@ const ConfirmMintSchema = z.object({
 });
 
 function getParsedTransactionSignerKeys(
-  transaction: Awaited<ReturnType<ReturnType<typeof getSolanaConnection>["getParsedTransaction"]>>
+  transaction: Awaited<ReturnType<ReturnType<typeof getLaunchSolanaConnection>["getParsedTransaction"]>>
 ): string[] {
   if (!transaction) {
     return [];
@@ -30,7 +30,7 @@ function getParsedTransactionSignerKeys(
 }
 
 function getParsedTransactionAccountKeys(
-  transaction: Awaited<ReturnType<ReturnType<typeof getSolanaConnection>["getParsedTransaction"]>>
+  transaction: Awaited<ReturnType<ReturnType<typeof getLaunchSolanaConnection>["getParsedTransaction"]>>
 ): string[] {
   if (!transaction) {
     return [];
@@ -123,7 +123,7 @@ export async function POST(
     const { assetAddresses: expectedAssetAddresses } = parseMintIntentAssetPayload(
       intent.assetAddresses
     );
-    const connection = getSolanaConnection();
+    const connection = getLaunchSolanaConnection();
     const signatureStatus = await connection.getSignatureStatus(txHash, {
       searchTransactionHistory: true,
     });

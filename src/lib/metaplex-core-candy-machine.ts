@@ -37,7 +37,7 @@ import {
   PublicKey as Web3PublicKey,
   SystemProgram,
 } from "@solana/web3.js";
-import { getSolanaRpcUrl } from "./solana-collections";
+import { getLaunchSolanaConnection } from "./synapse-sap";
 import {
   calculateSolanaMintPlatformFee,
   getPlatformFeeBps,
@@ -129,8 +129,15 @@ export interface MetaplexMintPrepareResult {
   totalPaidLamports: string;
 }
 
+function createReadOnlyMetaplexUmi() {
+  const umi = createUmi(getLaunchSolanaConnection());
+  umi.use(mplCore());
+  umi.use(mplCandyMachine());
+  return umi;
+}
+
 function createServerUmi(signer: Keypair) {
-  const umi = createUmi(getSolanaRpcUrl());
+  const umi = createUmi(getLaunchSolanaConnection());
   umi.use(mplCore());
   umi.use(mplCandyMachine());
   umi.use(keypairIdentity(fromWeb3JsKeypair(signer)));
@@ -138,9 +145,7 @@ function createServerUmi(signer: Keypair) {
 }
 
 function createMintPreparationUmi(walletAddress: string) {
-  const umi = createUmi(getSolanaRpcUrl());
-  umi.use(mplCore());
-  umi.use(mplCandyMachine());
+  const umi = createReadOnlyMetaplexUmi();
   umi.use(signerIdentity(createNoopSigner(publicKey(walletAddress))));
   return umi;
 }
@@ -267,9 +272,7 @@ function isConfiguredGuard(value: unknown): boolean {
 }
 
 export async function fetchMetaplexCandyGuardFeatures(candyMachineAddress: string) {
-  const umi = createUmi(getSolanaRpcUrl());
-  umi.use(mplCore());
-  umi.use(mplCandyMachine());
+  const umi = createReadOnlyMetaplexUmi();
 
   const candyGuardAddress = findCandyGuardPda(umi, {
     base: publicKey(candyMachineAddress),
@@ -521,7 +524,7 @@ export async function deployMetaplexCollection(
     maxConfigBatchesPerRun?: number;
   }
 ): Promise<MetaplexDeployCollectionResult> {
-  const connection = new Connection(getSolanaRpcUrl(), "confirmed");
+  const connection = getLaunchSolanaConnection({ commitment: "confirmed" });
   const walletBalanceLamports = BigInt(await connection.getBalance(signer.publicKey, "confirmed"));
   const recommendedDeployBalanceLamports = await getRecommendedDeployBalanceLamports(signer, params);
 
@@ -620,9 +623,7 @@ export async function deployMetaplexCollection(
 export async function fetchMetaplexCandyMachineState(
   candyMachineAddress: string
 ): Promise<MetaplexCandyMachineState> {
-  const umi = createUmi(getSolanaRpcUrl());
-  umi.use(mplCore());
-  umi.use(mplCandyMachine());
+  const umi = createReadOnlyMetaplexUmi();
 
   const candyMachine = await fetchCandyMachine(umi, publicKey(candyMachineAddress));
   const itemsAvailable = Number(candyMachine.data.itemsAvailable);

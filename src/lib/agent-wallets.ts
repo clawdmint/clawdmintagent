@@ -1,7 +1,6 @@
 import { createCipheriv, createDecipheriv, createHash, randomBytes } from "crypto";
 import bs58 from "bs58";
 import {
-  Connection,
   Keypair,
   PublicKey,
   SystemProgram,
@@ -12,11 +11,10 @@ import {
 import { getEnv } from "./env";
 import {
   findSolanaCollectionAddress,
-  getSolanaConnection,
-  getSolanaRpcUrl,
   serializeInitializeCollectionInstruction,
   type SolanaDeployCollectionParams,
 } from "./solana-collections";
+import { getLaunchSolanaConnection } from "./synapse-sap";
 
 const AGENT_WALLET_ENCRYPTION_ALGO = "aes-256-gcm";
 const AGENT_WALLET_IV_LENGTH = 12;
@@ -161,7 +159,7 @@ export function getAgentOperationalWalletAddress(agent: AgentWalletRecordLike): 
 }
 
 export async function getAgentWalletBalance(address: string): Promise<AgentWalletBalance> {
-  const connection = getSolanaConnection();
+  const connection = getLaunchSolanaConnection();
   const lamports = BigInt(await connection.getBalance(new PublicKey(address), "confirmed"));
 
   return {
@@ -171,7 +169,7 @@ export async function getAgentWalletBalance(address: string): Promise<AgentWalle
 }
 
 export async function getRecommendedCollectionDeployBalanceLamports(): Promise<bigint> {
-  const connection = getSolanaConnection();
+  const connection = getLaunchSolanaConnection();
   const rentLamports = BigInt(await connection.getMinimumBalanceForRentExemption(COLLECTION_ACCOUNT_SIZE));
   return rentLamports + BigInt(100_000);
 }
@@ -181,7 +179,7 @@ export async function deployCollectionWithAgentWallet(
   params: SolanaDeployCollectionParams
 ): Promise<AutomaticDeployResult> {
   const signer = getAgentOperationalKeypair(agent);
-  const connection = new Connection(getSolanaRpcUrl(), "confirmed");
+  const connection = getLaunchSolanaConnection({ commitment: "confirmed" });
   const collectionAddress = findSolanaCollectionAddress(params.authority, params.collectionId);
   const instruction = new TransactionInstruction({
     programId: new PublicKey(getEnv("SOLANA_COLLECTION_PROGRAM_ID", getEnv("NEXT_PUBLIC_SOLANA_COLLECTION_PROGRAM_ID", ""))),

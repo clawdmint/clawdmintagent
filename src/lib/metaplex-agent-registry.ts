@@ -33,7 +33,7 @@ import { getAgentOperationalKeypair, type AgentWalletError } from "./agent-walle
 import { getA2AVersion, getMCPVersion } from "./agent-protocols";
 import { getEnv } from "./env";
 import { uploadJson } from "./ipfs";
-import { getSolanaRpcUrl } from "./solana-collections";
+import { getLaunchSolanaConnection } from "./synapse-sap";
 
 type AgentRegistryRecord = {
   id: string;
@@ -230,7 +230,7 @@ function buildAgentRegistrationDocument(input: {
 
 function createRegistryUmi(agent: AgentRegistryRecord) {
   const signer = getAgentOperationalKeypair(agent);
-  const umi = createUmi(getSolanaRpcUrl());
+  const umi = createUmi(getLaunchSolanaConnection());
   umi.use(mplCore());
   umi.use(mplAgentIdentity());
   umi.use(mplAgentTools());
@@ -239,7 +239,7 @@ function createRegistryUmi(agent: AgentRegistryRecord) {
 }
 
 function createReadOnlyRegistryUmi() {
-  const umi = createUmi(getSolanaRpcUrl());
+  const umi = createUmi(getLaunchSolanaConnection());
   umi.use(mplCore());
   umi.use(mplAgentIdentity());
   umi.use(mplAgentTools());

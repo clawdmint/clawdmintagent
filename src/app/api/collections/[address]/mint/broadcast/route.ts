@@ -4,7 +4,7 @@ import { Keypair, Transaction } from "@solana/web3.js";
 import { z } from "zod";
 import { prisma } from "@/lib/db";
 import { parseMintIntentAssetPayload } from "@/lib/metaplex-mint-intent";
-import { getSolanaConnection } from "@/lib/solana-collections";
+import { getLaunchSolanaConnection } from "@/lib/synapse-sap";
 import { METAPLEX_MINT_ENGINE } from "@/lib/metaplex-core-candy-machine";
 
 export const dynamic = "force-dynamic";
@@ -102,7 +102,7 @@ export async function POST(
       transaction.partialSign(...assetKeypairs);
     }
 
-    const connection = getSolanaConnection();
+    const connection = getLaunchSolanaConnection();
     const txHash = await connection.sendRawTransaction(transaction.serialize(), {
       skipPreflight: false,
       maxRetries: 3,

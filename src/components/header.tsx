@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import Image from "next/image";
 import Link from "next/link";
@@ -14,7 +14,9 @@ const navItems = [
   { href: "/drops", label: "drops" },
   { href: "/marketplace", label: "marketplace" },
   { href: "/agents", label: "agents" },
+  { href: "/studio", label: "studio" },
   { href: "/clawdverse", label: "clawdverse" },
+  { href: "/skill.md", label: "skill.md", external: true },
 ];
 
 export function Header() {
@@ -96,6 +98,7 @@ export function Header() {
                 </div>
                 <div className="pointer-events-none absolute -inset-2 rounded-xl bg-cyan-500/0 transition-all duration-500 group-hover:bg-cyan-500/[0.03]" />
               </Link>
+
             </div>
 
             <nav
@@ -105,12 +108,13 @@ export function Header() {
               )}
             >
               {navItems.map((item) => {
-                const isActive = pathname === item.href;
+                const isActive = !item.external && pathname === item.href;
 
                 return (
                   <Link
                     key={item.href}
                     href={item.href}
+                    {...(item.external ? { target: "_blank", rel: "noopener noreferrer" } : {})}
                     className={clsx(
                       "relative flex items-center gap-1.5 rounded-md px-3 py-1 font-mono text-[12px] transition-all duration-200",
                       isActive
@@ -268,11 +272,12 @@ export function Header() {
 
             <nav className="space-y-0.5 px-4 pb-4">
               {navItems.map((item) => {
-                const isActive = pathname === item.href;
+                const isActive = !item.external && pathname === item.href;
                 return (
                   <Link
                     key={item.href}
                     href={item.href}
+                    {...(item.external ? { target: "_blank", rel: "noopener noreferrer" } : {})}
                     onClick={() => setMobileMenuOpen(false)}
                     className={clsx(
                       "flex items-center gap-2 rounded-lg px-3 py-2.5 font-mono text-sm transition-all",

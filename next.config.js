@@ -1,6 +1,9 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
+  experimental: {
+    useWasmBinary: true,
+  },
   async rewrites() {
     return [
       { source: "/og.png", destination: "/api/og" },
@@ -27,6 +30,30 @@ const nextConfig = {
         __dirname,
         "src/shims/async-storage.js"
       ),
+      "@metaplex-foundation/umi$": require.resolve(
+        "@metaplex-foundation/umi"
+      ),
+      "@metaplex-foundation/umi/serializers$": require.resolve(
+        "@metaplex-foundation/umi/serializers"
+      ),
+      "@react-aria/interactions$": require("path").resolve(
+        __dirname,
+        "node_modules/@react-aria/interactions/dist/module.js"
+      ),
+      "@react-aria/utils$": require("path").resolve(
+        __dirname,
+        "node_modules/@react-aria/utils/dist/module.js"
+      ),
+      "@react-aria/ssr$": require("path").resolve(
+        __dirname,
+        "node_modules/@react-aria/ssr/dist/module.js"
+      ),
+      "@react-stately/flags$": require("path").resolve(
+        __dirname,
+        "node_modules/@react-stately/flags/dist/module.js"
+      ),
+      "unstorage$": require.resolve("unstorage"),
+      "hls.js$": require.resolve("hls.js"),
     };
     
     return config;

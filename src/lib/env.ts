@@ -85,6 +85,7 @@ export function getSynapseSapBaseUrl(): string {
   return getEnv("SYNAPSE_SAP_BASE_URL", "https://merchant.synapse.network").replace(/\/+$/, "");
 }
 
+/** Optional bearer for the legacy JSON-RPC-to-HTTP merchant path only. Official SAP does not require this. */
 export function getSynapseSapToken(): string {
   return getEnv("SYNAPSE_SAP_TOKEN", "").trim();
 }
@@ -119,6 +120,30 @@ export function getPreferredSolanaRpcUrl(): string {
   return getEnv("NEXT_PUBLIC_SOLANA_CLUSTER", "mainnet-beta") === "devnet"
     ? "https://api.devnet.solana.com"
     : "https://api.mainnet-beta.solana.com";
+}
+
+/**
+ * JSON-RPC `getProgramAccounts` (e.g. Metaplex `getAssetV1GpaBuilder`) requires a full node.
+ * Many brokered RPCs (including some Synapse gateway tiers) return "Method not found" for that method.
+ * When `SYNAPSE_SOLANA_RPC_URL` is set and this value is empty, the public cluster URL for the
+ * current `NEXT_PUBLIC_SOLANA_CLUSTER` is used so GPA works without extra config.
+ * Override with `SOLANA_GPA_RPC_URL` (server) or `NEXT_PUBLIC_SOLANA_GPA_RPC_URL` if you use a
+ * dedicated full node (Helius, Triton, etc.) for index scans.
+ */
+export function getGpaCapableSolanaRpcUrl(): string {
+  const explicit =
+    getEnv("SOLANA_GPA_RPC_URL", "").trim() || getEnv("NEXT_PUBLIC_SOLANA_GPA_RPC_URL", "").trim();
+  if (explicit) {
+    return explicit;
+  }
+
+  if (getSynapseSolanaRpcUrl()) {
+    return getEnv("NEXT_PUBLIC_SOLANA_CLUSTER", "mainnet-beta") === "devnet"
+      ? "https://api.devnet.solana.com"
+      : "https://api.mainnet-beta.solana.com";
+  }
+
+  return getPreferredSolanaRpcUrl();
 }
 // ═══════════════════════════════════════════════════════════════════════════════
 

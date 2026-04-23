@@ -4,6 +4,7 @@ import { fetchAsset, mplCore } from "@metaplex-foundation/mpl-core";
 import { getAssetV1GpaBuilder } from "@metaplex-foundation/mpl-core/dist/src/generated/accounts/assetV1";
 import { createUmi } from "@metaplex-foundation/umi-bundle-defaults";
 import { publicKey } from "@metaplex-foundation/umi";
+import { getGpaCapableSolanaRpcUrl } from "@/lib/env";
 import { prisma } from "@/lib/db";
 import { getSolanaRpcUrl } from "@/lib/solana-collections";
 import { ipfsToHttp } from "@/lib/ipfs";
@@ -66,6 +67,13 @@ const assetSyncState = new Map<string, AssetSyncState>();
 
 function createMarketplaceUmi() {
   const umi = createUmi(getSolanaRpcUrl());
+  umi.use(mplCore());
+  return umi;
+}
+
+/** Uses a GPA-capable endpoint; some gateway RPCs omit `getProgramAccounts`. */
+function createMarketplaceGpaUmi() {
+  const umi = createUmi(getGpaCapableSolanaRpcUrl());
   umi.use(mplCore());
   return umi;
 }
@@ -186,7 +194,7 @@ function buildMintAssetLookup(mints: MintRecord[]) {
 }
 
 async function fetchCollectionAssetSnapshots(collectionAddress: string): Promise<ChainAssetSnapshot[]> {
-  const umi = createMarketplaceUmi();
+  const umi = createMarketplaceGpaUmi();
   const assets = await getAssetV1GpaBuilder(umi)
     .whereField("updateAuthority", {
       __kind: "Collection",

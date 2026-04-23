@@ -1,7 +1,6 @@
 "use client";
 
 import React, { createContext, useContext, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { usePrivy } from "@privy-io/react-auth";
 import { useAccount, useDisconnect } from "wagmi";
 import { getAppNetworkFamily, truncateAddress, type NetworkFamily } from "@/lib/network-config";
 import { useNetworkPreference } from "./network-context";
@@ -182,17 +181,16 @@ function useSolanaWalletState() {
 }
 
 /**
- * Privy-powered wallet provider.
- * Renders inside PrivyProvider + WagmiProvider.
- * Provides unified wallet state from both Privy and Wagmi.
+ * Local fallback implementation for Privy-powered wallet provider.
+ * The preview currently routes through the Solana execution wallet flow.
  */
 export function PrivyWalletProvider({ children }: { children: React.ReactNode }) {
   const { networkFamily } = useNetworkPreference();
-  const { ready: privyReady, user, logout } = usePrivy();
   const { address: wagmiAddress } = useAccount();
+  const { disconnect } = useDisconnect();
   const { solanaReady, solanaAddress, solanaDisplayAddress, solanaConnected, solanaAvailable, connectSolana, disconnectSolana } = useSolanaWalletState();
 
-  const evmAddress = wagmiAddress || (user?.wallet?.address as `0x${string}` | undefined);
+  const evmAddress = wagmiAddress;
   const address = solanaAddress;
   const authenticated = solanaConnected;
   const isConnected = solanaConnected;
@@ -203,15 +201,15 @@ export function PrivyWalletProvider({ children }: { children: React.ReactNode })
   }, [connectSolana]);
 
   const stableLogout = useCallback(async () => {
+    disconnect();
     await Promise.allSettled([
-      logout(),
       disconnectSolana(),
     ]);
-  }, [disconnectSolana, logout]);
+  }, [disconnect, disconnectSolana]);
 
   const value = useMemo<WalletState>(
     () => ({
-      ready: privyReady && solanaReady,
+      ready: solanaReady,
       authenticated,
       address,
       displayAddress,
@@ -228,7 +226,6 @@ export function PrivyWalletProvider({ children }: { children: React.ReactNode })
       disconnectSolana,
     }),
     [
-      privyReady,
       solanaReady,
       authenticated,
       address,
