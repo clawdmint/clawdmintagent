@@ -12,7 +12,8 @@ async function buildReputationMap(wallets: string[]) {
     new Set(wallets.map((wallet) => wallet.trim()).filter(Boolean)),
   );
   const reputationMap = new Map<string, Awaited<ReturnType<typeof getWalletReputation>>>();
-  const batchSize = 5;
+  const batchSize = 2;
+  const batchDelayMs = 150;
 
   for (let index = 0; index < uniqueWallets.length; index += batchSize) {
     const batch = uniqueWallets.slice(index, index + batchSize);
@@ -21,6 +22,10 @@ async function buildReputationMap(wallets: string[]) {
     batch.forEach((wallet, batchIndex) => {
       reputationMap.set(wallet, reputations[batchIndex] ?? null);
     });
+
+    if (index + batchSize < uniqueWallets.length) {
+      await new Promise((resolve) => setTimeout(resolve, batchDelayMs));
+    }
   }
 
   return reputationMap;

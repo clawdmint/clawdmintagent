@@ -24,6 +24,16 @@ model Agent {
   description   String?
   avatarUrl     String?
   xHandle       String?       // Twitter/X handle (optional)
+  ownerWalletAddress String?
+  ownerWalletChain String?    @default("solana")
+  studioEnabled  Boolean      @default(false)
+  openclawAgentId String?     @unique
+  openclawWorkspacePath String?
+  openclawWorkspaceVersion Int @default(1)
+  openclawStatus String?      @default("inactive")
+  openclawChatEnabled Boolean @default(false)
+  persona       String?
+  soulProfile   Json?
   solanaWalletAddress String? @unique
   solanaWalletEncryptedKey String?
   solanaWalletExportedAt DateTime?
@@ -57,11 +67,15 @@ model Agent {
   claims        AgentClaim[]
   collections   Collection[]
   tokenLaunches TokenLaunch[]
+  studioSkills  AgentSkillInstall[]
+  studioSessions AgentStudioSession[]
+  studioRuns    AgentStudioRun[]
   followers     AgentFollow[]
   @@index([eoa])
   @@index([status])
   @@index([metaplexAssetAddress])
   @@index([metaplexIdentityPda])
+  @@index([ownerWalletAddress])
 }
 
 model AgentFollow {
@@ -75,6 +89,18 @@ model AgentFollow {
   @@unique([agentId, walletAddress])
   @@index([walletAddress])
   @@index([agentId, createdAt])
+}
+
+model FairscaleScoreCache {
+  walletAddress String   @id
+  payload       Json
+  availability  String   @default("available")
+  fetchedAt     DateTime
+  expiresAt     DateTime
+  updatedAt     DateTime @updatedAt
+
+  @@index([expiresAt])
+  @@index([availability, updatedAt])
 }
 
 // ═══════════════════════════════════════════════════════════════════════
@@ -419,7 +445,75 @@ model TokenLaunch {
   @@index([createdAt])
 }
 
+model AgentSkillInstall {
+  id          String   @id @default(cuid())
+  agentId      String
+  agent        Agent    @relation(fields: [agentId], references: [id], onDelete: Cascade)
+  skillKey     String
+  title        String
+  description  String?
+  sourceUrl    String?
+  enabled      Boolean  @default(true)
+  config       Json?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 
+  @@unique([agentId, skillKey])
+  @@index([agentId, enabled])
+}
 
+model AgentStudioSession {
+  id                String   @id @default(cuid())
+  agentId           String
+  agent             Agent    @relation(fields: [agentId], references: [id], onDelete: Cascade)
+  ownerWalletAddress String
+  title             String?
+  openclawSessionId String?  @unique
+  status            String   @default("active")
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  lastMessageAt     DateTime @default(now())
 
+  messages          AgentStudioMessage[]
+  runs              AgentStudioRun[]
 
+  @@index([agentId, createdAt])
+  @@index([ownerWalletAddress, updatedAt])
+}
+
+model AgentStudioMessage {
+  id          String   @id @default(cuid())
+  sessionId    String
+  session      AgentStudioSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  role        String
+  content     String
+  eventType   String?  @default("text")
+  toolName    String?
+  metadata    Json?
+  createdAt   DateTime @default(now())
+
+  @@index([sessionId, createdAt])
+}
+
+model AgentStudioRun {
+  id              String   @id @default(cuid())
+  agentId         String
+  agent           Agent    @relation(fields: [agentId], references: [id], onDelete: Cascade)
+  sessionId       String?
+  session         AgentStudioSession? @relation(fields: [sessionId], references: [id], onDelete: SetNull)
+  actionType      String
+  title           String
+  status          String   @default("queued")
+  input           Json?
+  output          Json?
+  txHash          String?
+  externalRunId   String?
+  error           String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  completedAt     DateTime?
+
+  @@index([agentId, createdAt])
+  @@index([sessionId, createdAt])
+  @@index([status])
+}

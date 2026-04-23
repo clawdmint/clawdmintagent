@@ -1,13 +1,27 @@
 import { getEnv } from "./env";
+import { prisma } from "./db";
 
 const FAIRSCALE_DEFAULT_BASE_URL = "https://api.fairscale.xyz";
 const SUCCESS_TTL_MS = 30 * 60 * 1000;
 const ERROR_TTL_MS = 5 * 60 * 1000;
 const FAIRSCALE_CACHE_VERSION = "v2";
+const UPSERT_DISABLE_ERROR_MARKERS = [
+  "fairscalescorecache",
+  "does not exist",
+  "unknown field",
+  "invalid `prisma.fairscaleScoreCache",
+];
 
 type FairScaleCacheEntry = {
   expiresAt: number;
   value: WalletReputation | null;
+};
+
+type PersistedFairScaleCache = {
+  payload: WalletReputation;
+  fetchedAt: Date;
+  expiresAt: Date;
+  availability: string;
 };
 
 type FairScaleRawResponse = {
@@ -68,6 +82,76 @@ function getFairscaleApiBaseUrl() {
 
 function getFairscaleApiKey() {
   return getEnv("FAIRSCALE_API_KEY", "");
+}
+
+function hydratePersistedReputation(record: PersistedFairScaleCache | null): WalletReputation | null {
+  if (!record || !record.payload || typeof record.payload !== "object") {
+    return null;
+  }
+
+  return record.payload;
+}
+
+async function readPersistedReputation(walletAddress: string) {
+  try {
+    const record = await prisma.fairscaleScoreCache.findUnique({
+      where: { walletAddress },
+      select: {
+        payload: true,
+        fetchedAt: true,
+        expiresAt: true,
+        availability: true,
+      },
+    });
+
+    if (!record) {
+      return null;
+    }
+
+    return {
+      payload: hydratePersistedReputation(record as PersistedFairScaleCache),
+      fetchedAt: record.fetchedAt,
+      expiresAt: record.expiresAt,
+      availability: record.availability,
+    };
+  } catch (error) {
+    const message = error instanceof Error ? error.message.toLowerCase() : "";
+    if (UPSERT_DISABLE_ERROR_MARKERS.some((marker) => message.includes(marker))) {
+      return null;
+    }
+    throw error;
+  }
+}
+
+async function persistReputation(
+  walletAddress: string,
+  reputation: WalletReputation,
+  expiresAt: Date,
+) {
+  try {
+    await prisma.fairscaleScoreCache.upsert({
+      where: { walletAddress },
+      update: {
+        payload: reputation,
+        availability: reputation.availability,
+        fetchedAt: new Date(reputation.fetchedAt),
+        expiresAt,
+      },
+      create: {
+        walletAddress,
+        payload: reputation,
+        availability: reputation.availability,
+        fetchedAt: new Date(reputation.fetchedAt),
+        expiresAt,
+      },
+    });
+  } catch (error) {
+    const message = error instanceof Error ? error.message.toLowerCase() : "";
+    if (UPSERT_DISABLE_ERROR_MARKERS.some((marker) => message.includes(marker))) {
+      return;
+    }
+    throw error;
+  }
 }
 
 function normalizeNumber(value: unknown): number | null {
@@ -319,6 +403,15 @@ export async function getWalletReputation(walletAddress: string): Promise<Wallet
     return cached.value;
   }
 
+  const persisted = await readPersistedReputation(trimmedAddress);
+  if (persisted?.payload && persisted.expiresAt.getTime() > Date.now()) {
+    cache.set(cacheKey, {
+      expiresAt: persisted.expiresAt.getTime(),
+      value: persisted.payload,
+    });
+    return persisted.payload;
+  }
+
   const url = new URL("/score", getFairscaleApiBaseUrl());
   url.searchParams.set("wallet", trimmedAddress);
 
@@ -333,6 +426,14 @@ export async function getWalletReputation(walletAddress: string): Promise<Wallet
     });
 
     if (!response.ok) {
+      if (persisted?.payload) {
+        cache.set(cacheKey, {
+          expiresAt: Date.now() + ERROR_TTL_MS,
+          value: persisted.payload,
+        });
+        return persisted.payload;
+      }
+
       const fallback =
         response.status === 429
           ? buildUnavailableReputation(trimmedAddress, "rate_limited")
@@ -346,13 +447,23 @@ export async function getWalletReputation(walletAddress: string): Promise<Wallet
 
     const payload = (await response.json()) as FairScaleRawResponse;
     const normalized = normalizeReputation(trimmedAddress, payload);
+    const successExpiresAt = new Date(Date.now() + SUCCESS_TTL_MS);
     cache.set(cacheKey, {
-      expiresAt: Date.now() + SUCCESS_TTL_MS,
+      expiresAt: successExpiresAt.getTime(),
       value: normalized,
     });
+    await persistReputation(trimmedAddress, normalized, successExpiresAt);
     return normalized;
   } catch (error) {
     console.warn("FairScale lookup failed:", error);
+    if (persisted?.payload) {
+      cache.set(cacheKey, {
+        expiresAt: Date.now() + ERROR_TTL_MS,
+        value: persisted.payload,
+      });
+      return persisted.payload;
+    }
+
     const fallback = buildUnavailableReputation(trimmedAddress, "unavailable");
     cache.set(cacheKey, {
       expiresAt: Date.now() + ERROR_TTL_MS,
