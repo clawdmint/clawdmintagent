@@ -147,6 +147,8 @@ export function getServerEnv() {
     // External APIs
     twitterBearerToken: getEnv("TWITTER_BEARER_TOKEN", ""),
     basescanApiKey: getEnv("BASESCAN_API_KEY", ""),
+    fairscaleApiKey: getEnv("FAIRSCALE_API_KEY", ""),
+    fairscaleApiBaseUrl: getEnv("FAIRSCALE_API_BASE_URL", ""),
     // Environment
     nodeEnv: getEnv("NODE_ENV", "development"),
     isDev: getEnv("NODE_ENV") === "development",

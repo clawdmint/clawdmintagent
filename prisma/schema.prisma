@@ -57,10 +57,24 @@ model Agent {
   claims        AgentClaim[]
   collections   Collection[]
   tokenLaunches TokenLaunch[]
+  followers     AgentFollow[]
   @@index([eoa])
   @@index([status])
   @@index([metaplexAssetAddress])
   @@index([metaplexIdentityPda])
+}
+
+model AgentFollow {
+  id            String   @id @default(cuid())
+  agentId        String
+  agent          Agent    @relation(fields: [agentId], references: [id], onDelete: Cascade)
+  walletAddress  String
+  walletChain    String   @default("solana")
+  createdAt      DateTime @default(now())
+
+  @@unique([agentId, walletAddress])
+  @@index([walletAddress])
+  @@index([agentId, createdAt])
 }
 
 // ═══════════════════════════════════════════════════════════════════════
@@ -404,3 +418,8 @@ model TokenLaunch {
   @@index([tokenAddress])
   @@index([createdAt])
 }
+
+
+
+
+

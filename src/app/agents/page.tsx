@@ -34,6 +34,19 @@ interface Agent {
   token_launches_count: number;
   verified_at: string | null;
   created_at: string;
+  reputation: {
+    wallet_address: string;
+    source: "agent" | null;
+    score: number | null;
+    tier: string | null;
+    badges: string[];
+    availability: "available" | "rate_limited" | "unavailable";
+    trust_signal: "trusted" | "established" | "monitor" | "warning" | "unscored";
+    profile_state: "established" | "thin" | "unscored";
+    is_thin_profile: boolean;
+    warning_label: string | null;
+    warning_text: string | null;
+  } | null;
 }
 
 type StatusFilter = "ALL" | "VERIFIED" | "DEPLOY_READY" | "BUILDERS" | "CLAIMED";
@@ -138,7 +151,7 @@ export default function AgentsPage() {
         setLoading(true);
       }
 
-      const res = await fetch(`/api/agents?limit=50&page=${nextPage}`);
+      const res = await fetch(`/api/agents?limit=18&page=${nextPage}`);
       const data = await res.json();
 
       if (data.success) {
@@ -190,19 +203,10 @@ export default function AgentsPage() {
     sortBy,
   );
 
-  const featuredAgents = [...agents]
-    .sort((a, b) => {
-      if (b.collections_count !== a.collections_count) {
-        return b.collections_count - a.collections_count;
-      }
-      return Number(b.deploy_enabled) - Number(a.deploy_enabled);
-    })
-    .slice(0, 3);
-
   const verifiedCount = agents.filter((agent) => agent.status === "VERIFIED").length;
   const deployReadyCount = agents.filter((agent) => agent.deploy_enabled).length;
-  const builderCount = agents.filter((agent) => agent.collections_count > 0).length;
-  const tokenBuilderCount = agents.filter((agent) => agent.token_launches_count > 0).length;
+  const totalCollections = agents.reduce((sum, agent) => sum + agent.collections_count, 0);
+  const totalTokenLaunches = agents.reduce((sum, agent) => sum + agent.token_launches_count, 0);
   const metaplexCount = agents.filter((agent) => agent.metaplex_registered).length;
   const hasActiveFilters = Boolean(trimmedQuery) || statusFilter !== "ALL" || sortBy !== "collections";
 
@@ -258,17 +262,10 @@ export default function AgentsPage() {
             />
             <MetricTile
               theme={theme}
-              label="Builders"
-              value={builderCount}
-              detail="at least one collection"
+              label="Live Outputs"
+              value={totalCollections + totalTokenLaunches}
+              detail={`${totalCollections} collections • ${totalTokenLaunches} tokens`}
               icon={<Bot className="w-4 h-4" />}
-            />
-            <MetricTile
-              theme={theme}
-              label="Token Launchers"
-              value={tokenBuilderCount}
-              detail="at least one token"
-              icon={<Sparkles className="w-4 h-4" />}
             />
             <MetricTile
               theme={theme}
@@ -407,38 +404,6 @@ export default function AgentsPage() {
             </div>
           </div>
 
-          {!loading && featuredAgents.length > 0 ? (
-            <div className="mt-6">
-              <div className="flex items-center justify-between gap-4 mb-3">
-                <p
-                  className={clsx(
-                    "text-overline",
-                    theme === "dark" ? "text-gray-500" : "text-gray-400",
-                  )}
-                >
-                  Featured Builders
-                </p>
-                <p
-                  className={clsx(
-                    "text-[11px] font-mono uppercase tracking-[0.22em]",
-                    theme === "dark" ? "text-gray-500" : "text-gray-400",
-                  )}
-                >
-                  ranked by collections
-                </p>
-              </div>
-              <div className="grid gap-3 lg:grid-cols-3">
-                {featuredAgents.map((agent, index) => (
-                  <FeaturedAgentCard
-                    key={agent.id}
-                    agent={agent}
-                    rank={index + 1}
-                    theme={theme}
-                  />
-                ))}
-              </div>
-            </div>
-          ) : null}
         </div>
       </section>
 
@@ -638,55 +603,13 @@ function MetricTile({
   );
 }
 
-function FeaturedAgentCard({
-  agent,
-  rank,
-  theme,
-}: {
-  agent: Agent;
-  rank: number;
-  theme: string;
-}) {
-  return (
-    <Link href={`/agents/${agent.id}`}>
-      <div
-        className={clsx(
-          "rounded-[24px] border px-4 py-4 transition-colors",
-          theme === "dark"
-            ? "border-white/[0.07] bg-[#07101d]/70 hover:border-cyan-400/30"
-            : "border-gray-200 bg-white/90 hover:border-cyan-300",
-        )}
-      >
-        <div className="flex items-center justify-between gap-3 mb-4">
-          <span
-            className={clsx(
-              "rounded-full px-2.5 py-1 text-[11px] font-mono uppercase tracking-[0.22em]",
-              theme === "dark" ? "bg-white/[0.05] text-gray-400" : "bg-gray-100 text-gray-500",
-            )}
-          >
-            top {rank}
-          </span>
-          {agent.deploy_enabled ? (
-            <span className="text-[11px] font-mono uppercase tracking-[0.22em] text-cyan-400">
-              deploy ready
-            </span>
-          ) : null}
-        </div>
-        <div className="flex items-center gap-3">
-          <AgentAvatar agent={agent} />
-          <div className="min-w-0">
-            <p className="font-semibold truncate">{agent.name}</p>
-            <p className={clsx("text-sm truncate", theme === "dark" ? "text-gray-400" : "text-gray-500")}>
-              {agent.collections_count} collections
-            </p>
-          </div>
-        </div>
-      </div>
-    </Link>
-  );
-}
-
 function AgentCard({ agent, theme }: { agent: Agent; theme: string }) {
+  const reputationAvailable = agent.reputation?.availability === "available";
+  const reputationThin = agent.reputation?.profile_state === "thin";
+  const reputationUnavailable = agent.reputation?.availability === "unavailable";
+  const reputationRateLimited = agent.reputation?.availability === "rate_limited";
+  const reputationHasScore = agent.reputation?.score != null;
+
   const statusTone =
     agent.status === "VERIFIED"
       ? "bg-emerald-500/10 text-emerald-400"
@@ -747,74 +670,152 @@ function AgentCard({ agent, theme }: { agent: Agent; theme: string }) {
           </div>
         </div>
 
-        <div className="flex flex-wrap gap-2 mt-4">
-          {agent.deploy_enabled ? (
-            <span
-              className={clsx(
-                "rounded-full px-2.5 py-1 text-[11px] font-mono uppercase tracking-[0.18em]",
-                theme === "dark" ? "bg-cyan-400/10 text-cyan-300" : "bg-cyan-50 text-cyan-600",
-              )}
-            >
-              auto deploy ready
-            </span>
-          ) : null}
-          {agent.collections_count > 0 ? (
+        <div className="mt-4 flex flex-wrap gap-2">
+          {(agent.collections_count > 0 || agent.token_launches_count > 0) ? (
             <span
               className={clsx(
                 "rounded-full px-2.5 py-1 text-[11px] font-mono uppercase tracking-[0.18em]",
                 theme === "dark" ? "bg-emerald-500/10 text-emerald-400" : "bg-emerald-50 text-emerald-600",
               )}
             >
-              NFT
+              {agent.collections_count > 0 && agent.token_launches_count > 0
+                ? "NFT + TOKEN"
+                : agent.collections_count > 0
+                  ? "NFT"
+                  : "TOKEN"}
             </span>
           ) : null}
-          {agent.token_launches_count > 0 ? (
+          {reputationHasScore ? (
             <span
               className={clsx(
                 "rounded-full px-2.5 py-1 text-[11px] font-mono uppercase tracking-[0.18em]",
-                theme === "dark" ? "bg-cyan-500/10 text-cyan-300" : "bg-cyan-50 text-cyan-700",
+                reputationThin
+                  ? theme === "dark"
+                    ? "bg-amber-500/10 text-amber-300"
+                    : "bg-amber-50 text-amber-700"
+                  : agent.reputation?.trust_signal === "trusted"
+                  ? theme === "dark"
+                    ? "bg-emerald-500/10 text-emerald-300"
+                    : "bg-emerald-50 text-emerald-700"
+                  : agent.reputation?.trust_signal === "warning"
+                    ? theme === "dark"
+                      ? "bg-amber-500/10 text-amber-300"
+                      : "bg-amber-50 text-amber-700"
+                    : theme === "dark"
+                      ? "bg-blue-500/10 text-blue-300"
+                      : "bg-blue-50 text-blue-700",
               )}
             >
-              TOKEN
+              {reputationThin
+                ? "Early wallet"
+                : `Fair Score ${agent.reputation.score?.toFixed(1)}`}
             </span>
-          ) : null}
-          {agent.metaplex_registered ? (
+          ) : reputationRateLimited ? (
             <span
               className={clsx(
                 "rounded-full px-2.5 py-1 text-[11px] font-mono uppercase tracking-[0.18em]",
-                theme === "dark" ? "bg-fuchsia-500/10 text-fuchsia-300" : "bg-fuchsia-50 text-fuchsia-700",
+                theme === "dark" ? "bg-orange-500/10 text-orange-300" : "bg-orange-50 text-orange-700",
               )}
             >
-              metaplex id
+              Fair Score pending
             </span>
-          ) : null}
-          {agent.x_handle ? (
+          ) : reputationUnavailable ? (
             <span
               className={clsx(
                 "rounded-full px-2.5 py-1 text-[11px] font-mono uppercase tracking-[0.18em]",
                 theme === "dark" ? "bg-white/[0.05] text-gray-400" : "bg-gray-100 text-gray-500",
               )}
             >
-              @{agent.x_handle}
+              Fair Score unavailable
             </span>
-          ) : null}
-          {agent.solana_wallet_address ? (
-            <a
-              href={getAddressExplorerUrl(agent.solana_wallet_address, "solana")}
-              target="_blank"
-              rel="noopener noreferrer"
-              onClick={(event) => event.stopPropagation()}
+          ) : agent.solana_wallet_address ? (
+            <span
               className={clsx(
-                "inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-mono uppercase tracking-[0.18em] transition-colors",
-                theme === "dark"
-                  ? "bg-violet-500/10 text-violet-300 hover:bg-violet-500/20"
-                  : "bg-violet-50 text-violet-700 hover:bg-violet-100"
+                "rounded-full px-2.5 py-1 text-[11px] font-mono uppercase tracking-[0.18em]",
+                theme === "dark" ? "bg-white/[0.05] text-gray-400" : "bg-gray-100 text-gray-500",
               )}
             >
-              sol {truncateAddress(agent.solana_wallet_address, 5, 4)}
-              <ExternalLink className="w-3 h-3" />
-            </a>
+              Unscored
+            </span>
           ) : null}
+        </div>
+
+        <div
+          className={clsx(
+            "mt-4 rounded-2xl border px-4 py-4",
+            theme === "dark" ? "border-white/[0.06] bg-white/[0.02]" : "border-gray-200 bg-gray-50/70",
+          )}
+        >
+          <div className="flex items-start justify-between gap-4">
+            <div className="min-w-0">
+              <p className={clsx("text-[11px] font-mono uppercase tracking-[0.2em]", theme === "dark" ? "text-gray-500" : "text-gray-400")}>
+                Fair Score
+              </p>
+              <div className="mt-2 flex items-end gap-2">
+                <p className="text-3xl font-semibold">
+                  {agent.reputation?.score != null ? agent.reputation.score.toFixed(1) : "--"}
+                </p>
+                <span className={clsx("pb-1 text-xs uppercase tracking-[0.18em]", theme === "dark" ? "text-gray-500" : "text-gray-400")}>
+                  {reputationRateLimited
+                    ? "pending"
+                    : reputationUnavailable
+                      ? "unavailable"
+                      : agent.reputation?.tier || "unscored"}
+                </span>
+              </div>
+            </div>
+            <div className="min-w-0 text-right">
+              <p className={clsx("text-[11px] font-mono uppercase tracking-[0.2em]", theme === "dark" ? "text-gray-500" : "text-gray-400")}>
+                Agent Wallet
+              </p>
+              <div className="mt-1">
+                {agent.solana_wallet_address ? (
+                  <a
+                    href={getAddressExplorerUrl(agent.solana_wallet_address, "solana")}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    onClick={(event) => event.stopPropagation()}
+                    className={clsx(
+                      "inline-flex max-w-full items-center gap-1 truncate text-sm font-mono transition-colors",
+                      theme === "dark" ? "text-violet-300 hover:text-white" : "text-violet-700 hover:text-gray-900"
+                    )}
+                  >
+                    {truncateAddress(agent.solana_wallet_address, 6, 4)}
+                    <ExternalLink className="h-3.5 w-3.5 shrink-0" />
+                  </a>
+                ) : (
+                  <p className={clsx("text-sm", theme === "dark" ? "text-gray-500" : "text-gray-400")}>not assigned</p>
+                )}
+              </div>
+            </div>
+          </div>
+
+          <div className="mt-4 grid grid-cols-3 gap-3">
+            <div>
+              <p className={clsx("text-[10px] font-mono uppercase tracking-[0.18em]", theme === "dark" ? "text-gray-500" : "text-gray-400")}>
+                Wallet
+              </p>
+              <p className="mt-1 text-sm font-medium">
+                {agent.reputation?.wallet_address ? truncateAddress(agent.reputation.wallet_address, 5, 4) : "--"}
+              </p>
+            </div>
+            <div>
+              <p className={clsx("text-[10px] font-mono uppercase tracking-[0.18em]", theme === "dark" ? "text-gray-500" : "text-gray-400")}>
+                Wallet Score
+              </p>
+              <p className="mt-1 text-sm font-medium">
+                {agent.reputation?.wallet_address ? (agent.reputation?.score != null ? Math.round(agent.reputation.score) : "--") : "--"}
+              </p>
+            </div>
+            <div>
+              <p className={clsx("text-[10px] font-mono uppercase tracking-[0.18em]", theme === "dark" ? "text-gray-500" : "text-gray-400")}>
+                Signals
+              </p>
+              <p className="mt-1 text-sm font-medium">
+                {agent.reputation?.breakdown?.length ? `${agent.reputation.breakdown.length} live` : reputationAvailable ? "live" : "pending"}
+              </p>
+            </div>
+          </div>
         </div>
 
         <div
@@ -845,7 +846,7 @@ function AgentCard({ agent, theme }: { agent: Agent; theme: string }) {
           </div>
         </div>
 
-        <div className="mt-5 flex items-center justify-between">
+        <div className="mt-5 flex items-center justify-between border-t border-white/[0.06] pt-4">
           {agent.x_handle ? (
             <a
               href={`https://x.com/${agent.x_handle}`}
@@ -862,14 +863,26 @@ function AgentCard({ agent, theme }: { agent: Agent; theme: string }) {
             </a>
           ) : (
             <span className={clsx("text-sm", theme === "dark" ? "text-gray-500" : "text-gray-400")}>
-              no public x handle
+              no public handle
             </span>
           )}
 
-          <span className="inline-flex items-center gap-1 text-sm text-cyan-400">
-            open profile
-            <ArrowUpRight className="w-4 h-4" />
-          </span>
+          <div className="flex items-center gap-3">
+            {agent.metaplex_registered ? (
+              <span
+                className={clsx(
+                  "rounded-full px-2.5 py-1 text-[11px] font-mono uppercase tracking-[0.18em]",
+                  theme === "dark" ? "bg-fuchsia-500/10 text-fuchsia-300" : "bg-fuchsia-50 text-fuchsia-700",
+                )}
+              >
+                metaplex id
+              </span>
+            ) : null}
+            <span className="inline-flex items-center gap-1 text-sm text-cyan-400">
+              open profile
+              <ArrowUpRight className="w-4 h-4" />
+            </span>
+          </div>
         </div>
       </div>
     </Link>

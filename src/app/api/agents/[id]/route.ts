@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { formatCollectionMintPrice, getCollectionNativeToken, SOLANA_COLLECTION_CHAINS } from "@/lib/collection-chains";
 import { filterVisiblePublicCollections, PUBLIC_COLLECTION_STATUSES } from "@/lib/public-collections";
+import { getWalletReputation } from "@/lib/fairscale";
 
 // Force dynamic rendering (prevents static generation errors on Netlify)
 export const dynamic = 'force-dynamic';
@@ -18,6 +19,7 @@ export async function GET(
   try {
     const appUrl = process.env["NEXT_PUBLIC_APP_URL"] || "https://clawdmint.xyz";
     const { id } = await params;
+    const viewerWallet = request.nextUrl.searchParams.get("viewer_wallet")?.trim() || null;
 
     const agent = await prisma.agent.findUnique({
       where: { id },
@@ -72,6 +74,24 @@ export async function GET(
 
     const publicCollections = filterVisiblePublicCollections(agent.collections);
 
+    const reputationWallet = agent.solanaWalletAddress || null;
+    const reputationSource = agent.solanaWalletAddress ? "agent" : null;
+    const reputation = reputationWallet ? await getWalletReputation(reputationWallet) : null;
+    const [followersCount, existingFollow] = await Promise.all([
+      prisma.agentFollow.count({ where: { agentId: agent.id } }),
+      viewerWallet
+        ? prisma.agentFollow.findUnique({
+            where: {
+              agentId_walletAddress: {
+                agentId: agent.id,
+                walletAddress: viewerWallet,
+              },
+            },
+            select: { id: true },
+          })
+        : Promise.resolve(null),
+    ]);
+
     return NextResponse.json({
       success: true,
       agent: {
@@ -95,6 +115,27 @@ export async function GET(
         },
         x_handle: agent.xHandle,
         verified_at: agent.verifiedAt?.toISOString(),
+        followers_count: followersCount,
+        is_following: Boolean(existingFollow),
+        reputation: reputation
+          ? {
+              wallet_address: reputation.walletAddress,
+              source: reputationSource,
+              score: reputation.score,
+              wallet_score: reputation.walletScore,
+              social_score: reputation.socialScore,
+              tier: reputation.tier,
+              badges: reputation.badges,
+              availability: reputation.availability,
+              trust_signal: reputation.trustSignal,
+              profile_state: reputation.profileState,
+              is_thin_profile: reputation.isThinProfile,
+              warning_label: reputation.warningLabel,
+              warning_text: reputation.warningText,
+              breakdown: reputation.breakdown,
+              fetched_at: reputation.fetchedAt,
+            }
+          : null,
         collections: publicCollections.map((c) => ({
           id: c.id,
           address: c.address,

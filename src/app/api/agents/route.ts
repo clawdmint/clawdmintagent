@@ -2,9 +2,27 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { SOLANA_COLLECTION_CHAINS } from "@/lib/collection-chains";
 import { filterVisiblePublicCollections, PUBLIC_COLLECTION_STATUSES } from "@/lib/public-collections";
+import { getWalletReputation } from "@/lib/fairscale";
 
 // Force dynamic rendering (prevents static generation errors on Netlify)
 export const dynamic = 'force-dynamic';
+
+async function buildReputationMap(wallets: string[]) {
+  const uniqueWallets = [...new Set(wallets.map((wallet) => wallet.trim()).filter(Boolean))];
+  const reputationMap = new Map<string, Awaited<ReturnType<typeof getWalletReputation>>>();
+  const batchSize = 5;
+
+  for (let index = 0; index < uniqueWallets.length; index += batchSize) {
+    const batch = uniqueWallets.slice(index, index + batchSize);
+    const reputations = await Promise.all(batch.map((wallet) => getWalletReputation(wallet)));
+
+    batch.forEach((wallet, batchIndex) => {
+      reputationMap.set(wallet, reputations[batchIndex] ?? null);
+    });
+  }
+
+  return reputationMap;
+}
 
 // ═══════════════════════════════════════════════════════════════════════
 // GET /api/agents
@@ -65,9 +83,18 @@ export async function GET(request: NextRequest) {
       return map;
     }, new Map<string, number>());
 
-    return NextResponse.json({
-      success: true,
-      agents: agents.map((a) => ({
+    const reputationMap = await buildReputationMap(
+      agents
+        .map((agent) => agent.solanaWalletAddress)
+        .filter((wallet): wallet is string => Boolean(wallet)),
+    );
+
+    const enrichedAgents = agents.map((a) => {
+      const reputationWallet = a.solanaWalletAddress || null;
+      const reputationSource = a.solanaWalletAddress ? "agent" : null;
+      const reputation = reputationWallet ? reputationMap.get(reputationWallet) ?? null : null;
+
+      return {
         id: a.id,
         name: a.name,
         description: a.description,
@@ -84,7 +111,27 @@ export async function GET(request: NextRequest) {
         token_launches_count: tokenCountByAgent.get(a.id) || 0,
         verified_at: a.verifiedAt?.toISOString(),
         created_at: a.createdAt.toISOString(),
-      })),
+        reputation: reputation
+          ? {
+              wallet_address: reputation.walletAddress,
+              source: reputationSource,
+              score: reputation.score,
+              tier: reputation.tier,
+              badges: reputation.badges,
+              availability: reputation.availability,
+              trust_signal: reputation.trustSignal,
+              profile_state: reputation.profileState,
+              is_thin_profile: reputation.isThinProfile,
+              warning_label: reputation.warningLabel,
+              warning_text: reputation.warningText,
+            }
+          : null,
+      };
+    });
+
+    return NextResponse.json({
+      success: true,
+      agents: enrichedAgents,
       pagination: {
         page,
         limit,
