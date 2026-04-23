@@ -8,7 +8,7 @@ import { prisma } from "./db";
 
 const SUCCESS_TTL_MS = 30 * 60 * 1000;
 const ERROR_TTL_MS = 5 * 60 * 1000;
-const FAIRSCALE_CACHE_VERSION = "v3";
+const FAIRSCALE_CACHE_VERSION = "v4";
 const UPSERT_DISABLE_ERROR_MARKERS = [
   "fairscalescorecache",
   "does not exist",
@@ -267,6 +267,31 @@ function deriveTrustSignal(score: number | null): WalletReputation["trustSignal"
   return "warning";
 }
 
+function hasAnyTopLevelScore(payload: FairScaleRawResponse): boolean {
+  return (
+    normalizeNumber(payload.fairscore) !== null ||
+    normalizeNumber(payload.fairScore) !== null ||
+    normalizeNumber(payload.score) !== null
+  );
+}
+
+function isLikelyEmptyErrorPayload(payload: FairScaleRawResponse): boolean {
+  if (hasAnyTopLevelScore(payload)) {
+    return false;
+  }
+  if (typeof payload.error === "string" && payload.error.trim().length > 0) {
+    return true;
+  }
+  return false;
+}
+
+function getProfilesToQuery(logicalProfile: "agent" | "human"): ("agent" | "human")[] {
+  if (logicalProfile === "human") {
+    return ["human"];
+  }
+  return ["agent", "human"];
+}
+
 function deriveWarning(score: number | null) {
   if (score === null) {
     return {
@@ -408,8 +433,9 @@ async function getWalletReputationForProfile(
     return null;
   }
 
-  const apiKey = getFairscaleApiKey(profile);
-  if (!apiKey) {
+  const candidates = getProfilesToQuery(profile);
+  const hasAnyApiKey = candidates.some((p) => Boolean(getFairscaleApiKey(p)));
+  if (!hasAnyApiKey) {
     return null;
   }
 
@@ -430,48 +456,91 @@ async function getWalletReputationForProfile(
     return persisted.payload;
   }
 
-  const url = new URL("/score", getFairscaleApiBaseUrl(profile));
-  url.searchParams.set("wallet", trimmedAddress);
+  const seenRequest = new Set<string>();
+  let lastStatus = 0;
+  let lastWas429 = false;
 
   try {
-    const response = await fetch(url.toString(), {
-      method: "GET",
-      headers: {
-        fairkey: apiKey,
-        accept: "application/json",
-      },
-      cache: "no-store",
-    });
-
-    if (!response.ok) {
-      if (persisted?.payload) {
-        cache.set(cacheKey, {
-          expiresAt: Date.now() + ERROR_TTL_MS,
-          value: persisted.payload,
-        });
-        return persisted.payload;
+    for (const apiProfile of candidates) {
+      const apiKey = getFairscaleApiKey(apiProfile);
+      if (!apiKey) {
+        continue;
       }
 
-      const fallback =
-        response.status === 429
-          ? buildUnavailableReputation(trimmedAddress, "rate_limited", profile)
-          : buildUnavailableReputation(trimmedAddress, "unavailable", profile);
-      cache.set(cacheKey, {
-        expiresAt: Date.now() + ERROR_TTL_MS,
-        value: fallback,
+      const baseUrl = getFairscaleApiBaseUrl(apiProfile);
+      const requestKey = `${baseUrl}::${apiKey}`;
+      if (seenRequest.has(requestKey)) {
+        continue;
+      }
+      seenRequest.add(requestKey);
+
+      const url = new URL("/score", baseUrl);
+      url.searchParams.set("wallet", trimmedAddress);
+
+      const response = await fetch(url.toString(), {
+        method: "GET",
+        headers: {
+          fairkey: apiKey,
+          accept: "application/json",
+        },
+        cache: "no-store",
       });
-      return fallback;
+
+      lastStatus = response.status;
+      if (response.status === 429) {
+        lastWas429 = true;
+      }
+
+      if (!response.ok) {
+        if (candidates.length > 1 && apiProfile === "agent" && response.status !== 429) {
+          console.warn(
+            "FairScale agent endpoint failed, retrying main API:",
+            response.status,
+            baseUrl,
+          );
+        }
+        continue;
+      }
+
+      let payload: FairScaleRawResponse;
+      try {
+        payload = (await response.json()) as FairScaleRawResponse;
+      } catch {
+        continue;
+      }
+
+      if (isLikelyEmptyErrorPayload(payload)) {
+        if (candidates.length > 1 && apiProfile === "agent") {
+          console.warn("FairScale agent response had no score; retrying main API");
+        }
+        continue;
+      }
+
+      const normalized = normalizeReputation(trimmedAddress, payload, profile);
+      const successExpiresAt = new Date(Date.now() + SUCCESS_TTL_MS);
+      cache.set(cacheKey, {
+        expiresAt: successExpiresAt.getTime(),
+        value: normalized,
+      });
+      await persistReputation(persistedCacheKey, normalized, successExpiresAt);
+      return normalized;
     }
 
-    const payload = (await response.json()) as FairScaleRawResponse;
-    const normalized = normalizeReputation(trimmedAddress, payload, profile);
-    const successExpiresAt = new Date(Date.now() + SUCCESS_TTL_MS);
+    if (persisted?.payload) {
+      cache.set(cacheKey, {
+        expiresAt: Date.now() + ERROR_TTL_MS,
+        value: persisted.payload,
+      });
+      return persisted.payload;
+    }
+
+    const availability = lastWas429 || lastStatus === 429 ? "rate_limited" : "unavailable";
+    const fallback = buildUnavailableReputation(trimmedAddress, availability, profile);
     cache.set(cacheKey, {
-      expiresAt: successExpiresAt.getTime(),
-      value: normalized,
+      expiresAt: Date.now() + ERROR_TTL_MS,
+      value: fallback,
     });
-    await persistReputation(persistedCacheKey, normalized, successExpiresAt);
-    return normalized;
+    return fallback;
   } catch (error) {
     console.warn("FairScale lookup failed:", error);
     if (persisted?.payload) {
