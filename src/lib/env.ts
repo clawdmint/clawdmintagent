@@ -57,6 +57,54 @@ export function getSynapseSolanaRpcUrl(): string {
   return appendApiKeyToRpcUrl(endpoint, apiKey);
 }
 
+export function getFairscaleAgentApiBaseUrl(): string {
+  return (
+    getEnv("FAIRSCALE_AGENT_API_BASE_URL", "") ||
+    getEnv("FAIRSCALE_API_BASE_URL", "") ||
+    "https://agent-api.fairscale.xyz"
+  ).replace(/\/+$/, "");
+}
+
+export function getFairscaleHumanApiBaseUrl(): string {
+  return (
+    getEnv("FAIRSCALE_HUMAN_API_BASE_URL", "") ||
+    getEnv("FAIRSCALE_API_BASE_URL", "") ||
+    "https://api.fairscale.xyz"
+  ).replace(/\/+$/, "");
+}
+
+export function getFairscaleAgentApiKey(): string {
+  return getEnv("FAIRSCALE_AGENT_API_KEY", "") || getEnv("FAIRSCALE_API_KEY", "");
+}
+
+export function getFairscaleHumanApiKey(): string {
+  return getEnv("FAIRSCALE_HUMAN_API_KEY", "") || getEnv("FAIRSCALE_API_KEY", "");
+}
+
+export function getSynapseSapBaseUrl(): string {
+  return getEnv("SYNAPSE_SAP_BASE_URL", "https://merchant.synapse.network").replace(/\/+$/, "");
+}
+
+export function getSynapseSapToken(): string {
+  return getEnv("SYNAPSE_SAP_TOKEN", "").trim();
+}
+
+export function isSynapseSapEnabled(): boolean {
+  return Boolean(getSynapseSapToken());
+}
+
+export function shouldFallbackFromSynapseSap(): boolean {
+  return getEnv("SYNAPSE_SAP_FALLBACK_TO_RPC", "true").toLowerCase() !== "false";
+}
+
+export function getClawdmintInternalBaseUrl(): string {
+  return (
+    getEnv("CLAWDMINT_INTERNAL_BASE_URL", "") ||
+    getEnv("NEXT_PUBLIC_APP_URL", "") ||
+    "http://127.0.0.1:3000"
+  ).replace(/\/+$/, "");
+}
+
 export function getPreferredSolanaRpcUrl(): string {
   const synapseRpc = getSynapseSolanaRpcUrl();
   if (synapseRpc) {
@@ -149,6 +197,10 @@ export function getServerEnv() {
     basescanApiKey: getEnv("BASESCAN_API_KEY", ""),
     fairscaleApiKey: getEnv("FAIRSCALE_API_KEY", ""),
     fairscaleApiBaseUrl: getEnv("FAIRSCALE_API_BASE_URL", ""),
+    fairscaleAgentApiKey: getFairscaleAgentApiKey(),
+    fairscaleAgentApiBaseUrl: getFairscaleAgentApiBaseUrl(),
+    fairscaleHumanApiKey: getFairscaleHumanApiKey(),
+    fairscaleHumanApiBaseUrl: getFairscaleHumanApiBaseUrl(),
     // Environment
     nodeEnv: getEnv("NODE_ENV", "development"),
     isDev: getEnv("NODE_ENV") === "development",

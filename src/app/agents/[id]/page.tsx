@@ -16,6 +16,8 @@ interface Agent {
   avatar_url: string;
   eoa: string;
   solana_wallet_address: string | null;
+  owner_wallet_address: string | null;
+  owner_wallet_chain: string | null;
   metaplex: {
     registered: boolean;
     delegated: boolean;
@@ -35,6 +37,27 @@ interface Agent {
   reputation: {
     wallet_address: string;
     source: "agent" | null;
+    score: number | null;
+    wallet_score: number | null;
+    social_score: number | null;
+    tier: string | null;
+    badges: string[];
+    availability: "available" | "rate_limited" | "unavailable";
+    trust_signal: "trusted" | "established" | "monitor" | "warning" | "unscored";
+    profile_state: "established" | "thin" | "unscored";
+    is_thin_profile: boolean;
+    warning_label: string | null;
+    warning_text: string | null;
+    breakdown: Array<{
+      key: string;
+      label: string;
+      value: string;
+    }>;
+    fetched_at: string;
+  } | null;
+  owner_reputation: {
+    wallet_address: string;
+    source: "owner" | null;
     score: number | null;
     wallet_score: number | null;
     social_score: number | null;
@@ -231,6 +254,9 @@ export default function AgentPage() {
   const reputationRateLimited = agent.reputation?.availability === "rate_limited";
   const reputationUnavailable = agent.reputation?.availability === "unavailable";
   const reputationThin = agent.reputation?.profile_state === "thin";
+  const ownerReputationRateLimited = agent.owner_reputation?.availability === "rate_limited";
+  const ownerReputationUnavailable = agent.owner_reputation?.availability === "unavailable";
+  const ownerReputationThin = agent.owner_reputation?.profile_state === "thin";
 
   async function toggleFollow() {
     if (!address) {
@@ -924,75 +950,180 @@ export default function AgentPage() {
                           </div>
                         ) : null}
 
-                        {agent.metaplex?.registered ? (
-                          <div className="rounded-[28px] border border-white/[0.06] bg-black/10 p-5">
-                            <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                        <div className="rounded-[28px] border border-white/[0.06] bg-black/10 p-5">
+                            <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
                               <div>
-                                <p className="text-[11px] font-mono uppercase tracking-[0.22em] text-fuchsia-300/90">
-                                  Metaplex Registry
+                                <p className="text-[11px] font-mono uppercase tracking-[0.22em] text-emerald-300/90">
+                                  Owner Wallet
                                 </p>
-                                <h3 className="mt-2 text-xl font-semibold">On-chain identity active</h3>
-                                <p className="mt-2 text-sm text-gray-400">
-                                  Identity, collection, and delegation rails anchoring this agent profile.
+                                <h3 className="mt-2 text-xl font-semibold">Owner wallet FairScore</h3>
+                                <p className="mt-2 max-w-3xl text-sm text-gray-400">
+                                  A separate FairScale layer for the agent owner wallet. This stays distinct from the agent wallet evaluation above.
                                 </p>
                               </div>
-                              <span className="rounded-full bg-fuchsia-500/10 px-3 py-1 text-[11px] font-mono uppercase tracking-[0.2em] text-fuchsia-300">
-                                {agent.metaplex.delegated ? "delegated" : "registered"}
-                              </span>
+                              {agent.owner_reputation?.badges?.length ? (
+                                <div className="flex flex-wrap gap-2">
+                                  {agent.owner_reputation.badges.slice(0, 3).map((badge) => (
+                                    <span
+                                      key={badge}
+                                      className="rounded-full bg-white/[0.05] px-2.5 py-1 text-[10px] font-mono uppercase tracking-[0.16em] text-gray-300"
+                                    >
+                                      {badge}
+                                    </span>
+                                  ))}
+                                </div>
+                              ) : null}
                             </div>
 
-                            <div className="mt-5 grid gap-3 lg:grid-cols-2 xl:grid-cols-4">
-                              <RegistryField
-                                label="Asset"
-                                value={agent.metaplex.asset_address}
-                                href={agent.metaplex.asset_address ? getAddressExplorerUrl(agent.metaplex.asset_address, "solana") : null}
-                                theme={theme}
-                              />
-                              <RegistryField
-                                label="Collection"
-                                value={agent.metaplex.collection_address}
-                                href={agent.metaplex.collection_address ? getAddressExplorerUrl(agent.metaplex.collection_address, "solana") : null}
-                                theme={theme}
-                              />
-                              <RegistryField
-                                label="Identity PDA"
-                                value={agent.metaplex.identity_pda}
-                                href={agent.metaplex.identity_pda ? getAddressExplorerUrl(agent.metaplex.identity_pda, "solana") : null}
-                                theme={theme}
-                              />
-                              {agent.metaplex.registration_uri ? (
-                                <a
-                                  href={agent.metaplex.registration_uri}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className={clsx(
-                                    "flex items-center justify-between rounded-2xl border px-4 py-3 transition-colors",
-                                    theme === "dark"
-                                      ? "border-white/[0.08] bg-white/[0.02] hover:bg-white/[0.04]"
-                                      : "border-gray-200 bg-gray-50/80 hover:bg-white"
-                                  )}
-                                >
-                                  <div>
-                                    <p className="text-[11px] font-mono uppercase tracking-[0.2em] text-gray-500">
-                                      Registration URI
+                            <div className="mt-5 grid gap-3 md:grid-cols-4">
+                              <div className="rounded-2xl border border-white/[0.06] bg-black/10 px-4 py-3 md:col-span-4">
+                                <p className="text-[11px] font-mono uppercase tracking-[0.18em] text-gray-500">Owner wallet</p>
+                                {agent.owner_wallet_address ? (
+                                  <a
+                                    href={getAddressExplorerUrl(agent.owner_wallet_address, "solana")}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="mt-2 inline-flex items-center gap-2 font-mono text-sm text-gray-200 transition-colors hover:text-white"
+                                    title={agent.owner_wallet_address}
+                                  >
+                                    {truncateAddress(agent.owner_wallet_address, 10, 8)}
+                                    <ExternalLink className="h-3.5 w-3.5 text-gray-400" />
+                                  </a>
+                                ) : (
+                                  <div className="mt-2">
+                                    <p className="font-mono text-sm text-gray-400">Not linked yet</p>
+                                    <p className="mt-1 text-xs text-gray-500">
+                                      This agent does not have an owner wallet on record yet.
                                     </p>
-                                    <p className="mt-1 text-sm text-cyan-300">Open registration document</p>
                                   </div>
-                                  <ExternalLink className="h-4 w-4 text-cyan-300" />
-                                </a>
-                              ) : (
-                                <RegistryField
-                                  label="Registration URI"
-                                  value={null}
-                                  href={null}
-                                  theme={theme}
-                                />
-                              )}
+                                )}
+                              </div>
+                              <div className="rounded-2xl border border-white/[0.06] bg-black/10 px-4 py-3">
+                                <p className="text-[11px] font-mono uppercase tracking-[0.18em] text-gray-500">Owner FairScore</p>
+                                <p className="mt-2 text-3xl font-semibold">
+                                  {agent.owner_reputation?.score !== null && agent.owner_reputation?.score !== undefined
+                                    ? agent.owner_reputation.score.toFixed(1)
+                                    : "--"}
+                                </p>
+                              </div>
+                              <div className="rounded-2xl border border-white/[0.06] bg-black/10 px-4 py-3">
+                                <p className="text-[11px] font-mono uppercase tracking-[0.18em] text-gray-500">Owner Wallet Score</p>
+                                <p className="mt-2 text-sm font-medium">
+                                  {agent.owner_reputation?.wallet_score !== null && agent.owner_reputation?.wallet_score !== undefined
+                                    ? agent.owner_reputation.wallet_score.toFixed(1)
+                                    : "0.0"}
+                                </p>
+                              </div>
+                              <div className="rounded-2xl border border-white/[0.06] bg-black/10 px-4 py-3">
+                                <p className="text-[11px] font-mono uppercase tracking-[0.18em] text-gray-500">Owner Social Score</p>
+                                <p className="mt-2 text-sm font-medium">
+                                  {((agent.owner_reputation?.social_score ?? 0)).toFixed(1)}
+                                </p>
+                              </div>
+                              <div className="rounded-2xl border border-white/[0.06] bg-black/10 px-4 py-3">
+                                <p className="text-[11px] font-mono uppercase tracking-[0.18em] text-gray-500">Coverage</p>
+                                <p className="mt-2 text-sm font-medium">
+                                  {agent.owner_reputation?.breakdown?.length
+                                    ? `${agent.owner_reputation.breakdown.length} signals`
+                                    : !agent.owner_wallet_address
+                                      ? "waiting for owner link"
+                                    : ownerReputationRateLimited
+                                      ? "pending"
+                                      : "top-line only"}
+                                </p>
+                              </div>
+                            </div>
+
+                            <div className="mt-4">
+                              {ownerReputationThin ? (
+                                <p className="text-sm text-amber-300">
+                                  This owner wallet profile is still fresh, so the score should be treated as preliminary.
+                                </p>
+                              ) : !agent.owner_wallet_address ? (
+                                <p className="text-sm text-gray-400">
+                                  Once an owner wallet is linked for this agent, its separate human FairScore will appear here.
+                                </p>
+                              ) : ownerReputationRateLimited ? (
+                                <p className="text-sm text-orange-300">
+                                  FairScale is rate limiting this owner wallet lookup right now. We will retry automatically once the limit clears.
+                                </p>
+                              ) : ownerReputationUnavailable ? (
+                                <p className="text-sm text-gray-400">
+                                  Owner wallet FairScore is temporarily unavailable.
+                                </p>
+                              ) : null}
                             </div>
                           </div>
-                        ) : null}
-                      </div>
-                    ) : null}
+
+                          {agent.metaplex?.registered ? (
+                            <div className="rounded-[28px] border border-white/[0.06] bg-black/10 p-5">
+                              <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                                <div>
+                                  <p className="text-[11px] font-mono uppercase tracking-[0.22em] text-fuchsia-300/90">
+                                    Metaplex Registry
+                                  </p>
+                                  <h3 className="mt-2 text-xl font-semibold">On-chain identity active</h3>
+                                  <p className="mt-2 text-sm text-gray-400">
+                                    Identity, collection, and delegation rails anchoring this agent profile.
+                                  </p>
+                                </div>
+                                <span className="rounded-full bg-fuchsia-500/10 px-3 py-1 text-[11px] font-mono uppercase tracking-[0.2em] text-fuchsia-300">
+                                  {agent.metaplex.delegated ? "delegated" : "registered"}
+                                </span>
+                              </div>
+
+                              <div className="mt-5 grid gap-3 lg:grid-cols-2 xl:grid-cols-4">
+                                <RegistryField
+                                  label="Asset"
+                                  value={agent.metaplex.asset_address}
+                                  href={agent.metaplex.asset_address ? getAddressExplorerUrl(agent.metaplex.asset_address, "solana") : null}
+                                  theme={theme}
+                                />
+                                <RegistryField
+                                  label="Collection"
+                                  value={agent.metaplex.collection_address}
+                                  href={agent.metaplex.collection_address ? getAddressExplorerUrl(agent.metaplex.collection_address, "solana") : null}
+                                  theme={theme}
+                                />
+                                <RegistryField
+                                  label="Identity PDA"
+                                  value={agent.metaplex.identity_pda}
+                                  href={agent.metaplex.identity_pda ? getAddressExplorerUrl(agent.metaplex.identity_pda, "solana") : null}
+                                  theme={theme}
+                                />
+                                {agent.metaplex.registration_uri ? (
+                                  <a
+                                    href={agent.metaplex.registration_uri}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className={clsx(
+                                      "flex items-center justify-between rounded-2xl border px-4 py-3 transition-colors",
+                                      theme === "dark"
+                                        ? "border-white/[0.08] bg-white/[0.02] hover:bg-white/[0.04]"
+                                        : "border-gray-200 bg-gray-50/80 hover:bg-white"
+                                    )}
+                                  >
+                                    <div>
+                                      <p className="text-[11px] font-mono uppercase tracking-[0.2em] text-gray-500">
+                                        Registration URI
+                                      </p>
+                                      <p className="mt-1 text-sm text-cyan-300">Open registration document</p>
+                                    </div>
+                                    <ExternalLink className="h-4 w-4 text-cyan-300" />
+                                  </a>
+                                ) : (
+                                  <RegistryField
+                                    label="Registration URI"
+                                    value={null}
+                                    href={null}
+                                    theme={theme}
+                                  />
+                                )}
+                              </div>
+                            </div>
+                          ) : null}
+                        </div>
+                      ) : null}
                   </div>
                 ) : null}
             </div>

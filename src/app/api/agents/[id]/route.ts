@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { formatCollectionMintPrice, getCollectionNativeToken, SOLANA_COLLECTION_CHAINS } from "@/lib/collection-chains";
 import { filterVisiblePublicCollections, PUBLIC_COLLECTION_STATUSES } from "@/lib/public-collections";
-import { getWalletReputation } from "@/lib/fairscale";
+import { getAgentWalletReputation, getHumanWalletReputation } from "@/lib/fairscale";
 
 // Force dynamic rendering (prevents static generation errors on Netlify)
 export const dynamic = 'force-dynamic';
@@ -76,8 +76,12 @@ export async function GET(
 
     const reputationWallet = agent.solanaWalletAddress || null;
     const reputationSource = agent.solanaWalletAddress ? "agent" : null;
-    const reputation = reputationWallet ? await getWalletReputation(reputationWallet) : null;
-    const [followersCount, existingFollow] = await Promise.all([
+    const ownerWalletAddress =
+      agent.ownerWalletAddress ||
+      (agent.ownerWalletChain === "solana" && agent.eoa && !agent.eoa.startsWith("0x") ? agent.eoa : null);
+    const [reputation, ownerReputation, followersCount, existingFollow] = await Promise.all([
+      reputationWallet ? getAgentWalletReputation(reputationWallet) : Promise.resolve(null),
+      ownerWalletAddress ? getHumanWalletReputation(ownerWalletAddress) : Promise.resolve(null),
       prisma.agentFollow.count({ where: { agentId: agent.id } }),
       viewerWallet
         ? prisma.agentFollow.findUnique({
@@ -101,6 +105,8 @@ export async function GET(
         avatar_url: agent.avatarUrl,
         eoa: agent.eoa,
         solana_wallet_address: agent.solanaWalletAddress,
+        owner_wallet_address: ownerWalletAddress,
+        owner_wallet_chain: agent.ownerWalletChain || (ownerWalletAddress ? "solana" : null),
         metaplex: {
           registered: Boolean(agent.metaplexAssetAddress && agent.metaplexIdentityPda),
           delegated: Boolean(agent.metaplexExecutionDelegatePda),
@@ -134,6 +140,25 @@ export async function GET(
               warning_text: reputation.warningText,
               breakdown: reputation.breakdown,
               fetched_at: reputation.fetchedAt,
+            }
+          : null,
+        owner_reputation: ownerReputation
+          ? {
+              wallet_address: ownerReputation.walletAddress,
+              source: "owner",
+              score: ownerReputation.score,
+              wallet_score: ownerReputation.walletScore,
+              social_score: ownerReputation.socialScore,
+              tier: ownerReputation.tier,
+              badges: ownerReputation.badges,
+              availability: ownerReputation.availability,
+              trust_signal: ownerReputation.trustSignal,
+              profile_state: ownerReputation.profileState,
+              is_thin_profile: ownerReputation.isThinProfile,
+              warning_label: ownerReputation.warningLabel,
+              warning_text: ownerReputation.warningText,
+              breakdown: ownerReputation.breakdown,
+              fetched_at: ownerReputation.fetchedAt,
             }
           : null,
         collections: publicCollections.map((c) => ({

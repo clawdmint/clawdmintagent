@@ -1,10 +1,14 @@
-import { getEnv } from "./env";
+import {
+  getFairscaleAgentApiBaseUrl,
+  getFairscaleAgentApiKey,
+  getFairscaleHumanApiBaseUrl,
+  getFairscaleHumanApiKey,
+} from "./env";
 import { prisma } from "./db";
 
-const FAIRSCALE_DEFAULT_BASE_URL = "https://api.fairscale.xyz";
 const SUCCESS_TTL_MS = 30 * 60 * 1000;
 const ERROR_TTL_MS = 5 * 60 * 1000;
-const FAIRSCALE_CACHE_VERSION = "v2";
+const FAIRSCALE_CACHE_VERSION = "v3";
 const UPSERT_DISABLE_ERROR_MARKERS = [
   "fairscalescorecache",
   "does not exist",
@@ -43,6 +47,7 @@ type FairScaleRawResponse = {
 
 export type WalletReputation = {
   walletAddress: string;
+  profile: "agent" | "human";
   score: number | null;
   walletScore: number | null;
   socialScore: number | null;
@@ -76,12 +81,14 @@ function getFairscaleCache() {
   return target[globalKey]!;
 }
 
-function getFairscaleApiBaseUrl() {
-  return getEnv("FAIRSCALE_API_BASE_URL", FAIRSCALE_DEFAULT_BASE_URL).replace(/\/+$/, "");
+function getFairscaleApiBaseUrl(profile: "agent" | "human") {
+  return (
+    profile === "agent" ? getFairscaleAgentApiBaseUrl() : getFairscaleHumanApiBaseUrl()
+  ).replace(/\/+$/, "");
 }
 
-function getFairscaleApiKey() {
-  return getEnv("FAIRSCALE_API_KEY", "");
+function getFairscaleApiKey(profile: "agent" | "human") {
+  return profile === "agent" ? getFairscaleAgentApiKey() : getFairscaleHumanApiKey();
 }
 
 function hydratePersistedReputation(record: PersistedFairScaleCache | null): WalletReputation | null {
@@ -92,10 +99,10 @@ function hydratePersistedReputation(record: PersistedFairScaleCache | null): Wal
   return record.payload;
 }
 
-async function readPersistedReputation(walletAddress: string) {
+async function readPersistedReputation(cacheKey: string) {
   try {
     const record = await prisma.fairscaleScoreCache.findUnique({
-      where: { walletAddress },
+      where: { walletAddress: cacheKey },
       select: {
         payload: true,
         fetchedAt: true,
@@ -124,13 +131,13 @@ async function readPersistedReputation(walletAddress: string) {
 }
 
 async function persistReputation(
-  walletAddress: string,
+  cacheKey: string,
   reputation: WalletReputation,
   expiresAt: Date,
 ) {
   try {
     await prisma.fairscaleScoreCache.upsert({
-      where: { walletAddress },
+      where: { walletAddress: cacheKey },
       update: {
         payload: reputation,
         availability: reputation.availability,
@@ -138,7 +145,7 @@ async function persistReputation(
         expiresAt,
       },
       create: {
-        walletAddress,
+        walletAddress: cacheKey,
         payload: reputation,
         availability: reputation.availability,
         fetchedAt: new Date(reputation.fetchedAt),
@@ -320,7 +327,11 @@ function deriveProfileState(payload: FairScaleRawResponse, score: number | null)
   };
 }
 
-function normalizeReputation(walletAddress: string, payload: FairScaleRawResponse): WalletReputation {
+function normalizeReputation(
+  walletAddress: string,
+  payload: FairScaleRawResponse,
+  profile: "agent" | "human",
+): WalletReputation {
   const score =
     normalizeNumber(payload.fairscore) ??
     normalizeNumber(payload.fairScore) ??
@@ -343,6 +354,7 @@ function normalizeReputation(walletAddress: string, payload: FairScaleRawRespons
 
   return {
     walletAddress,
+    profile,
     score,
     walletScore,
     socialScore,
@@ -362,11 +374,13 @@ function normalizeReputation(walletAddress: string, payload: FairScaleRawRespons
 function buildUnavailableReputation(
   walletAddress: string,
   availability: WalletReputation["availability"],
+  profile: "agent" | "human",
 ): WalletReputation {
   const isRateLimited = availability === "rate_limited";
 
   return {
     walletAddress,
+    profile,
     score: null,
     walletScore: null,
     socialScore: null,
@@ -385,25 +399,29 @@ function buildUnavailableReputation(
   };
 }
 
-export async function getWalletReputation(walletAddress: string): Promise<WalletReputation | null> {
+async function getWalletReputationForProfile(
+  walletAddress: string,
+  profile: "agent" | "human",
+): Promise<WalletReputation | null> {
   const trimmedAddress = walletAddress.trim();
   if (!trimmedAddress) {
     return null;
   }
 
-  const apiKey = getFairscaleApiKey();
+  const apiKey = getFairscaleApiKey(profile);
   if (!apiKey) {
     return null;
   }
 
-  const cacheKey = `${FAIRSCALE_CACHE_VERSION}:${trimmedAddress.toLowerCase()}`;
+  const cacheKey = `${FAIRSCALE_CACHE_VERSION}:${profile}:${trimmedAddress.toLowerCase()}`;
+  const persistedCacheKey = `${profile}:${trimmedAddress.toLowerCase()}`;
   const cache = getFairscaleCache();
   const cached = cache.get(cacheKey);
   if (cached && cached.expiresAt > Date.now()) {
     return cached.value;
   }
 
-  const persisted = await readPersistedReputation(trimmedAddress);
+  const persisted = await readPersistedReputation(persistedCacheKey);
   if (persisted?.payload && persisted.expiresAt.getTime() > Date.now()) {
     cache.set(cacheKey, {
       expiresAt: persisted.expiresAt.getTime(),
@@ -412,7 +430,7 @@ export async function getWalletReputation(walletAddress: string): Promise<Wallet
     return persisted.payload;
   }
 
-  const url = new URL("/score", getFairscaleApiBaseUrl());
+  const url = new URL("/score", getFairscaleApiBaseUrl(profile));
   url.searchParams.set("wallet", trimmedAddress);
 
   try {
@@ -436,8 +454,8 @@ export async function getWalletReputation(walletAddress: string): Promise<Wallet
 
       const fallback =
         response.status === 429
-          ? buildUnavailableReputation(trimmedAddress, "rate_limited")
-          : buildUnavailableReputation(trimmedAddress, "unavailable");
+          ? buildUnavailableReputation(trimmedAddress, "rate_limited", profile)
+          : buildUnavailableReputation(trimmedAddress, "unavailable", profile);
       cache.set(cacheKey, {
         expiresAt: Date.now() + ERROR_TTL_MS,
         value: fallback,
@@ -446,13 +464,13 @@ export async function getWalletReputation(walletAddress: string): Promise<Wallet
     }
 
     const payload = (await response.json()) as FairScaleRawResponse;
-    const normalized = normalizeReputation(trimmedAddress, payload);
+    const normalized = normalizeReputation(trimmedAddress, payload, profile);
     const successExpiresAt = new Date(Date.now() + SUCCESS_TTL_MS);
     cache.set(cacheKey, {
       expiresAt: successExpiresAt.getTime(),
       value: normalized,
     });
-    await persistReputation(trimmedAddress, normalized, successExpiresAt);
+    await persistReputation(persistedCacheKey, normalized, successExpiresAt);
     return normalized;
   } catch (error) {
     console.warn("FairScale lookup failed:", error);
@@ -464,11 +482,23 @@ export async function getWalletReputation(walletAddress: string): Promise<Wallet
       return persisted.payload;
     }
 
-    const fallback = buildUnavailableReputation(trimmedAddress, "unavailable");
+    const fallback = buildUnavailableReputation(trimmedAddress, "unavailable", profile);
     cache.set(cacheKey, {
       expiresAt: Date.now() + ERROR_TTL_MS,
       value: fallback,
     });
     return fallback;
   }
+}
+
+export async function getAgentWalletReputation(walletAddress: string): Promise<WalletReputation | null> {
+  return getWalletReputationForProfile(walletAddress, "agent");
+}
+
+export async function getHumanWalletReputation(walletAddress: string): Promise<WalletReputation | null> {
+  return getWalletReputationForProfile(walletAddress, "human");
+}
+
+export async function getWalletReputation(walletAddress: string): Promise<WalletReputation | null> {
+  return getAgentWalletReputation(walletAddress);
 }
