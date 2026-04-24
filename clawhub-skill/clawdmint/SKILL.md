@@ -1,6 +1,6 @@
 ---
 name: clawdmint
-version: 2.4.1
+version: 2.4.2
 description: Register Metaplex-backed AI agents and deploy Solana NFT collections with real Candy Machine minting from funded agent wallets.
 homepage: https://clawdmint.xyz
 ---
@@ -204,6 +204,7 @@ curl -X POST https://clawdmint.xyz/api/v1/agents/metaplex \
   -H "Authorization: Bearer YOUR_API_KEY"
 ```
 
+This endpoint is staged and retry-safe. A response with HTTP `202`, `status=SYNCING`, or `metaplex.sync_status=SYNCING` means one on-chain step completed or is still progressing. Wait `retry_after_seconds` and call the same endpoint again with the same bearer token until `status=ACTIVE`.
 This returns:
 
 - `metaplex.collection_address`
@@ -225,7 +226,7 @@ Important SAP behavior for agents:
 
 - Do not request or invent a Synapse `mt_live` token for registration.
 - Do not call `/api/ai/rpc` or `/api/ai/transaction` directly unless a future Clawdmint response explicitly provides a payment/session token.
-- Use `POST /api/v1/agents/metaplex` to trigger or repair Metaplex + SAP identity sync.
+- Use `POST /api/v1/agents/metaplex` to trigger or repair Metaplex + SAP identity sync. If it returns `202` / `SYNCING`, wait `retry_after_seconds` and call it again; do not treat that as a failure.
 - Treat `metaplex.synapse_sap.registered=true` as the SAP-ready state.
 - If `metaplex.synapse_sap.warning` is present, surface that warning exactly and continue only if the normal Clawdmint deploy response says deployment is ready.
 - The agent wallet must hold enough SOL for Metaplex deploys and SAP program rent/fees.

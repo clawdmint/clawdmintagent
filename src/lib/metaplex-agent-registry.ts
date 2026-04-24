@@ -69,6 +69,13 @@ export class MetaplexAgentRegistryError extends Error {
   }
 }
 
+export type AgentMetaplexSyncStatus = "SYNCING" | "ACTIVE";
+
+export type AgentMetaplexSyncStepSummary = AgentMetaplexSummary & {
+  sync_status: AgentMetaplexSyncStatus;
+  next_action: string | null;
+  retry_after_seconds: number | null;
+};
 export interface AgentMetaplexSummary {
   collection_address: string | null;
   asset_address: string | null;
@@ -251,6 +258,19 @@ function createReadOnlyRegistryUmi() {
   return umi;
 }
 
+function getMetaplexSyncStepSummary(
+  agent: AgentRegistryRecord,
+  syncStatus: AgentMetaplexSyncStatus,
+  nextAction: string | null,
+  synapseSap?: SynapseSapAgentRegistrationSummary | null
+): AgentMetaplexSyncStepSummary {
+  return {
+    ...getMetaplexSummary(agent, synapseSap),
+    sync_status: syncStatus,
+    next_action: nextAction,
+    retry_after_seconds: syncStatus === "SYNCING" ? 8 : null,
+  };
+}
 function getMetaplexSummary(
   agent: AgentRegistryRecord,
   synapseSap?: SynapseSapAgentRegistrationSummary | null
@@ -390,7 +410,7 @@ async function ensureCollectionAndAsset(agent: AgentRegistryRecord): Promise<Age
     })
       .useLegacyVersion()
       .sendAndConfirm(umi, {
-        confirm: { commitment: "finalized" },
+        confirm: { commitment: "confirmed" },
       });
 
     current = await updateAgent(current.id, {
@@ -420,7 +440,7 @@ async function ensureCollectionAndAsset(agent: AgentRegistryRecord): Promise<Age
     })
       .useLegacyVersion()
       .sendAndConfirm(umi, {
-        confirm: { commitment: "finalized" },
+        confirm: { commitment: "confirmed" },
       });
 
     current = await updateAgent(current.id, {
@@ -466,7 +486,7 @@ async function ensureIdentityAndDelegation(agent: AgentRegistryRecord): Promise<
     })
       .useLegacyVersion()
       .sendAndConfirm(umi, {
-        confirm: { commitment: "finalized" },
+        confirm: { commitment: "confirmed" },
       });
   }
 
@@ -486,7 +506,7 @@ async function ensureIdentityAndDelegation(agent: AgentRegistryRecord): Promise<
     })
       .useLegacyVersion()
       .sendAndConfirm(umi, {
-        confirm: { commitment: "finalized" },
+        confirm: { commitment: "confirmed" },
       });
   }
 
@@ -500,7 +520,7 @@ async function ensureIdentityAndDelegation(agent: AgentRegistryRecord): Promise<
     })
       .useLegacyVersion()
       .sendAndConfirm(umi, {
-        confirm: { commitment: "finalized" },
+        confirm: { commitment: "confirmed" },
       });
   }
 
@@ -518,7 +538,7 @@ async function ensureIdentityAndDelegation(agent: AgentRegistryRecord): Promise<
     })
       .useLegacyVersion()
       .sendAndConfirm(umi, {
-        confirm: { commitment: "finalized" },
+        confirm: { commitment: "confirmed" },
       });
   }
 
@@ -566,6 +586,62 @@ export async function getAgentRegistrationDocument(agentId: string) {
   });
 }
 
+export async function ensureMetaplexAgentRegistrationStep(
+  agentId: string
+): Promise<AgentMetaplexSyncStepSummary> {
+  let agent = await loadAgent(agentId);
+
+  if (!agent.solanaWalletAddress || !agent.solanaWalletEncryptedKey) {
+    throw new MetaplexAgentRegistryError(400, "Agent wallet is not configured");
+  }
+
+  try {
+    if (!agent.metaplexCollectionAddress || !agent.metaplexAssetAddress) {
+      agent = await ensureCollectionAndAsset(agent);
+      return getMetaplexSyncStepSummary(agent, "SYNCING", "retry_metaplex_identity");
+    }
+
+    const previousRegistrationUri = agent.metaplexRegistrationUri;
+    agent = await ensureRegistrationUri(agent);
+    if (agent.metaplexRegistrationUri !== previousRegistrationUri) {
+      return getMetaplexSyncStepSummary(agent, "SYNCING", "retry_metaplex_identity");
+    }
+
+    if (!agent.metaplexIdentityPda || !agent.metaplexExecutionDelegatePda) {
+      agent = await ensureIdentityAndDelegation(agent);
+      return getMetaplexSyncStepSummary(agent, "SYNCING", "retry_synapse_sap");
+    }
+
+    let synapseSap: SynapseSapAgentRegistrationSummary | null = null;
+    try {
+      synapseSap = await ensureSynapseSapAgentRegistration({
+        agentId: agent.id,
+        name: agent.name,
+        description: agent.description,
+        agentUri: agent.metaplexRegistrationUri || getAgentRegistrationUri(agent.id),
+        walletKeypair: getAgentOperationalKeypair(agent),
+      });
+    } catch (sapError) {
+      synapseSap = {
+        enabled: true,
+        registered: false,
+        warning: sapError instanceof Error ? sapError.message : "Unknown Synapse SAP registration error",
+      };
+    }
+
+    return getMetaplexSyncStepSummary(agent, "ACTIVE", null, synapseSap);
+  } catch (error) {
+    if (error instanceof MetaplexAgentRegistryError) {
+      throw error;
+    }
+    if ((error as AgentWalletError)?.name === "AgentWalletError") {
+      const walletError = error as AgentWalletError;
+      throw new MetaplexAgentRegistryError(walletError.status, walletError.message, walletError.details);
+    }
+    const message = error instanceof Error ? error.message : "Unknown Metaplex agent registry error";
+    throw new MetaplexAgentRegistryError(500, message);
+  }
+}
 export async function ensureMetaplexAgentRegistration(agentId: string): Promise<AgentMetaplexSummary> {
   let agent = await loadAgent(agentId);
 

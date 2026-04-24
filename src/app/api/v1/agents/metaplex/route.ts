@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createHash } from "crypto";
 import { prisma } from "@/lib/db";
 import {
-  ensureMetaplexAgentRegistration,
+  ensureMetaplexAgentRegistrationStep,
   getAgentMetaplexSummary,
   MetaplexAgentRegistryError,
 } from "@/lib/metaplex-agent-registry";
@@ -45,17 +45,27 @@ export async function POST(request: NextRequest) {
     }
 
     const before = await getAgentMetaplexSummary(agent.id);
-    const metaplex = await ensureMetaplexAgentRegistration(agent.id);
+    const metaplex = await ensureMetaplexAgentRegistrationStep(agent.id);
 
-    return NextResponse.json({
-      success: true,
-      created: !before?.registered && metaplex.registered,
-      delegated: metaplex.delegated,
-      metaplex,
-      message: metaplex.delegated
-        ? "Metaplex agent identity and delegation are active."
-        : "Metaplex agent identity is active.",
-    });
+    const active = metaplex.sync_status === "ACTIVE";
+
+    return NextResponse.json(
+      {
+        success: true,
+        status: metaplex.sync_status,
+        created: !before?.registered && metaplex.registered,
+        delegated: metaplex.delegated,
+        metaplex,
+        retry_after_seconds: metaplex.retry_after_seconds,
+        next_action: metaplex.next_action,
+        message: active
+          ? metaplex.delegated
+            ? "Metaplex agent identity and delegation are active."
+            : "Metaplex agent identity is active."
+          : "Metaplex agent identity sync is still progressing. Retry this endpoint with the same bearer token.",
+      },
+      { status: active ? 200 : 202 }
+    );
   } catch (error) {
     if (error instanceof MetaplexAgentRegistryError) {
       return NextResponse.json(
