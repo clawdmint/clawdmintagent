@@ -114,6 +114,10 @@ export function getSynapseSapRateLimit(): number {
   const parsed = Number.parseInt(getEnv("SYNAPSE_SAP_RATE_LIMIT", "60"), 10);
   return Number.isFinite(parsed) && parsed > 0 ? parsed : 60;
 }
+export function getSynapseSapTimeoutMs(): number {
+  const parsed = Number.parseInt(getEnv("SYNAPSE_SAP_TIMEOUT_MS", "8000"), 10);
+  return Number.isFinite(parsed) && parsed >= 0 ? parsed : 8000;
+}
 
 export function isSynapseSapIndexingEnabled(): boolean {
   return getEnv("SYNAPSE_SAP_INDEXING_ENABLED", "true").toLowerCase() !== "false";
@@ -255,6 +259,7 @@ export function getServerEnv() {
     synapseSapX402Endpoint: getSynapseSapX402Endpoint(),
     synapseSapPricePerCallLamports: getSynapseSapPricePerCallLamports(),
     synapseSapRateLimit: getSynapseSapRateLimit(),
+    synapseSapTimeoutMs: getSynapseSapTimeoutMs(),
     synapseSapIndexingEnabled: isSynapseSapIndexingEnabled(),
     // Environment
     nodeEnv: getEnv("NODE_ENV", "development"),

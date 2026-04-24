@@ -32,7 +32,6 @@ import {
   toWeb3JsLegacyTransaction,
 } from "@metaplex-foundation/umi-web3js-adapters";
 import {
-  Connection,
   Keypair,
   PublicKey as Web3PublicKey,
   SystemProgram,
@@ -334,7 +333,7 @@ export async function ensureMetaplexOnchainPlatformFeeGuard(
   })
     .useLegacyVersion()
     .sendAndConfirm(umi, {
-      confirm: { commitment: "finalized" },
+      confirm: { commitment: "confirmed" },
     });
 
   return true;
@@ -436,7 +435,7 @@ async function addConfigLinesWithRetry(input: {
       })
         .useLegacyVersion()
         .sendAndConfirm(input.umi, {
-          confirm: { commitment: "finalized" },
+          confirm: { commitment: "confirmed" },
         });
 
       return signature.toString();
@@ -584,7 +583,7 @@ export async function deployMetaplexCollection(
     .useLegacyVersion();
 
   const { signature } = await deployBuilder.sendAndConfirm(umi, {
-    confirm: { commitment: "finalized" },
+    confirm: { commitment: "confirmed" },
   });
   const configLineSignatures: string[] = [];
   const candyMachineAddress = candyMachineSigner.publicKey.toString();

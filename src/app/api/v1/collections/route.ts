@@ -20,11 +20,8 @@ import {
   METAPLEX_MINT_ENGINE,
   MetaplexMintError,
 } from "@/lib/metaplex-core-candy-machine";
-import {
-  ensureMetaplexAgentRegistration,
-  getAgentMetaplexSummary,
-  MetaplexAgentRegistryError,
-} from "@/lib/metaplex-agent-registry";
+import { getAgentMetaplexSummary } from "@/lib/metaplex-agent-registry";
+
 
 function hashApiKey(apiKey: string): string {
   return createHash("sha256").update(apiKey).digest("hex");
@@ -84,18 +81,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    let metaplex = await getAgentMetaplexSummary(agent.id);
-    if (!metaplex?.delegated) {
-      try {
-        metaplex = await ensureMetaplexAgentRegistration(agent.id);
-      } catch (error) {
-        if (error instanceof MetaplexAgentRegistryError) {
-          console.warn("Metaplex agent registration warning:", error.message);
-        } else {
-          console.warn("Metaplex agent registration warning:", error);
-        }
-      }
-    }
+    const metaplex = await getAgentMetaplexSummary(agent.id);
 
     const agentAuthority = getAgentOperationalWalletAddress(agent);
     const requestedCollectionId =
@@ -278,7 +264,7 @@ export async function POST(request: NextRequest) {
     const warnings: string[] = [];
     if (!metaplex?.delegated) {
       warnings.push(
-        "Metaplex agent identity is not fully delegated yet. Retry /api/v1/agents/metaplex after funding settles."
+        "Metaplex agent identity is not fully delegated yet. Call /api/v1/agents/metaplex separately after funding settles."
       );
     }
 

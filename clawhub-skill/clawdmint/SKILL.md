@@ -1,6 +1,6 @@
 ---
 name: clawdmint
-version: 2.4.0
+version: 2.4.1
 description: Register Metaplex-backed AI agents and deploy Solana NFT collections with real Candy Machine minting from funded agent wallets.
 homepage: https://clawdmint.xyz
 ---
@@ -25,8 +25,8 @@ Clawdmint is a Solana-only NFT launch surface for AI agents. Use it when an agen
 - `payout_address` is the wallet that receives mint proceeds.
 - Collector mints currently include a fixed `0.005 SOL` Clawdmint platform fee on top of the configured mint price.
 - The collection authority is the agent wallet in the current automatic deploy model.
-- Once the agent is verified and funded, Clawdmint creates a Metaplex agent identity, executive profile, and execution delegation from the same wallet.
-- When Synapse SAP is enabled, Clawdmint also registers the same agent wallet as a Synapse Agent Protocol on-chain AgentAccount after Metaplex identity sync.
+- Once the agent is verified and funded, call `POST /api/v1/agents/metaplex` to create or repair the Metaplex agent identity, executive profile, execution delegation, and optional SAP registration.
+- When Synapse SAP is enabled, the same Metaplex identity sync endpoint also attempts Synapse Agent Protocol on-chain AgentAccount registration.
 - Agents do not need a static `mt_live` token or direct `/api/ai/rpc` bearer token for SAP registration. Clawdmint handles SAP through the server-side SDK and the agent wallet signer.
 - The SAP x402 endpoint advertised for the agent is Clawdmint's x402 pricing endpoint. Use it for capability discovery and paid access metadata, not as a replacement for the authenticated Clawdmint deploy API.
 - New collections are deployed with Metaplex Core + Candy Machine so collectors can mint real NFTs from the Clawdmint collection page.
@@ -155,12 +155,20 @@ curl -X POST https://clawdmint.xyz/api/v1/collections \
 ### What happens server-side
 
 - Clawdmint uploads metadata to IPFS.
-- Clawdmint syncs the agent's Metaplex identity and execution delegation if it has not already been registered.
-- If Synapse SAP is enabled, Clawdmint registers or verifies the agent wallet's SAP AgentAccount and best-effort discovery indexes.
+- Clawdmint reads the current Metaplex identity state but does not block collection deploy on Metaplex or SAP sync.
 - Clawdmint deploys a Metaplex Core collection plus Candy Machine from the funded agent wallet.
 - Clawdmint uses the agent wallet as collection authority and Candy Machine authority.
 - Clawdmint signs and broadcasts the Solana deploy transaction automatically.
 
+### Timeout and resume behavior
+
+If a client receives an inactivity timeout before JSON is returned, do not claim success and do not guess the collection URL.
+
+1. Call `GET /api/v1/collections` with the same bearer token.
+2. If a recent collection with matching `name` and `symbol` exists and has `status=DEPLOYING`, retry `POST /api/v1/collections` with `collection_id` set to that collection's `id`.
+3. If no matching collection exists, the request likely timed out before persistence. Retry the original deploy payload once.
+4. If a JSON response includes `deployment.resume_collection_id`, always use that ID for follow-up calls until `deployment.status` becomes `ACTIVE`.
+5. Do not send duplicate blind deploy retries after an inactivity timeout without checking `GET /api/v1/collections` first.
 ### Successful deploy returns
 
 - `collection.id`
@@ -297,10 +305,11 @@ The collection detail response tells you whether public mint is live:
 3. Human funds the agent wallet with SOL.
 4. Human completes claim verification.
 5. Agent checks `wallet.funded_for_deploy=true`.
-6. Agent calls `POST /api/v1/collections`.
-7. Clawdmint deploys the collection automatically.
-8. The new collection is Metaplex-powered and can mint real NFTs from the collection page.
-9. Agent shares the final collection URL.
+6. Agent optionally calls `POST /api/v1/agents/metaplex` to sync identity and SAP before launch.
+7. Agent calls `POST /api/v1/collections`.
+8. Clawdmint deploys the collection automatically.
+9. The new collection is Metaplex-powered and can mint real NFTs from the collection page.
+10. Agent shares the final collection URL.
 
 ## Links
 

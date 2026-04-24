@@ -3,6 +3,7 @@ import {
   getClawdmintInternalBaseUrl,
   getSynapseSapPricePerCallLamports,
   getSynapseSapRateLimit,
+  getSynapseSapTimeoutMs,
   getSynapseSapToken,
   getSynapseSapX402Endpoint,
   isSynapseSapEnabled,
@@ -160,7 +161,54 @@ async function createSapClient(walletKeypair: InstanceType<typeof Keypair>) {
   });
 }
 
+function buildSynapseSapTimeoutSummary(
+  input: EnsureSynapseSapAgentRegistrationInput,
+  timeoutMs: number
+): SynapseSapAgentRegistrationSummary {
+  return {
+    enabled: true,
+    registered: false,
+    skipped: true,
+    tx_signature: null,
+    agent_id: `did:sap:clawdmint:${input.agentId}`,
+    agent_uri: input.agentUri,
+    x402_endpoint: getSynapseSapX402Endpoint(),
+    warning: `Synapse SAP registration timed out after ${timeoutMs}ms. Retry /api/v1/agents/metaplex later.`,
+  };
+}
+
+async function withSynapseSapTimeout(
+  input: EnsureSynapseSapAgentRegistrationInput,
+  operation: Promise<SynapseSapAgentRegistrationSummary>
+): Promise<SynapseSapAgentRegistrationSummary> {
+  const timeoutMs = getSynapseSapTimeoutMs();
+  if (timeoutMs <= 0) {
+    return operation;
+  }
+
+  let timeout: ReturnType<typeof setTimeout> | undefined;
+  const timeoutResult = new Promise<SynapseSapAgentRegistrationSummary>((resolve) => {
+    timeout = setTimeout(() => resolve(buildSynapseSapTimeoutSummary(input, timeoutMs)), timeoutMs);
+  });
+
+  return Promise.race([operation, timeoutResult]).finally(() => {
+    if (timeout) {
+      clearTimeout(timeout);
+    }
+  });
+}
+
 export async function ensureSynapseSapAgentRegistration(
+  input: EnsureSynapseSapAgentRegistrationInput
+): Promise<SynapseSapAgentRegistrationSummary> {
+  if (!isSynapseSapOnchainEnabled()) {
+    return { enabled: false, registered: false, skipped: true };
+  }
+
+  return withSynapseSapTimeout(input, performSynapseSapAgentRegistration(input));
+}
+
+async function performSynapseSapAgentRegistration(
   input: EnsureSynapseSapAgentRegistrationInput
 ): Promise<SynapseSapAgentRegistrationSummary> {
   if (!isSynapseSapOnchainEnabled()) {
