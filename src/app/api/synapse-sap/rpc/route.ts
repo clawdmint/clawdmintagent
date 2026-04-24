@@ -73,15 +73,14 @@ async function callSynapseSap(path: string, payload: unknown) {
   return data;
 }
 
-async function fallbackToRpc(request: NextRequest) {
-  const body = await request.text();
+async function forwardJsonRpcBodyToRawSolana(rpcBody: string) {
   const response = await fetch(getSolanaRpcUrl(), {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
       Accept: "application/json",
     },
-    body,
+    body: rpcBody,
     cache: "no-store",
   });
 
@@ -165,7 +164,7 @@ export async function POST(request: NextRequest) {
     );
   } catch (error) {
     if (shouldFallbackFromSynapseSap()) {
-      return fallbackToRpc(request.clone());
+      return forwardJsonRpcBodyToRawSolana(JSON.stringify(payload));
     }
 
     const message = error instanceof Error ? error.message : "Synapse SAP request failed";
