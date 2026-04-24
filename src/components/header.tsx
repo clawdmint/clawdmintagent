@@ -10,14 +10,16 @@ import { useTheme } from "./theme-provider";
 import { useWallet } from "./wallet-context";
 import { SolanaLogo } from "./network-icons";
 
-const navItems = [
+const primaryNavItems = [
   { href: "/drops", label: "drops" },
   { href: "/marketplace", label: "marketplace" },
   { href: "/agents", label: "agents" },
   { href: "/studio", label: "studio" },
   { href: "/clawdverse", label: "clawdverse" },
-  { href: "/skill.md", label: "skill.md", external: true },
 ];
+
+/** Shown in the mobile sheet only, not the desktop top bar. */
+const mobileSubNavItem = { href: "/skill.md", label: "skill.md", external: true } as const;
 
 export function Header() {
   const pathname = usePathname();
@@ -107,7 +109,7 @@ export function Header() {
                 theme === "dark" ? "border-white/[0.06] bg-white/[0.02]" : "border-gray-200 bg-gray-50"
               )}
             >
-              {navItems.map((item) => {
+              {primaryNavItems.map((item) => {
                 const isActive = !item.external && pathname === item.href;
 
                 return (
@@ -271,7 +273,7 @@ export function Header() {
             </div>
 
             <nav className="space-y-0.5 px-4 pb-4">
-              {navItems.map((item) => {
+              {primaryNavItems.map((item) => {
                 const isActive = !item.external && pathname === item.href;
                 return (
                   <Link
@@ -298,6 +300,37 @@ export function Header() {
                   </Link>
                 );
               })}
+
+              <div
+                className={clsx(
+                  "mt-2 border-t pt-2",
+                  theme === "dark" ? "border-white/[0.06]" : "border-gray-200"
+                )}
+              >
+                <div
+                  className={clsx(
+                    "px-3 py-1 font-mono text-[9px] uppercase tracking-widest",
+                    theme === "dark" ? "text-cyan-500/40" : "text-cyan-600/50"
+                  )}
+                >
+                  resources
+                </div>
+                <Link
+                  href={mobileSubNavItem.href}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  onClick={() => setMobileMenuOpen(false)}
+                  className={clsx(
+                    "mt-0.5 flex items-center gap-2 rounded-lg px-3 py-2.5 font-mono text-sm transition-all",
+                    theme === "dark"
+                      ? "text-gray-500 hover:bg-white/[0.03] hover:text-gray-300"
+                      : "text-gray-500 hover:bg-gray-50 hover:text-gray-700"
+                  )}
+                >
+                  <span className={clsx("text-[11px]", theme === "dark" ? "text-gray-700" : "text-gray-300")}>$</span>
+                  <span>{mobileSubNavItem.label}</span>
+                </Link>
+              </div>
 
               {ready && !authenticated && (
                 <button
