@@ -19,7 +19,7 @@ const primaryNavItems = [
 ];
 
 /** Shown in the mobile sheet only, not the desktop top bar. */
-const mobileSubNavItem = { href: "/skill.md", label: "skill.md", external: true } as const;
+const mobileSubNavItem = { href: "/skill.md", label: "skill.md" } as const;
 
 export function Header() {
   const pathname = usePathname();
@@ -110,13 +110,12 @@ export function Header() {
               )}
             >
               {primaryNavItems.map((item) => {
-                const isActive = !item.external && pathname === item.href;
+                const isActive = pathname === item.href;
 
                 return (
                   <Link
                     key={item.href}
                     href={item.href}
-                    {...(item.external ? { target: "_blank", rel: "noopener noreferrer" } : {})}
                     className={clsx(
                       "relative flex items-center gap-1.5 rounded-md px-3 py-1 font-mono text-[12px] transition-all duration-200",
                       isActive
@@ -274,12 +273,11 @@ export function Header() {
 
             <nav className="space-y-0.5 px-4 pb-4">
               {primaryNavItems.map((item) => {
-                const isActive = !item.external && pathname === item.href;
+                const isActive = pathname === item.href;
                 return (
                   <Link
                     key={item.href}
                     href={item.href}
-                    {...(item.external ? { target: "_blank", rel: "noopener noreferrer" } : {})}
                     onClick={() => setMobileMenuOpen(false)}
                     className={clsx(
                       "flex items-center gap-2 rounded-lg px-3 py-2.5 font-mono text-sm transition-all",
