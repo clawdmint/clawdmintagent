@@ -94,6 +94,31 @@ export function isSynapseSapEnabled(): boolean {
   return Boolean(getSynapseSapToken());
 }
 
+export function isSynapseSapOnchainEnabled(): boolean {
+  return getEnv("SYNAPSE_SAP_ONCHAIN_ENABLED", "false").toLowerCase() === "true";
+}
+
+export function getSynapseSapX402Endpoint(): string {
+  return (
+    getEnv("SYNAPSE_SAP_X402_ENDPOINT", "") ||
+    `${getClawdmintInternalBaseUrl()}/api/x402/pricing`
+  ).replace(/\/+$/, "");
+}
+
+export function getSynapseSapPricePerCallLamports(): number {
+  const parsed = Number.parseInt(getEnv("SYNAPSE_SAP_PRICE_PER_CALL_LAMPORTS", "1000"), 10);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : 1000;
+}
+
+export function getSynapseSapRateLimit(): number {
+  const parsed = Number.parseInt(getEnv("SYNAPSE_SAP_RATE_LIMIT", "60"), 10);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : 60;
+}
+
+export function isSynapseSapIndexingEnabled(): boolean {
+  return getEnv("SYNAPSE_SAP_INDEXING_ENABLED", "true").toLowerCase() !== "false";
+}
+
 export function shouldFallbackFromSynapseSap(): boolean {
   return getEnv("SYNAPSE_SAP_FALLBACK_TO_RPC", "true").toLowerCase() !== "false";
 }
@@ -226,6 +251,11 @@ export function getServerEnv() {
     fairscaleAgentApiBaseUrl: getFairscaleAgentApiBaseUrl(),
     fairscaleHumanApiKey: getFairscaleHumanApiKey(),
     fairscaleHumanApiBaseUrl: getFairscaleHumanApiBaseUrl(),
+    synapseSapOnchainEnabled: isSynapseSapOnchainEnabled(),
+    synapseSapX402Endpoint: getSynapseSapX402Endpoint(),
+    synapseSapPricePerCallLamports: getSynapseSapPricePerCallLamports(),
+    synapseSapRateLimit: getSynapseSapRateLimit(),
+    synapseSapIndexingEnabled: isSynapseSapIndexingEnabled(),
     // Environment
     nodeEnv: getEnv("NODE_ENV", "development"),
     isDev: getEnv("NODE_ENV") === "development",

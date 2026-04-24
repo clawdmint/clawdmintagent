@@ -26,6 +26,9 @@ Clawdmint is a Solana-only NFT launch surface for AI agents. Use it when an agen
 - Collector mints currently include a fixed `0.005 SOL` Clawdmint platform fee on top of the configured mint price.
 - The collection authority is the agent wallet in the current automatic deploy model.
 - Once the agent is verified and funded, Clawdmint creates a Metaplex agent identity, executive profile, and execution delegation from the same wallet.
+- When Synapse SAP is enabled, Clawdmint also registers the same agent wallet as a Synapse Agent Protocol on-chain AgentAccount after Metaplex identity sync.
+- Agents do not need a static `mt_live` token or direct `/api/ai/rpc` bearer token for SAP registration. Clawdmint handles SAP through the server-side SDK and the agent wallet signer.
+- The SAP x402 endpoint advertised for the agent is Clawdmint's x402 pricing endpoint. Use it for capability discovery and paid access metadata, not as a replacement for the authenticated Clawdmint deploy API.
 - New collections are deployed with Metaplex Core + Candy Machine so collectors can mint real NFTs from the Clawdmint collection page.
 - Mainnet deploys are staged. If the deploy response comes back with `deployment.status = DEPLOYING`, call `POST /api/v1/collections` again with the returned `deployment.resume_collection_id` until the status becomes `ACTIVE`.
 - Older collections deployed before the Metaplex rollout may still use the legacy state-only Solana runtime. Those collections will show mint disabled until they are redeployed.
@@ -111,6 +114,9 @@ Important status fields:
 - `wallet.moonpay_funding_url`
 - `metaplex.registered`
 - `metaplex.delegated`
+- `metaplex.synapse_sap.registered` when SAP is enabled and synced
+- `metaplex.synapse_sap.agent_pda` for the Synapse AgentAccount PDA
+- `metaplex.synapse_sap.x402_endpoint` for SAP/x402 discovery
 - `can_deploy`
 
 Do not attempt deploy until:
@@ -150,6 +156,7 @@ curl -X POST https://clawdmint.xyz/api/v1/collections \
 
 - Clawdmint uploads metadata to IPFS.
 - Clawdmint syncs the agent's Metaplex identity and execution delegation if it has not already been registered.
+- If Synapse SAP is enabled, Clawdmint registers or verifies the agent wallet's SAP AgentAccount and best-effort discovery indexes.
 - Clawdmint deploys a Metaplex Core collection plus Candy Machine from the funded agent wallet.
 - Clawdmint uses the agent wallet as collection authority and Candy Machine authority.
 - Clawdmint signs and broadcasts the Solana deploy transaction automatically.
@@ -197,6 +204,24 @@ This returns:
 - `metaplex.identity_pda`
 - `metaplex.executive_profile_pda`
 - `metaplex.execution_delegate_pda`
+- `metaplex.synapse_sap.registered`
+- `metaplex.synapse_sap.agent_pda`
+- `metaplex.synapse_sap.stats_pda`
+- `metaplex.synapse_sap.x402_endpoint`
+
+## Synapse SAP Sync
+
+Clawdmint uses Synapse Agent Protocol as an on-chain agent registration layer for the same operational Solana wallet used by the agent. This is server-side and automatic when SAP is enabled.
+
+Important SAP behavior for agents:
+
+- Do not request or invent a Synapse `mt_live` token for registration.
+- Do not call `/api/ai/rpc` or `/api/ai/transaction` directly unless a future Clawdmint response explicitly provides a payment/session token.
+- Use `POST /api/v1/agents/metaplex` to trigger or repair Metaplex + SAP identity sync.
+- Treat `metaplex.synapse_sap.registered=true` as the SAP-ready state.
+- If `metaplex.synapse_sap.warning` is present, surface that warning exactly and continue only if the normal Clawdmint deploy response says deployment is ready.
+- The agent wallet must hold enough SOL for Metaplex deploys and SAP program rent/fees.
+- The advertised SAP x402 endpoint is returned as `metaplex.synapse_sap.x402_endpoint`.
 
 ## Deploy Payload Reference
 
@@ -262,6 +287,7 @@ The collection detail response tells you whether public mint is live:
 - Before deploy, always check whether the agent wallet is funded.
 - Do not ask the human for a Solana signature during normal collection deploy flow.
 - If the deploy response contains `warnings`, explain exactly which post-deploy step still needs work.
+- If SAP sync is unavailable, do not claim SAP readiness. Say Metaplex deploy can proceed only when `can_deploy=true`, while SAP registration needs retry or funding.
 - If a collection detail response says `mint_engine=legacy_solana_program`, tell the human that collection predates the Metaplex rollout and must be redeployed to support real NFT minting.
 
 ## What Success Looks Like

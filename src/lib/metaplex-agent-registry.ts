@@ -7,11 +7,7 @@ import {
   safeFetchAssetV1,
   safeFetchCollectionV1,
 } from "@metaplex-foundation/mpl-core";
-import {
-  IDENTITY_ID,
-  mplAgentIdentity,
-  mplAgentTools,
-} from "@metaplex-foundation/mpl-agent-registry";
+import { mplAgentIdentity, mplAgentTools } from "@metaplex-foundation/mpl-agent-registry";
 import {
   findAgentIdentityV1Pda,
   registerIdentityV1,
@@ -33,7 +29,11 @@ import { getAgentOperationalKeypair, type AgentWalletError } from "./agent-walle
 import { getA2AVersion, getMCPVersion } from "./agent-protocols";
 import { getEnv } from "./env";
 import { uploadJson } from "./ipfs";
-import { getLaunchSolanaConnection } from "./synapse-sap";
+import {
+  ensureSynapseSapAgentRegistration,
+  getLaunchSolanaConnection,
+  type SynapseSapAgentRegistrationSummary,
+} from "./synapse-sap";
 
 type AgentRegistryRecord = {
   id: string;
@@ -82,6 +82,7 @@ export interface AgentMetaplexSummary {
   delegated: boolean;
   registered_at: string | null;
   delegated_at: string | null;
+  synapse_sap?: SynapseSapAgentRegistrationSummary | null;
 }
 
 function getAppUrl(): string {
@@ -89,10 +90,6 @@ function getAppUrl(): string {
 }
 
 const REGISTRATION_DOC_VERSION = "2026-04-13-a2a-mcp-x402";
-
-function getSolanaCluster(): "devnet" | "mainnet-beta" {
-  return getEnv("NEXT_PUBLIC_SOLANA_CLUSTER", "mainnet-beta") === "devnet" ? "devnet" : "mainnet-beta";
-}
 
 function toGatewayUrl(uploadUrl?: string, cid?: string): string {
   if (uploadUrl) {
@@ -198,6 +195,13 @@ function buildAgentRegistrationDocument(input: {
         skills: ["x402_register_agent", "x402_market_data", "x402_launch_access"],
         domains: ["payments", "solana", "nft-launch"],
       },
+      {
+        name: "Synapse SAP",
+        endpoint: `${appUrl}/api/x402/pricing`,
+        version: "0.9.2",
+        skills: ["sap_agent_registration", "sap_discovery", "x402_launch_access"],
+        domains: ["sap", "synapse", "x402", "solana", "nft-launch"],
+      },
     ],
     registrations: [
       {
@@ -205,7 +209,7 @@ function buildAgentRegistrationDocument(input: {
         agentRegistry: "solana:101:metaplex",
       },
     ],
-    supportedTrust: ["reputation", "crypto-economic"],
+    supportedTrust: ["reputation", "crypto-economic", "synapse-sap"],
     links: {
       profile: `${appUrl}/agents/${input.agent.id}`,
       tools: `${appUrl}/api/tools/openclaw.json`,
@@ -213,6 +217,7 @@ function buildAgentRegistrationDocument(input: {
       a2a: `${appUrl}/api/agents/${input.agent.id}/a2a`,
       mcp: `${appUrl}/api/mcp`,
       x402: `${appUrl}/api/x402/pricing`,
+      sap: "https://explorer.oobeprotocol.ai/docs",
     },
     owner: {
       wallet: input.agent.solanaWalletAddress,
@@ -246,7 +251,10 @@ function createReadOnlyRegistryUmi() {
   return umi;
 }
 
-function getMetaplexSummary(agent: AgentRegistryRecord): AgentMetaplexSummary {
+function getMetaplexSummary(
+  agent: AgentRegistryRecord,
+  synapseSap?: SynapseSapAgentRegistrationSummary | null
+): AgentMetaplexSummary {
   return {
     collection_address: agent.metaplexCollectionAddress,
     asset_address: agent.metaplexAssetAddress,
@@ -260,6 +268,7 @@ function getMetaplexSummary(agent: AgentRegistryRecord): AgentMetaplexSummary {
     delegated: Boolean(agent.metaplexExecutionDelegatePda),
     registered_at: agent.metaplexRegisteredAt?.toISOString() || null,
     delegated_at: agent.metaplexDelegatedAt?.toISOString() || null,
+    synapse_sap: synapseSap || null,
   };
 }
 
@@ -568,7 +577,25 @@ export async function ensureMetaplexAgentRegistration(agentId: string): Promise<
     agent = await ensureCollectionAndAsset(agent);
     agent = await ensureRegistrationUri(agent);
     agent = await ensureIdentityAndDelegation(agent);
-    return getMetaplexSummary(agent);
+
+    let synapseSap: SynapseSapAgentRegistrationSummary | null = null;
+    try {
+      synapseSap = await ensureSynapseSapAgentRegistration({
+        agentId: agent.id,
+        name: agent.name,
+        description: agent.description,
+        agentUri: agent.metaplexRegistrationUri || getAgentRegistrationUri(agent.id),
+        walletKeypair: getAgentOperationalKeypair(agent),
+      });
+    } catch (sapError) {
+      synapseSap = {
+        enabled: true,
+        registered: false,
+        warning: sapError instanceof Error ? sapError.message : "Unknown Synapse SAP registration error",
+      };
+    }
+
+    return getMetaplexSummary(agent, synapseSap);
   } catch (error) {
     if (error instanceof MetaplexAgentRegistryError) {
       throw error;
