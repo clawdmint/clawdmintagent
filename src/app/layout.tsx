@@ -1,14 +1,25 @@
 import type { Metadata } from "next";
+import dynamic from "next/dynamic";
 import { Inter, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 import { Providers } from "@/components/providers";
 import { Header } from "@/components/header";
 import { Footer } from "@/components/footer";
-import { FloatingIcons } from "@/components/floating-icons";
 import { MiniAppInit } from "@/components/miniapp-init";
 
-const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
-const jetbrains = JetBrains_Mono({ subsets: ["latin"], variable: "--font-mono", weight: ["400", "500", "600", "700"] });
+// Decorative layer only: defer to after first paint, skip SSR work for 10+ animated nodes
+const FloatingIcons = dynamic(
+  () => import("@/components/floating-icons").then((m) => m.FloatingIcons),
+  { ssr: false, loading: () => null }
+);
+
+const inter = Inter({ subsets: ["latin"], variable: "--font-inter", display: "swap" });
+const jetbrains = JetBrains_Mono({
+  subsets: ["latin"],
+  variable: "--font-mono",
+  weight: ["400", "500", "600", "700"],
+  display: "swap",
+});
 
 const APP_URL = process.env["NEXT_PUBLIC_APP_URL"] || "https://clawdmint.xyz";
 

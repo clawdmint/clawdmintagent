@@ -136,7 +136,7 @@ function createReadOnlyMetaplexUmi() {
   return umi;
 }
 
-function createServerUmi(signer: Keypair) {
+function createServerUmi(signer: InstanceType<typeof Keypair>) {
   const umi = createUmi(getLaunchSolanaConnection());
   umi.use(mplCore());
   umi.use(mplCandyMachine());
@@ -287,7 +287,7 @@ export async function fetchMetaplexCandyGuardFeatures(candyMachineAddress: strin
 }
 
 export async function ensureMetaplexOnchainPlatformFeeGuard(
-  signer: Keypair,
+  signer: InstanceType<typeof Keypair>,
   params: {
     candyMachineAddress: string;
     payoutAddress: string;
@@ -341,7 +341,7 @@ export async function ensureMetaplexOnchainPlatformFeeGuard(
 }
 
 async function getRecommendedDeployBalanceLamports(
-  signer: Keypair,
+  signer: InstanceType<typeof Keypair>,
   params: MetaplexDeployCollectionParams
 ): Promise<bigint> {
   const umi = createServerUmi(signer);
@@ -474,7 +474,7 @@ async function getCandyMachineConfigProgress(
 }
 
 export async function continueMetaplexCollectionDeploy(
-  signer: Keypair,
+  signer: InstanceType<typeof Keypair>,
   params: {
     candyMachineAddress: string;
     maxSupply: number;
@@ -518,7 +518,7 @@ export async function continueMetaplexCollectionDeploy(
 }
 
 export async function deployMetaplexCollection(
-  signer: Keypair,
+  signer: InstanceType<typeof Keypair>,
   params: MetaplexDeployCollectionParams,
   options?: {
     maxConfigBatchesPerRun?: number;

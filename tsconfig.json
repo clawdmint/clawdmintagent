@@ -33,6 +33,7 @@
     "clawdmint-plugin",
     "solana",
     "preview",
-    "output"
+    "output",
+    "remotion-chart"
   ]
 }

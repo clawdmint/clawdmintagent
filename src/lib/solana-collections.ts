@@ -89,11 +89,11 @@ export function getSolanaRpcUrl(): string {
   return getPreferredSolanaRpcUrl();
 }
 
-export function getSolanaConnection(): Connection {
+export function getSolanaConnection(): InstanceType<typeof Connection> {
   return new Connection(getSolanaRpcUrl(), "confirmed");
 }
 
-export function getSolanaCollectionProgramId(): PublicKey {
+export function getSolanaCollectionProgramId(): InstanceType<typeof PublicKey> {
   const programId = getEnv("SOLANA_COLLECTION_PROGRAM_ID", getEnv("NEXT_PUBLIC_SOLANA_COLLECTION_PROGRAM_ID", ""));
   if (!programId) {
     throw new Error("SOLANA_COLLECTION_PROGRAM_ID not configured");
@@ -102,7 +102,7 @@ export function getSolanaCollectionProgramId(): PublicKey {
   return new PublicKey(programId);
 }
 
-export function findSolanaCollectionAddress(authority: string, collectionId: string): PublicKey {
+export function findSolanaCollectionAddress(authority: string, collectionId: string): InstanceType<typeof PublicKey> {
   const authorityKey = new PublicKey(authority);
   return PublicKey.findProgramAddressSync(
     [Buffer.from("collection", "utf8"), authorityKey.toBuffer(), Buffer.from(collectionId, "utf8")],

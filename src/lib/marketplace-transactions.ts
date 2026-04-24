@@ -85,8 +85,8 @@ export function deserializeMarketplaceTransaction(serializedBase64: string) {
 }
 
 function serializeSignedMarketplaceTransaction(
-  transaction: Transaction,
-  additionalSigners: Keypair[] = []
+  transaction: InstanceType<typeof Transaction>,
+  additionalSigners: InstanceType<typeof Keypair>[] = []
 ) {
   if (additionalSigners.length > 0) {
     transaction.partialSign(...additionalSigners);
@@ -268,7 +268,7 @@ export async function buildMarketplaceFillTransaction(input: {
 
 export async function broadcastMarketplaceTransaction(input: {
   signedTransactionBase64: string;
-  additionalSigners?: Keypair[];
+  additionalSigners?: InstanceType<typeof Keypair>[];
 }) {
   const transaction = deserializeMarketplaceTransaction(input.signedTransactionBase64);
 

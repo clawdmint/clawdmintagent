@@ -11,6 +11,9 @@ import {
 
 export const dynamic = "force-dynamic";
 
+/** Matches web3 `ParsedMessage.accountKeys` entries (structural, avoids `PublicKey` as namespace in types). */
+type ParsedMessageAccountKey = { pubkey: { toBase58(): string }; signer: boolean; writable: boolean };
+
 const ConfirmMintSchema = z.object({
   intent_id: z.string().min(1),
   wallet_address: z.string().min(1),
@@ -24,8 +27,8 @@ function getParsedTransactionSignerKeys(
     return [];
   }
 
-  return transaction.transaction.message.accountKeys
-    .filter((account) => account.signer)
+  return (transaction.transaction.message.accountKeys as ParsedMessageAccountKey[])
+    .filter((account: ParsedMessageAccountKey) => account.signer)
     .map((account) => account.pubkey.toBase58());
 }
 
@@ -36,7 +39,9 @@ function getParsedTransactionAccountKeys(
     return [];
   }
 
-  return transaction.transaction.message.accountKeys.map((account) => account.pubkey.toBase58());
+  return (transaction.transaction.message.accountKeys as ParsedMessageAccountKey[]).map(
+    (account) => account.pubkey.toBase58()
+  );
 }
 
 export async function POST(

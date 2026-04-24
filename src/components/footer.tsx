@@ -12,14 +12,22 @@ export function Footer() {
   const [stats, setStats] = useState({ agents: 0, minted: 0 });
 
   useEffect(() => {
-    fetch("/api/stats")
-      .then((response) => response.json())
-      .then((data) => {
-        if (data.stats) {
-          setStats({ agents: data.stats.verified_agents, minted: data.stats.nfts_minted });
-        }
-      })
-      .catch(() => {});
+    const load = () => {
+      fetch("/api/stats")
+        .then((response) => response.json())
+        .then((data) => {
+          if (data.stats) {
+            setStats({ agents: data.stats.verified_agents, minted: data.stats.nfts_minted });
+          }
+        })
+        .catch(() => {});
+    };
+    if (typeof requestIdleCallback === "function") {
+      const id = requestIdleCallback(load, { timeout: 2500 });
+      return () => cancelIdleCallback(id);
+    }
+    const t = setTimeout(load, 1);
+    return () => clearTimeout(t);
   }, []);
 
   return (

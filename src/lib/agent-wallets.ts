@@ -140,7 +140,7 @@ export function generateAgentOperationalWallet(): GeneratedAgentWallet {
   };
 }
 
-export function getAgentOperationalKeypair(agent: AgentWalletRecordLike): Keypair {
+export function getAgentOperationalKeypair(agent: AgentWalletRecordLike): InstanceType<typeof Keypair> {
   assertAgentWallet(agent);
 
   const secretKey = decryptAgentWalletSecretKey(agent.solanaWalletEncryptedKey!);

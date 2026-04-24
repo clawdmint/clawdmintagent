@@ -23,6 +23,10 @@ import {
 } from "@/lib/network-config";
 import { NetworkLogo } from "@/components/network-icons";
 import { CollectionViewTabs } from "@/components/collection-view-tabs";
+
+/** Avoid `Transaction` / `VersionedTransaction` as bare types (web3 re-exports are unusable as types in this project). */
+type SolanaWeb3Transaction = InstanceType<typeof Transaction> | InstanceType<typeof VersionedTransaction>;
+
 const AGENTS_CONTRACT = (process.env["NEXT_PUBLIC_AGENTS_CONTRACT"] || "").toLowerCase();
 const MIN_COLLECTION_IMAGE_DIMENSION = 256;
 const MAX_SOLANA_MINTS_PER_TX = 10;
@@ -112,7 +116,7 @@ function base64ToBytes(value: string): Uint8Array {
   return bytes;
 }
 
-function deserializeSolanaTransaction(serializedBase64: string): Transaction | VersionedTransaction {
+function deserializeSolanaTransaction(serializedBase64: string) {
   const bytes = base64ToBytes(serializedBase64);
   try {
     return VersionedTransaction.deserialize(bytes);
@@ -355,8 +359,8 @@ export default function CollectionPage() {
       }
 
       const signedTransaction = (await provider.signTransaction(
-        transaction as Transaction | VersionedTransaction
-      )) as Transaction | VersionedTransaction;
+        transaction as SolanaWeb3Transaction
+      )) as SolanaWeb3Transaction;
 
       const serializedSignedTransaction =
         signedTransaction instanceof VersionedTransaction

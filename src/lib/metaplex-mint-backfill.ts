@@ -7,6 +7,8 @@ import { getLaunchSolanaConnection } from "@/lib/synapse-sap";
 
 const PROFILE_MINT_SCAN_LIMIT = 25;
 
+type ParsedMessageAccountKey = { pubkey: { toBase58(): string }; signer: boolean; writable: boolean };
+
 function getParsedTransactionSignerKeys(
   transaction: Awaited<ReturnType<ReturnType<typeof getLaunchSolanaConnection>["getParsedTransaction"]>>
 ): string[] {
@@ -14,8 +16,8 @@ function getParsedTransactionSignerKeys(
     return [];
   }
 
-  return transaction.transaction.message.accountKeys
-    .filter((account) => account.signer)
+  return (transaction.transaction.message.accountKeys as ParsedMessageAccountKey[])
+    .filter((account: ParsedMessageAccountKey) => account.signer)
     .map((account) => account.pubkey.toBase58());
 }
 
@@ -26,7 +28,9 @@ function getParsedTransactionAccountKeys(
     return [];
   }
 
-  return transaction.transaction.message.accountKeys.map((account) => account.pubkey.toBase58());
+  return (transaction.transaction.message.accountKeys as ParsedMessageAccountKey[]).map((account) =>
+    account.pubkey.toBase58()
+  );
 }
 
 export async function syncRecentMetaplexMintsForWallet(walletAddress: string) {

@@ -1,8 +1,13 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
+  // Smaller client bundles (tree-shake per-icon / per-module where supported)
   experimental: {
     useWasmBinary: true,
+    optimizePackageImports: ["lucide-react", "@tanstack/react-query"],
+  },
+  compiler: {
+    removeConsole: process.env["NODE_ENV"] === "production" ? { exclude: ["error", "warn"] } : false,
   },
   async rewrites() {
     return [

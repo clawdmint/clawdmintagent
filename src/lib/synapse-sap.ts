@@ -1,14 +1,8 @@
-import {
-  Connection,
-  type Commitment,
-  type ConnectionConfig,
-  type FetchFn,
-  type FetchMiddleware,
-} from "@solana/web3.js";
+import { Connection } from "@solana/web3.js";
 import { getClawdmintInternalBaseUrl, getSynapseSapToken, isSynapseSapEnabled } from "./env";
 import { getSolanaRpcUrl } from "./solana-collections";
 
-const DEFAULT_COMMITMENT: Commitment = "confirmed";
+const DEFAULT_COMMITMENT = "confirmed" as const;
 
 /**
  * Server-side Solana `Connection` for product flows (deploy, Metaplex launch, agent registry, mint).
@@ -21,19 +15,30 @@ export function getSynapseSapProxyUrl() {
   return `${getClawdmintInternalBaseUrl()}/api/synapse-sap/rpc`;
 }
 
-export function createSynapseSapFetchMiddleware(): FetchMiddleware {
-  return (info: Parameters<FetchFn>[0], init: Parameters<FetchFn>[1], next) => {
-    if (!isSynapseSapEnabled() || !getSynapseSapToken()) {
-      next(info, init);
-      return;
-    }
-
-    next(getSynapseSapProxyUrl(), init);
-  };
+function chainFetch(
+  info: RequestInfo,
+  init: RequestInit | undefined,
+  next: (i: RequestInfo, u?: RequestInit) => void
+) {
+  if (!isSynapseSapEnabled() || !getSynapseSapToken()) {
+    next(info, init);
+    return;
+  }
+  next(getSynapseSapProxyUrl(), init);
 }
 
-export function getLaunchSolanaConnection(config?: Partial<ConnectionConfig>) {
-  const baseConfig: ConnectionConfig = {
+export function createSynapseSapFetchMiddleware() {
+  return chainFetch;
+}
+
+export function getLaunchSolanaConnection(
+  config?: NonNullable<ConstructorParameters<typeof Connection>[1]> extends infer O
+    ? O extends string | undefined
+      ? never
+      : Partial<Exclude<O, string | undefined>>
+    : never
+) {
+  const baseConfig = {
     commitment: DEFAULT_COMMITMENT,
     fetchMiddleware: createSynapseSapFetchMiddleware(),
   };
@@ -41,5 +46,5 @@ export function getLaunchSolanaConnection(config?: Partial<ConnectionConfig>) {
   return new Connection(getSolanaRpcUrl(), {
     ...baseConfig,
     ...config,
-  });
+  } as NonNullable<ConstructorParameters<typeof Connection>[1]>);
 }

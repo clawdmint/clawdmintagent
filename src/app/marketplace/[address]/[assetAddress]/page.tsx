@@ -10,6 +10,8 @@ import { CollectionViewTabs } from "@/components/collection-view-tabs";
 import { getPhantomProvider, useWallet } from "@/components/wallet-context";
 import { useTheme } from "@/components/theme-provider";
 
+type SolanaWeb3Transaction = InstanceType<typeof Transaction> | InstanceType<typeof VersionedTransaction>;
+
 interface AssetCollection {
   id: string;
   address: string;
@@ -130,7 +132,7 @@ function bytesToBase64(bytes: Uint8Array): string {
   return window.btoa(binary);
 }
 
-function deserializeSolanaTransaction(serializedBase64: string): Transaction | VersionedTransaction {
+function deserializeSolanaTransaction(serializedBase64: string) {
   const bytes = base64ToBytes(serializedBase64);
   try {
     return VersionedTransaction.deserialize(bytes);
@@ -184,7 +186,9 @@ export default function MarketplaceAssetPage() {
     }
 
     const transaction = deserializeSolanaTransaction(serializedBase64);
-    const signedTransaction = (await provider.signTransaction(transaction as Transaction | VersionedTransaction)) as Transaction | VersionedTransaction;
+    const signedTransaction = (await provider.signTransaction(
+      transaction as SolanaWeb3Transaction
+    )) as SolanaWeb3Transaction;
     const serializedSignedTransaction = signedTransaction instanceof VersionedTransaction
       ? signedTransaction.serialize()
       : signedTransaction.serialize({ requireAllSignatures: false, verifySignatures: false });
