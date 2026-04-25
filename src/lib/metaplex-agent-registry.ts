@@ -31,7 +31,7 @@ import { getEnv } from "./env";
 import { uploadJson } from "./ipfs";
 import {
   ensureSynapseSapAgentRegistration,
-  getLaunchSolanaConnection,
+  getMetaplexCoreConnection,
   type SynapseSapAgentRegistrationSummary,
 } from "./synapse-sap";
 
@@ -242,7 +242,7 @@ function buildAgentRegistrationDocument(input: {
 
 function createRegistryUmi(agent: AgentRegistryRecord) {
   const signer = getAgentOperationalKeypair(agent);
-  const umi = createUmi(getLaunchSolanaConnection());
+  const umi = createUmi(getMetaplexCoreConnection());
   umi.use(mplCore());
   umi.use(mplAgentIdentity());
   umi.use(mplAgentTools());
@@ -251,7 +251,7 @@ function createRegistryUmi(agent: AgentRegistryRecord) {
 }
 
 function createReadOnlyRegistryUmi() {
-  const umi = createUmi(getLaunchSolanaConnection());
+  const umi = createUmi(getMetaplexCoreConnection());
   umi.use(mplCore());
   umi.use(mplAgentIdentity());
   umi.use(mplAgentTools());
@@ -401,21 +401,33 @@ async function ensureCollectionAndAsset(agent: AgentRegistryRecord): Promise<Age
   }
 
   if (!current.metaplexCollectionAddress) {
+    // Idempotency guard: persist the keypair BEFORE submitting the mint so a Vercel function
+    // timeout between `sendAndConfirm` and the database write cannot leak duplicate collection
+    // mints on retry. If the mint actually fails on-chain, the next retry will detect the
+    // missing account via `safeFetchCollectionV1` and rotate the keypair.
     const collectionSigner = generateSigner(umi);
-    await createCollection(umi, {
-      collection: collectionSigner,
-      name: `${current.name} Agent Identity`,
-      uri: current.metaplexCollectionUri!,
-      updateAuthority: umi.identity.publicKey,
-    })
-      .useLegacyVersion()
-      .sendAndConfirm(umi, {
-        confirm: { commitment: "confirmed" },
-      });
-
     current = await updateAgent(current.id, {
       metaplexCollectionAddress: collectionSigner.publicKey,
     });
+
+    try {
+      await createCollection(umi, {
+        collection: collectionSigner,
+        name: `${current.name} Agent Identity`,
+        uri: current.metaplexCollectionUri!,
+        updateAuthority: umi.identity.publicKey,
+      })
+        .useLegacyVersion()
+        .sendAndConfirm(umi, {
+          confirm: { commitment: "confirmed" },
+        });
+    } catch (mintError) {
+      const onchain = await safeFetchCollectionV1(umi, publicKey(collectionSigner.publicKey));
+      if (!onchain) {
+        await updateAgent(current.id, { metaplexCollectionAddress: null });
+        throw mintError;
+      }
+    }
   }
 
   if (current.metaplexAssetAddress) {
@@ -431,21 +443,29 @@ async function ensureCollectionAndAsset(agent: AgentRegistryRecord): Promise<Age
     const collectionAccount = await fetchCollectionV1(umi, publicKey(current.metaplexCollectionAddress!));
     const assetSigner = generateSigner(umi);
 
-    await create(umi, {
-      asset: assetSigner,
-      collection: collectionAccount,
-      owner: umi.identity.publicKey,
-      name: current.name,
-      uri: current.metaplexAssetUri!,
-    })
-      .useLegacyVersion()
-      .sendAndConfirm(umi, {
-        confirm: { commitment: "confirmed" },
-      });
-
     current = await updateAgent(current.id, {
       metaplexAssetAddress: assetSigner.publicKey,
     });
+
+    try {
+      await create(umi, {
+        asset: assetSigner,
+        collection: collectionAccount,
+        owner: umi.identity.publicKey,
+        name: current.name,
+        uri: current.metaplexAssetUri!,
+      })
+        .useLegacyVersion()
+        .sendAndConfirm(umi, {
+          confirm: { commitment: "confirmed" },
+        });
+    } catch (mintError) {
+      const onchain = await safeFetchAssetV1(umi, publicKey(assetSigner.publicKey));
+      if (!onchain) {
+        await updateAgent(current.id, { metaplexAssetAddress: null });
+        throw mintError;
+      }
+    }
   }
 
   return current;

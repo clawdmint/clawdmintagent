@@ -14,7 +14,7 @@ import { fromWeb3JsKeypair } from "@metaplex-foundation/umi-web3js-adapters";
 import { getAgentOperationalKeypair, getAgentWalletBalance } from "@/lib/agent-wallets";
 import { getEnv } from "@/lib/env";
 import { getDexScreenerTokenUrl, getTokenExplorerUrl } from "@/lib/network-config";
-import { getLaunchSolanaConnection } from "@/lib/synapse-sap";
+import { getMetaplexCoreConnection } from "@/lib/synapse-sap";
 
 type AgentTokenLaunchAgent = {
   id: string;
@@ -71,7 +71,7 @@ export async function launchMetaplexAgentToken(
 ): Promise<AgentTokenLaunchResult> {
   try {
     const signer = getAgentOperationalKeypair(agent);
-    const umi = createUmi(getLaunchSolanaConnection());
+    const umi = createUmi(getMetaplexCoreConnection());
     umi.use(keypairIdentity(fromWeb3JsKeypair(signer)));
     umi.use(genesis());
 

@@ -14,7 +14,7 @@ import {
   serializeInitializeCollectionInstruction,
   type SolanaDeployCollectionParams,
 } from "./solana-collections";
-import { getLaunchSolanaConnection } from "./synapse-sap";
+import { getMetaplexCoreConnection } from "./synapse-sap";
 
 const AGENT_WALLET_ENCRYPTION_ALGO = "aes-256-gcm";
 const AGENT_WALLET_IV_LENGTH = 12;
@@ -159,7 +159,7 @@ export function getAgentOperationalWalletAddress(agent: AgentWalletRecordLike): 
 }
 
 export async function getAgentWalletBalance(address: string): Promise<AgentWalletBalance> {
-  const connection = getLaunchSolanaConnection();
+  const connection = getMetaplexCoreConnection();
   const lamports = BigInt(await connection.getBalance(new PublicKey(address), "confirmed"));
 
   return {
@@ -169,7 +169,7 @@ export async function getAgentWalletBalance(address: string): Promise<AgentWalle
 }
 
 export async function getRecommendedCollectionDeployBalanceLamports(): Promise<bigint> {
-  const connection = getLaunchSolanaConnection();
+  const connection = getMetaplexCoreConnection();
   const rentLamports = BigInt(await connection.getMinimumBalanceForRentExemption(COLLECTION_ACCOUNT_SIZE));
   return rentLamports + BigInt(100_000);
 }
@@ -179,7 +179,7 @@ export async function deployCollectionWithAgentWallet(
   params: SolanaDeployCollectionParams
 ): Promise<AutomaticDeployResult> {
   const signer = getAgentOperationalKeypair(agent);
-  const connection = getLaunchSolanaConnection({ commitment: "confirmed" });
+  const connection = getMetaplexCoreConnection({ commitment: "confirmed" });
   const collectionAddress = findSolanaCollectionAddress(params.authority, params.collectionId);
   const instruction = new TransactionInstruction({
     programId: new PublicKey(getEnv("SOLANA_COLLECTION_PROGRAM_ID", getEnv("NEXT_PUBLIC_SOLANA_COLLECTION_PROGRAM_ID", ""))),

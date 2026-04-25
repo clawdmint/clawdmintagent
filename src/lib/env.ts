@@ -174,6 +174,32 @@ export function getGpaCapableSolanaRpcUrl(): string {
 
   return getPreferredSolanaRpcUrl();
 }
+
+/**
+ * RPC for high-throughput on-chain transactions (Metaplex Core, Candy Machine, agent registry mints
+ * and delegations). The Synapse staging RPC at `SYNAPSE_SOLANA_RPC_URL` is too slow for
+ * `sendAndConfirm` flows running inside serverless function timeouts; always prefer a dedicated full
+ * node here. Override with `SOLANA_METAPLEX_RPC_URL` (server) or
+ * `NEXT_PUBLIC_SOLANA_METAPLEX_RPC_URL` to point at Helius / Triton / QuickNode for better
+ * confirmation latency.
+ */
+export function getMetaplexCoreRpcUrl(): string {
+  const explicit =
+    getEnv("SOLANA_METAPLEX_RPC_URL", "").trim() ||
+    getEnv("NEXT_PUBLIC_SOLANA_METAPLEX_RPC_URL", "").trim();
+  if (explicit) {
+    return explicit;
+  }
+
+  const customSolanaRpc = getEnv("NEXT_PUBLIC_SOLANA_RPC_URL", "").trim();
+  if (customSolanaRpc) {
+    return customSolanaRpc;
+  }
+
+  return getEnv("NEXT_PUBLIC_SOLANA_CLUSTER", "mainnet-beta") === "devnet"
+    ? "https://api.devnet.solana.com"
+    : "https://api.mainnet-beta.solana.com";
+}
 // ═══════════════════════════════════════════════════════════════════════════════
 
 export function getClientEnv() {

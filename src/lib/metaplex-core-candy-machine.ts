@@ -36,7 +36,7 @@ import {
   PublicKey as Web3PublicKey,
   SystemProgram,
 } from "@solana/web3.js";
-import { getLaunchSolanaConnection } from "./synapse-sap";
+import { getMetaplexCoreConnection } from "./synapse-sap";
 import {
   calculateSolanaMintPlatformFee,
   getPlatformFeeBps,
@@ -129,14 +129,14 @@ export interface MetaplexMintPrepareResult {
 }
 
 function createReadOnlyMetaplexUmi() {
-  const umi = createUmi(getLaunchSolanaConnection());
+  const umi = createUmi(getMetaplexCoreConnection());
   umi.use(mplCore());
   umi.use(mplCandyMachine());
   return umi;
 }
 
 function createServerUmi(signer: InstanceType<typeof Keypair>) {
-  const umi = createUmi(getLaunchSolanaConnection());
+  const umi = createUmi(getMetaplexCoreConnection());
   umi.use(mplCore());
   umi.use(mplCandyMachine());
   umi.use(keypairIdentity(fromWeb3JsKeypair(signer)));
@@ -523,7 +523,7 @@ export async function deployMetaplexCollection(
     maxConfigBatchesPerRun?: number;
   }
 ): Promise<MetaplexDeployCollectionResult> {
-  const connection = getLaunchSolanaConnection({ commitment: "confirmed" });
+  const connection = getMetaplexCoreConnection({ commitment: "confirmed" });
   const walletBalanceLamports = BigInt(await connection.getBalance(signer.publicKey, "confirmed"));
   const recommendedDeployBalanceLamports = await getRecommendedDeployBalanceLamports(signer, params);
 

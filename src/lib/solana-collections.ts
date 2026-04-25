@@ -164,8 +164,8 @@ export function buildSolanaDeploymentManifest(
 }
 
 export async function verifySolanaDeploymentSignature(signature: string): Promise<boolean> {
-  const { getLaunchSolanaConnection } = await import("./synapse-sap");
-  const connection = getLaunchSolanaConnection({ commitment: "confirmed" });
+  const { getMetaplexCoreConnection } = await import("./synapse-sap");
+  const connection = getMetaplexCoreConnection({ commitment: "confirmed" });
   const status = await connection.getSignatureStatus(signature, {
     searchTransactionHistory: true,
   });

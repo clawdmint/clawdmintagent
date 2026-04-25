@@ -1,6 +1,7 @@
 import { Connection, Keypair } from "@solana/web3.js";
 import {
   getClawdmintInternalBaseUrl,
+  getMetaplexCoreRpcUrl,
   getSynapseSapPricePerCallLamports,
   getSynapseSapRateLimit,
   getSynapseSapTimeoutMs,
@@ -97,6 +98,30 @@ export function getLaunchSolanaConnection(
   };
 
   return new Connection(getSolanaRpcUrl(), {
+    ...baseConfig,
+    ...config,
+  } as NonNullable<ConstructorParameters<typeof Connection>[1]>);
+}
+
+/**
+ * Connection used for Metaplex Core / Candy Machine / agent registry mints. Always prefers a
+ * dedicated full node (`SOLANA_METAPLEX_RPC_URL` or public mainnet) so high-cost on-chain
+ * confirmations do not flow through the slower Synapse SAP staging gateway. Mixing slow
+ * `sendAndConfirm` confirmations with serverless function timeouts is what caused the duplicate
+ * mint regressions seen in production.
+ */
+export function getMetaplexCoreConnection(
+  config?: NonNullable<ConstructorParameters<typeof Connection>[1]> extends infer O
+    ? O extends string | undefined
+      ? never
+      : Partial<Exclude<O, string | undefined>>
+    : never
+) {
+  const baseConfig = {
+    commitment: DEFAULT_COMMITMENT,
+  };
+
+  return new Connection(getMetaplexCoreRpcUrl(), {
     ...baseConfig,
     ...config,
   } as NonNullable<ConstructorParameters<typeof Connection>[1]>);

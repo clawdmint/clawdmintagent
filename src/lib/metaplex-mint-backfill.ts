@@ -3,14 +3,14 @@ import { prisma } from "@/lib/db";
 import { SOLANA_COLLECTION_CHAINS } from "@/lib/collection-chains";
 import { METAPLEX_MINT_ENGINE, fetchMetaplexCandyMachineState } from "@/lib/metaplex-core-candy-machine";
 import { calculateSolanaMintTotalWithFee, getPlatformFeeBps, getSolanaPlatformFeeRecipient } from "@/lib/platform-fees";
-import { getLaunchSolanaConnection } from "@/lib/synapse-sap";
+import { getMetaplexCoreConnection } from "@/lib/synapse-sap";
 
 const PROFILE_MINT_SCAN_LIMIT = 25;
 
 type ParsedMessageAccountKey = { pubkey: { toBase58(): string }; signer: boolean; writable: boolean };
 
 function getParsedTransactionSignerKeys(
-  transaction: Awaited<ReturnType<ReturnType<typeof getLaunchSolanaConnection>["getParsedTransaction"]>>
+  transaction: Awaited<ReturnType<ReturnType<typeof getMetaplexCoreConnection>["getParsedTransaction"]>>
 ): string[] {
   if (!transaction) {
     return [];
@@ -22,7 +22,7 @@ function getParsedTransactionSignerKeys(
 }
 
 function getParsedTransactionAccountKeys(
-  transaction: Awaited<ReturnType<ReturnType<typeof getLaunchSolanaConnection>["getParsedTransaction"]>>
+  transaction: Awaited<ReturnType<ReturnType<typeof getMetaplexCoreConnection>["getParsedTransaction"]>>
 ): string[] {
   if (!transaction) {
     return [];
@@ -36,7 +36,7 @@ function getParsedTransactionAccountKeys(
 export async function syncRecentMetaplexMintsForWallet(walletAddress: string) {
   const platformFeeRecipient = getSolanaPlatformFeeRecipient();
   const platformFeeBps = platformFeeRecipient ? getPlatformFeeBps() : 0;
-  const connection = getLaunchSolanaConnection();
+  const connection = getMetaplexCoreConnection();
   const signatures = await connection.getSignaturesForAddress(new PublicKey(walletAddress), {
     limit: PROFILE_MINT_SCAN_LIMIT,
   });
