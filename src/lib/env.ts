@@ -115,7 +115,7 @@ export function getSynapseSapRateLimit(): number {
   return Number.isFinite(parsed) && parsed > 0 ? parsed : 60;
 }
 export function getSynapseSapTimeoutMs(): number {
-  const parsed = Number.parseInt(getEnv("SYNAPSE_SAP_TIMEOUT_MS", "8000"), 10);
+  const parsed = Number.parseInt(getEnv("SYNAPSE_SAP_TIMEOUT_MS", "20000"), 10);
   return Number.isFinite(parsed) && parsed >= 0 ? parsed : 8000;
 }
 

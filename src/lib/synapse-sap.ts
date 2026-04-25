@@ -180,7 +180,11 @@ async function initSapIndex(client: Awaited<ReturnType<typeof createSapClient>>[
 
 async function createSapClient(walletKeypair: InstanceType<typeof Keypair>) {
   const { SapConnection } = await import("@oobe-protocol-labs/synapse-sap-sdk");
-  return SapConnection.fromKeypair(getSolanaRpcUrl(), walletKeypair, {
+  // SAP register/lookup queries the on-chain SAP program; the RPC node only needs to relay the
+  // transaction. The Synapse staging gateway exposed via `SYNAPSE_SOLANA_RPC_URL` reliably
+  // exceeds the 8s timeout, so prefer the dedicated full-node URL we already use for Metaplex
+  // Core mints (override via `SOLANA_METAPLEX_RPC_URL`).
+  return SapConnection.fromKeypair(getMetaplexCoreRpcUrl(), walletKeypair, {
     commitment: DEFAULT_COMMITMENT,
     cluster: getSapCluster(),
   });
