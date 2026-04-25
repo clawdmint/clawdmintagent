@@ -194,13 +194,27 @@ function buildMintAssetLookup(mints: MintRecord[]) {
 }
 
 async function fetchCollectionAssetSnapshots(collectionAddress: string): Promise<ChainAssetSnapshot[]> {
-  const umi = createMarketplaceGpaUmi();
-  const assets = await getAssetV1GpaBuilder(umi)
-    .whereField("updateAuthority", {
-      __kind: "Collection",
-      fields: [publicKey(collectionAddress)],
-    })
-    .getDeserialized();
+  // GPA against the mpl-core program can fail (e.g. RPCs that reject unbounded
+  // getProgramAccounts queries with millions of pubkeys, or transient timeouts).
+  // We fail-soft so a broken chain snapshot does not crash the dev server with
+  // an unhandled rejection or surface as a 500 to the marketplace UI.
+  let assets;
+  try {
+    const umi = createMarketplaceGpaUmi();
+    assets = await getAssetV1GpaBuilder(umi)
+      .whereField("updateAuthority", {
+        __kind: "Collection",
+        fields: [publicKey(collectionAddress)],
+      })
+      .getDeserialized();
+  } catch (error) {
+    console.warn(
+      "[Marketplace] GPA snapshot unavailable for collection",
+      collectionAddress,
+      error instanceof Error ? error.message : error
+    );
+    return [];
+  }
 
   return Promise.all(
     assets.map(async (asset) => {
@@ -549,6 +563,13 @@ export async function ensureCollectionAssetsIndexed(collectionId: string, option
 
       if (!state.inFlight) {
         const inFlight = runSync().catch((error) => {
+          // Background sync runs without an awaiter when awaitChainSync is false.
+          // Rethrowing here would surface as an unhandledRejection and crash the
+          // Next.js dev server, so we log and reset state instead.
+          console.warn(
+            `[Marketplace] Background chain sync failed for collection ${collectionId}:`,
+            error instanceof Error ? error.message : error
+          );
           const current = assetSyncState.get(collectionId) ?? {
             lastCompletedAt: 0,
             inFlight: null,
@@ -557,7 +578,7 @@ export async function ensureCollectionAssetsIndexed(collectionId: string, option
             ...current,
             inFlight: null,
           });
-          throw error;
+          return [] as string[];
         });
         assetSyncState.set(collectionId, {
           ...state,
