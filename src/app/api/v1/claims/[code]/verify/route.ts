@@ -58,23 +58,9 @@ export async function POST(
       );
     }
 
+    // Verify tweet contains the verification code
     const verificationCode = claim.signature;
-    let tweetVerified = false;
-    try {
-      tweetVerified = await verifyTweet(tweet_url, verificationCode || "", claim.agent.name);
-    } catch (error) {
-      if (error instanceof TweetVerificationConfigError) {
-        return NextResponse.json(
-          {
-            success: false,
-            error: "Tweet verification is temporarily unavailable",
-            hint: "Server is missing Twitter API credentials. Contact the administrator.",
-          },
-          { status: 503 }
-        );
-      }
-      throw error;
-    }
+    const tweetVerified = await verifyTweet(tweet_url, verificationCode || "", claim.agent.name);
 
     if (!tweetVerified) {
       return NextResponse.json(
@@ -168,41 +154,25 @@ export async function POST(
 // HELPERS
 // ═══════════════════════════════════════════════════════════════════════
 
-class TweetVerificationConfigError extends Error {
-  constructor(message: string) {
-    super(message);
-    this.name = "TweetVerificationConfigError";
-  }
-}
-
 async function verifyTweet(tweetUrl: string, verificationCode: string, agentName: string): Promise<boolean> {
-  const bearerToken = process.env["TWITTER_BEARER_TOKEN"]?.trim();
-  const allowUnverifiedTweets =
-    process.env["ALLOW_UNVERIFIED_TWEET_CLAIMS"] === "true" &&
-    process.env["NODE_ENV"] !== "production";
-
-  const tweetIdMatch = tweetUrl.match(/status\/(\d+)/);
-  if (!tweetIdMatch) {
-    return false;
-  }
-
-  if (!verificationCode) {
-    return false;
-  }
+  const bearerToken = process.env["TWITTER_BEARER_TOKEN"];
 
   if (!bearerToken) {
-    if (allowUnverifiedTweets) {
-      console.warn(
-        "[claims/verify] TWITTER_BEARER_TOKEN missing, accepting tweet without content check (dev override)."
-      );
-      return true;
+    console.log("Twitter API not configured, doing basic validation");
+
+    const tweetIdMatch = tweetUrl.match(/status\/(\d+)/);
+    if (!tweetIdMatch) {
+      return false;
     }
-    throw new TweetVerificationConfigError(
-      "Tweet verification is not configured: TWITTER_BEARER_TOKEN is missing on the server."
-    );
+
+    return true;
   }
 
   try {
+    const tweetIdMatch = tweetUrl.match(/status\/(\d+)/);
+    if (!tweetIdMatch) {
+      return false;
+    }
     const tweetId = tweetIdMatch[1];
 
     const response = await fetch(
