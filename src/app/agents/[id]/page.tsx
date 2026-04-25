@@ -6,7 +6,7 @@ import Link from "next/link";
 import { useTheme } from "@/components/theme-provider";
 import { useWallet } from "@/components/wallet-context";
 import { clsx } from "clsx";
-import { ArrowRight, BadgeCheck, Coins, Copy, ExternalLink, Layers3, Sparkles, UserPlus, UserCheck } from "lucide-react";
+import { ArrowRight, BadgeCheck, Coins, Copy, ExternalLink, Layers3, Network, Sparkles, UserPlus, UserCheck } from "lucide-react";
 import { getAddressExplorerUrl, truncateAddress } from "@/lib/network-config";
 
 interface Agent {
@@ -29,6 +29,16 @@ interface Agent {
     execution_delegate_pda: string | null;
     registered_at: string | null;
     delegated_at: string | null;
+    synapse_sap: {
+      registered: boolean;
+      agent_pda: string;
+      stats_pda: string | null;
+      tx_signature: string | null;
+      agent_id: string;
+      agent_uri: string | null;
+      x402_endpoint: string | null;
+      registered_at: string | null;
+    } | null;
   };
   x_handle: string;
   verified_at: string;
@@ -406,6 +416,19 @@ export default function AgentPage() {
                         <span className="inline-flex items-center gap-1 rounded-full px-3 py-1 text-[11px] font-mono uppercase tracking-[0.18em] text-fuchsia-300 bg-fuchsia-500/10">
                           <Layers3 className="h-3.5 w-3.5" />
                           Metaplex Registered
+                        </span>
+                      ) : null}
+                      {agent.metaplex?.synapse_sap?.registered ? (
+                        <span
+                          className="inline-flex items-center gap-1 rounded-full px-3 py-1 text-[11px] font-mono uppercase tracking-[0.18em] text-violet-200"
+                          style={{
+                            background:
+                              "linear-gradient(90deg, rgba(139,92,246,0.18) 0%, rgba(34,211,238,0.18) 100%)",
+                          }}
+                          title="Registered on Synapse Agent Protocol"
+                        >
+                          <Network className="h-3.5 w-3.5" />
+                          Synapse SAP
                         </span>
                       ) : null}
                       {hasCollections ? (
@@ -1114,6 +1137,94 @@ export default function AgentPage() {
                                 ) : (
                                   <RegistryField
                                     label="Registration URI"
+                                    value={null}
+                                    href={null}
+                                    theme={theme}
+                                  />
+                                )}
+                              </div>
+                            </div>
+                          ) : null}
+
+                          {agent.metaplex?.synapse_sap?.registered ? (
+                            <div
+                              className="rounded-[28px] border border-white/[0.06] p-5"
+                              style={{
+                                background:
+                                  "linear-gradient(135deg, rgba(139,92,246,0.08) 0%, rgba(34,211,238,0.06) 100%)",
+                              }}
+                            >
+                              <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                                <div>
+                                  <p
+                                    className="text-[11px] font-mono uppercase tracking-[0.22em]"
+                                    style={{ color: "rgb(196, 181, 253)" }}
+                                  >
+                                    Synapse Agent Protocol
+                                  </p>
+                                  <h3 className="mt-2 text-xl font-semibold">SAP registration active</h3>
+                                  <p className="mt-2 text-sm text-gray-400">
+                                    On-chain agent identity, capability index, and x402 pricing rails registered on
+                                    the Synapse Agent Protocol.
+                                  </p>
+                                </div>
+                                <span
+                                  className="rounded-full px-3 py-1 text-[11px] font-mono uppercase tracking-[0.2em] text-violet-200"
+                                  style={{
+                                    background:
+                                      "linear-gradient(90deg, rgba(139,92,246,0.22) 0%, rgba(34,211,238,0.22) 100%)",
+                                  }}
+                                >
+                                  registered
+                                </span>
+                              </div>
+
+                              <div className="mt-5 grid gap-3 lg:grid-cols-2 xl:grid-cols-4">
+                                <RegistryField
+                                  label="Agent PDA"
+                                  value={agent.metaplex.synapse_sap.agent_pda}
+                                  href={getAddressExplorerUrl(agent.metaplex.synapse_sap.agent_pda, "solana")}
+                                  theme={theme}
+                                />
+                                <RegistryField
+                                  label="Stats PDA"
+                                  value={agent.metaplex.synapse_sap.stats_pda}
+                                  href={
+                                    agent.metaplex.synapse_sap.stats_pda
+                                      ? getAddressExplorerUrl(agent.metaplex.synapse_sap.stats_pda, "solana")
+                                      : null
+                                  }
+                                  theme={theme}
+                                />
+                                <RegistryField
+                                  label="Agent ID (DID)"
+                                  value={agent.metaplex.synapse_sap.agent_id}
+                                  href={null}
+                                  theme={theme}
+                                />
+                                {agent.metaplex.synapse_sap.x402_endpoint ? (
+                                  <a
+                                    href={agent.metaplex.synapse_sap.x402_endpoint}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className={clsx(
+                                      "flex items-center justify-between rounded-2xl border px-4 py-3 transition-colors",
+                                      theme === "dark"
+                                        ? "border-white/[0.08] bg-white/[0.02] hover:bg-white/[0.04]"
+                                        : "border-gray-200 bg-gray-50/80 hover:bg-white"
+                                    )}
+                                  >
+                                    <div>
+                                      <p className="text-[11px] font-mono uppercase tracking-[0.2em] text-gray-500">
+                                        x402 Endpoint
+                                      </p>
+                                      <p className="mt-1 text-sm text-cyan-300">Open pricing manifest</p>
+                                    </div>
+                                    <ExternalLink className="h-4 w-4 text-cyan-300" />
+                                  </a>
+                                ) : (
+                                  <RegistryField
+                                    label="x402 Endpoint"
                                     value={null}
                                     href={null}
                                     theme={theme}

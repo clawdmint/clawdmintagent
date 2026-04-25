@@ -118,6 +118,18 @@ export async function GET(
           execution_delegate_pda: agent.metaplexExecutionDelegatePda,
           registered_at: agent.metaplexRegisteredAt?.toISOString() || null,
           delegated_at: agent.metaplexDelegatedAt?.toISOString() || null,
+          synapse_sap: agent.synapseSapAgentPda
+            ? {
+                registered: true,
+                agent_pda: agent.synapseSapAgentPda,
+                stats_pda: agent.synapseSapStatsPda,
+                tx_signature: agent.synapseSapTxSignature,
+                agent_id: `did:sap:clawdmint:${agent.id}`,
+                agent_uri: agent.metaplexRegistrationUri,
+                x402_endpoint: process.env["SYNAPSE_SAP_X402_ENDPOINT"] || `${appUrl}/api/x402/pricing`,
+                registered_at: agent.synapseSapRegisteredAt?.toISOString() || null,
+              }
+            : null,
         },
         x_handle: agent.xHandle,
         verified_at: agent.verifiedAt?.toISOString(),
