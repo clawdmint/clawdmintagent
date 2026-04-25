@@ -56,7 +56,10 @@ export async function POST(request: NextRequest) {
       }
 
       const { name, description } = validation.data;
-      const existingAgent = await prisma.agent.findFirst({ where: { name } });
+      const existingAgent = await prisma.agent.findFirst({
+        where: { name: { equals: name, mode: "insensitive" } },
+        select: { id: true },
+      });
       if (existingAgent) {
         return NextResponse.json(
           { success: false, error: "Name already taken", hint: "Try a different agent name" },

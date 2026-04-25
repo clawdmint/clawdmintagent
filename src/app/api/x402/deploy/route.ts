@@ -116,7 +116,6 @@ export async function POST(request: NextRequest) {
               description: "Deployments made via x402 payment protocol",
               status: "VERIFIED",
               deployEnabled: true,
-              hmacKeyHash: `x402_${Date.now()}`,
             },
           });
         }
