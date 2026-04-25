@@ -252,6 +252,32 @@ async function performSynapseSapAgentRegistration(
   const agentId = `did:sap:clawdmint:${input.agentId}`;
   const x402Endpoint = getSynapseSapX402Endpoint();
 
+  // Probe the on-chain SAP agent PDA directly via getAccountInfo before falling back to the SDK
+  // fetch. The SDK fetch routes through the Synapse gateway and frequently exceeds the timeout,
+  // while a single RPC probe is fast and definitive. If the PDA exists on-chain, the agent is
+  // already registered — we can short-circuit without paying for the slower SDK round-trip.
+  try {
+    const probeConnection = new Connection(getMetaplexCoreRpcUrl(), DEFAULT_COMMITMENT);
+    const accountInfo = await probeConnection.getAccountInfo(agentPda, DEFAULT_COMMITMENT);
+    if (accountInfo) {
+      const indexed = await initSapIndex(sap.client).catch(() => false);
+      return {
+        enabled: true,
+        registered: true,
+        already_registered: true,
+        indexed,
+        tx_signature: null,
+        agent_pda: agentPda.toBase58(),
+        stats_pda: statsPda.toBase58(),
+        agent_id: agentId,
+        agent_uri: input.agentUri,
+        x402_endpoint: x402Endpoint,
+      };
+    }
+  } catch {
+    // RPC probe is best-effort; fall through to the SDK fetch path below.
+  }
+
   try {
     const existing = await sap.client.agent.fetch(agentWallet);
     const indexed = await initSapIndex(sap.client);

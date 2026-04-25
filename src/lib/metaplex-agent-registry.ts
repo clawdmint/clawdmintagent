@@ -27,7 +27,7 @@ import { fromWeb3JsKeypair } from "@metaplex-foundation/umi-web3js-adapters";
 import { prisma } from "./db";
 import { getAgentOperationalKeypair, type AgentWalletError } from "./agent-wallets";
 import { getA2AVersion, getMCPVersion } from "./agent-protocols";
-import { getEnv } from "./env";
+import { getEnv, getSynapseSapX402Endpoint } from "./env";
 import { uploadJson } from "./ipfs";
 import {
   ensureSynapseSapAgentRegistration,
@@ -55,7 +55,37 @@ type AgentRegistryRecord = {
   metaplexExecutionDelegatePda: string | null;
   metaplexRegisteredAt: Date | null;
   metaplexDelegatedAt: Date | null;
+  synapseSapAgentPda: string | null;
+  synapseSapStatsPda: string | null;
+  synapseSapTxSignature: string | null;
+  synapseSapRegisteredAt: Date | null;
 };
+
+const AGENT_REGISTRY_SELECT = {
+  id: true,
+  name: true,
+  description: true,
+  avatarUrl: true,
+  xHandle: true,
+  status: true,
+  deployEnabled: true,
+  solanaWalletAddress: true,
+  solanaWalletEncryptedKey: true,
+  metaplexCollectionAddress: true,
+  metaplexCollectionUri: true,
+  metaplexAssetAddress: true,
+  metaplexAssetUri: true,
+  metaplexRegistrationUri: true,
+  metaplexIdentityPda: true,
+  metaplexExecutiveProfilePda: true,
+  metaplexExecutionDelegatePda: true,
+  metaplexRegisteredAt: true,
+  metaplexDelegatedAt: true,
+  synapseSapAgentPda: true,
+  synapseSapStatsPda: true,
+  synapseSapTxSignature: true,
+  synapseSapRegisteredAt: true,
+} as const;
 
 export class MetaplexAgentRegistryError extends Error {
   status: number;
@@ -271,10 +301,79 @@ function getMetaplexSyncStepSummary(
     retry_after_seconds: syncStatus === "SYNCING" ? 8 : null,
   };
 }
+function buildPersistedSynapseSapSummary(
+  agent: AgentRegistryRecord
+): SynapseSapAgentRegistrationSummary | null {
+  if (!agent.synapseSapAgentPda || !agent.synapseSapRegisteredAt) {
+    return null;
+  }
+  return {
+    enabled: true,
+    registered: true,
+    already_registered: true,
+    tx_signature: agent.synapseSapTxSignature,
+    agent_pda: agent.synapseSapAgentPda,
+    stats_pda: agent.synapseSapStatsPda,
+    agent_id: `did:sap:clawdmint:${agent.id}`,
+    agent_uri: agent.metaplexRegistrationUri,
+    x402_endpoint: getSynapseSapX402Endpoint(),
+  };
+}
+
+async function ensureSynapseSapPersisted(
+  agent: AgentRegistryRecord
+): Promise<{ agent: AgentRegistryRecord; synapseSap: SynapseSapAgentRegistrationSummary | null }> {
+  // If we have a cached registration in the DB, trust it and skip the SDK fetch entirely.
+  // The on-chain SAP PDA is permanent once created, so this is safe and avoids long
+  // SDK timeouts when the staging RPC is slow.
+  const cached = buildPersistedSynapseSapSummary(agent);
+  if (cached) {
+    return { agent, synapseSap: cached };
+  }
+
+  let synapseSap: SynapseSapAgentRegistrationSummary | null = null;
+  try {
+    synapseSap = await ensureSynapseSapAgentRegistration({
+      agentId: agent.id,
+      name: agent.name,
+      description: agent.description,
+      agentUri: agent.metaplexRegistrationUri || getAgentRegistrationUri(agent.id),
+      walletKeypair: getAgentOperationalKeypair(agent),
+    });
+  } catch (sapError) {
+    return {
+      agent,
+      synapseSap: {
+        enabled: true,
+        registered: false,
+        warning: sapError instanceof Error ? sapError.message : "Unknown Synapse SAP registration error",
+      },
+    };
+  }
+
+  if (synapseSap?.registered && synapseSap.agent_pda) {
+    try {
+      const updated = await updateAgent(agent.id, {
+        synapseSapAgentPda: synapseSap.agent_pda,
+        synapseSapStatsPda: synapseSap.stats_pda ?? null,
+        synapseSapTxSignature: synapseSap.tx_signature ?? null,
+        synapseSapRegisteredAt: agent.synapseSapRegisteredAt ?? new Date(),
+      });
+      return { agent: updated, synapseSap };
+    } catch (persistError) {
+      console.error("Failed to persist Synapse SAP registration", persistError);
+      return { agent, synapseSap };
+    }
+  }
+
+  return { agent, synapseSap };
+}
+
 function getMetaplexSummary(
   agent: AgentRegistryRecord,
   synapseSap?: SynapseSapAgentRegistrationSummary | null
 ): AgentMetaplexSummary {
+  const synapseSapSummary = synapseSap ?? buildPersistedSynapseSapSummary(agent);
   return {
     collection_address: agent.metaplexCollectionAddress,
     asset_address: agent.metaplexAssetAddress,
@@ -288,34 +387,14 @@ function getMetaplexSummary(
     delegated: Boolean(agent.metaplexExecutionDelegatePda),
     registered_at: agent.metaplexRegisteredAt?.toISOString() || null,
     delegated_at: agent.metaplexDelegatedAt?.toISOString() || null,
-    synapse_sap: synapseSap || null,
+    synapse_sap: synapseSapSummary,
   };
 }
 
 async function loadAgent(agentId: string): Promise<AgentRegistryRecord> {
   const agent = await prisma.agent.findUnique({
     where: { id: agentId },
-    select: {
-      id: true,
-      name: true,
-      description: true,
-      avatarUrl: true,
-      xHandle: true,
-      status: true,
-      deployEnabled: true,
-      solanaWalletAddress: true,
-      solanaWalletEncryptedKey: true,
-      metaplexCollectionAddress: true,
-      metaplexCollectionUri: true,
-      metaplexAssetAddress: true,
-      metaplexAssetUri: true,
-      metaplexRegistrationUri: true,
-      metaplexIdentityPda: true,
-      metaplexExecutiveProfilePda: true,
-      metaplexExecutionDelegatePda: true,
-      metaplexRegisteredAt: true,
-      metaplexDelegatedAt: true,
-    },
+    select: AGENT_REGISTRY_SELECT,
   });
 
   if (!agent) {
@@ -329,27 +408,7 @@ async function updateAgent(agentId: string, data: Partial<AgentRegistryRecord>):
   return prisma.agent.update({
     where: { id: agentId },
     data,
-    select: {
-      id: true,
-      name: true,
-      description: true,
-      avatarUrl: true,
-      xHandle: true,
-      status: true,
-      deployEnabled: true,
-      solanaWalletAddress: true,
-      solanaWalletEncryptedKey: true,
-      metaplexCollectionAddress: true,
-      metaplexCollectionUri: true,
-      metaplexAssetAddress: true,
-      metaplexAssetUri: true,
-      metaplexRegistrationUri: true,
-      metaplexIdentityPda: true,
-      metaplexExecutiveProfilePda: true,
-      metaplexExecutionDelegatePda: true,
-      metaplexRegisteredAt: true,
-      metaplexDelegatedAt: true,
-    },
+    select: AGENT_REGISTRY_SELECT,
   });
 }
 
@@ -632,24 +691,10 @@ export async function ensureMetaplexAgentRegistrationStep(
       return getMetaplexSyncStepSummary(agent, "SYNCING", "retry_synapse_sap");
     }
 
-    let synapseSap: SynapseSapAgentRegistrationSummary | null = null;
-    try {
-      synapseSap = await ensureSynapseSapAgentRegistration({
-        agentId: agent.id,
-        name: agent.name,
-        description: agent.description,
-        agentUri: agent.metaplexRegistrationUri || getAgentRegistrationUri(agent.id),
-        walletKeypair: getAgentOperationalKeypair(agent),
-      });
-    } catch (sapError) {
-      synapseSap = {
-        enabled: true,
-        registered: false,
-        warning: sapError instanceof Error ? sapError.message : "Unknown Synapse SAP registration error",
-      };
-    }
+    const sapResult = await ensureSynapseSapPersisted(agent);
+    agent = sapResult.agent;
 
-    return getMetaplexSyncStepSummary(agent, "ACTIVE", null, synapseSap);
+    return getMetaplexSyncStepSummary(agent, "ACTIVE", null, sapResult.synapseSap);
   } catch (error) {
     if (error instanceof MetaplexAgentRegistryError) {
       throw error;
@@ -674,24 +719,10 @@ export async function ensureMetaplexAgentRegistration(agentId: string): Promise<
     agent = await ensureRegistrationUri(agent);
     agent = await ensureIdentityAndDelegation(agent);
 
-    let synapseSap: SynapseSapAgentRegistrationSummary | null = null;
-    try {
-      synapseSap = await ensureSynapseSapAgentRegistration({
-        agentId: agent.id,
-        name: agent.name,
-        description: agent.description,
-        agentUri: agent.metaplexRegistrationUri || getAgentRegistrationUri(agent.id),
-        walletKeypair: getAgentOperationalKeypair(agent),
-      });
-    } catch (sapError) {
-      synapseSap = {
-        enabled: true,
-        registered: false,
-        warning: sapError instanceof Error ? sapError.message : "Unknown Synapse SAP registration error",
-      };
-    }
+    const sapResult = await ensureSynapseSapPersisted(agent);
+    agent = sapResult.agent;
 
-    return getMetaplexSummary(agent, synapseSap);
+    return getMetaplexSummary(agent, sapResult.synapseSap);
   } catch (error) {
     if (error instanceof MetaplexAgentRegistryError) {
       throw error;
