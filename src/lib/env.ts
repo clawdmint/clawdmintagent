@@ -176,6 +176,47 @@ export function getGpaCapableSolanaRpcUrl(): string {
 }
 
 /**
+ * Ordered list of RPC endpoints to try for paginated `getProgramAccountsV2` index scans.
+ * Priority is intentional:
+ *   1. Synapse (`SYNAPSE_SOLANA_RPC_URL`) — preferred when configured
+ *   2. Helius / dedicated GPA endpoint (`SOLANA_GPA_RPC_URL`) — fallback
+ *   3. Public mainnet/devnet cluster — last resort
+ * Callers iterate this list and stop at the first endpoint that returns a usable
+ * result; if an endpoint errors out or returns an empty page when data is expected,
+ * the caller advances to the next one. Each entry carries a stable `label` so
+ * server logs can attribute the active provider without leaking the URL itself.
+ */
+export type GpaRpcCandidate = { label: string; url: string };
+
+export function getGpaCapableSolanaRpcUrlsByPriority(): GpaRpcCandidate[] {
+  const candidates: GpaRpcCandidate[] = [];
+  const seen = new Set<string>();
+
+  const add = (label: string, url: string) => {
+    const trimmed = (url || "").trim();
+    if (!trimmed) return;
+    if (seen.has(trimmed)) return;
+    seen.add(trimmed);
+    candidates.push({ label, url: trimmed });
+  };
+
+  add("synapse", getSynapseSolanaRpcUrl());
+  add(
+    "gpa-explicit",
+    getEnv("SOLANA_GPA_RPC_URL", "").trim() ||
+      getEnv("NEXT_PUBLIC_SOLANA_GPA_RPC_URL", "").trim()
+  );
+
+  const cluster = getEnv("NEXT_PUBLIC_SOLANA_CLUSTER", "mainnet-beta");
+  add(
+    "public-mainnet",
+    cluster === "devnet" ? "https://api.devnet.solana.com" : "https://api.mainnet-beta.solana.com"
+  );
+
+  return candidates;
+}
+
+/**
  * RPC for high-throughput on-chain transactions (Metaplex Core, Candy Machine, agent registry mints
  * and delegations). The Synapse staging RPC at `SYNAPSE_SOLANA_RPC_URL` is too slow for
  * `sendAndConfirm` flows running inside serverless function timeouts; always prefer a dedicated full

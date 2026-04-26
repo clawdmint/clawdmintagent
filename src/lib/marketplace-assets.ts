@@ -8,6 +8,7 @@ import { getGpaCapableSolanaRpcUrl } from "@/lib/env";
 import { prisma } from "@/lib/db";
 import { getSolanaRpcUrl } from "@/lib/solana-collections";
 import { ipfsToHttp } from "@/lib/ipfs";
+import { fetchCollectionAssetSnapshotsViaGpaV2 } from "@/lib/marketplace-assets-gpa-v2";
 
 type CollectionRecord = {
   id: string;
@@ -193,7 +194,41 @@ function buildMintAssetLookup(mints: MintRecord[]) {
   return lookup;
 }
 
+function isGpaV2Enabled() {
+  return process.env["MARKETPLACE_GPA_V2_ENABLED"] === "true";
+}
+
 async function fetchCollectionAssetSnapshots(collectionAddress: string): Promise<ChainAssetSnapshot[]> {
+  // Optional fast path: getProgramAccountsV2 with pagination. Some upstream
+  // RPCs (e.g. Helius/Synapse) require V2 because the v1 builder is rejected
+  // with "Too many accounts requested". The flag is opt-in so we don't change
+  // production behavior until we are confident.
+  if (isGpaV2Enabled()) {
+    try {
+      const v2Snapshots = await fetchCollectionAssetSnapshotsViaGpaV2(collectionAddress);
+      const enriched = await Promise.all(
+        v2Snapshots.map(async (snapshot) => ({
+          assetAddress: snapshot.publicKey,
+          ownerAddress: snapshot.ownerAddress,
+          name: snapshot.name || snapshot.publicKey,
+          metadataUri: snapshot.uri,
+          imageUrl: await fetchMetadataImage(snapshot.uri),
+        } satisfies ChainAssetSnapshot))
+      );
+      console.info(
+        `[Marketplace] GPA v2 snapshot for ${collectionAddress}: ${enriched.length} assets`
+      );
+      return enriched;
+    } catch (error) {
+      console.warn(
+        "[Marketplace] GPA v2 snapshot failed, falling back to v1 path",
+        collectionAddress,
+        error instanceof Error ? error.message : error
+      );
+      // fall through to v1 fail-soft path below
+    }
+  }
+
   // GPA against the mpl-core program can fail (e.g. RPCs that reject unbounded
   // getProgramAccounts queries with millions of pubkeys, or transient timeouts).
   // We fail-soft so a broken chain snapshot does not crash the dev server with
