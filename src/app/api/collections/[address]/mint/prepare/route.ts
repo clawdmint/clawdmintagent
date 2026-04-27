@@ -105,13 +105,25 @@ export async function POST(
     const platformFeeRecipient = getSolanaPlatformFeeRecipient();
     const platformFeeBps = platformFeeRecipient ? getPlatformFeeBps() : 0;
 
+    // Platform-fee guard ensure runs best-effort. The on-chain guard is a one-time
+    // setup; we attempt it opportunistically without blocking the mint hot path.
+    // Mint-time platform fee is still enforced by `prepareMetaplexMintTransaction`,
+    // which appends the fee transfer instruction to every prepared transaction.
     if (platformFeeRecipient) {
-      const authoritySigner = getAgentOperationalKeypair(collection.agent);
-      await ensureMetaplexOnchainPlatformFeeGuard(authoritySigner, {
-        candyMachineAddress: collection.mintAddress,
-        payoutAddress: collection.payoutAddress,
-        mintPriceLamports: BigInt(collection.mintPrice),
-      });
+      try {
+        const authoritySigner = getAgentOperationalKeypair(collection.agent);
+        await ensureMetaplexOnchainPlatformFeeGuard(authoritySigner, {
+          candyMachineAddress: collection.mintAddress,
+          payoutAddress: collection.payoutAddress,
+          mintPriceLamports: BigInt(collection.mintPrice),
+        });
+      } catch (guardError) {
+        const message =
+          guardError instanceof Error ? guardError.message : String(guardError);
+        console.warn(
+          `[mint/prepare] Skipping on-chain platform-fee guard for collection ${collection.address}: ${message}`
+        );
+      }
     }
 
     const prepared = await prepareMetaplexMintTransaction({
@@ -165,9 +177,15 @@ export async function POST(
       );
     }
 
-    console.error("Prepare Solana mint error:", error);
+    const errorMessage =
+      error instanceof Error ? error.message : String(error);
+    console.error("Prepare Solana mint error:", errorMessage, error);
     return NextResponse.json(
-      { success: false, error: "Failed to prepare Solana mint transaction" },
+      {
+        success: false,
+        error: "Failed to prepare Solana mint transaction",
+        details: errorMessage,
+      },
       { status: 500 }
     );
   }
