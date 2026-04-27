@@ -20,6 +20,34 @@ function formatRemaining(ms: number): { h: string; m: string; s: string } {
   };
 }
 
+export function useCollectionCountdown(address: string | null | undefined): {
+  locked: boolean;
+  label: string | null;
+  remainingMs: number;
+} {
+  const deadline = getCollectionCountdownDeadline(address);
+  const [remainingMs, setRemainingMs] = useState<number>(() =>
+    deadline ? deadline.getTime() - Date.now() : 0
+  );
+
+  useEffect(() => {
+    if (!deadline) {
+      setRemainingMs(0);
+      return;
+    }
+    const tick = () => setRemainingMs(deadline.getTime() - Date.now());
+    tick();
+    const intervalId = window.setInterval(tick, 1000);
+    return () => window.clearInterval(intervalId);
+  }, [deadline]);
+
+  if (!deadline || remainingMs <= 0) {
+    return { locked: false, label: null, remainingMs: 0 };
+  }
+  const { h, m, s } = formatRemaining(remainingMs);
+  return { locked: true, label: `${h}:${m}:${s}`, remainingMs };
+}
+
 export function CollectionCountdown({
   address,
   variant = "banner",

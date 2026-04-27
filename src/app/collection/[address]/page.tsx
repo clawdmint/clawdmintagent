@@ -10,7 +10,7 @@ import { Transaction, VersionedTransaction } from "@solana/web3.js";
 import { COLLECTION_ABI } from "@/lib/contracts";
 import { useTheme } from "@/components/theme-provider";
 import { clsx } from "clsx";
-import { Bot, ExternalLink, ArrowLeft, Minus, Plus, Sparkles, CheckCircle, Share2, Link2, Check, MessageSquare, Send, ChevronDown, ChevronUp, Users, Loader2, ShieldCheck } from "lucide-react";
+import { Bot, ExternalLink, ArrowLeft, Minus, Plus, Sparkles, CheckCircle, Share2, Link2, Check, MessageSquare, Send, ChevronDown, ChevronUp, Users, Loader2, ShieldCheck, Clock } from "lucide-react";
 import {
   formatCollectionMintPrice,
   getCollectionNativeToken,
@@ -23,7 +23,7 @@ import {
 } from "@/lib/network-config";
 import { NetworkLogo } from "@/components/network-icons";
 import { CollectionViewTabs } from "@/components/collection-view-tabs";
-import { CollectionCountdown } from "@/components/collection-countdown";
+import { CollectionCountdown, useCollectionCountdown } from "@/components/collection-countdown";
 
 /** Avoid `Transaction` / `VersionedTransaction` as bare types (web3 re-exports are unusable as types in this project). */
 type SolanaWeb3Transaction = InstanceType<typeof Transaction> | InstanceType<typeof VersionedTransaction>;
@@ -232,6 +232,7 @@ export default function CollectionPage() {
   const [loading, setLoading] = useState(true);
   const [quantity, setQuantity] = useState(1);
   const [isMinting, setIsMinting] = useState(false);
+  const mintCountdown = useCollectionCountdown(collection?.address ?? null);
   const [mintError, setMintError] = useState("");
   const [mintSuccess, setMintSuccess] = useState("");
   const [solanaMintTxHash, setSolanaMintTxHash] = useState<string | null>(null);
@@ -958,7 +959,22 @@ export default function CollectionPage() {
                 )}
 
                 {/* Mint Button */}
-                {!isConnected ? (
+                {mintCountdown.locked ? (
+                  <div className="space-y-3">
+                    <button
+                      disabled
+                      className="w-full btn-primary py-4 text-lg flex items-center justify-center gap-2 opacity-70 cursor-not-allowed"
+                    >
+                      <Clock className="h-5 w-5 relative z-10" />
+                      <span className="relative z-10">
+                        Mint opens in <span className="font-mono tabular-nums">{mintCountdown.label}</span>
+                      </span>
+                    </button>
+                    <p className={clsx("text-sm leading-6", theme === "dark" ? "text-gray-400" : "text-gray-600")}>
+                      Public mint is scheduled. The button will unlock automatically once the countdown reaches zero.
+                    </p>
+                  </div>
+                ) : !isConnected ? (
                   <PrivyConnectButton />
                 ) : isSoldOut ? (
                   <button disabled className="w-full btn-primary py-4 text-lg opacity-50 cursor-not-allowed">
