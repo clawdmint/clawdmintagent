@@ -105,10 +105,7 @@ export async function POST(
     const platformFeeRecipient = getSolanaPlatformFeeRecipient();
     const platformFeeBps = platformFeeRecipient ? getPlatformFeeBps() : 0;
 
-    // Platform-fee guard ensure runs best-effort. The on-chain guard is a one-time
-    // setup; we attempt it opportunistically without blocking the mint hot path.
-    // Mint-time platform fee is still enforced by `prepareMetaplexMintTransaction`,
-    // which appends the fee transfer instruction to every prepared transaction.
+    let platformFeeGuardWarning: string | null = null;
     if (platformFeeRecipient) {
       try {
         const authoritySigner = getAgentOperationalKeypair(collection.agent);
@@ -120,6 +117,7 @@ export async function POST(
       } catch (guardError) {
         const message =
           guardError instanceof Error ? guardError.message : String(guardError);
+        platformFeeGuardWarning = message;
         console.warn(
           `[mint/prepare] Skipping on-chain platform-fee guard for collection ${collection.address}: ${message}`
         );
@@ -168,6 +166,9 @@ export async function POST(
         confirm_endpoint: `/api/collections/${collection.address}/mint/confirm`,
         expires_at: intent.expiresAt.toISOString(),
       },
+      warnings: platformFeeGuardWarning
+        ? { platform_fee_guard: platformFeeGuardWarning }
+        : undefined,
     });
   } catch (error) {
     if (error instanceof MetaplexMintError) {
