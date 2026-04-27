@@ -13,6 +13,7 @@ import {
   Users,
 } from "lucide-react";
 import { CollectionCard } from "@/components/collection-card";
+import { CollectionCountdown } from "@/components/collection-countdown";
 import { SolanaLogo } from "@/components/network-icons";
 import { useTheme } from "@/components/theme-provider";
 
@@ -336,11 +337,12 @@ export default function MarketplacePage() {
                       </div>
                     )}
                     <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/20 to-transparent" />
-                    <div className="absolute left-4 top-4">
+                    <div className="absolute left-4 right-4 top-4 flex flex-wrap items-center justify-between gap-2">
                       <span className={clsx("inline-flex items-center gap-2 rounded-full border px-3 py-1 font-mono text-[10px] uppercase tracking-[0.18em]", theme === "dark" ? "border-white/10 bg-black/35 text-white/90" : "border-white/60 bg-white/80 text-gray-900")}>
                         <Sparkles className="h-3 w-3" />
                         Market spotlight
                       </span>
+                      <CollectionCountdown address={highlightedCollection.address} variant="compact" />
                     </div>
                     <div className="absolute inset-x-4 bottom-4">
                       <h2 className="truncate text-[clamp(1.55rem,2.8vw,2.1rem)] font-semibold tracking-tight text-white">

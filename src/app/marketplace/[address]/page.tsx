@@ -17,6 +17,7 @@ import {
   Wallet,
 } from "lucide-react";
 import { CollectionViewTabs } from "@/components/collection-view-tabs";
+import { CollectionCountdown } from "@/components/collection-countdown";
 import { getPhantomProvider, useWallet } from "@/components/wallet-context";
 import { useTheme } from "@/components/theme-provider";
 
@@ -426,13 +427,15 @@ export default function CollectionMarketPage() {
 
       <div className="container mx-auto px-4 py-8 relative">
         <div className="mx-auto max-w-[1700px] space-y-6">
-          <div className="flex items-center justify-between gap-4">
+          <div className="flex flex-wrap items-center justify-between gap-4">
             <Link href="/marketplace" className={clsx("inline-flex items-center gap-2 text-sm", theme === "dark" ? "text-gray-400 hover:text-white" : "text-gray-600 hover:text-gray-900")}>
               <ArrowLeft className="h-4 w-4" />
               Back to Marketplace
             </Link>
             <CollectionViewTabs address={collection.address} active="market" />
           </div>
+
+          <CollectionCountdown address={collection.address} variant="banner" />
 
           <section className={clsx("overflow-hidden rounded-[30px] border", theme === "dark" ? "border-white/[0.08] bg-[#07111d]/88" : "border-gray-200 bg-white") }>
             <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_320px]">

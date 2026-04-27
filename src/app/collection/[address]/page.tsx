@@ -23,6 +23,7 @@ import {
 } from "@/lib/network-config";
 import { NetworkLogo } from "@/components/network-icons";
 import { CollectionViewTabs } from "@/components/collection-view-tabs";
+import { CollectionCountdown } from "@/components/collection-countdown";
 
 /** Avoid `Transaction` / `VersionedTransaction` as bare types (web3 re-exports are unusable as types in this project). */
 type SolanaWeb3Transaction = InstanceType<typeof Transaction> | InstanceType<typeof VersionedTransaction>;
@@ -599,8 +600,9 @@ export default function CollectionPage() {
             Back to Drops
           </Link>
 
-          <div className="mb-6">
+          <div className="mb-6 flex flex-wrap items-center gap-3">
             <CollectionViewTabs address={collection.address} active="mint" />
+            <CollectionCountdown address={collection.address} variant="banner" className="flex-1 min-w-[260px]" />
           </div>
 
           {/* Collection Header */}

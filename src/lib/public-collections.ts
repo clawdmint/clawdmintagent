@@ -7,6 +7,7 @@ const HIDDEN_PUBLIC_COLLECTIONS = new Set([
   "2fls53pygxtbacud3sy6bs3supw4u8makdpwd8iguvec",
   "5jzbocsrm6n8hf1qc7wh62ws19jqmxnd9dmljcgndyrr",
   "2nb5hy1qbfeseyfx2ep1ecxwzdcbplkxq7adwf465nyq",
+  "7h8uzh6tlgtyg7mvdwfjduxq8zbzvbg4u8r4fht1cbee",
 ]);
 
 export function isPublicCollectionAddressVisible(address: string) {

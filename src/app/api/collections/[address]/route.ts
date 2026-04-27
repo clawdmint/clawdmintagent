@@ -19,6 +19,7 @@ import {
   getSolanaPlatformFeeRecipient,
 } from "@/lib/platform-fees";
 import { getCollectionMarketSummary } from "@/lib/marketplace-data";
+import { isPublicCollectionAddressVisible } from "@/lib/public-collections";
 
 export const dynamic = "force-dynamic";
 
@@ -42,6 +43,13 @@ export async function GET(
       return NextResponse.json(
         { success: false, error: "Address is required" },
         { status: 400 }
+      );
+    }
+
+    if (!isPublicCollectionAddressVisible(address)) {
+      return NextResponse.json(
+        { success: false, error: "Collection not found" },
+        { status: 404 }
       );
     }
 

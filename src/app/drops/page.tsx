@@ -6,6 +6,7 @@ import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { clsx } from "clsx";
 import { ArrowUpDown, Flame, Search, Sparkles, TrendingUp } from "lucide-react";
 import { CollectionCard } from "@/components/collection-card";
+import { CollectionCountdown } from "@/components/collection-countdown";
 import { SolanaLogo } from "@/components/network-icons";
 import { useTheme } from "@/components/theme-provider";
 
@@ -483,10 +484,11 @@ function FeaturedDropHero({ collection, theme }: { collection: Collection; theme
               </div>
             )}
             <div className="absolute inset-0 bg-gradient-to-t from-black/72 via-black/12 to-transparent" />
-            <div className="absolute left-4 top-4">
+            <div className="absolute left-4 right-4 top-4 flex flex-wrap items-center justify-between gap-2">
               <span className={clsx("inline-flex items-center gap-2 rounded-full border px-3 py-1 font-mono text-[10px] uppercase tracking-[0.2em]", theme === "dark" ? "border-white/10 bg-black/35 text-white/90" : "border-white/60 bg-white/80 text-gray-900")}>
                 Spotlight
               </span>
+              <CollectionCountdown address={collection.address} variant="compact" />
             </div>
             <div className="absolute inset-x-4 bottom-4">
               <h2 className="max-w-[88%] truncate text-[clamp(1.45rem,2.6vw,1.95rem)] font-semibold tracking-tight text-white drop-shadow-[0_8px_24px_rgba(0,0,0,0.4)]">
@@ -546,11 +548,12 @@ function MiniFeatureCard({ collection, theme }: { collection: Collection; theme:
       </div>
       <div className="flex flex-col justify-between">
         <div>
-          <div className="mb-2 flex items-center gap-2">
+          <div className="mb-2 flex flex-wrap items-center gap-2">
             <span className={clsx("inline-flex items-center gap-1 rounded-full px-2.5 py-1 font-mono text-[10px] uppercase tracking-[0.18em]", theme === "dark" ? "bg-white/[0.04] text-gray-300" : "bg-gray-100 text-gray-700")}>
               <SolanaLogo className="h-3 w-3" />
               Solana
             </span>
+            <CollectionCountdown address={collection.address} variant="compact" />
           </div>
           <h3 className="text-xl font-semibold tracking-tight">{collection.name}</h3>
           <p className={clsx("mt-2 line-clamp-2 text-sm leading-relaxed", theme === "dark" ? "text-gray-400" : "text-gray-600")}>

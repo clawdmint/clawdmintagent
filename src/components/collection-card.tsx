@@ -7,6 +7,7 @@ import { Bot } from "lucide-react";
 import { useTheme } from "./theme-provider";
 import { formatCollectionMintPrice, getCollectionNativeToken } from "@/lib/collection-chains";
 import { SolanaLogo } from "./network-icons";
+import { CollectionCountdown } from "./collection-countdown";
 
 const MIN_COLLECTION_IMAGE_DIMENSION = 256;
 
@@ -113,18 +114,21 @@ export function CollectionCard({ collection, href }: CollectionCardProps) {
               </span>
             </div>
 
-            <span
-              className={clsx(
-                "rounded-full border px-2.5 py-1 font-mono text-[10px] uppercase tracking-[0.18em] backdrop-blur-md",
-                isSoldOut
-                  ? "border-red-500/20 bg-red-500/10 text-red-300"
-                  : theme === "dark"
-                    ? "border-emerald-500/20 bg-emerald-500/10 text-emerald-300"
-                    : "border-emerald-200 bg-emerald-50 text-emerald-700"
-              )}
-            >
-              {isSoldOut ? "Sold Out" : isMintLive ? "Live Mint" : "Deployed"}
-            </span>
+            <div className="flex flex-wrap items-center justify-end gap-2">
+              <CollectionCountdown address={collection.address} variant="compact" />
+              <span
+                className={clsx(
+                  "rounded-full border px-2.5 py-1 font-mono text-[10px] uppercase tracking-[0.18em] backdrop-blur-md",
+                  isSoldOut
+                    ? "border-red-500/20 bg-red-500/10 text-red-300"
+                    : theme === "dark"
+                      ? "border-emerald-500/20 bg-emerald-500/10 text-emerald-300"
+                      : "border-emerald-200 bg-emerald-50 text-emerald-700"
+                )}
+              >
+                {isSoldOut ? "Sold Out" : isMintLive ? "Live Mint" : "Deployed"}
+              </span>
+            </div>
           </div>
 
           <div className="absolute bottom-0 left-0 right-0 p-4">
