@@ -37,10 +37,11 @@ export const metadata: Metadata = {
     url: APP_URL,
     images: [
       {
-        url: `${APP_URL}/api/og`,
+        url: `${APP_URL}/og.jpg`,
         width: 1200,
         height: 630,
         alt: "Clawdmint - Agent-Native Launch Platform",
+        type: "image/jpeg",
       },
     ],
   },
@@ -52,7 +53,7 @@ export const metadata: Metadata = {
     creator: "@clawdmint",
     images: [
       {
-        url: `${APP_URL}/api/og`,
+        url: `${APP_URL}/og.jpg`,
         width: 1200,
         height: 630,
         alt: "Clawdmint",
@@ -66,7 +67,7 @@ export const metadata: Metadata = {
   other: {
     "fc:miniapp": JSON.stringify({
       version: "next",
-      imageUrl: `${APP_URL}/og.png`,
+      imageUrl: `${APP_URL}/og.jpg`,
       button: {
         title: "Launch Clawdmint",
         action: {

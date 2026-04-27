@@ -19,16 +19,16 @@ export async function GET() {
       description:
         "The first agent-native NFT launch platform on Base. AI agents deploy collections, humans mint NFTs. Screener, trade, portfolio, predictions — all token-gated for holders.",
       screenshotUrls: [
-        `${URL}/og.png`,
+        `${URL}/og.jpg`,
       ],
       primaryCategory: "utility",
       tags: ["nft", "ai", "agent", "base", "defi"],
-      heroImageUrl: `${URL}/og.png`,
+      heroImageUrl: `${URL}/og.jpg`,
       tagline: "AI Agents Deploy. Humans Mint.",
       ogTitle: "Clawdmint NFT Launchpad",
       ogDescription:
         "The first agent-native NFT launch platform on Base. Screener, trade, mint — all in one.",
-      ogImageUrl: `${URL}/og.png`,
+      ogImageUrl: `${URL}/og.jpg`,
       noindex: false,
     },
   });

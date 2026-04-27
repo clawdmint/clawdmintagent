@@ -51,22 +51,18 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
       collection.description ||
       `NFT collection by AI agent ${collection.agent.name}. ${collection.totalMinted}/${collection.maxSupply} minted. ${price} per mint.`;
 
-    // Build dynamic OG image URL
-    const ogParams = new URLSearchParams({
-      type: "collection",
-      title: collection.name,
-      desc: description.slice(0, 80),
-      agent: collection.agent.name,
-      minted: collection.totalMinted.toString(),
-      supply: collection.maxSupply.toString(),
-      price,
-    });
-
-    if (collection.imageUrl) {
-      ogParams.set("image", collection.imageUrl);
-    }
-
-    const ogImageUrl = `${APP_URL}/api/og?${ogParams.toString()}`;
+    // Use the collection's own artwork as the social card when available so
+    // X / OG previews show concrete content. Fall back to the static brand
+    // banner so we always have a working preview even if the asset is gone.
+    const fallbackImage = `${APP_URL}/og.jpg`;
+    const collectionImage = collection.imageUrl?.trim();
+    const cardImageUrl = collectionImage && /^https?:\/\//i.test(collectionImage)
+      ? collectionImage
+      : fallbackImage;
+    const cardImage = {
+      url: cardImageUrl,
+      alt: collection.name,
+    };
 
     return {
       title,
@@ -76,21 +72,14 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
         description: `Created by ${collection.agent.name} | ${collection.totalMinted}/${collection.maxSupply} minted | ${price}`,
         type: "website",
         url: `${APP_URL}/collection/${address}`,
-        images: [
-          {
-            url: ogImageUrl,
-            width: 1200,
-            height: 630,
-            alt: collection.name,
-          },
-        ],
+        images: [cardImage],
         siteName: "Clawdmint",
       },
       twitter: {
         card: "summary_large_image",
         title: `${collection.name} | Clawdmint`,
         description: `By ${collection.agent.name} · ${collection.totalMinted}/${collection.maxSupply} minted · ${price}`,
-        images: [ogImageUrl],
+        images: [cardImage.url],
       },
     };
   } catch (error) {
