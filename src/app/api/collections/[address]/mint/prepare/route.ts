@@ -105,23 +105,13 @@ export async function POST(
     const platformFeeRecipient = getSolanaPlatformFeeRecipient();
     const platformFeeBps = platformFeeRecipient ? getPlatformFeeBps() : 0;
 
-    let platformFeeGuardWarning: string | null = null;
     if (platformFeeRecipient) {
-      try {
-        const authoritySigner = getAgentOperationalKeypair(collection.agent);
-        await ensureMetaplexOnchainPlatformFeeGuard(authoritySigner, {
-          candyMachineAddress: collection.mintAddress,
-          payoutAddress: collection.payoutAddress,
-          mintPriceLamports: BigInt(collection.mintPrice),
-        });
-      } catch (guardError) {
-        const message =
-          guardError instanceof Error ? guardError.message : String(guardError);
-        platformFeeGuardWarning = message;
-        console.warn(
-          `[mint/prepare] Skipping on-chain platform-fee guard for collection ${collection.address}: ${message}`
-        );
-      }
+      const authoritySigner = getAgentOperationalKeypair(collection.agent);
+      await ensureMetaplexOnchainPlatformFeeGuard(authoritySigner, {
+        candyMachineAddress: collection.mintAddress,
+        payoutAddress: collection.payoutAddress,
+        mintPriceLamports: BigInt(collection.mintPrice),
+      });
     }
 
     const prepared = await prepareMetaplexMintTransaction({
@@ -166,9 +156,6 @@ export async function POST(
         confirm_endpoint: `/api/collections/${collection.address}/mint/confirm`,
         expires_at: intent.expiresAt.toISOString(),
       },
-      warnings: platformFeeGuardWarning
-        ? { platform_fee_guard: platformFeeGuardWarning }
-        : undefined,
     });
   } catch (error) {
     if (error instanceof MetaplexMintError) {
