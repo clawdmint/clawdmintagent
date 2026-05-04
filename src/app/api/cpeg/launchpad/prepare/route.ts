@@ -8,6 +8,7 @@ import {
   buildClawPegToken2022MintSetupManifest,
   createCollectionSeed,
   getClawPegFeeVaultAddress,
+  getClawPegToken2022CreateAccountSize,
   getClawPegToken2022MintAccountSize,
   quoteClawPegLaunchFee,
 } from "@/lib/clawpeg";
@@ -88,6 +89,8 @@ export async function POST(request: NextRequest) {
       metadataUri,
     });
     const connection = new Connection(getClawPegRpcUrl(), "confirmed");
+    const baseMintAccountSize = getClawPegToken2022CreateAccountSize(true);
+    const baseMintRentLamports = await connection.getMinimumBalanceForRentExemption(baseMintAccountSize);
     const mintRentLamports = await connection.getMinimumBalanceForRentExemption(mintAccountSize);
 
     const rendererId = input.renderer_id || CLAWPEG_DEFAULT_RENDERER_ID;
@@ -135,6 +138,7 @@ export async function POST(request: NextRequest) {
       freezeAuthority: input.authority_address,
       decimals: input.decimals,
       rentLamports: mintRentLamports,
+      baseRentLamports: baseMintRentLamports,
       name: input.name,
       symbol: input.symbol,
       metadataUri,

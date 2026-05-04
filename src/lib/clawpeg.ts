@@ -76,6 +76,7 @@ export interface ClawPegToken2022MintSetupParams {
   freezeAuthority?: string | null;
   decimals: number;
   rentLamports: string | number;
+  baseRentLamports?: string | number;
   name?: string;
   symbol?: string;
   metadataUri?: string;
@@ -84,7 +85,9 @@ export interface ClawPegToken2022MintSetupParams {
 export interface ClawPegToken2022MintSetupManifest {
   token_program_id: string;
   mint_account_size: number;
+  final_mint_account_size?: number;
   rent_lamports: string;
+  metadata_extra_rent_lamports?: string;
   metadata_uri?: string;
   instructions: ClawPegInstructionManifest[];
 }
@@ -426,6 +429,14 @@ export function getClawPegToken2022MintAccountSize(params?: {
   return getMintLen([ExtensionType.TransferHook]);
 }
 
+export function getClawPegToken2022CreateAccountSize(hasMetadata = false): number {
+  return getMintLen(
+    hasMetadata
+      ? [ExtensionType.TransferHook, ExtensionType.MetadataPointer]
+      : [ExtensionType.TransferHook]
+  );
+}
+
 export function buildClawPegToken2022MintSetupManifest(
   params: ClawPegToken2022MintSetupParams
 ): ClawPegToken2022MintSetupManifest {
@@ -443,17 +454,28 @@ export function buildClawPegToken2022MintSetupManifest(
         uri: params.metadataUri as string,
       })
     : null;
-  const mintAccountSize = tokenMetadata
+  const mintAccountSize = getClawPegToken2022CreateAccountSize(Boolean(tokenMetadata));
+  const finalMintAccountSize = tokenMetadata
     ? getMintLen(
         [ExtensionType.TransferHook, ExtensionType.MetadataPointer],
         { [ExtensionType.TokenMetadata]: packTokenMetadata(tokenMetadata).length }
       )
-    : getMintLen([ExtensionType.TransferHook]);
+    : mintAccountSize;
   const rentLamports =
     typeof params.rentLamports === "number" ? params.rentLamports : Number(params.rentLamports);
+  const baseRentLamports =
+    params.baseRentLamports === undefined
+      ? rentLamports
+      : typeof params.baseRentLamports === "number"
+        ? params.baseRentLamports
+        : Number(params.baseRentLamports);
+  const metadataExtraRentLamports = Math.max(0, rentLamports - baseRentLamports);
 
   if (!Number.isSafeInteger(rentLamports) || rentLamports <= 0) {
     throw new Error("rentLamports must be a positive safe integer");
+  }
+  if (!Number.isSafeInteger(baseRentLamports) || baseRentLamports <= 0) {
+    throw new Error("baseRentLamports must be a positive safe integer");
   }
 
   const instructions = [
@@ -461,7 +483,7 @@ export function buildClawPegToken2022MintSetupManifest(
       fromPubkey: payer,
       newAccountPubkey: mint,
       space: mintAccountSize,
-      lamports: rentLamports,
+      lamports: baseRentLamports,
       programId: TOKEN_2022_PROGRAM_ID,
     }),
     ...(tokenMetadata
@@ -469,6 +491,15 @@ export function buildClawPegToken2022MintSetupManifest(
       : []),
     createInitializeTransferHookInstruction(mint, payer, programId, TOKEN_2022_PROGRAM_ID),
     createInitializeMintInstruction(mint, params.decimals, mintAuthority, freezeAuthority, TOKEN_2022_PROGRAM_ID),
+    ...(tokenMetadata && metadataExtraRentLamports > 0
+      ? [
+          SystemProgram.transfer({
+            fromPubkey: payer,
+            toPubkey: mint,
+            lamports: metadataExtraRentLamports,
+          }),
+        ]
+      : []),
     ...(tokenMetadata
       ? [
           createInitializeTokenMetadataInstruction({
@@ -488,7 +519,11 @@ export function buildClawPegToken2022MintSetupManifest(
   return {
     token_program_id: TOKEN_2022_PROGRAM_ID.toBase58(),
     mint_account_size: mintAccountSize,
+    ...(finalMintAccountSize !== mintAccountSize ? { final_mint_account_size: finalMintAccountSize } : {}),
     rent_lamports: rentLamports.toString(),
+    ...(metadataExtraRentLamports > 0
+      ? { metadata_extra_rent_lamports: metadataExtraRentLamports.toString() }
+      : {}),
     ...(tokenMetadata ? { metadata_uri: tokenMetadata.uri } : {}),
     instructions: instructions.map(instructionToManifest),
   };
