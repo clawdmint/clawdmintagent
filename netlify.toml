@@ -40,6 +40,37 @@
     Referrer-Policy = "strict-origin-when-cross-origin"
 
 # ═══════════════════════════════════════════════════════════════════════════════
+# AWS LAMBDA ENV SIZE (4 KB) — DEPLOY FAILURES
+# ═══════════════════════════════════════════════════════════════════════════════
+#
+# All site env vars scoped to "Functions" are sent to each Netlify Function (AWS Lambda).
+# The total size of those names+values must stay under ~4096 bytes or deploy fails with:
+#   "Your environment variables exceed the 4KB limit imposed by AWS Lambda"
+#
+# Fix in Netlify UI (Site settings → Environment variables):
+#
+# 1) SCOPES — Use "Build" only for variables that are inlined at `next build` and are NOT
+#    read at runtime by Route Handlers / Server Components / middleware. Next.js bakes
+#    NEXT_PUBLIC_* into client (and often server) bundles at build time; many of them do
+#    not need to remain in the Lambda environment object. For each key: if "Functions"
+#    is unchecked but the build still succeeds and runtime pages/APIs work, you saved space.
+#    Start with the longest values (RPC URLs with API keys, JWTs).
+#
+#    Safe to try as "Build" only first (test after deploy):
+#    - NEXT_PUBLIC_CPEG_BROWSER_RPC_URL  (only used from client components for Solana RPC)
+#
+# 2) REMOVE DUPLICATES — If two keys hold the same secret (e.g. EVM deployer vs Solana),
+#    keep one and delete the other from Netlify after updating code references.
+#
+# 3) SHORTEN — Prefer one Pinata credential (e.g. PINATA_JWT only) if your flow allows.
+#    Drop unused integration keys (Fairscale, Synapse SAP flags) from Production.
+#
+# 4) EXTERNAL CONFIG — For very large blobs, use Parameter Store / Secrets Manager / S3 and
+#    read at runtime inside the function (Netlify blog: long env vars for functions).
+#
+# Values in [build.environment] above are build-time only and do NOT count toward Lambda env.
+#
+# ═══════════════════════════════════════════════════════════════════════════════
 # ENVIRONMENT VARIABLES (Set these in Netlify Dashboard)
 # ═══════════════════════════════════════════════════════════════════════════════
 #
