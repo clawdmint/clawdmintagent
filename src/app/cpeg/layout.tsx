@@ -13,19 +13,19 @@ export async function generateMetadata(): Promise<Metadata> {
 
   return {
     metadataBase: new URL(cpegBase),
-    title: "cPEG · Claw + JPEG on Solana",
+    title: "cPEG / Claw + JPEG on Solana",
     description:
       "Solana Token-2022 with on-chain PEG identity. Clawdmint sidecar: swap, P2P escrow, sealed supply, deterministic art.",
     openGraph: {
-      title: "cPEG · Claw + JPEG on Solana",
-      description: `${lobster} Claw + JPEG = cPEG · A Clawdmint sidecar for the ClawPEG standard.`,
+      title: "cPEG / Claw + JPEG on Solana",
+      description: `${lobster} Claw + JPEG = cPEG / A Clawdmint sidecar for the ClawPEG standard.`,
       siteName: "cPEG",
       type: "website",
       url: cpegBase,
     },
     twitter: {
       card: "summary_large_image",
-      title: "cPEG · Claw + JPEG on Solana",
+      title: "cPEG / Claw + JPEG on Solana",
       description: `${lobster} Claw + JPEG = cPEG`,
     },
   };

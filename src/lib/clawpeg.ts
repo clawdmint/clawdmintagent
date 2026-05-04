@@ -5,9 +5,15 @@ import {
   ExtensionType,
   TOKEN_2022_PROGRAM_ID,
   createInitializeMintInstruction,
+  createInitializeMetadataPointerInstruction,
   createInitializeTransferHookInstruction,
   getMintLen,
 } from "@solana/spl-token";
+import {
+  createInitializeInstruction as createInitializeTokenMetadataInstruction,
+  pack as packTokenMetadata,
+  type TokenMetadata,
+} from "@solana/spl-token-metadata";
 import { getEnv } from "@/lib/env";
 
 const CPEG_TAG_OFFSET = 100;
@@ -70,12 +76,16 @@ export interface ClawPegToken2022MintSetupParams {
   freezeAuthority?: string | null;
   decimals: number;
   rentLamports: string | number;
+  name?: string;
+  symbol?: string;
+  metadataUri?: string;
 }
 
 export interface ClawPegToken2022MintSetupManifest {
   token_program_id: string;
   mint_account_size: number;
   rent_lamports: string;
+  metadata_uri?: string;
   instructions: ClawPegInstructionManifest[];
 }
 
@@ -369,6 +379,53 @@ export function serializeClawPegInitializeTransferHookAccountsInstruction(): Buf
   return Buffer.from([INITIALIZE_TRANSFER_HOOK_ACCOUNTS_DISCRIMINATOR]);
 }
 
+function hasTokenMetadataParams(params: ClawPegToken2022MintSetupParams) {
+  return Boolean(params.name && params.symbol && params.metadataUri);
+}
+
+export function buildClawPegTokenMetadata(params: {
+  mint: string;
+  updateAuthority: string;
+  name: string;
+  symbol: string;
+  uri: string;
+}): TokenMetadata {
+  return {
+    updateAuthority: new PublicKey(params.updateAuthority),
+    mint: new PublicKey(params.mint),
+    name: params.name,
+    symbol: params.symbol,
+    uri: params.uri,
+    additionalMetadata: [
+      ["standard", "cPEG"],
+      ["standard_version", "0.1"],
+    ],
+  };
+}
+
+export function getClawPegToken2022MintAccountSize(params?: {
+  mint?: string;
+  updateAuthority?: string;
+  name?: string;
+  symbol?: string;
+  metadataUri?: string;
+}): number {
+  if (params?.mint && params.updateAuthority && params.name && params.symbol && params.metadataUri) {
+    const metadata = buildClawPegTokenMetadata({
+      mint: params.mint,
+      updateAuthority: params.updateAuthority,
+      name: params.name,
+      symbol: params.symbol,
+      uri: params.metadataUri,
+    });
+    return getMintLen(
+      [ExtensionType.TransferHook, ExtensionType.MetadataPointer],
+      { [ExtensionType.TokenMetadata]: packTokenMetadata(metadata).length }
+    );
+  }
+  return getMintLen([ExtensionType.TransferHook]);
+}
+
 export function buildClawPegToken2022MintSetupManifest(
   params: ClawPegToken2022MintSetupParams
 ): ClawPegToken2022MintSetupManifest {
@@ -377,7 +434,21 @@ export function buildClawPegToken2022MintSetupManifest(
   const mintAuthority = new PublicKey(params.mintAuthority);
   const freezeAuthority = params.freezeAuthority ? new PublicKey(params.freezeAuthority) : null;
   const programId = getClawPegProgramId();
-  const mintAccountSize = getMintLen([ExtensionType.TransferHook]);
+  const tokenMetadata = hasTokenMetadataParams(params)
+    ? buildClawPegTokenMetadata({
+        mint: params.mint,
+        updateAuthority: params.mintAuthority,
+        name: params.name as string,
+        symbol: params.symbol as string,
+        uri: params.metadataUri as string,
+      })
+    : null;
+  const mintAccountSize = tokenMetadata
+    ? getMintLen(
+        [ExtensionType.TransferHook, ExtensionType.MetadataPointer],
+        { [ExtensionType.TokenMetadata]: packTokenMetadata(tokenMetadata).length }
+      )
+    : getMintLen([ExtensionType.TransferHook]);
   const rentLamports =
     typeof params.rentLamports === "number" ? params.rentLamports : Number(params.rentLamports);
 
@@ -393,20 +464,34 @@ export function buildClawPegToken2022MintSetupManifest(
       lamports: rentLamports,
       programId: TOKEN_2022_PROGRAM_ID,
     }),
+    ...(tokenMetadata
+      ? [createInitializeMetadataPointerInstruction(mint, payer, mint, TOKEN_2022_PROGRAM_ID)]
+      : []),
     createInitializeTransferHookInstruction(mint, payer, programId, TOKEN_2022_PROGRAM_ID),
     createInitializeMintInstruction(mint, params.decimals, mintAuthority, freezeAuthority, TOKEN_2022_PROGRAM_ID),
+    ...(tokenMetadata
+      ? [
+          createInitializeTokenMetadataInstruction({
+            programId: TOKEN_2022_PROGRAM_ID,
+            metadata: mint,
+            updateAuthority: mintAuthority,
+            mint,
+            mintAuthority,
+            name: tokenMetadata.name,
+            symbol: tokenMetadata.symbol,
+            uri: tokenMetadata.uri,
+          }),
+        ]
+      : []),
   ];
 
   return {
     token_program_id: TOKEN_2022_PROGRAM_ID.toBase58(),
     mint_account_size: mintAccountSize,
     rent_lamports: rentLamports.toString(),
+    ...(tokenMetadata ? { metadata_uri: tokenMetadata.uri } : {}),
     instructions: instructions.map(instructionToManifest),
   };
-}
-
-export function getClawPegToken2022MintAccountSize(): number {
-  return getMintLen([ExtensionType.TransferHook]);
 }
 
 export function buildClawPegLaunchManifest(params: ClawPegLaunchParams): ClawPegLaunchManifest {

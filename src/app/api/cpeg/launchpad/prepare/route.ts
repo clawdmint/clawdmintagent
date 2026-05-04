@@ -50,6 +50,13 @@ function pegUnitFromDecimals(decimals: number): bigint {
   return BigInt(`1${"0".repeat(decimals)}`);
 }
 
+function getCpegMetadataUri(tokenMint: string) {
+  const base =
+    process.env["NEXT_PUBLIC_CPEG_APP_URL"] ||
+    "https://cpeg.clawdmint.xyz";
+  return `${base.replace(/\/$/, "")}/api/cpeg/${tokenMint}/metadata`;
+}
+
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
@@ -72,7 +79,14 @@ export async function POST(request: NextRequest) {
       partnerApiEnabled: input.partner_api_enabled,
       whiteLabelDomain: input.white_label_domain,
     });
-    const mintAccountSize = getClawPegToken2022MintAccountSize();
+    const metadataUri = getCpegMetadataUri(input.token_mint);
+    const mintAccountSize = getClawPegToken2022MintAccountSize({
+      mint: input.token_mint,
+      updateAuthority: input.authority_address,
+      name: input.name,
+      symbol: input.symbol,
+      metadataUri,
+    });
     const connection = new Connection(getClawPegRpcUrl(), "confirmed");
     const mintRentLamports = await connection.getMinimumBalanceForRentExemption(mintAccountSize);
 
@@ -121,6 +135,9 @@ export async function POST(request: NextRequest) {
       freezeAuthority: input.authority_address,
       decimals: input.decimals,
       rentLamports: mintRentLamports,
+      name: input.name,
+      symbol: input.symbol,
+      metadataUri,
     });
     const manifest = buildClawPegLaunchManifest({
       authority: input.authority_address,
@@ -155,6 +172,7 @@ export async function POST(request: NextRequest) {
         max_pegs: input.max_pegs,
         royalty_bps: input.royalty_bps,
         marketplace_fee_bps: marketplaceFeeBps,
+        metadata_uri: metadataUri,
       },
       fees,
       token2022_setup: token2022Setup,

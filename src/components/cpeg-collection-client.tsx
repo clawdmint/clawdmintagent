@@ -26,8 +26,6 @@ import {
 } from "lucide-react";
 import { getPhantomProvider, useWallet } from "@/components/wallet-context";
 import { CpegRelativeTime } from "@/components/cpeg-relative-time";
-import { CpegDexPanel } from "@/components/cpeg-dex-panel";
-import { CpegSwapCard } from "@/components/cpeg-swap-card";
 import { useCpegSite } from "@/components/cpeg-site-context";
 import { describeError, explorerTxUrl, truncateAddress } from "@/lib/cpeg-ui";
 import { cpegPublicPaths } from "@/lib/cpeg-site-paths";
@@ -186,6 +184,7 @@ interface TokenStatePayload {
     freeze_authority: string | null;
     is_sealed: boolean;
     authority_address: string;
+    metadata: { name: string; symbol: string; uri: string } | null;
   };
   holders: {
     total_known: number | null;
@@ -252,6 +251,9 @@ export function CpegCollectionClient({ launch }: CpegCollectionClientProps) {
   const [sealBusy, setSealBusy] = useState(false);
   const [sealError, setSealError] = useState("");
   const [sealStatus, setSealStatus] = useState("");
+  const [metadataBusy, setMetadataBusy] = useState(false);
+  const [metadataError, setMetadataError] = useState("");
+  const [metadataStatus, setMetadataStatus] = useState("");
 
   const connectedAddress = solanaAddress || "";
   const isMintAuthority = Boolean(
@@ -471,6 +473,82 @@ export function CpegCollectionClient({ launch }: CpegCollectionClientProps) {
       setSealStatus("");
     } finally {
       setSealBusy(false);
+    }
+  }, [connectedAddress, isConnected, isMintAuthority, launch.cluster, launch.tokenMint, login]);
+
+  const handleInitializeTokenMetadata = useCallback(async () => {
+    setMetadataError("");
+    setMetadataStatus("");
+
+    if (!isConnected || !connectedAddress) {
+      login();
+      return;
+    }
+    if (!isMintAuthority) {
+      setMetadataError("Only the mint authority can initialize token metadata.");
+      return;
+    }
+    const provider = getPhantomProvider();
+    if (!provider?.signTransaction) {
+      setMetadataError("Phantom transaction signing is unavailable.");
+      return;
+    }
+
+    setMetadataBusy(true);
+    try {
+      setMetadataStatus("Preparing Token-2022 metadata instructions...");
+      const prepareResponse = await fetch(`/api/cpeg/${launch.tokenMint}/token-metadata/prepare`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ payer: connectedAddress }),
+      });
+      const prepareBody = await prepareResponse.json().catch(() => null);
+      if (!prepareResponse.ok || !prepareBody?.success) {
+        throw new Error(prepareBody?.error || "Failed to prepare token metadata.");
+      }
+      if (prepareBody.already_initialized) {
+        setMetadataStatus("Token metadata is already initialized.");
+        setTokenRefresh((value) => value + 1);
+        return;
+      }
+
+      const connection = new Connection(getClientRpcUrl(launch.cluster), "confirmed");
+      const transaction = new Transaction();
+      for (const instruction of prepareBody.instructions as ManifestInstruction[]) {
+        transaction.add(manifestToInstruction(instruction));
+      }
+      const latestBlockhash = await connection.getLatestBlockhash("confirmed");
+      transaction.feePayer = new PublicKey(connectedAddress);
+      transaction.recentBlockhash = latestBlockhash.blockhash;
+
+      setMetadataStatus("Opening Phantom for metadata signature...");
+      const signed = (await provider.signTransaction(transaction as SolanaWeb3Transaction)) as SolanaWeb3Transaction;
+      const raw =
+        signed instanceof VersionedTransaction
+          ? signed.serialize()
+          : signed.serialize({ requireAllSignatures: true, verifySignatures: false });
+
+      setMetadataStatus("Broadcasting token metadata transaction...");
+      const tx = await connection.sendRawTransaction(raw, {
+        skipPreflight: false,
+        maxRetries: 5,
+        preflightCommitment: "confirmed",
+      });
+      await connection.confirmTransaction(
+        {
+          signature: tx,
+          blockhash: latestBlockhash.blockhash,
+          lastValidBlockHeight: latestBlockhash.lastValidBlockHeight,
+        },
+        "confirmed"
+      );
+      setMetadataStatus("Token metadata initialized. Explorers can now read the token details.");
+      setTokenRefresh((value) => value + 1);
+    } catch (metadataEx) {
+      setMetadataError(describeError(metadataEx, "Failed to initialize token metadata."));
+      setMetadataStatus("");
+    } finally {
+      setMetadataBusy(false);
     }
   }, [connectedAddress, isConnected, isMintAuthority, launch.cluster, launch.tokenMint, login]);
 
@@ -772,29 +850,63 @@ export function CpegCollectionClient({ launch }: CpegCollectionClientProps) {
               {sealError ? <p className="mt-3 text-sm text-red-300">{sealError}</p> : null}
             </div>
           ) : null}
+
+          {isMintAuthority && !token.token.metadata ? (
+            <div className="mt-5 border border-[#53c7ff]/30 bg-[#53c7ff]/[0.06] p-4">
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div className="max-w-2xl">
+                  <p className="font-mono text-[10px] uppercase tracking-[0.22em] text-[#53c7ff]">
+                    Explorer metadata
+                  </p>
+                  <p className="mt-2 text-sm leading-6 text-neutral-700 dark:text-white/72">
+                    Initialize Token-2022 metadata so explorers can read this collection&apos;s
+                    name, symbol, image, and cPEG metadata URI.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleInitializeTokenMetadata}
+                  disabled={metadataBusy}
+                  className="inline-flex items-center gap-2 border border-[#53c7ff] bg-[#53c7ff] px-4 py-2.5 text-xs font-black uppercase tracking-wide text-black transition hover:bg-[#f7f2df] disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  {metadataBusy ? <Loader2 className="h-3 w-3 animate-spin" /> : <ShieldCheck className="h-3 w-3" />}
+                  Initialize metadata
+                </button>
+              </div>
+              {metadataStatus ? <p className="mt-3 text-sm text-[#53c7ff]">{metadataStatus}</p> : null}
+              {metadataError ? <p className="mt-3 text-sm text-red-300">{metadataError}</p> : null}
+            </div>
+          ) : null}
         </section>
       ) : null}
 
-      <div className="grid gap-5 lg:grid-cols-[1fr_420px] lg:items-start">
-        <CpegDexPanel
-          tokenMint={launch.tokenMint}
-          cluster={launch.cluster}
-          symbol={launch.symbol}
-          decimals={token?.token.decimals ?? null}
-        />
-        <CpegSwapCard
-          tokenMint={launch.tokenMint}
-          cluster={launch.cluster}
-          symbol={launch.symbol}
-          decimals={token?.token.decimals ?? null}
-          onComplete={() => {
-            void loadGallery(galleryStart);
-            void loadTradeArtGallery(0);
-            setTradeArtOffset(0);
-            setTokenRefresh((value) => value + 1);
-          }}
-        />
-      </div>
+      <section className="border-y border-neutral-200 py-8 dark:border-white/10">
+        <div className="grid gap-6 md:grid-cols-[1fr_320px] md:items-end">
+          <div>
+            <p className="font-mono text-xs uppercase tracking-[0.28em] text-[#53c7ff]">
+              Hold token. Own cPEG.
+            </p>
+            <h2 className="mt-3 max-w-4xl text-4xl font-black uppercase leading-none text-neutral-950 dark:text-[#f7f2df] md:text-6xl">
+              Every whole token maps to one numbered identity.
+            </h2>
+          </div>
+          <div className="flex flex-wrap gap-3 md:justify-end">
+            <Link
+              href={cpegUrls.market({ mint: launch.tokenMint })}
+              className="inline-flex items-center gap-2 border border-[#f7f2df] bg-[#f7f2df] px-5 py-3 text-sm font-black uppercase tracking-wide text-black transition hover:bg-[#53c7ff]"
+            >
+              <ShoppingBag className="h-4 w-4" /> Browse market
+            </Link>
+            <button
+              type="button"
+              onClick={() => setGalleryStart(0)}
+              className="inline-flex items-center gap-2 border border-neutral-300 px-5 py-3 text-sm font-bold uppercase tracking-wide text-neutral-700 transition hover:border-[#53c7ff] hover:text-[#53c7ff] dark:border-white/15 dark:text-white/72"
+            >
+              View gallery
+            </button>
+          </div>
+        </div>
+      </section>
 
       <div className="grid gap-8 lg:grid-cols-[420px_1fr]">
         <div className="border border-neutral-200 dark:border-white/10 bg-neutral-100/95 dark:bg-white/[0.03] p-5">
@@ -881,7 +993,7 @@ export function CpegCollectionClient({ launch }: CpegCollectionClientProps) {
               {isConnected ? `Mint cPEG #${previewPegId}` : "Connect Phantom"}
             </button>
             <p className="mt-3 text-[10px] uppercase tracking-[0.18em] text-neutral-500 dark:text-white/35">
-              Authority-only · syncPeg + mintPeg are bundled in one signature
+              Authority-only / syncPeg + mintPeg are bundled in one signature
             </p>
 
             {status ? <p className="mt-4 text-sm text-[#53c7ff]">{status}</p> : null}
@@ -903,17 +1015,16 @@ export function CpegCollectionClient({ launch }: CpegCollectionClientProps) {
             ) : null}
           </div>
         ) : (
-          <div className="border border-neutral-200 dark:border-white/10 bg-neutral-50/95 dark:bg-black/28 p-5">
+          <div className="border border-neutral-200 bg-neutral-100/95 p-5 dark:border-white/10 dark:bg-white/[0.03]">
             <p className="font-mono text-xs uppercase tracking-[0.25em] text-[#53c7ff]">
-              How do I get a cPEG?
+              No mint. No claim.
             </p>
             <h2 className="mt-3 text-3xl font-black uppercase">
-              Token + identity move as one.
+              Buy the token. Hold the identity.
             </h2>
             <p className="mt-4 max-w-2xl text-sm leading-6 text-neutral-600 dark:text-white/65">
-              Every whole Token-2022 unit is bound to a discrete on-chain identity (the PegRecord
-              PDA). The transfer hook enforces this: you can&apos;t move a token without also
-              moving its PEG. You don&apos;t claim one. You acquire one and the identity follows.
+              Every whole Token-2022 unit points at one numbered cPEG. When the unit moves,
+              the identity follows.
             </p>
             <ol className="mt-6 grid gap-3 text-sm text-neutral-700 dark:text-white/72">
               <li className="flex items-start gap-3">
@@ -921,7 +1032,7 @@ export function CpegCollectionClient({ launch }: CpegCollectionClientProps) {
                   01
                 </span>
                 <span>
-                  Browse active listings on the P2P market and pick a PEG. The price is in SOL.
+                  Pick a listed cPEG from the market.
                 </span>
               </li>
               <li className="flex items-start gap-3">
@@ -929,8 +1040,7 @@ export function CpegCollectionClient({ launch }: CpegCollectionClientProps) {
                   02
                 </span>
                 <span>
-                  Buy. The marketplace program escrows the PEG and atomically transfers token
-                  unit + identity to your wallet in one transaction.
+                  Buy it with SOL. The token unit and identity settle together.
                 </span>
               </li>
               <li className="flex items-start gap-3">
@@ -938,8 +1048,7 @@ export function CpegCollectionClient({ launch }: CpegCollectionClientProps) {
                   03
                 </span>
                 <span>
-                  That&apos;s it. Your wallet now owns cPEG #N. You can list it back, transfer
-                  it, or hold it.
+                  Hold the token. The cPEG is yours.
                 </span>
               </li>
             </ol>
@@ -952,7 +1061,7 @@ export function CpegCollectionClient({ launch }: CpegCollectionClientProps) {
                 <ShoppingBag className="h-4 w-4" /> Browse market
               </Link>
               <span className="font-mono text-[10px] uppercase tracking-[0.18em] text-neutral-500 dark:text-white/40">
-                or wait for a listing you like
+                fixed supply, numbered identities
               </span>
             </div>
 
@@ -1111,7 +1220,7 @@ export function CpegCollectionClient({ launch }: CpegCollectionClientProps) {
                     </div>
                     <p className="mt-0.5 truncate font-mono text-[10px] uppercase tracking-[0.18em] text-neutral-500 dark:text-white/40">
                       {event.kind === "FILLED" && event.buyer
-                        ? `${truncateAddress(event.buyer)} ← ${truncateAddress(event.seller)}`
+                        ? `${truncateAddress(event.buyer)} from ${truncateAddress(event.seller)}`
                         : truncateAddress(event.seller)}
                     </p>
                   </div>

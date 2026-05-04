@@ -1,5 +1,5 @@
 import { Connection, PublicKey } from "@solana/web3.js";
-import { TOKEN_2022_PROGRAM_ID, getMint } from "@solana/spl-token";
+import { TOKEN_2022_PROGRAM_ID, getMint, getTokenMetadata } from "@solana/spl-token";
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getClawPegRpcUrl } from "@/lib/env";
@@ -69,6 +69,7 @@ export async function GET(_request: NextRequest, { params }: RouteContext) {
   const isSealed = mintAuthority === null;
 
   const wholeUnits = decimals === 0 ? Number(mintInfo.supply) : Number(mintInfo.supply / BigInt(10 ** decimals));
+  const tokenMetadata = await getTokenMetadata(connection, mintPk, "confirmed", TOKEN_2022_PROGRAM_ID).catch(() => null);
 
   let topHolders: Array<{ address: string; amount: string; ui_amount: number; share_bps: number }> = [];
   let holderTotal: number | null = null;
@@ -105,6 +106,13 @@ export async function GET(_request: NextRequest, { params }: RouteContext) {
       freeze_authority: freezeAuthority,
       is_sealed: isSealed,
       authority_address: launch.authorityAddress,
+      metadata: tokenMetadata
+        ? {
+            name: tokenMetadata.name,
+            symbol: tokenMetadata.symbol,
+            uri: tokenMetadata.uri,
+          }
+        : null,
     },
     holders: {
       total_known: holderTotal,

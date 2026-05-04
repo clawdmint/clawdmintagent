@@ -71,15 +71,14 @@ export default async function CpegCollectionPage({ params }: CpegCollectionPageP
           <div className="mt-8 grid gap-10 md:grid-cols-[1fr_360px] md:gap-8">
             <div>
               <p className="font-mono text-xs uppercase tracking-[0.28em] text-[#53c7ff]">
-                {launch.symbol} · {launch.cluster.toUpperCase()} · {launch.status}
+                {launch.name} / {launch.cluster.toUpperCase()}
               </p>
               <h1 className="mt-4 text-5xl font-black uppercase leading-none text-neutral-950 dark:text-[#f7f2df] md:text-7xl">
-                {launch.name}
+                Every token. A cPEG.
               </h1>
               <p className="mt-5 max-w-2xl text-sm leading-7 text-neutral-600 dark:text-white/65 md:text-base">
-                The Token-2022 mint below is the asset. Holding one whole unit equals one
-                cPEG identity. Buyers do not mint anything: they swap tokens on a DEX or buy
-                a listing on the P2P market and the identity follows the unit by transfer hook.
+                Hold one whole {launch.symbol} token and own one numbered cPEG. Sell or send
+                the token and the identity moves with it.
               </p>
 
               <div className="mt-7">

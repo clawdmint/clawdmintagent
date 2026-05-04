@@ -127,12 +127,12 @@ interface OwnedPeg {
 }
 
 const SORT_OPTIONS: Array<[string, string]> = [
-  ["price_asc", "Price: low → high"],
-  ["price_desc", "Price: high → low"],
+  ["price_asc", "Price: low to high"],
+  ["price_desc", "Price: high to low"],
   ["recent", "Recently listed"],
   ["oldest", "Oldest first"],
-  ["peg_asc", "PEG #: low → high"],
-  ["peg_desc", "PEG #: high → low"],
+  ["peg_asc", "PEG #: low to high"],
+  ["peg_desc", "PEG #: high to low"],
 ];
 
 function base64ToBytes(value: string): Uint8Array {
@@ -844,7 +844,7 @@ export function CpegMarketClient() {
             href={cpegUrls.home}
             className="font-mono text-xs uppercase tracking-[0.18em] text-neutral-700 dark:text-white/55 transition hover:text-[#53c7ff]"
           >
-            ← cPEG
+            cPEG
           </Link>
           <span className="font-mono text-[10px] uppercase tracking-[0.22em] text-neutral-400 dark:text-white/30">
             P2P Market
@@ -873,7 +873,7 @@ export function CpegMarketClient() {
               {selectedLaunch ? (
                 <>
                   <span className="text-neutral-950 dark:text-white">{selectedLaunch.symbol}</span>
-                  <span className="text-neutral-500 dark:text-white/35">·</span>
+                  <span className="text-neutral-500 dark:text-white/35">/</span>
                   <span className="text-neutral-700 dark:text-white/55">{truncateAddress(selectedLaunch.token_mint, 4, 4)}</span>
                 </>
               ) : (
@@ -899,7 +899,7 @@ export function CpegMarketClient() {
                       <div className="min-w-0">
                         <p className="truncate text-sm font-bold uppercase">{launch.name}</p>
                         <p className="mt-0.5 font-mono text-[10px] uppercase tracking-[0.18em] text-neutral-500 dark:text-white/40">
-                          {launch.symbol} · {launch.market.active_listings} listed
+                          {launch.symbol} / {launch.market.active_listings} listed
                         </p>
                       </div>
                       <span className="font-mono text-xs text-[#53c7ff]">
@@ -1389,7 +1389,7 @@ export function CpegMarketClient() {
                           </span>
                         </div>
                         <p className="mt-0.5 truncate font-mono text-[10px] uppercase tracking-[0.18em] text-neutral-500 dark:text-white/40">
-                          #{event.peg_id} · {truncateAddress(event.seller)}
+                          #{event.peg_id} / {truncateAddress(event.seller)}
                         </p>
                         <CpegRelativeTime
                           iso={event.at}

@@ -183,7 +183,7 @@ export default async function CpegPage() {
         <div className="mx-auto grid max-w-7xl gap-12 px-5 py-16 md:grid-cols-[1fr_460px] md:gap-10 md:px-10 md:py-24">
           <div>
             <p className="font-mono text-xs uppercase tracking-[0.32em] text-[#53c7ff]">
-              {lobster} claw + jpeg = cPEG · Solana
+              {lobster} claw + jpeg = cPEG / Solana
             </p>
             <h1 className="mt-6 max-w-4xl text-5xl font-black uppercase leading-[0.92] text-neutral-950 dark:text-[#f7f2df] md:text-7xl">
               The token is the PEG. No mint required.
@@ -288,7 +288,7 @@ export default async function CpegPage() {
                       {launch.name}
                     </p>
                     <p className="mt-1 font-mono text-[10px] uppercase tracking-[0.2em] text-neutral-500 dark:text-white/45">
-                      {launch.symbol} · {launch.cluster.toUpperCase()} · {launch.status}
+                      {launch.symbol} / {launch.cluster.toUpperCase()} / {launch.status}
                     </p>
                   </div>
                   <div className="flex flex-col items-end gap-1.5">
@@ -389,7 +389,7 @@ export default async function CpegPage() {
                 href={urls.market()}
                 className="font-mono text-[10px] uppercase tracking-[0.2em] text-neutral-700 dark:text-white/55 transition hover:text-[#53c7ff]"
               >
-                Open market →
+                Open market
               </Link>
             </div>
 
@@ -427,12 +427,12 @@ export default async function CpegPage() {
                               : "Listed"}
                           </span>
                           <span className="truncate font-bold uppercase tracking-tight text-neutral-900 dark:text-white/85">
-                            {event.collection_symbol || truncateAddress(event.token_mint)} · #{event.peg_id}
+                            {event.collection_symbol || truncateAddress(event.token_mint)} / #{event.peg_id}
                           </span>
                         </div>
                         <p className="mt-0.5 truncate font-mono text-[10px] uppercase tracking-[0.16em] text-neutral-500 dark:text-white/40">
                           {event.kind === "FILLED" && event.buyer
-                            ? `${truncateAddress(event.buyer)} ← ${truncateAddress(event.seller)}`
+                            ? `${truncateAddress(event.buyer)} from ${truncateAddress(event.seller)}`
                             : truncateAddress(event.seller)}
                         </p>
                       </div>
@@ -473,7 +473,7 @@ export default async function CpegPage() {
                     <div className="min-w-0">
                       <p className="truncate font-bold uppercase tracking-tight">{launch.name}</p>
                       <p className="mt-0.5 font-mono text-[10px] uppercase tracking-[0.18em] text-neutral-500 dark:text-white/45">
-                        {launch.symbol} · {launch.market.active_listings} listed
+                        {launch.symbol} / {launch.market.active_listings} listed
                       </p>
                     </div>
                     <span className="font-mono text-xs text-[#53c7ff]">

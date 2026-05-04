@@ -18,16 +18,16 @@ const LAMPORTS_PER_SOL = 1_000_000_000;
 /**
  * Floor sweep quote endpoint for a cPEG collection.
  *
- * Goal: give buyers a Jupiter-style swap experience even before any AMM pool exists. The
- * caller specifies how much SOL they are willing to spend (and an upper bound on PEG
- * count). The endpoint walks the cheapest active listings, accumulates them until the
- * budget is exhausted or the per-tx PEG cap is hit (6, the cpeg-market batch cap), then
- * returns the selected peg_ids alongside total cost and weighted average price.
+ * Goal: quote an identity-first cPEG purchase. The caller specifies how much SOL they
+ * are willing to spend (and an upper bound on PEG count). The endpoint walks the cheapest
+ * active listings, accumulates them until the budget is exhausted or the per-tx PEG cap is
+ * hit (6, the cpeg-market batch cap), then returns the exact peg_ids alongside total cost
+ * and weighted average price.
  *
  * The output plugs straight into the existing `/market/buy/batch/prepare` route, so this
  * endpoint stays read-only. It does not touch the chain. The collection page swap card
- * uses the response to render "you pay X SOL, you receive N cPEG" preview before the
- * user clicks the button to actually build and sign the batch buy transaction.
+ * uses the response to render the exact PEG identities before the user clicks the button
+ * to build and sign the batch buy transaction.
  */
 export async function POST(request: NextRequest, { params }: RouteContext) {
   let parsed: z.infer<typeof QuoteSchema>;

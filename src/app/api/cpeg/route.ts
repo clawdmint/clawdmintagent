@@ -135,8 +135,9 @@ export async function GET(request: NextRequest) {
       market_events: "/api/cpeg/indexer/events?program=market",
     },
     token2022: {
-      mint_extension: "TransferHook",
-      mint_account_size: getClawPegToken2022MintAccountSize(),
+      mint_extensions: ["TransferHook", "MetadataPointer", "TokenMetadata"],
+      base_transfer_hook_mint_account_size: getClawPegToken2022MintAccountSize(),
+      metadata_mint_account_size: "computed per launch from name, symbol, and metadata URI",
     },
     fees: (() => {
       const baseQuote = quoteClawPegLaunchFee({});

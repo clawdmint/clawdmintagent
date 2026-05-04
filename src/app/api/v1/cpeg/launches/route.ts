@@ -11,6 +11,7 @@ import {
   createCollectionSeed,
   createRendererHash,
   getClawPegFeeVaultAddress,
+  getClawPegToken2022MintAccountSize,
   quoteClawPegLaunchFee,
 } from "@/lib/clawpeg";
 
@@ -38,6 +39,7 @@ const ClawPegLaunchSchema = z.object({
   mint_authority_address: z.string().min(32).optional(),
   freeze_authority_address: z.string().min(32).nullable().optional(),
   mint_rent_lamports: z.string().regex(/^\d+$/).optional(),
+  metadata_uri: z.string().url().optional(),
   persist: z.boolean().default(false),
 });
 
@@ -47,6 +49,13 @@ function hashApiKey(apiKey: string): string {
 
 function pegUnitFromDecimals(decimals: number): bigint {
   return BigInt(`1${"0".repeat(decimals)}`);
+}
+
+function getCpegMetadataUri(tokenMint: string) {
+  const base =
+    process.env["NEXT_PUBLIC_CPEG_APP_URL"] ||
+    "https://cpeg.clawdmint.xyz";
+  return `${base.replace(/\/$/, "")}/api/cpeg/${tokenMint}/metadata`;
 }
 
 async function findAgent(request: NextRequest) {
@@ -121,6 +130,14 @@ export async function POST(request: NextRequest) {
     const royaltyBps = input.royalty_bps ?? fees.defaultCreatorRoyaltyBps;
     const marketplaceFeeBps = input.marketplace_fee_bps ?? fees.marketplaceFeeBps;
     const pegUnitRaw = BigInt(input.peg_unit_raw || pegUnitFromDecimals(input.decimals).toString());
+    const metadataUri = input.metadata_uri || getCpegMetadataUri(input.token_mint);
+    const token2022MintAccountSize = getClawPegToken2022MintAccountSize({
+      mint: input.token_mint,
+      updateAuthority: input.mint_authority_address || input.authority_address,
+      name: input.name,
+      symbol: input.symbol,
+      metadataUri,
+    });
 
     const manifest = buildClawPegLaunchManifest({
       authority: input.authority_address,
@@ -146,6 +163,9 @@ export async function POST(request: NextRequest) {
             freezeAuthority: input.freeze_authority_address,
             decimals: input.decimals,
             rentLamports: input.mint_rent_lamports,
+            name: input.name,
+            symbol: input.symbol,
+            metadataUri,
           })
         : null;
 
@@ -191,6 +211,8 @@ export async function POST(request: NextRequest) {
         name: input.name,
         symbol: input.symbol,
         token_mint: input.token_mint,
+        token2022_mint_account_size: token2022MintAccountSize,
+        metadata_uri: metadataUri,
         collection_address: manifest.collection_address,
         hook_validation_address: manifest.hook_validation_address,
         renderer_id: input.renderer_id,
