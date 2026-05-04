@@ -1,11 +1,15 @@
 import type { Metadata } from "next";
 import dynamic from "next/dynamic";
 import { Inter, JetBrains_Mono } from "next/font/google";
+import { headers } from "next/headers";
 import "./globals.css";
 import { Providers } from "@/components/providers";
 import { Header } from "@/components/header";
+import { CpegSiteFooter } from "@/components/cpeg-site-footer";
+import { CpegSiteHeader } from "@/components/cpeg-site-header";
 import { Footer } from "@/components/footer";
 import { MiniAppInit } from "@/components/miniapp-init";
+import { CPEG_SITE_HEADER } from "@/lib/cpeg-site-paths";
 
 // Decorative layer only: defer to after first paint, skip SSR work for 10+ animated nodes
 const FloatingIcons = dynamic(
@@ -87,18 +91,20 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const isCpegSite = headers().get(CPEG_SITE_HEADER) === "1";
+
   return (
     <html lang="en" className="dark" suppressHydrationWarning>
         <body className={`${inter.variable} ${jetbrains.variable} font-sans antialiased min-h-screen transition-colors duration-300`}>
-        <Providers>
+        <Providers cpegSite={isCpegSite}>
           <MiniAppInit />
-          <FloatingIcons />
+          {!isCpegSite ? <FloatingIcons /> : null}
           <div className="flex flex-col min-h-screen relative z-10">
-            <Header />
+            {isCpegSite ? <CpegSiteHeader /> : <Header />}
             <main className="flex-1">
               {children}
             </main>
-            <Footer />
+            {isCpegSite ? <CpegSiteFooter /> : <Footer />}
           </div>
         </Providers>
       </body>

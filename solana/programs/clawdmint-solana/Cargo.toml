@@ -9,6 +9,9 @@ crate-type = ["cdylib", "lib"]
 
 [dependencies]
 solana-program = "=1.18.17"
+spl-token-2022 = { version = "=3.0.4", features = ["no-entrypoint"] }
+spl-tlv-account-resolution = "=0.6.5"
+spl-transfer-hook-interface = "=0.6.5"
 
 [features]
 no-entrypoint = []

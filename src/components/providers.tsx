@@ -8,6 +8,7 @@ import { useState, useEffect } from "react";
 import { ThemeProvider } from "./theme-provider";
 import { FallbackWalletProvider } from "./wallet-context";
 import { NetworkProvider } from "./network-context";
+import { CpegSiteProvider } from "./cpeg-site-context";
 
 // Get chain based on environment
 const chainId = parseInt(process.env["NEXT_PUBLIC_CHAIN_ID"] || "8453");
@@ -34,7 +35,13 @@ const fallbackWagmiConfig = baseCreateConfig({
   ssr: true,
 });
 
-export function Providers({ children }: { children: React.ReactNode }) {
+export function Providers({
+  children,
+  cpegSite = false,
+}: {
+  children: React.ReactNode;
+  cpegSite?: boolean;
+}) {
   const [mounted, setMounted] = useState(false);
   const [theme, setTheme] = useState<"dark" | "light">("dark");
 
@@ -83,16 +90,16 @@ export function Providers({ children }: { children: React.ReactNode }) {
   }, []);
 
   return (
-    <ThemeProvider>
-      <NetworkProvider>
-        <BaseWagmiProvider config={fallbackWagmiConfig}>
-          <QueryClientProvider client={queryClient}>
-            <FallbackWalletProvider>
-              {children}
-            </FallbackWalletProvider>
-          </QueryClientProvider>
-        </BaseWagmiProvider>
-      </NetworkProvider>
-    </ThemeProvider>
+    <CpegSiteProvider value={cpegSite}>
+      <ThemeProvider>
+        <NetworkProvider>
+          <BaseWagmiProvider config={fallbackWagmiConfig}>
+            <QueryClientProvider client={queryClient}>
+              <FallbackWalletProvider>{children}</FallbackWalletProvider>
+            </QueryClientProvider>
+          </BaseWagmiProvider>
+        </NetworkProvider>
+      </ThemeProvider>
+    </CpegSiteProvider>
   );
 }

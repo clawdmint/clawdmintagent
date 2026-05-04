@@ -1,6 +1,9 @@
 pub mod entrypoint;
+pub mod cpeg_error;
+pub mod cpeg_instruction;
+pub mod cpeg_processor;
+pub mod cpeg_state;
 pub mod error;
 pub mod instruction;
 pub mod processor;
 pub mod state;
-

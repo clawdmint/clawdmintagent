@@ -1,0 +1,162 @@
+import Link from "next/link";
+import { notFound } from "next/navigation";
+import { headers } from "next/headers";
+import { ArrowLeft, ShieldCheck, Sparkles } from "lucide-react";
+import { CpegCollectionClient } from "@/components/cpeg-collection-client";
+import { CpegContractBar } from "@/components/cpeg-contract-bar";
+import { prisma } from "@/lib/db";
+import { CPEG_SITE_HEADER, cpegPublicPaths } from "@/lib/cpeg-site-paths";
+
+interface CpegCollectionPageProps {
+  params: {
+    mint: string;
+  };
+}
+
+export const dynamic = "force-dynamic";
+
+export default async function CpegCollectionPage({ params }: CpegCollectionPageProps) {
+  const launch = await prisma.clawPegLaunch.findUnique({
+    where: { tokenMint: params.mint },
+    select: {
+      name: true,
+      symbol: true,
+      tokenMint: true,
+      collectionAddress: true,
+      hookValidationAddress: true,
+      cluster: true,
+      pegUnitRaw: true,
+      maxPegs: true,
+      authorityAddress: true,
+      status: true,
+      rendererId: true,
+      rendererVersion: true,
+    },
+  });
+
+  if (!launch?.collectionAddress || !launch.hookValidationAddress) {
+    notFound();
+  }
+
+  const site = headers().get(CPEG_SITE_HEADER) === "1";
+  const urls = cpegPublicPaths(site);
+
+  return (
+    <div className="min-h-screen bg-[#090909] text-[#f7f2df]">
+      <section className="relative overflow-hidden border-b border-white/10">
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute inset-0 -z-10 opacity-60"
+          style={{
+            backgroundImage:
+              "radial-gradient(circle at 22% 25%, rgba(83,199,255,0.18), transparent 55%), radial-gradient(circle at 80% 0%, rgba(247,242,223,0.06), transparent 60%)",
+          }}
+        />
+        <div className="mx-auto max-w-7xl px-5 py-12 md:px-10 md:py-16">
+          <Link
+            href={urls.home}
+            className="inline-flex items-center gap-2 font-mono text-xs uppercase tracking-[0.18em] text-white/55 transition hover:text-[#53c7ff]"
+          >
+            <ArrowLeft className="h-3 w-3" /> All cPEGs
+          </Link>
+
+          <div className="mt-8 grid gap-10 md:grid-cols-[1fr_360px] md:gap-8">
+            <div>
+              <p className="font-mono text-xs uppercase tracking-[0.28em] text-[#53c7ff]">
+                {launch.symbol} · {launch.cluster.toUpperCase()} · {launch.status}
+              </p>
+              <h1 className="mt-4 text-5xl font-black uppercase leading-none md:text-7xl">
+                {launch.name}
+              </h1>
+              <p className="mt-5 max-w-2xl text-sm leading-7 text-white/65 md:text-base">
+                The Token-2022 mint below is the asset. Holding one whole unit equals one
+                cPEG identity. Buyers do not mint anything: they swap tokens on a DEX or buy
+                a listing on the P2P market and the identity follows the unit by transfer hook.
+              </p>
+
+              <div className="mt-7">
+                <CpegContractBar
+                  tokenMint={launch.tokenMint}
+                  cluster={launch.cluster}
+                  symbol={launch.symbol}
+                />
+              </div>
+
+              <div className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
+                <div className="border border-white/10 bg-white/[0.03] p-3">
+                  <p className="font-mono text-[10px] uppercase tracking-[0.2em] text-white/40">Max PEGs</p>
+                  <p className="mt-1 text-lg font-black tracking-tight">
+                    {launch.maxPegs.toLocaleString()}
+                  </p>
+                </div>
+                <div className="border border-white/10 bg-white/[0.03] p-3">
+                  <p className="font-mono text-[10px] uppercase tracking-[0.2em] text-white/40">Renderer</p>
+                  <p className="mt-1 truncate font-mono text-xs text-[#53c7ff]">
+                    {launch.rendererId || "clawpeg"}
+                  </p>
+                  <p className="font-mono text-[10px] text-white/40">v{launch.rendererVersion || "0.1.0"}</p>
+                </div>
+                <div className="border border-white/10 bg-white/[0.03] p-3">
+                  <p className="font-mono text-[10px] uppercase tracking-[0.2em] text-white/40">Cluster</p>
+                  <p className="mt-1 text-lg font-black uppercase tracking-tight">{launch.cluster}</p>
+                </div>
+                <div className="border border-white/10 bg-white/[0.03] p-3">
+                  <p className="font-mono text-[10px] uppercase tracking-[0.2em] text-white/40">Status</p>
+                  <p className="mt-1 text-lg font-black uppercase tracking-tight">{launch.status}</p>
+                </div>
+              </div>
+
+              <div className="mt-7 flex flex-wrap items-center gap-3">
+                <Link
+                  href={urls.market({ mint: launch.tokenMint })}
+                  className="inline-flex items-center gap-2 border border-[#f7f2df] bg-[#f7f2df] px-5 py-3 text-sm font-black uppercase tracking-wide text-black transition hover:bg-[#53c7ff]"
+                >
+                  <Sparkles className="h-4 w-4" /> Open P2P market
+                </Link>
+                <Link
+                  href={urls.launch}
+                  className="inline-flex items-center gap-2 border border-white/15 px-5 py-3 text-sm font-bold uppercase tracking-wide text-white/72 transition hover:border-[#53c7ff] hover:text-[#53c7ff]"
+                >
+                  <ShieldCheck className="h-4 w-4" /> Launch your own
+                </Link>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-3 gap-2">
+              {[1, 7, 23, 47, 88, 142].map((pegId) => (
+                <div
+                  key={pegId}
+                  className="aspect-square overflow-hidden border border-white/15 bg-black"
+                >
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={`/api/cpeg/${launch.tokenMint}/pegs/${pegId}/svg`}
+                    alt={`${launch.symbol} cPEG #${pegId}`}
+                    className="h-full w-full object-cover [image-rendering:pixelated]"
+                    loading="lazy"
+                  />
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section className="mx-auto max-w-7xl px-5 py-12 md:px-10">
+        <CpegCollectionClient
+          launch={{
+            name: launch.name,
+            symbol: launch.symbol,
+            tokenMint: launch.tokenMint,
+            collectionAddress: launch.collectionAddress,
+            hookValidationAddress: launch.hookValidationAddress,
+            cluster: launch.cluster,
+            pegUnitRaw: launch.pegUnitRaw,
+            maxPegs: launch.maxPegs,
+            authorityAddress: launch.authorityAddress,
+          }}
+        />
+      </section>
+    </div>
+  );
+}

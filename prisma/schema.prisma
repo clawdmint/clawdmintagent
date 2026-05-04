@@ -71,6 +71,7 @@ model Agent {
   claims        AgentClaim[]
   collections   Collection[]
   tokenLaunches TokenLaunch[]
+  clawPegLaunches ClawPegLaunch[]
   studioSkills  AgentSkillInstall[]
   studioSessions AgentStudioSession[]
   studioRuns    AgentStudioRun[]
@@ -448,6 +449,94 @@ model TokenLaunch {
   @@index([launcherAddress])
   @@index([tokenAddress])
   @@index([createdAt])
+}
+
+// ClawPEG launch records. cPEG is a Solana Token-2022 + PEG registry standard,
+// separate from Metaplex collection launches and separate from P2P marketplace listings.
+model ClawPegLaunch {
+  id                   String   @id @default(cuid())
+  agentId              String?
+  agent                Agent?   @relation(fields: [agentId], references: [id], onDelete: SetNull)
+  tokenLaunchId         String?
+  marketListings        ClawPegMarketListing[]
+
+  name                 String
+  symbol               String
+  tokenMint            String   @unique
+  collectionAddress    String?  @unique
+  hookValidationAddress String? @unique
+  hookProgramId        String?
+  chain                String   @default("solana")
+  cluster              String   @default("mainnet-beta")
+
+  rendererId           String
+  rendererVersion      String
+  rendererHash         String
+  collectionSeed       String
+  rendererParams       Json?
+
+  pegUnitRaw           String
+  maxPegs              Int
+  royaltyBps           Int      @default(0)
+  marketplaceFeeBps    Int      @default(0)
+  launchFeeLamports    String   @default("0")
+  premiumIndexing      Boolean  @default(false)
+  partnerApiEnabled    Boolean  @default(false)
+  whiteLabelDomain     String?
+
+  authorityAddress     String
+  creatorAddress       String
+  feeVaultAddress      String
+  deployTxHash         String?
+  status               String   @default("DRAFT")
+
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+  launchedAt           DateTime?
+
+  @@index([agentId])
+  @@index([tokenMint])
+  @@index([collectionAddress])
+  @@index([status])
+  @@index([createdAt])
+}
+
+// cPEG P2P escrow marketplace listings. Separate from legacy Metaplex marketplace
+// models and separate from cPEG launch/registry state.
+model ClawPegMarketListing {
+  id                   String   @id @default(cuid())
+  launchId             String
+  launch               ClawPegLaunch @relation(fields: [launchId], references: [id], onDelete: Cascade)
+
+  tokenMint            String
+  collectionAddress    String
+  listingAddress       String   @unique
+  escrowOwnerPegAddress String
+  escrowTokenAccount   String
+  pegRecordAddress     String
+  pegId                Int
+
+  sellerAddress        String
+  priceLamports        String
+  marketplaceFeeBps    Int      @default(0)
+  royaltyBps           Int      @default(0)
+  status               String   @default("ACTIVE")
+
+  listTxHash           String?  @unique
+  buyTxHash            String?  @unique
+  cancelTxHash         String?  @unique
+  buyerAddress         String?
+
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+  listedAt             DateTime?
+  soldAt               DateTime?
+  cancelledAt          DateTime?
+
+  @@unique([tokenMint, pegId])
+  @@index([launchId, status, createdAt])
+  @@index([sellerAddress, status])
+  @@index([buyerAddress])
 }
 
 model AgentSkillInstall {

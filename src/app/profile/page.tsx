@@ -25,6 +25,8 @@ import {
 import { formatCollectionMintPrice, getCollectionNativeToken } from "@/lib/collection-chains";
 import { useTheme } from "@/components/theme-provider";
 
+const CPEG_PUBLIC_BASE = (process.env.NEXT_PUBLIC_CPEG_APP_URL || "").trim().replace(/\/$/, "");
+
 interface ProfileData {
   address: string;
   total_nfts: number;
@@ -66,6 +68,37 @@ interface MintRecord {
     agent_name: string;
     agent_avatar: string | null;
   };
+}
+
+interface CpegEntry {
+  id: string;
+  token_mint: string;
+  peg_id: number;
+  price_lamports: string;
+  price_sol: string;
+  symbol: string;
+  name: string;
+  image: string;
+  collection_url: string;
+}
+
+interface CpegLaunchEntry {
+  id: string;
+  token_mint: string;
+  name: string;
+  symbol: string;
+  status: string;
+  max_pegs: number;
+  cluster: string;
+  launched_at: string | null;
+}
+
+interface CpegActivityPayload {
+  success: boolean;
+  listed: CpegEntry[];
+  sold: CpegEntry[];
+  bought: CpegEntry[];
+  launches: CpegLaunchEntry[];
 }
 
 interface OwnedAssetRecord {
@@ -117,6 +150,7 @@ export default function ProfilePage() {
   const [ownedAssets, setOwnedAssets] = useState<OwnedAssetRecord[]>([]);
   const [mints, setMints] = useState<MintRecord[]>([]);
   const [tokenLaunches, setTokenLaunches] = useState<TokenLaunchRecord[]>([]);
+  const [cpegActivity, setCpegActivity] = useState<CpegActivityPayload | null>(null);
   const [loading, setLoading] = useState(false);
   const [copied, setCopied] = useState(false);
 
@@ -126,6 +160,7 @@ export default function ProfilePage() {
       setOwnedAssets([]);
       setMints([]);
       setTokenLaunches([]);
+      setCpegActivity(null);
       return;
     }
 
@@ -133,14 +168,22 @@ export default function ProfilePage() {
       setLoading(true);
 
       try {
-        const res = await fetch(`/api/profile/${address}`);
-        const data = await res.json();
+        const [profileRes, cpegRes] = await Promise.all([
+          fetch(`/api/profile/${address}`),
+          fetch(`/api/profile/${address}/cpeg`).catch(() => null),
+        ]);
+        const data = await profileRes.json();
 
         if (data.success) {
           setProfile(data.profile);
           setOwnedAssets(data.owned_assets || []);
           setMints(data.mints);
           setTokenLaunches(data.tokenLaunches || []);
+        }
+
+        if (cpegRes && cpegRes.ok) {
+          const cpegData = (await cpegRes.json().catch(() => null)) as CpegActivityPayload | null;
+          if (cpegData?.success) setCpegActivity(cpegData);
         }
       } catch {
         // ignore
@@ -299,6 +342,146 @@ export default function ProfilePage() {
           </div>
         )}
       </div>
+
+      {cpegActivity &&
+      (cpegActivity.listed.length ||
+        cpegActivity.bought.length ||
+        cpegActivity.sold.length ||
+        cpegActivity.launches.length) ? (
+        <div className="mb-6">
+          <div
+            className={clsx(
+              "text-xs font-semibold uppercase tracking-[0.18em] mb-3 flex items-center gap-2",
+              theme === "dark" ? "text-gray-600" : "text-gray-400"
+            )}
+          >
+            <Hash className="w-3.5 h-3.5" /> cPEG Activity
+          </div>
+          {cpegActivity.launches.length > 0 ? (
+            <div
+              className={clsx(
+                "rounded-2xl border p-4 mb-3",
+                theme === "dark"
+                  ? "bg-white/[0.02] border-white/[0.06]"
+                  : "bg-white border-gray-200"
+              )}
+            >
+              <div
+                className={clsx(
+                  "font-mono text-[10px] uppercase tracking-[0.22em] mb-2",
+                  theme === "dark" ? "text-cyan-400" : "text-cyan-600"
+                )}
+              >
+                Your launches
+              </div>
+              <div className="grid gap-2 sm:grid-cols-2">
+                {cpegActivity.launches.map((entry) => (
+                  <Link
+                    key={entry.id}
+                    href={
+                      CPEG_PUBLIC_BASE &&
+                      (CPEG_PUBLIC_BASE.startsWith("http://") || CPEG_PUBLIC_BASE.startsWith("https://"))
+                        ? `${CPEG_PUBLIC_BASE}/${entry.token_mint}`
+                        : `/cpeg/${entry.token_mint}`
+                    }
+                    className={clsx(
+                      "flex items-center justify-between gap-3 rounded-lg border px-3 py-2 transition-colors",
+                      theme === "dark"
+                        ? "border-white/[0.05] hover:border-cyan-500/40"
+                        : "border-gray-200 hover:border-cyan-300"
+                    )}
+                  >
+                    <div className="min-w-0">
+                      <div className="text-sm font-semibold truncate">{entry.name}</div>
+                      <div
+                        className={clsx(
+                          "font-mono text-[10px] uppercase tracking-[0.18em]",
+                          theme === "dark" ? "text-gray-500" : "text-gray-400"
+                        )}
+                      >
+                        {entry.symbol} / {entry.status} / {entry.max_pegs.toLocaleString()} max
+                      </div>
+                    </div>
+                    <ExternalLink className="w-3.5 h-3.5 shrink-0 opacity-50" />
+                  </Link>
+                ))}
+              </div>
+            </div>
+          ) : null}
+
+          {[
+            { key: "listed" as const, label: "Listed (active)" },
+            { key: "bought" as const, label: "Bought" },
+            { key: "sold" as const, label: "Sold" },
+          ].map((bucket) => {
+            const items = cpegActivity[bucket.key];
+            if (!items.length) return null;
+            return (
+              <div
+                key={bucket.key}
+                className={clsx(
+                  "rounded-2xl border p-4 mb-3",
+                  theme === "dark"
+                    ? "bg-white/[0.02] border-white/[0.06]"
+                    : "bg-white border-gray-200"
+                )}
+              >
+                <div
+                  className={clsx(
+                    "font-mono text-[10px] uppercase tracking-[0.22em] mb-3",
+                    theme === "dark" ? "text-cyan-400" : "text-cyan-600"
+                  )}
+                >
+                  {bucket.label}
+                </div>
+                <div className="grid grid-cols-3 gap-2 sm:grid-cols-6">
+                  {items.slice(0, 12).map((entry) => (
+                    <Link
+                      key={entry.id}
+                      href={entry.collection_url}
+                      className={clsx(
+                        "block rounded-lg border p-1 transition-colors",
+                        theme === "dark"
+                          ? "border-white/[0.05] hover:border-cyan-500/40"
+                          : "border-gray-200 hover:border-cyan-300"
+                      )}
+                    >
+                      <div
+                        className={clsx(
+                          "aspect-square overflow-hidden rounded",
+                          theme === "dark" ? "bg-black/40" : "bg-gray-100"
+                        )}
+                      >
+                        <img
+                          src={entry.image}
+                          alt={`${entry.symbol} #${entry.peg_id}`}
+                          className="h-full w-full object-cover [image-rendering:pixelated]"
+                        />
+                      </div>
+                      <div
+                        className={clsx(
+                          "mt-1 font-mono text-[9px] uppercase tracking-[0.16em]",
+                          theme === "dark" ? "text-gray-400" : "text-gray-500"
+                        )}
+                      >
+                        {entry.symbol} #{entry.peg_id}
+                      </div>
+                      <div
+                        className={clsx(
+                          "font-mono text-[10px]",
+                          theme === "dark" ? "text-cyan-300" : "text-cyan-600"
+                        )}
+                      >
+                        {entry.price_sol} SOL
+                      </div>
+                    </Link>
+                  ))}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      ) : null}
 
       {tokenLaunches.length > 0 && (
         <div className="mb-6">

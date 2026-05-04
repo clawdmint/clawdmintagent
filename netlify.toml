@@ -61,4 +61,10 @@
 #   TWITTER_BEARER_TOKEN
 #   BASESCAN_API_KEY
 #
+# cPEG subdomain (same deploy, dual-domain on Netlify):
+#   NEXT_PUBLIC_APP_URL — primary Clawdmint URL (menus + canonical for main OG)
+#   NEXT_PUBLIC_CPEG_APP_URL — cPEG subdomain URL used by the header "cpeg" link & cPEG OG fallbacks
+#   NEXT_PUBLIC_CPEG_SITE_HOST — exact hostname triggering short-path middleware (e.g. cpeg.clawdmint.xyz).
+#                               Omit on branch previews / localhost unless testing with a hosts alias.
+#
 # ═══════════════════════════════════════════════════════════════════════════════

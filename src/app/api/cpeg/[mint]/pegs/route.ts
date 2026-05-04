@@ -1,0 +1,105 @@
+import { Connection, PublicKey } from "@solana/web3.js";
+import { NextRequest, NextResponse } from "next/server";
+import { prisma } from "@/lib/db";
+import { findPegRecordAddress } from "@/lib/clawpeg";
+import { getClawPegTraits } from "@/lib/clawpeg-renderer";
+import { getClawPegRpcUrl } from "@/lib/env";
+
+export const dynamic = "force-dynamic";
+
+interface RouteContext {
+  params: {
+    mint: string;
+  };
+}
+
+function parsePegRecord(data: Buffer) {
+  if (data.length < 126 || data[0] !== 1) {
+    return null;
+  }
+  let cursor = 2;
+  const collection = new PublicKey(data.subarray(cursor, cursor + 32));
+  cursor += 32;
+  const owner = new PublicKey(data.subarray(cursor, cursor + 32));
+  cursor += 32;
+  const pegId = data.readUInt32LE(cursor);
+  cursor += 4;
+  const seed = data.subarray(cursor, cursor + 32).toString("hex");
+  cursor += 32;
+  const mintedSlot = data.readBigUInt64LE(cursor).toString();
+
+  return {
+    status: data[1],
+    collection: collection.toBase58(),
+    owner: owner.toBase58(),
+    pegId,
+    seed,
+    mintedSlot,
+  };
+}
+
+export async function GET(request: NextRequest, { params }: RouteContext) {
+  const search = request.nextUrl.searchParams;
+  const start = Math.max(0, Number.parseInt(search.get("start") || "1", 10));
+  const limit = Math.min(48, Math.max(1, Number.parseInt(search.get("limit") || "24", 10)));
+  const ownerFilter = search.get("owner") || "";
+
+  const launch = await prisma.clawPegLaunch
+    .findUnique({
+      where: { tokenMint: params.mint },
+    })
+    .catch(() => null);
+  if (!launch?.collectionAddress) {
+    return NextResponse.json({ success: false, error: "cPEG collection not found" }, { status: 404 });
+  }
+
+  const endExclusive = Math.min(launch.maxPegs, start + limit);
+  const ids = Array.from({ length: Math.max(0, endExclusive - start) }, (_, index) => start + index);
+  const pegAddresses = ids.map((pegId) => findPegRecordAddress(launch.collectionAddress || "", pegId));
+  const connection = new Connection(getClawPegRpcUrl(), "confirmed");
+  const accounts = pegAddresses.length
+    ? await connection.getMultipleAccountsInfo(pegAddresses, "confirmed")
+    : [];
+
+  return NextResponse.json({
+    success: true,
+    collection: {
+      name: launch.name,
+      symbol: launch.symbol,
+      token_mint: launch.tokenMint,
+      collection_address: launch.collectionAddress,
+      max_pegs: launch.maxPegs,
+    },
+    page: {
+      start,
+      limit,
+      next_start: endExclusive < launch.maxPegs ? endExclusive : null,
+      previous_start: start > 0 ? Math.max(0, start - limit) : null,
+    },
+    pegs: ids
+      .map((pegId, index) => {
+        const record = accounts[index]?.data ? parsePegRecord(Buffer.from(accounts[index]?.data || [])) : null;
+        const traits = getClawPegTraits({
+          rendererId: launch.rendererId,
+          rendererVersion: launch.rendererVersion,
+          collectionSeed: launch.collectionSeed,
+          tokenMint: launch.tokenMint,
+          pegId,
+          params: (launch.rendererParams as Record<string, unknown> | null) || {},
+        });
+
+        return {
+          id: pegId,
+          name: `${launch.symbol} cPEG #${pegId}`,
+          token_mint: launch.tokenMint,
+          peg_record: pegAddresses[index]?.toBase58(),
+          image: `/api/cpeg/${launch.tokenMint}/pegs/${pegId}/svg`,
+          minted: Boolean(record),
+          owner: record?.owner || null,
+          status: record?.status || null,
+          traits,
+        };
+      })
+      .filter((peg) => (ownerFilter ? peg.owner === ownerFilter : true)),
+  });
+}

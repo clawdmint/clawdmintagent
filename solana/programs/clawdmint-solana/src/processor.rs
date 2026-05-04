@@ -22,6 +22,10 @@ impl Processor {
         accounts: &[AccountInfo],
         instruction_data: &[u8],
     ) -> ProgramResult {
+        if crate::cpeg_instruction::unpack(instruction_data).is_ok() {
+            return crate::cpeg_processor::Processor::process(program_id, accounts, instruction_data);
+        }
+
         match unpack(instruction_data)? {
             ClawdmintInstruction::InitializeCollection {
                 collection_id,
@@ -153,4 +157,3 @@ impl Processor {
         Ok(())
     }
 }
-

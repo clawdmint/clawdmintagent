@@ -1,0 +1,168 @@
+import { Connection, PublicKey } from "@solana/web3.js";
+import { NextRequest, NextResponse } from "next/server";
+import { z } from "zod";
+import {
+  CLAWPEG_DEFAULT_RENDERER_ID,
+  CLAWPEG_DEFAULT_RENDERER_VERSION,
+  buildClawPegLaunchManifest,
+  buildClawPegToken2022MintSetupManifest,
+  createCollectionSeed,
+  getClawPegFeeVaultAddress,
+  getClawPegToken2022MintAccountSize,
+  quoteClawPegLaunchFee,
+} from "@/lib/clawpeg";
+import {
+  computeClawPegRendererHash,
+  getClawPegRenderer,
+} from "@/lib/clawpeg-renderer-registry";
+import { getClawPegRpcUrl } from "@/lib/env";
+
+export const dynamic = "force-dynamic";
+
+const LaunchpadPrepareSchema = z.object({
+  name: z.string().min(1).max(48),
+  symbol: z.string().min(1).max(12).regex(/^[A-Z0-9]+$/),
+  token_mint: z.string().min(32),
+  authority_address: z.string().min(32),
+  creator_address: z.string().min(32).optional(),
+  fee_vault_address: z.string().min(32).optional(),
+  max_pegs: z.number().int().min(1).max(1_000_000),
+  decimals: z.number().int().min(0).max(9).default(6),
+  royalty_bps: z.number().int().min(0).max(10000).default(500),
+  marketplace_fee_bps: z.number().int().min(0).max(10000).optional(),
+  premium_indexing: z.boolean().default(false),
+  partner_api_enabled: z.boolean().default(false),
+  white_label_domain: z.string().max(120).optional(),
+  renderer_id: z.string().min(1).optional(),
+  renderer_version: z.string().min(1).optional(),
+  renderer_params: z.record(z.unknown()).optional(),
+});
+
+function assertPublicKey(value: string, label: string) {
+  try {
+    return new PublicKey(value);
+  } catch {
+    throw new Error(`${label} must be a valid Solana address`);
+  }
+}
+
+function pegUnitFromDecimals(decimals: number): bigint {
+  return BigInt(`1${"0".repeat(decimals)}`);
+}
+
+export async function POST(request: NextRequest) {
+  try {
+    const body = await request.json();
+    const parsed = LaunchpadPrepareSchema.safeParse(body);
+    if (!parsed.success) {
+      return NextResponse.json(
+        { success: false, error: "Invalid request", details: parsed.error.flatten() },
+        { status: 400 }
+      );
+    }
+
+    const input = parsed.data;
+    assertPublicKey(input.token_mint, "token_mint");
+    assertPublicKey(input.authority_address, "authority_address");
+    if (input.creator_address) assertPublicKey(input.creator_address, "creator_address");
+    if (input.fee_vault_address) assertPublicKey(input.fee_vault_address, "fee_vault_address");
+
+    const fees = quoteClawPegLaunchFee({
+      premiumIndexing: input.premium_indexing,
+      partnerApiEnabled: input.partner_api_enabled,
+      whiteLabelDomain: input.white_label_domain,
+    });
+    const mintAccountSize = getClawPegToken2022MintAccountSize();
+    const connection = new Connection(getClawPegRpcUrl(), "confirmed");
+    const mintRentLamports = await connection.getMinimumBalanceForRentExemption(mintAccountSize);
+
+    const rendererId = input.renderer_id || CLAWPEG_DEFAULT_RENDERER_ID;
+    const rendererVersion = input.renderer_version || CLAWPEG_DEFAULT_RENDERER_VERSION;
+    const rendererManifest = getClawPegRenderer(rendererId, rendererVersion);
+    if (!rendererManifest) {
+      return NextResponse.json(
+        { success: false, error: `Unknown renderer ${rendererId}@${rendererVersion}` },
+        { status: 400 }
+      );
+    }
+    const rendererParams: Record<string, unknown> = {
+      ...rendererManifest.defaultParams,
+      ...(input.renderer_params || {}),
+    };
+    for (const field of rendererManifest.fields) {
+      const value = rendererParams[field.key];
+      if (typeof value !== "string") {
+        return NextResponse.json(
+          { success: false, error: `renderer_params.${field.key} is required` },
+          { status: 400 }
+        );
+      }
+      if (!field.options.some((option) => option.value === value)) {
+        return NextResponse.json(
+          { success: false, error: `renderer_params.${field.key} = ${value} is not a valid option` },
+          { status: 400 }
+        );
+      }
+    }
+    const rendererHash = computeClawPegRendererHash({
+      id: rendererId,
+      version: rendererVersion,
+      params: rendererParams,
+    });
+    const collectionSeed = createCollectionSeed();
+    const creatorAddress = input.creator_address || input.authority_address;
+    const feeVaultAddress = input.fee_vault_address || getClawPegFeeVaultAddress() || input.authority_address;
+    const marketplaceFeeBps = input.marketplace_fee_bps ?? fees.marketplaceFeeBps;
+
+    const token2022Setup = buildClawPegToken2022MintSetupManifest({
+      payer: input.authority_address,
+      mint: input.token_mint,
+      mintAuthority: input.authority_address,
+      freezeAuthority: input.authority_address,
+      decimals: input.decimals,
+      rentLamports: mintRentLamports,
+    });
+    const manifest = buildClawPegLaunchManifest({
+      authority: input.authority_address,
+      tokenMint: input.token_mint,
+      creatorAddress,
+      feeVaultAddress,
+      rendererHash,
+      collectionSeed,
+      pegUnitRaw: pegUnitFromDecimals(input.decimals),
+      maxPegs: input.max_pegs,
+      decimals: input.decimals,
+      royaltyBps: input.royalty_bps,
+      marketplaceFeeBps,
+      launchFeeLamports: BigInt(fees.totalLamports),
+      premiumIndexing: input.premium_indexing,
+    });
+
+    return NextResponse.json({
+      success: true,
+      launch: {
+        name: input.name,
+        symbol: input.symbol,
+        token_mint: input.token_mint,
+        collection_address: manifest.collection_address,
+        hook_validation_address: manifest.hook_validation_address,
+        renderer_id: rendererId,
+        renderer_version: rendererVersion,
+        renderer_hash: rendererHash,
+        collection_seed: collectionSeed,
+        renderer_params: rendererParams,
+        peg_unit_raw: pegUnitFromDecimals(input.decimals).toString(),
+        max_pegs: input.max_pegs,
+        royalty_bps: input.royalty_bps,
+        marketplace_fee_bps: marketplaceFeeBps,
+      },
+      fees,
+      token2022_setup: token2022Setup,
+      manifest,
+      message: "Launch transaction prepared. The client must partial-sign with the generated mint keypair and then request the connected wallet signature.",
+    });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Failed to prepare cPEG launch";
+    return NextResponse.json({ success: false, error: message }, { status: 500 });
+  }
+}

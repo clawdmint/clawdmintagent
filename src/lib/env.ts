@@ -152,6 +152,45 @@ export function getPreferredSolanaRpcUrl(): string {
 }
 
 /**
+ * Cluster-aware RPC for cPEG flows (clawpeg + cpeg-market). The base Clawdmint stack can run on
+ * mainnet (collection program, NFT mints, indexers) while cPEG programs are deployed on devnet,
+ * so we cannot reuse `getPreferredSolanaRpcUrl()` — it would point at mainnet RPCs even when
+ * the cPEG cluster is devnet.
+ *
+ * The cluster is resolved by `getClawPegCluster()` in `@/lib/clawpeg`, which itself prefers
+ * `NEXT_PUBLIC_CLAWPEG_CLUSTER` over the global `NEXT_PUBLIC_SOLANA_CLUSTER`. We re-read both
+ * env vars here directly to avoid a circular import.
+ *
+ * Resolution order:
+ *   1. `CLAWPEG_RPC_URL` — explicit override (recommended for hybrid mainnet/devnet setups)
+ *   2. If cPEG cluster resolves to devnet: `NEXT_PUBLIC_SOLANA_RPC_URL` if it points at devnet,
+ *      otherwise the public devnet endpoint
+ *   3. `getPreferredSolanaRpcUrl()` (Synapse / custom mainnet RPC / public mainnet)
+ */
+export function getClawPegRpcUrl(): string {
+  const explicit = getEnv("CLAWPEG_RPC_URL", "").trim();
+  if (explicit) {
+    return explicit;
+  }
+
+  const explicitCluster = getEnv("NEXT_PUBLIC_CLAWPEG_CLUSTER", "").trim();
+  const cluster =
+    explicitCluster === "devnet" || explicitCluster === "mainnet-beta"
+      ? explicitCluster
+      : getEnv("NEXT_PUBLIC_SOLANA_CLUSTER", "mainnet-beta");
+
+  if (cluster === "devnet") {
+    const customRpc = getEnv("NEXT_PUBLIC_SOLANA_RPC_URL", "").trim();
+    if (customRpc && customRpc.includes("devnet")) {
+      return customRpc;
+    }
+    return "https://api.devnet.solana.com";
+  }
+
+  return getPreferredSolanaRpcUrl();
+}
+
+/**
  * JSON-RPC `getProgramAccounts` (e.g. Metaplex `getAssetV1GpaBuilder`) requires a full node.
  * Many brokered RPCs (including some Synapse gateway tiers) return "Method not found" for that method.
  * When `SYNAPSE_SOLANA_RPC_URL` is set and this value is empty, the public cluster URL for the
@@ -251,6 +290,7 @@ export function getClientEnv() {
     solanaCluster: getEnv("NEXT_PUBLIC_SOLANA_CLUSTER", "mainnet-beta"),
     solanaRpcUrl: getEnv("NEXT_PUBLIC_SOLANA_RPC_URL", ""),
     solanaCollectionProgramId: getEnv("NEXT_PUBLIC_SOLANA_COLLECTION_PROGRAM_ID", ""),
+    clawPegProgramId: getEnv("NEXT_PUBLIC_CLAWPEG_PROGRAM_ID", ""),
     factoryAddress: getEnv("NEXT_PUBLIC_FACTORY_ADDRESS", ""),
     alchemyId: getEnv("NEXT_PUBLIC_ALCHEMY_ID", ""),
     walletConnectId: getEnv("NEXT_PUBLIC_WALLET_CONNECT_ID", ""),
@@ -339,6 +379,14 @@ export function getServerEnv() {
     cdpApiKeyId: getEnv("CDP_API_KEY_ID", ""),
     cdpApiKeySecret: getEnv("CDP_API_KEY_SECRET", ""),
     solanaCollectionProgramId: getEnv("SOLANA_COLLECTION_PROGRAM_ID", ""),
+    clawPegProgramId: getEnv("CLAWPEG_PROGRAM_ID", ""),
+    clawPegFeeVaultAddress: getEnv("CLAWPEG_FEE_VAULT_ADDRESS", ""),
+    clawPegLaunchFeeLamports: getEnv("CLAWPEG_LAUNCH_FEE_LAMPORTS", "0"),
+    clawPegMarketplaceFeeBps: parseInt(getEnv("CLAWPEG_MARKETPLACE_FEE_BPS", "200")),
+    clawPegDefaultCreatorRoyaltyBps: parseInt(getEnv("CLAWPEG_DEFAULT_CREATOR_ROYALTY_BPS", "500")),
+    clawPegPremiumIndexingFeeLamports: getEnv("CLAWPEG_PREMIUM_INDEXING_FEE_LAMPORTS", "0"),
+    clawPegPartnerApiFeeLamports: getEnv("CLAWPEG_PARTNER_API_FEE_LAMPORTS", "0"),
+    clawPegWhiteLabelFeeLamports: getEnv("CLAWPEG_WHITE_LABEL_FEE_LAMPORTS", "0"),
   };
 }
 
@@ -411,6 +459,16 @@ export function validateEnv(forProduction = false): EnvValidationResult {
 
   if (hasSolanaConfig && !solanaProgramId) {
     warnings.push("SOLANA_COLLECTION_PROGRAM_ID not set - Solana collection deploys will fail");
+  }
+
+  const clawPegProgramId =
+    process.env["CLAWPEG_PROGRAM_ID"] ||
+    process.env["NEXT_PUBLIC_CLAWPEG_PROGRAM_ID"];
+  if (process.env["CLAWPEG_LAUNCH_FEE_LAMPORTS"] && !process.env["CLAWPEG_FEE_VAULT_ADDRESS"]) {
+    warnings.push("CLAWPEG_FEE_VAULT_ADDRESS not set - cPEG launch fee collection will not be payable");
+  }
+  if (process.env["NEXT_PUBLIC_CLAWPEG_PROGRAM_ID"] && !clawPegProgramId) {
+    warnings.push("CLAWPEG_PROGRAM_ID not set - cPEG launch manifests will fail");
   }
 
   const solanaCluster = process.env["NEXT_PUBLIC_SOLANA_CLUSTER"] || "mainnet-beta";
