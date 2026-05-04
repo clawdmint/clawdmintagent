@@ -10,7 +10,7 @@ interface RouteContext {
 /**
  * Live DEX liquidity probe for a cPEG token.
  *
- * uPEG's product framing relies on the token being tradeable on a real AMM (Uniswap v4)
+ * cPEG product framing relies on the token being tradeable on a real AMM
  * so a buyer can "swap, no mint required". On Solana the equivalent surface is Jupiter,
  * which aggregates every meaningful AMM (Orca Whirlpool, Raydium CPMM, Meteora, etc.)
  * and exposes a free quote API. We hit that API with a tiny 0.1 SOL probe and translate

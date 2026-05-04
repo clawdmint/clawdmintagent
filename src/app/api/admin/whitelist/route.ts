@@ -3,7 +3,7 @@ import { prisma } from "@/lib/db";
 
 export const dynamic = "force-dynamic";
 
-// GET /api/admin/whitelist — Get all WL entries (admin only)
+// GET /api/admin/whitelist  -  Get all WL entries (admin only)
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);

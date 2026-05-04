@@ -2,7 +2,23 @@
 
 ClawPEG is the Solana PEG standard for Clawdmint: a Token-2022 fungible token whose whole-token units map to deterministic, transferable PEG identities.
 
-The goal is to bring the uPEG idea to Solana without relying on IPFS images or Metaplex assets.
+The goal is to bring the PEG model to Solana without relying on IPFS images or Metaplex assets.
+
+## Standard Version
+
+Current public standard: `cPEG Standard v0.1`.
+
+The v0.1 compatibility surface is:
+
+- Token-2022 mint with the `TransferHook` extension.
+- One `PegCollection` PDA per token mint.
+- One `OwnerPeg` PDA per collection and owner.
+- One `PegRecord` PDA per collection and PEG id.
+- Optional `TradeArtRecord` PDAs for routed trades and marketplace fills.
+- Stable instruction tags for collection launch, owner sync, PEG mint, PEG transfer, PEG burn, trade-art recording, and escrow release.
+- Stable event logs: `PegMinted`, `PegTransferred`, `PegBurned`, `OwnerPegSynced`, `TradeArtGenerated`, `CpegMarketListed`, `CpegMarketSold`, `CpegMarketCancelled`.
+
+Changing PDA seeds, instruction tags, account sizes, or event names requires a new standard version.
 
 ## Positioning
 
@@ -195,6 +211,16 @@ ClawPEG supports:
 - white-label PEG launch for communities
 
 P2P escrow marketplace is a separate product and does not sit in the critical PEG launch/sync path.
+
+## Trade Router
+
+The official cPEG trade router surface is responsible for trade-art emission.
+
+For mainnet AMM routes, the router prepares an aggregator swap and appends `record_trade_art` to the same transaction when the route can fit inside Solana transaction limits.
+
+For escrow routes, marketplace buy and floor-sweep instructions call the market program, which atomically releases the PEG and records a `TradeArtRecord`.
+
+If a trade bypasses the official cPEG router, cPEG ownership remains valid through the Token-2022 hook, but trade art is not guaranteed.
 
 ## Route Strategy
 

@@ -644,7 +644,7 @@ export function CpegCollectionClient({ launch }: CpegCollectionClientProps) {
               <p className="mt-2 max-w-3xl text-sm leading-6 text-neutral-600 dark:text-white/65">
                 {token.token.is_sealed
                   ? "The mint authority has been revoked on-chain. No wallet, including the launch authority, can ever create another token. Total supply is fixed forever and identity follows the token unit on every transfer."
-                  : "The launch authority can still mint new units while the supply is open. Sealing it revokes the mint authority on-chain and locks the supply forever, matching the uPEG fixed-supply guarantee."}
+                  : "The launch authority can still mint new units while the supply is open. Sealing it revokes the mint authority on-chain and locks the supply forever, matching the cPEG fixed-supply guarantee."}
               </p>
             </div>
             {token.token.is_sealed ? (

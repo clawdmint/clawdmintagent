@@ -347,7 +347,7 @@ export default async function CpegPage() {
                     className="truncate font-mono text-[10px] tracking-tight text-neutral-500 dark:text-white/45"
                     title={launch.token_mint}
                   >
-                    {launch.token_mint.slice(0, 6)}…{launch.token_mint.slice(-6)}
+                    {launch.token_mint.slice(0, 6)}...{launch.token_mint.slice(-6)}
                   </span>
                   <span className="inline-flex items-center gap-1 font-mono text-[10px] uppercase tracking-[0.18em] text-neutral-700 dark:text-white/55">
                     Open collection

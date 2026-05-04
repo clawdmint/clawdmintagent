@@ -209,10 +209,10 @@ export function CpegSwapCard({ tokenMint, cluster, symbol, decimals, onComplete 
 
     setBusy(true);
     try {
-      const prep = await fetch(`/api/cpeg/${tokenMint}/dex/jupiter/prepare`, {
+      const prep = await fetch(`/api/cpeg/${tokenMint}/trade-router/prepare`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ buyer: solanaAddress, sol_amount: solValue, slippage_bps: 150 }),
+        body: JSON.stringify({ mode: "amm_jupiter", buyer: solanaAddress, sol_amount: solValue, slippage_bps: 150 }),
       });
       const body = await prep.json().catch(() => null);
       if (!prep.ok || !body?.success || !body.swap_transaction_base64) {
@@ -267,10 +267,10 @@ export function CpegSwapCard({ tokenMint, cluster, symbol, decimals, onComplete 
     setBusy(true);
     try {
       setStatus(`Preparing floor sweep (${quote.peg_count} identities)...`);
-      const prepRes = await fetch(`/api/cpeg/${tokenMint}/market/buy/batch/prepare`, {
+      const prepRes = await fetch(`/api/cpeg/${tokenMint}/trade-router/prepare`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ buyer: solanaAddress, peg_ids: quote.peg_ids }),
+        body: JSON.stringify({ mode: "market_floor_sweep", buyer: solanaAddress, peg_ids: quote.peg_ids }),
       });
       const prepBody = await prepRes.json().catch(() => null);
       if (!prepRes.ok || !prepBody?.success) {
@@ -380,7 +380,7 @@ export function CpegSwapCard({ tokenMint, cluster, symbol, decimals, onComplete 
         <p className="mt-3 text-xs text-neutral-600 dark:text-white/52">AMM tab unlocks automatically once Jupiter can route SOL into this mint (seed Splash pool).</p>
       ) : (
         <p className="mt-3 text-xs text-neutral-700 dark:text-white/55">
-          AMM swaps append `record_trade_art` on-chain, matching uPEG&apos;s swap hook visuals.
+          AMM swaps append `record_trade_art` on-chain so every routed trade can emit deterministic art.
         </p>
       )}
 

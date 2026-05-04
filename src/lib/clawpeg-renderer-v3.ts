@@ -1,5 +1,5 @@
 /**
- * cPEG Renderer v0.3.0 — high-fidelity deterministic pixel-art engine.
+ * cPEG Renderer v0.3.0  -  high-fidelity deterministic pixel-art engine.
  *
  * Goals:
  *   - Match the reference quality of premium pixel-art PFP collections (multi-tone
@@ -20,9 +20,9 @@
  *     the composition without competing with the subject.
  *
  * Public surface:
- *   - `renderClawPegSvgV3(input)` — render an identity peg.
- *   - `renderClawPegTradeArtSvgV3(input)` — render a trade-art swap glyph.
- *   - `getClawPegTraitsV3(input)` — return rarity + trait dictionary for indexers.
+ *   - `renderClawPegSvgV3(input)`  -  render an identity peg.
+ *   - `renderClawPegTradeArtSvgV3(input)`  -  render a trade-art swap glyph.
+ *   - `getClawPegTraitsV3(input)`  -  return rarity + trait dictionary for indexers.
  */
 
 import type {

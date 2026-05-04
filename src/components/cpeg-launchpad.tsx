@@ -333,7 +333,7 @@ export function CpegLaunchpad() {
     setLaunching(true);
     try {
       const mint = Keypair.generate();
-      setStatus("Preparing cPEG launch manifest…");
+      setStatus("Preparing cPEG launch manifest...");
       const prepareResponse = await fetch("/api/cpeg/launchpad/prepare", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -366,7 +366,7 @@ export function CpegLaunchpad() {
         throw new Error(prepareBody?.error || "Failed to prepare launch transaction.");
       }
 
-      setStatus("Opening Phantom for launch signature…");
+      setStatus("Opening Phantom for launch signature...");
       const cluster = prepareBody.manifest.cluster;
       const connection = new Connection(getClientRpcUrl(cluster), "confirmed");
       const transaction = new Transaction();
@@ -388,7 +388,7 @@ export function CpegLaunchpad() {
           ? signedTransaction.serialize()
           : signedTransaction.serialize({ requireAllSignatures: true, verifySignatures: false });
 
-      setStatus("Broadcasting cPEG launch transaction…");
+      setStatus("Broadcasting cPEG launch transaction...");
       const signature = await connection.sendRawTransaction(rawTransaction, {
         skipPreflight: false,
         maxRetries: 5,

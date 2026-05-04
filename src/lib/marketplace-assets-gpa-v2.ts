@@ -177,7 +177,7 @@ async function fetchSnapshotsFromEndpoint(
  * {@link getGpaCapableSolanaRpcUrlsByPriority} (Synapse first, Helius / explicit
  * GPA endpoint as fallback, public cluster as last resort).
  *
- * Fallback rules — for each endpoint in order:
+ * Fallback rules  -  for each endpoint in order:
  *   - On RPC/network error: log a warning and try the next endpoint.
  *   - On empty result (`0` snapshots): try the next endpoint as well, since
  *     several Synapse gateway tiers return empty pages for unindexed Metaplex

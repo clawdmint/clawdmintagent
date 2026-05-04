@@ -193,31 +193,31 @@ export default function AutomationPage() {
   // Automation type
   const [activeType, setActiveType] = useState<AutomationType>("dca");
 
-  // Form states — DCA
+  // Form states  -  DCA
   const [dcaToken, setDcaToken] = useState("ETH");
   const [dcaAmount, setDcaAmount] = useState("10");
   const [dcaCurrency, setDcaCurrency] = useState("USDC");
   const [dcaFrequency, setDcaFrequency] = useState("daily");
   const [dcaDuration, setDcaDuration] = useState("30 days");
 
-  // Form states — Limit Order
+  // Form states  -  Limit Order
   const [loToken, setLoToken] = useState("ETH");
   const [loSide, setLoSide] = useState<"buy" | "sell">("buy");
   const [loAmount, setLoAmount] = useState("50");
   const [loPrice, setLoPrice] = useState("");
   const [loCurrency, setLoCurrency] = useState("USDC");
 
-  // Form states — Stop Loss
+  // Form states  -  Stop Loss
   const [slToken, setSlToken] = useState("ETH");
   const [slStopPrice, setSlStopPrice] = useState("");
   const [slPercentage, setSlPercentage] = useState("100");
 
-  // Form states — Take Profit
+  // Form states  -  Take Profit
   const [tpToken, setTpToken] = useState("ETH");
   const [tpTargetPrice, setTpTargetPrice] = useState("");
   const [tpPercentage, setTpPercentage] = useState("100");
 
-  // Form states — TWAP
+  // Form states  -  TWAP
   const [twapToken, setTwapToken] = useState("ETH");
   const [twapAmount, setTwapAmount] = useState("500");
   const [twapCurrency, setTwapCurrency] = useState("USDC");
@@ -450,13 +450,13 @@ export default function AutomationPage() {
             </div>
           </div>
           <p className="font-mono text-xs text-gray-500">
-            Automate your trading — DCA strategies, limit orders, stop losses, and TWAP via Bankr Agent
+            Automate your trading  -  DCA strategies, limit orders, stop losses, and TWAP via Bankr Agent
           </p>
         </div>
 
         {/* ─── API KEY CONNECTION ─── */}
         {!connected ? (
-          <TerminalWindow title="bankr-auth — connect your api key">
+          <TerminalWindow title="bankr-auth  -  connect your api key">
             <div className="p-6 space-y-5">
               <div className="flex items-center gap-3 mb-4">
                 <div className="w-10 h-10 rounded-lg bg-cyan-500/10 border border-cyan-500/20 flex items-center justify-center">
@@ -536,7 +536,7 @@ export default function AutomationPage() {
 
             {/* ─── ACTIVE AUTOMATIONS (if loaded) ─── */}
             {activeAutomations && (
-              <TerminalWindow title="active-automations — your running orders" className="mb-6">
+              <TerminalWindow title="active-automations  -  your running orders" className="mb-6">
                 <div className="p-4">
                   <pre className="font-mono text-xs text-gray-300 whitespace-pre-wrap leading-relaxed">{activeAutomations}</pre>
                 </div>
@@ -568,7 +568,7 @@ export default function AutomationPage() {
             </div>
 
             {/* ─── AUTOMATION FORM ─── */}
-            <TerminalWindow title={`create-${activeType} — configure your automation`}>
+            <TerminalWindow title={`create-${activeType}  -  configure your automation`}>
               <div className="p-5 space-y-4">
 
                 {/* ═══ DCA FORM ═══ */}
@@ -918,7 +918,7 @@ export default function AutomationPage() {
 
             {/* ─── HISTORY ─── */}
             {history.length > 0 && (
-              <TerminalWindow title="automation-history — recent automations" className="mt-6">
+              <TerminalWindow title="automation-history  -  recent automations" className="mt-6">
                 <div className="divide-y divide-white/[0.04]">
                   {history.slice(0, 10).map((record) => {
                     const typeDef = AUTOMATION_TYPES.find((t) => t.id === record.type);

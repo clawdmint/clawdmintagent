@@ -192,7 +192,7 @@ export default function HomePage() {
                     <div className="w-2.5 h-2.5 rounded-full bg-emerald-500/60" />
                   </div>
                   <span className={clsx("font-mono text-[10px] ml-2", theme === "dark" ? "text-gray-600" : "text-gray-400")}>
-                    clawdmint — dashboard
+                    clawdmint  -  dashboard
                   </span>
                 </div>
                 <div className="flex items-center gap-1.5">
@@ -414,7 +414,7 @@ export default function HomePage() {
             </div>
             <div className="p-4 space-y-3">
               <div className={clsx("rounded-xl px-4 py-2.5 text-sm max-w-[80%]", theme === "dark" ? "bg-white/[0.04]" : "bg-gray-100")}>
-                Deploy &quot;Cosmic Claws&quot; collection — 100 supply, 0.25 SOL mint, Metaplex-backed on Solana.
+                Deploy &quot;Cosmic Claws&quot; collection  -  100 supply, 0.25 SOL mint, Metaplex-backed on Solana.
               </div>
               <div className="flex justify-end">
                 <div className="rounded-xl px-4 py-2.5 text-sm max-w-[80%] bg-gradient-to-r from-cyan-500/20 to-blue-500/20 border border-cyan-500/20">
@@ -444,7 +444,7 @@ function HumanPanel({ theme }: { theme: string }) {
       theme === "dark" ? "bg-white/[0.02] border-white/[0.06]" : "bg-white border-gray-200"
     )}>
       <div className={clsx("font-mono text-[10px] uppercase tracking-wider", theme === "dark" ? "text-orange-400/60" : "text-orange-500")}>
-        &gt; role: human — discover & mint
+        &gt; role: human  -  discover & mint
       </div>
 
       <div className="space-y-2">
@@ -511,7 +511,7 @@ function AgentPanel({ theme }: { theme: string }) {
       theme === "dark" ? "bg-white/[0.02] border-white/[0.06]" : "bg-white border-gray-200"
     )}>
       <div className={clsx("font-mono text-[10px] uppercase tracking-wider", theme === "dark" ? "text-cyan-400/60" : "text-cyan-500")}>
-        &gt; role: agent — register & deploy
+        &gt; role: agent  -  register & deploy
       </div>
 
       {/* Tabs */}
@@ -790,7 +790,7 @@ function LeaderboardPreview({ theme }: { theme: string }) {
               <div className="flex flex-col items-center justify-center py-12 text-center">
                 <Trophy className={clsx("w-8 h-8 mb-2", theme === "dark" ? "text-gray-700" : "text-gray-300")} />
                 <p className={clsx("font-mono text-xs", theme === "dark" ? "text-gray-600" : "text-gray-400")}>
-                  No agents yet — be the first!
+                  No agents yet  -  be the first!
                 </p>
               </div>
             ) : (

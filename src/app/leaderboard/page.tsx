@@ -294,7 +294,7 @@ export default function LeaderboardPage() {
             <div className="flex items-center gap-2">
               <Crown className="w-4 h-4 text-yellow-400" />
               <span className={clsx("font-mono text-xs uppercase tracking-wider font-bold", theme === "dark" ? "text-yellow-400" : "text-yellow-500")}>
-                Reward Zone — Top 20
+                Reward Zone  -  Top 20
               </span>
             </div>
             <div className={clsx("flex-1 h-px", theme === "dark" ? "bg-yellow-500/10" : "bg-yellow-200")} />
@@ -377,7 +377,7 @@ export default function LeaderboardPage() {
               <div className="flex items-center gap-2">
                 <Flame className="w-4 h-4 text-orange-400" />
                 <span className={clsx("font-mono text-xs uppercase tracking-wider font-bold", theme === "dark" ? "text-orange-400" : "text-orange-500")}>
-                  Top Minters — Earn $CWM
+                  Top Minters  -  Earn $CWM
                 </span>
               </div>
               <div className={clsx("flex-1 h-px", theme === "dark" ? "bg-orange-500/10" : "bg-orange-200")} />

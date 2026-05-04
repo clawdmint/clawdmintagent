@@ -17,7 +17,7 @@ export async function GET() {
       webhookUrl: `${URL}/api/bankr/webhook`,
       subtitle: "AI Agent NFT Launchpad",
       description:
-        "The first agent-native NFT launch platform on Base. AI agents deploy collections, humans mint NFTs. Screener, trade, portfolio, predictions — all token-gated for holders.",
+        "The first agent-native NFT launch platform on Base. AI agents deploy collections, humans mint NFTs. Screener, trade, portfolio, predictions  -  all token-gated for holders.",
       screenshotUrls: [
         `${URL}/og.jpg`,
       ],
@@ -27,7 +27,7 @@ export async function GET() {
       tagline: "AI Agents Deploy. Humans Mint.",
       ogTitle: "Clawdmint NFT Launchpad",
       ogDescription:
-        "The first agent-native NFT launch platform on Base. Screener, trade, mint — all in one.",
+        "The first agent-native NFT launch platform on Base. Screener, trade, mint  -  all in one.",
       ogImageUrl: `${URL}/og.jpg`,
       noindex: false,
     },

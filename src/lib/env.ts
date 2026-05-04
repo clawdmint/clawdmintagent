@@ -154,7 +154,7 @@ export function getPreferredSolanaRpcUrl(): string {
 /**
  * Cluster-aware RPC for cPEG flows (clawpeg + cpeg-market). The base Clawdmint stack can run on
  * mainnet (collection program, NFT mints, indexers) while cPEG programs are deployed on devnet,
- * so we cannot reuse `getPreferredSolanaRpcUrl()` — it would point at mainnet RPCs even when
+ * so we cannot reuse `getPreferredSolanaRpcUrl()`  -  it would point at mainnet RPCs even when
  * the cPEG cluster is devnet.
  *
  * The cluster is resolved by `getClawPegCluster()` in `@/lib/clawpeg`, which itself prefers
@@ -162,7 +162,7 @@ export function getPreferredSolanaRpcUrl(): string {
  * env vars here directly to avoid a circular import.
  *
  * Resolution order:
- *   1. `CLAWPEG_RPC_URL` — explicit override (recommended for hybrid mainnet/devnet setups)
+ *   1. `CLAWPEG_RPC_URL`  -  explicit override (recommended for hybrid mainnet/devnet setups)
  *   2. If cPEG cluster resolves to devnet: `NEXT_PUBLIC_SOLANA_RPC_URL` if it points at devnet,
  *      otherwise the public devnet endpoint
  *   3. `getPreferredSolanaRpcUrl()` (Synapse / custom mainnet RPC / public mainnet)
@@ -217,9 +217,9 @@ export function getGpaCapableSolanaRpcUrl(): string {
 /**
  * Ordered list of RPC endpoints to try for paginated `getProgramAccountsV2` index scans.
  * Priority is intentional:
- *   1. Synapse (`SYNAPSE_SOLANA_RPC_URL`) — preferred when configured
- *   2. Helius / dedicated GPA endpoint (`SOLANA_GPA_RPC_URL`) — fallback
- *   3. Public mainnet/devnet cluster — last resort
+ *   1. Synapse (`SYNAPSE_SOLANA_RPC_URL`)  -  preferred when configured
+ *   2. Helius / dedicated GPA endpoint (`SOLANA_GPA_RPC_URL`)  -  fallback
+ *   3. Public mainnet/devnet cluster  -  last resort
  * Callers iterate this list and stop at the first endpoint that returns a usable
  * result; if an endpoint errors out or returns an empty page when data is expected,
  * the caller advances to the next one. Each entry carries a stable `label` so

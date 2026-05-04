@@ -74,7 +74,7 @@ export function CpegSiteHeader() {
               <Link
                 href={p.home}
                 className="group flex min-w-0 shrink-0 items-baseline gap-1.5 font-mono text-[12px] font-semibold tracking-tight transition-opacity hover:opacity-90 sm:text-[13px]"
-                title="cPEG — claw + jpeg = cPEG"
+                title="cPEG: claw + jpeg = cPEG"
               >
                 <span className="shrink-0 text-base leading-none sm:text-lg" aria-hidden>
                   {lobster}

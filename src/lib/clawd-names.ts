@@ -2,7 +2,7 @@
  * ClawdNames (.clawd name service) contract interaction helpers
  * 
  * Provides read functions for name resolution, availability checks, 
- * and pricing — usable from both client and server.
+ * and pricing  -  usable from both client and server.
  */
 import { createPublicClient, http, parseEther, formatEther } from "viem";
 import { base, baseSepolia } from "viem/chains";
@@ -180,11 +180,11 @@ export const CLAWD_NAMES_ABI = [
 ] as const;
 
 // ═══════════════════════════════════════════════════════════════════════
-// PRICING (client-side calculation — mirrors contract logic)
+// PRICING (client-side calculation  -  mirrors contract logic)
 // ═══════════════════════════════════════════════════════════════════════
 
 export const CLAWD_PRICING = {
-  THREE_CHARS: parseEther("0.01"),    // 3 chars — premium
+  THREE_CHARS: parseEther("0.01"),    // 3 chars  -  premium
   FOUR_CHARS: parseEther("0.005"),    // 4 chars
   FIVE_PLUS: parseEther("0.001"),     // 5+ chars
 };
@@ -201,7 +201,7 @@ export function getNamePriceFormatted(name: string): string {
 }
 
 // ═══════════════════════════════════════════════════════════════════════
-// VALIDATION (client-side — mirrors contract logic)
+// VALIDATION (client-side  -  mirrors contract logic)
 // ═══════════════════════════════════════════════════════════════════════
 
 export function validateName(name: string): { valid: boolean; error?: string } {

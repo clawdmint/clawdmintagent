@@ -27,7 +27,7 @@ interface RouteContext {
 /**
  * Compose a Jupiter aggregator swap with a trailing `clawpeg::record_trade_art` instruction.
  *
- * uPEG attaches art emission to every pool swap; we mirror that by keeping the Jupiter route
+ * cPEG attaches art emission to routed swaps by keeping the Jupiter route
  * intact (including dynamic compute budgets + ALTs) and appending `record_trade_art` as the last
  * instruction inside the versioned bundle. Buyers still rent the TradeArtRecord PDA.
  */

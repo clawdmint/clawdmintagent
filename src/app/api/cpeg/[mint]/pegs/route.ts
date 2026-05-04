@@ -1,7 +1,11 @@
-import { Connection, PublicKey } from "@solana/web3.js";
+import { Connection } from "@solana/web3.js";
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import { findPegRecordAddress } from "@/lib/clawpeg";
+import {
+  describeClawPegRecordStatus,
+  findPegRecordAddress,
+  parseClawPegRecordAccount,
+} from "@/lib/clawpeg";
 import { getClawPegTraits } from "@/lib/clawpeg-renderer";
 import { getClawPegRpcUrl } from "@/lib/env";
 
@@ -17,24 +21,17 @@ function parsePegRecord(data: Buffer) {
   if (data.length < 126 || data[0] !== 1) {
     return null;
   }
-  let cursor = 2;
-  const collection = new PublicKey(data.subarray(cursor, cursor + 32));
-  cursor += 32;
-  const owner = new PublicKey(data.subarray(cursor, cursor + 32));
-  cursor += 32;
-  const pegId = data.readUInt32LE(cursor);
-  cursor += 4;
-  const seed = data.subarray(cursor, cursor + 32).toString("hex");
-  cursor += 32;
-  const mintedSlot = data.readBigUInt64LE(cursor).toString();
-
+  const record = parseClawPegRecordAccount(data);
   return {
-    status: data[1],
-    collection: collection.toBase58(),
-    owner: owner.toBase58(),
-    pegId,
-    seed,
-    mintedSlot,
+    status: record.status,
+    statusLabel: describeClawPegRecordStatus(record.status),
+    collection: record.collection,
+    owner: record.owner,
+    pegId: record.pegId,
+    seed: record.seed,
+    mintedSlot: record.mintedSlot.toString(),
+    transferredSlot: record.transferredSlot.toString(),
+    burnedSlot: record.burnedSlot.toString(),
   };
 }
 
@@ -94,11 +91,16 @@ export async function GET(request: NextRequest, { params }: RouteContext) {
           token_mint: launch.tokenMint,
           peg_record: pegAddresses[index]?.toBase58(),
           image: `/api/cpeg/${launch.tokenMint}/pegs/${pegId}/svg`,
-          minted: Boolean(record),
-          owner: record?.owner || null,
-          status: record?.status || null,
-          traits,
-        };
+        minted: Boolean(record),
+        owner: record?.owner || null,
+        status: record?.status || null,
+        status_label: record?.statusLabel || null,
+        on_chain_seed: record?.seed || null,
+        minted_slot: record?.mintedSlot || null,
+        transferred_slot: record?.transferredSlot || null,
+        burned_slot: record?.burnedSlot || null,
+        traits,
+      };
       })
       .filter((peg) => (ownerFilter ? peg.owner === ownerFilter : true)),
   });

@@ -4,7 +4,7 @@ export const dynamic = "force-dynamic";
 export const maxDuration = 60;
 
 // ═══════════════════════════════════════════════════════════════════════
-// Trade API — Executes swaps via Bankr Agent API
+// Trade API  -  Executes swaps via Bankr Agent API
 // User provides their own API key; we never store it.
 // ═══════════════════════════════════════════════════════════════════════
 
@@ -63,7 +63,7 @@ async function pollJob(apiKey: string, jobId: string, maxAttempts = 90): Promise
     }
   }
 
-  return { success: false, jobId, status: "failed", error: "Timeout — trade job took too long" };
+  return { success: false, jobId, status: "failed", error: "Timeout  -  trade job took too long" };
 }
 
 export async function POST(request: Request) {

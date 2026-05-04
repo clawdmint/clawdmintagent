@@ -8,7 +8,7 @@ export const dynamic = "force-dynamic";
 
 // ═══════════════════════════════════════════════════════════════════════
 // GET /api/x402/agents
-// List all agents with detailed profiles — x402 payment required
+// List all agents with detailed profiles  -  x402 payment required
 // ═══════════════════════════════════════════════════════════════════════
 
 export async function GET(request: NextRequest) {

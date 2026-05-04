@@ -33,7 +33,7 @@ export default function CpegLaunchPage() {
           <p className="mt-3 max-w-2xl text-xs leading-6 text-neutral-500 dark:text-white/45">
             After launch you control genesis distribution. When the supply is final, seal the
             mint from the collection page. Sealing revokes the mint authority on-chain so no
-            wallet, including yours, can ever create another unit. That is the uPEG-style
+            wallet, including yours, can ever create another unit. That is the cPEG-style
             fixed-supply guarantee.
           </p>
         </div>

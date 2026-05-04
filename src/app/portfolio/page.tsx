@@ -194,7 +194,7 @@ export default function PortfolioPage() {
 
         {/* ─── API KEY CONNECTION ─── */}
         {!connected ? (
-          <TerminalWindow title="bankr-connect — api key setup">
+          <TerminalWindow title="bankr-connect  -  api key setup">
             <div className="p-6">
               <div className="max-w-md mx-auto">
                 {/* Info */}
@@ -309,7 +309,7 @@ export default function PortfolioPage() {
             </div>
 
             {/* ─── CUSTOM QUERY ─── */}
-            <TerminalWindow title="bankr-agent — natural language query">
+            <TerminalWindow title="bankr-agent  -  natural language query">
               <div className="p-4">
                 <div className="flex gap-2">
                   <div className="relative flex-1">
@@ -349,7 +349,7 @@ export default function PortfolioPage() {
             {/* ─── RESPONSE ─── */}
             {(loading || response || error) && (
               <div className="mt-4">
-                <TerminalWindow title="bankr-agent — response">
+                <TerminalWindow title="bankr-agent  -  response">
                   <div className="p-5 space-y-2">
                     {loading && (
                       <div className="flex items-center gap-3 py-8 justify-center">

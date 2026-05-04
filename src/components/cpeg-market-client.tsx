@@ -560,7 +560,7 @@ export function CpegMarketClient() {
         throw new Error("Invalid PEG id.");
       }
       const priceLamports = solToLamports(priceSol);
-      setStatus("Preparing cPEG escrow listing…");
+      setStatus("Preparing cPEG escrow listing...");
       const response = await fetch(`/api/cpeg/${selectedLaunch.token_mint}/market/listings/prepare`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -588,7 +588,7 @@ export function CpegMarketClient() {
             ),
           ];
 
-      setStatus("Opening Phantom to escrow the PEG…");
+      setStatus("Opening Phantom to escrow the PEG...");
       const signature = await sendPreparedTransaction(body.instructions, selectedLaunch.cluster, setup);
       await fetch(`/api/cpeg/${selectedLaunch.token_mint}/market/listings/confirm`, {
         method: "POST",
@@ -631,7 +631,7 @@ export function CpegMarketClient() {
 
       setBusy(`buy-${listing.peg_id}`);
       try {
-        setStatus(`Preparing buy for cPEG #${listing.peg_id}…`);
+        setStatus(`Preparing buy for cPEG #${listing.peg_id}...`);
         const response = await fetch(`/api/cpeg/${selectedLaunch.token_mint}/market/buy/prepare`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -655,7 +655,7 @@ export function CpegMarketClient() {
               ),
             ];
 
-        setStatus("Opening Phantom for purchase…");
+        setStatus("Opening Phantom for purchase...");
         const signature = await sendPreparedTransaction(body.instructions, selectedLaunch.cluster, setup);
         const confirmRes = await fetch(`/api/cpeg/${selectedLaunch.token_mint}/market/buy/confirm`, {
           method: "POST",
@@ -694,7 +694,7 @@ export function CpegMarketClient() {
 
     setBusy("batch-buy");
     try {
-      setStatus(`Preparing batch purchase of ${selectedPegIds.length} cPEGs…`);
+      setStatus(`Preparing batch purchase of ${selectedPegIds.length} cPEGs...`);
       const response = await fetch(`/api/cpeg/${selectedLaunch.token_mint}/market/buy/batch/prepare`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -718,7 +718,7 @@ export function CpegMarketClient() {
             ),
           ];
 
-      setStatus("Opening Phantom for batch purchase…");
+      setStatus("Opening Phantom for batch purchase...");
       const signature = await sendPreparedTransaction(body.instructions, selectedLaunch.cluster, setup);
       const confirmRes = await fetch(`/api/cpeg/${selectedLaunch.token_mint}/market/buy/batch/confirm`, {
         method: "POST",
@@ -918,8 +918,8 @@ export function CpegMarketClient() {
             {selectedLaunch?.name || collection?.name || "cPEG market"}
           </h1>
           <p className="mt-3 max-w-2xl text-sm leading-7 text-neutral-600 dark:text-white/60">
-            Listings move PEGs into program escrow. Buys execute a 3-way SOL split — seller,
-            creator royalty, protocol fee — atomically. No off-chain books, no wrapped fees.
+            Listings move PEGs into program escrow. Buys execute a 3-way SOL split: seller,
+            creator royalty, and protocol fee. No off-chain books, no wrapped fees.
           </p>
 
           {selectedLaunch ? (
@@ -1319,7 +1319,7 @@ export function CpegMarketClient() {
                           ) : (
                             <XCircle className="h-3 w-3" />
                           )}
-                          {isOwn ? "Cancel" : "—"}
+                          {isOwn ? "Cancel" : "-"}
                         </button>
                       </div>
                     </div>

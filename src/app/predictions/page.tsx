@@ -32,7 +32,7 @@ function fmtPct(n: number): string {
 }
 
 function fmtTimeLeft(endDate: string): string {
-  if (!endDate) return "—";
+  if (!endDate) return " - ";
   const diff = new Date(endDate).getTime() - Date.now();
   if (diff <= 0) return "Ended";
   const days = Math.floor(diff / 86_400_000);
@@ -250,7 +250,7 @@ function useJobPoll() {
           setError(data.error || "Request failed");
         }
       } catch {
-        // Network error — keep polling
+        // Network error  -  keep polling
       }
     }, 2500);
   }, []);
@@ -689,7 +689,7 @@ export default function PredictionsPage() {
               )}
             </div>
           </div>
-          <p className="font-mono text-xs text-gray-500">Real-time prediction markets — bet on politics, crypto, sports & more via Polymarket</p>
+          <p className="font-mono text-xs text-gray-500">Real-time prediction markets  -  bet on politics, crypto, sports & more via Polymarket</p>
         </div>
 
         {/* ─── API KEY CONNECT ─── */}
@@ -786,7 +786,7 @@ export default function PredictionsPage() {
         </div>
 
         {/* ─── FILTERS ─── */}
-        <TerminalWindow title="market-filter — search & sort">
+        <TerminalWindow title="market-filter  -  search & sort">
           <div className="p-4 space-y-3">
             <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-600" />

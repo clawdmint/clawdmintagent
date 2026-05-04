@@ -19,7 +19,7 @@ interface RouteContext {
  * read three things directly from on-chain state on every request:
  *
  *   1) The Token-2022 mint account, which exposes the *current* mint authority. When the
- *      authority is `None`, the supply is permanently sealed (uPEG-equivalent guarantee).
+ *      authority is `None`, the supply is permanently sealed (cPEG fixed-supply guarantee).
  *   2) `getTokenSupply` so we report the live circulating supply rather than a snapshot.
  *   3) `getTokenLargestAccounts` for the top-20 holders distribution. This is enough for a
  *      "who actually owns the supply" panel without us standing up a full holder index.

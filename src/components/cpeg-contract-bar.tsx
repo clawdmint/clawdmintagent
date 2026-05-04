@@ -6,7 +6,7 @@ import { ArrowUpRight, Check, Copy } from "lucide-react";
 /**
  * Hero "contract address" surface for a cPEG launch.
  *
- * uPEG's product framing centers the token contract address: the asset itself is the
+ * cPEG's product framing centers the token contract address: the asset itself is the
  * ERC-20 / Token-2022, and every aggregator (DEXScreener, Birdeye, Jupiter) keys off
  * that address. Our previous UI treated the mint as metadata buried in the page, which
  * confused buyers who expected a CA-first experience. This component restores parity:

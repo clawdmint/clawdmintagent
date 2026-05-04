@@ -27,7 +27,7 @@ export async function GET(request: NextRequest) {
     } else if (status === "SOLD_OUT") {
       whereClause.status = "SOLD_OUT";
     } else {
-      // "all" — show both ACTIVE and SOLD_OUT, exclude FAILED/DEPLOYING
+      // "all"  -  show both ACTIVE and SOLD_OUT, exclude FAILED/DEPLOYING
       whereClause.status = { in: [...PUBLIC_COLLECTION_STATUSES] };
     }
 

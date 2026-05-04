@@ -258,7 +258,7 @@ async function performSynapseSapAgentRegistration(
   // Probe the on-chain SAP agent PDA directly via getAccountInfo BEFORE building the
   // SapConnection. The SDK constructor + first fetch route through the Synapse gateway and
   // frequently exceed the timeout, while a single RPC probe against the public mainnet RPC is
-  // fast and definitive. If the PDA exists on-chain, the agent is already registered — we can
+  // fast and definitive. If the PDA exists on-chain, the agent is already registered  -  we can
   // short-circuit without paying for the slower SDK round-trip.
   const [agentPdaProbe] = deriveAgent(agentWallet, programIdForProbe);
   const [statsPdaProbe] = deriveAgentStats(agentPdaProbe, programIdForProbe);

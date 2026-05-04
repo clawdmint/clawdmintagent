@@ -4,7 +4,7 @@
 export function truncateAddress(address: string | null | undefined, head = 4, tail = 4): string {
   if (!address) return "--";
   if (address.length <= head + tail + 1) return address;
-  return `${address.slice(0, head)}…${address.slice(-tail)}`;
+  return `${address.slice(0, head)}...${address.slice(-tail)}`;
 }
 
 export function truncateSignature(signature: string | null | undefined): string {
@@ -98,7 +98,7 @@ export function describeError(error: unknown, fallback = "Something went wrong."
   }
   // Trim very long messages and strip stack traces.
   const oneLine = raw.split("\n")[0]?.trim() || fallback;
-  if (oneLine.length > 160) return `${oneLine.slice(0, 160)}…`;
+  if (oneLine.length > 160) return `${oneLine.slice(0, 160)}...`;
   return oneLine;
 }
 

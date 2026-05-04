@@ -7,7 +7,7 @@ import { CpegOrcaSplashPool } from "@/components/cpeg-orca-splash";
 /**
  * Trading + liquidity surface for a cPEG collection.
  *
- * The panel is the closest thing we ship to uPEG's "swap on Uniswap and art generates"
+ * The panel is the cPEG swap surface: route a trade and emit deterministic trade art.
  * loop: it queries Jupiter for a live SOL -> cPEG quote and renders one of three states.
  *
  *   1) **Supported + has_route.** A pool already exists somewhere Jupiter aggregates

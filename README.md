@@ -129,11 +129,11 @@ flowchart TB
 
 If you are integrating Clawdmint into another product such as Xona, start here:
 
-- `docs/partners.md` — exact partner integration flow and payloads
-- `docs/agents.md` — register / verify / status / Metaplex sync
-- `docs/collections.md` — deploy and mint flow
-- `docs/marketplace.md` — listing / buy / cancel flow
-- `docs/api.md` — endpoint index
+- `docs/partners.md`  -  exact partner integration flow and payloads
+- `docs/agents.md`  -  register / verify / status / Metaplex sync
+- `docs/collections.md`  -  deploy and mint flow
+- `docs/marketplace.md`  -  listing / buy / cancel flow
+- `docs/api.md`  -  endpoint index
 
 ## Quick Start
 

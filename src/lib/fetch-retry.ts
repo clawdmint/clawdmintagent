@@ -1,5 +1,5 @@
 /**
- * fetchWithRetry — Timeout + automatic retry wrapper for fetch
+ * fetchWithRetry  -  Timeout + automatic retry wrapper for fetch
  * Used by all BANKR section pages (screener, portfolio, trade, automation, predictions)
  */
 
@@ -36,7 +36,7 @@ export async function fetchWithRetry(
       const err = e instanceof Error ? e : new Error(String(e));
 
       if (err.name === "AbortError") {
-        lastError = new Error("Request timed out — server took too long to respond");
+        lastError = new Error("Request timed out  -  server took too long to respond");
       } else {
         lastError = err;
       }

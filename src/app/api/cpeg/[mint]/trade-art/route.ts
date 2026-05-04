@@ -60,7 +60,7 @@ export async function GET(request: NextRequest, { params }: RouteContext) {
   // Trade art is recorded atomically inside cpeg-market::buy() using `peg_id` as the
   // `trade_index`. The DB row for a FILLED listing therefore tells us exactly which
   // trade-art PDAs should exist on-chain. We pull the most recent fills and verify each
-  // PDA via a single batched RPC call so the UI only ever shows real, on-chain art —
+  // PDA via a single batched RPC call so the UI only ever shows real, on-chain art;
   // no empty placeholder slots.
   const fills = await prisma.clawPegMarketListing.findMany({
     where: { launchId: launch.id, status: "FILLED" },

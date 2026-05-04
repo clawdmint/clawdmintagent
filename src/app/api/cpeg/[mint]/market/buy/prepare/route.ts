@@ -140,7 +140,7 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
       return NextResponse.json(
         {
           success: false,
-          error: `On-chain listing is ${statusLabel}, not ACTIVE. Refresh the marketplace — the row will disappear.`,
+          error: `On-chain listing is ${statusLabel}, not ACTIVE. Refresh the marketplace; the row will disappear.`,
         },
         { status: 409 }
       );
@@ -172,7 +172,7 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
 
     // Always derive `creator` and `feeVault` from the on-chain collection. Even if DB is stale or the
     // collection was launched before launch.creatorAddress / feeVaultAddress were captured, the
-    // on-chain values are authoritative — and the cpeg-market `buy()` validates them by byte-equality.
+    // on-chain values are authoritative, and the cpeg-market `buy()` validates them by byte-equality.
     const onChainCreator = collectionState.creator;
     const onChainFeeVault = collectionState.feeVault;
 

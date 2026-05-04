@@ -21,7 +21,7 @@ import type { ScreenerToken } from "@/app/api/screener/tokens/route";
 // ═══════════════════════════════════════════════════════════════════════
 
 function fmtPrice(n: number | null): string {
-  if (n === null || n === undefined) return "—";
+  if (n === null || n === undefined) return " - ";
   if (n === 0) return "$0";
   if (n < 0.000001) return `$${n.toExponential(2)}`;
   if (n < 0.01) return `$${n.toFixed(6)}`;
@@ -31,7 +31,7 @@ function fmtPrice(n: number | null): string {
 }
 
 function fmtCompact(n: number | null): string {
-  if (n === null || n === undefined) return "—";
+  if (n === null || n === undefined) return " - ";
   if (n === 0) return "0";
   const abs = Math.abs(n);
   if (abs >= 1_000_000_000) return `${(n / 1_000_000_000).toFixed(1)}B`;
@@ -42,7 +42,7 @@ function fmtCompact(n: number | null): string {
 }
 
 function fmtPct(n: number | null): string {
-  if (n === null || n === undefined) return "—";
+  if (n === null || n === undefined) return " - ";
   const sign = n >= 0 ? "+" : "";
   return `${sign}${n.toFixed(2)}%`;
 }
@@ -165,7 +165,7 @@ function TerminalWindow({ title, children, className }: { title: string; childre
 // ═══════════════════════════════════════════════════════════════════════
 
 function PriceChangeCell({ value }: { value: number | null }) {
-  if (value === null || value === undefined) return <span className="text-gray-600">—</span>;
+  if (value === null || value === undefined) return <span className="text-gray-600"> - </span>;
   const isPositive = value >= 0;
   return (
     <span className={clsx("font-mono text-xs tabular-nums", isPositive ? "text-emerald-400" : "text-red-400")}>
@@ -280,7 +280,7 @@ function AgeBadge({ deployedAt }: { deployedAt: string }) {
 // ═══════════════════════════════════════════════════════════════════════
 
 function BuySellBar({ buys, sells, size = "sm" }: { buys: number | null; sells: number | null; size?: "sm" | "md" }) {
-  if (buys === null || sells === null) return <span className="text-gray-600 font-mono text-[10px]">—</span>;
+  if (buys === null || sells === null) return <span className="text-gray-600 font-mono text-[10px]"> - </span>;
   const total = buys + sells;
   if (total === 0) return <span className="text-gray-600 font-mono text-[10px]">0</span>;
   const buyPct = (buys / total) * 100;
@@ -392,12 +392,12 @@ function KingOfTheHill({ token, onSelect }: { token: ScreenerToken; onSelect: (t
                 {/* Market Cap */}
                 <div className="hidden sm:block">
                   <div className="font-mono text-[9px] text-gray-600 uppercase">MCap</div>
-                  <div className="font-mono text-sm text-gray-200">{token.marketCap ? `$${fmtCompact(token.marketCap)}` : "—"}</div>
+                  <div className="font-mono text-sm text-gray-200">{token.marketCap ? `$${fmtCompact(token.marketCap)}` : " - "}</div>
                 </div>
                 {/* Volume */}
                 <div className="hidden sm:block">
                   <div className="font-mono text-[9px] text-gray-600 uppercase">24H Vol</div>
-                  <div className="font-mono text-sm text-gray-200">{token.volume24h ? `$${fmtCompact(token.volume24h)}` : "—"}</div>
+                  <div className="font-mono text-sm text-gray-200">{token.volume24h ? `$${fmtCompact(token.volume24h)}` : " - "}</div>
                 </div>
                 {/* Buy/Sell */}
                 <div className="hidden md:block">
@@ -661,19 +661,19 @@ function TokenGridCard({ token, idx, watchlist, onToggleWatchlist, onSelect }: {
         <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 mb-3">
           <div className="flex justify-between">
             <span className="font-mono text-[9px] text-gray-600">MCap</span>
-            <span className="font-mono text-[10px] text-gray-300">{token.marketCap ? `$${fmtCompact(token.marketCap)}` : "—"}</span>
+            <span className="font-mono text-[10px] text-gray-300">{token.marketCap ? `$${fmtCompact(token.marketCap)}` : " - "}</span>
           </div>
           <div className="flex justify-between">
             <span className="font-mono text-[9px] text-gray-600">Vol 24H</span>
-            <span className="font-mono text-[10px] text-gray-300">{token.volume24h ? `$${fmtCompact(token.volume24h)}` : "—"}</span>
+            <span className="font-mono text-[10px] text-gray-300">{token.volume24h ? `$${fmtCompact(token.volume24h)}` : " - "}</span>
           </div>
           <div className="flex justify-between">
             <span className="font-mono text-[9px] text-gray-600">Liq</span>
-            <span className="font-mono text-[10px] text-gray-300">{token.liquidity ? `$${fmtCompact(token.liquidity)}` : "—"}</span>
+            <span className="font-mono text-[10px] text-gray-300">{token.liquidity ? `$${fmtCompact(token.liquidity)}` : " - "}</span>
           </div>
           <div className="flex justify-between">
             <span className="font-mono text-[9px] text-gray-600">Txns</span>
-            <span className="font-mono text-[10px] text-gray-300">{token.txns24h !== null ? fmtCompact(token.txns24h) : "—"}</span>
+            <span className="font-mono text-[10px] text-gray-300">{token.txns24h !== null ? fmtCompact(token.txns24h) : " - "}</span>
           </div>
         </div>
 
@@ -786,14 +786,14 @@ function TokenDetailModal({ token, onClose, watchlist, onToggleWatchlist }: {
         {/* Grid */}
         <div className="px-5 py-4 grid grid-cols-2 gap-x-6 gap-y-3 border-b border-white/[0.04]">
           {([
-            ["Market Cap", token.marketCap !== null ? `$${fmtCompact(token.marketCap)}` : "—"],
-            ["FDV", token.fdv !== null ? `$${fmtCompact(token.fdv)}` : "—"],
-            ["Liquidity", token.liquidity !== null ? `$${fmtCompact(token.liquidity)}` : "—"],
-            ["24H Volume", token.volume24h !== null ? `$${fmtCompact(token.volume24h)}` : "—"],
-            ["1H Volume", token.volumeH1 !== null ? `$${fmtCompact(token.volumeH1)}` : "—"],
-            ["5M Volume", token.volumeM5 !== null ? `$${fmtCompact(token.volumeM5)}` : "—"],
-            ["24H Txns", token.txns24h !== null ? fmtCompact(token.txns24h) : "—"],
-            ["1H Txns", token.txnsH1 !== null ? fmtCompact(token.txnsH1) : "—"],
+            ["Market Cap", token.marketCap !== null ? `$${fmtCompact(token.marketCap)}` : " - "],
+            ["FDV", token.fdv !== null ? `$${fmtCompact(token.fdv)}` : " - "],
+            ["Liquidity", token.liquidity !== null ? `$${fmtCompact(token.liquidity)}` : " - "],
+            ["24H Volume", token.volume24h !== null ? `$${fmtCompact(token.volume24h)}` : " - "],
+            ["1H Volume", token.volumeH1 !== null ? `$${fmtCompact(token.volumeH1)}` : " - "],
+            ["5M Volume", token.volumeM5 !== null ? `$${fmtCompact(token.volumeM5)}` : " - "],
+            ["24H Txns", token.txns24h !== null ? fmtCompact(token.txns24h) : " - "],
+            ["1H Txns", token.txnsH1 !== null ? fmtCompact(token.txnsH1) : " - "],
             ["Age", fmtAge(token.deployedAt)],
           ] as [string, string][]).map(([label, val]) => (
             <div key={label} className="flex justify-between items-center">
@@ -1059,7 +1059,7 @@ export default function BankrScreenerPage() {
             </div>
           </div>
           <p className="font-mono text-xs text-gray-500">
-            Track tokens launched through Bankr on Base — real-time prices, volume, and market data
+            Track tokens launched through Bankr on Base  -  real-time prices, volume, and market data
           </p>
         </div>
 
@@ -1081,7 +1081,7 @@ export default function BankrScreenerPage() {
         )}
 
         {/* ─── MAIN TERMINAL ─── */}
-        <TerminalWindow title="bankr-screener — token explorer">
+        <TerminalWindow title="bankr-screener  -  token explorer">
           {/* ─── TAB BAR ─── */}
           <div className="flex items-center justify-between px-4 pt-3 pb-0">
             <div className="flex items-center gap-1 overflow-x-auto scrollbar-hide">
@@ -1326,13 +1326,13 @@ export default function BankrScreenerPage() {
                           {/* Txns */}
                           <td className="px-1 py-3 text-right hidden lg:table-cell">
                             <span className="font-mono text-xs text-gray-300 tabular-nums">
-                              {token.txns24h !== null ? fmtCompact(token.txns24h) : "—"}
+                              {token.txns24h !== null ? fmtCompact(token.txns24h) : " - "}
                             </span>
                           </td>
                           {/* Volume */}
                           <td className="px-1 py-3 text-right hidden xl:table-cell">
                             <span className="font-mono text-xs text-gray-300 tabular-nums">
-                              {token.volume24h !== null ? `$${fmtCompact(token.volume24h)}` : "—"}
+                              {token.volume24h !== null ? `$${fmtCompact(token.volume24h)}` : " - "}
                             </span>
                           </td>
                           {/* 5M */}
@@ -1346,13 +1346,13 @@ export default function BankrScreenerPage() {
                           {/* Liquidity */}
                           <td className="px-1 py-3 text-right hidden xl:table-cell">
                             <span className="font-mono text-xs text-gray-300 tabular-nums">
-                              {token.liquidity !== null ? `$${fmtCompact(token.liquidity)}` : "—"}
+                              {token.liquidity !== null ? `$${fmtCompact(token.liquidity)}` : " - "}
                             </span>
                           </td>
                           {/* MCap */}
                           <td className="px-1 pr-4 py-3 text-right hidden lg:table-cell">
                             <span className="font-mono text-xs text-gray-300 tabular-nums">
-                              {token.marketCap !== null ? `$${fmtCompact(token.marketCap)}` : "—"}
+                              {token.marketCap !== null ? `$${fmtCompact(token.marketCap)}` : " - "}
                             </span>
                           </td>
                         </tr>
@@ -1424,15 +1424,15 @@ export default function BankrScreenerPage() {
             <div className="space-y-2 font-mono text-xs text-gray-400">
               <div className="flex items-center gap-2">
                 <McapBadge marketCap={1_500_000} />
-                <span>$1M+ Market Cap — Established Token</span>
+                <span>$1M+ Market Cap  -  Established Token</span>
               </div>
               <div className="flex items-center gap-2">
                 <McapBadge marketCap={150_000} />
-                <span>$100K+ Market Cap — Growing Token</span>
+                <span>$100K+ Market Cap  -  Growing Token</span>
               </div>
               <div className="flex items-center gap-2">
                 <McapBadge marketCap={15_000} />
-                <span>$10K+ Market Cap — Early Stage</span>
+                <span>$10K+ Market Cap  -  Early Stage</span>
               </div>
             </div>
           </div>
@@ -1441,9 +1441,9 @@ export default function BankrScreenerPage() {
               <Activity className="w-4 h-4 text-emerald-400" /> Data Sources
             </h3>
             <ul className="space-y-2 font-mono text-xs text-gray-400">
-              <li className="flex items-center gap-2"><span className="w-1.5 h-1.5 rounded-full bg-cyan-400" /> Clanker API — Token deployment data (Bankr filter)</li>
-              <li className="flex items-center gap-2"><span className="w-1.5 h-1.5 rounded-full bg-emerald-400" /> DexScreener — Real-time price, volume, liquidity</li>
-              <li className="flex items-center gap-2"><span className="w-1.5 h-1.5 rounded-full bg-purple-400" /> Base Chain (8453) — On-chain Uniswap V3 pools</li>
+              <li className="flex items-center gap-2"><span className="w-1.5 h-1.5 rounded-full bg-cyan-400" /> Clanker API  -  Token deployment data (Bankr filter)</li>
+              <li className="flex items-center gap-2"><span className="w-1.5 h-1.5 rounded-full bg-emerald-400" /> DexScreener  -  Real-time price, volume, liquidity</li>
+              <li className="flex items-center gap-2"><span className="w-1.5 h-1.5 rounded-full bg-purple-400" /> Base Chain (8453)  -  On-chain Uniswap V3 pools</li>
             </ul>
           </div>
         </div>

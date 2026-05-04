@@ -227,7 +227,7 @@ export default function MintPage() {
   if (!AGENTS_CONTRACT) {
     return (
       <div className="min-h-screen bg-[#050a05] flex items-center justify-center p-4">
-        <TerminalWindow title="clawdmint — error">
+        <TerminalWindow title="clawdmint  -  error">
           <TermLine prefix="$" color="text-red-400">ERROR: Collection contract not configured</TermLine>
           <TermLine prefix=">" color="text-gray-600">Awaiting deployment...</TermLine>
         </TerminalWindow>
@@ -294,7 +294,7 @@ export default function MintPage() {
         <div className="grid md:grid-cols-2 gap-6 mb-12">
 
           {/* LEFT: STATUS TERMINAL */}
-          <TerminalWindow title="clawdmint — status">
+          <TerminalWindow title="clawdmint  -  status">
             <div className="space-y-2 mb-5">
               <TermLine prefix="$">cat /collection/status</TermLine>
               <div className="h-px bg-emerald-500/10 my-2" />
@@ -308,7 +308,7 @@ export default function MintPage() {
               <TermLine prefix=" ">price:      <span className="text-emerald-400">FREE</span></TermLine>
             </div>
 
-            {/* Progress bar — terminal style */}
+            {/* Progress bar  -  terminal style */}
             <div className="mb-4">
               <div className="flex items-center justify-between text-[11px] text-gray-600 mb-1">
                 <span>progress</span>
@@ -342,7 +342,7 @@ export default function MintPage() {
           </TerminalWindow>
 
           {/* RIGHT: MINT TERMINAL */}
-          <TerminalWindow title="clawdmint — mint">
+          <TerminalWindow title="clawdmint  -  mint">
             <div className="space-y-4">
               <TermLine prefix="$">./mint --collection=agents</TermLine>
 
@@ -386,7 +386,7 @@ export default function MintPage() {
                       <div className="w-2.5 h-2.5 rounded-full shrink-0 bg-yellow-400 animate-pulse" />
                       <div className="flex-1 min-w-0">
                         <div className="font-mono text-xs font-bold text-white">Public Mint</div>
-                        <div className="font-mono text-[10px] text-gray-500">Feb 11, 2026 — 15:00 UTC</div>
+                        <div className="font-mono text-[10px] text-gray-500">Feb 11, 2026  -  15:00 UTC</div>
                       </div>
                       <span className="font-mono text-[10px] px-2 py-0.5 rounded-full border text-yellow-400 border-yellow-500/30 bg-yellow-500/10 animate-pulse">
                         COUNTDOWN
@@ -494,7 +494,7 @@ export default function MintPage() {
         </div>
 
         {/* ══════════════════ TRAITS & RARITY ══════════════════ */}
-        <TerminalWindow title="clawdmint — traits" className="mb-12">
+        <TerminalWindow title="clawdmint  -  traits" className="mb-12">
           <div className="grid md:grid-cols-2 gap-8">
             {/* Trait Categories */}
             <div>
@@ -528,7 +528,7 @@ export default function MintPage() {
         </TerminalWindow>
 
         {/* ══════════════════ HOW IT WORKS ══════════════════ */}
-        <TerminalWindow title="clawdmint — guide" className="mb-12">
+        <TerminalWindow title="clawdmint  -  guide" className="mb-12">
           <TermLine prefix="$" color="text-cyan-400">cat /docs/how-it-works</TermLine>
           <div className="mt-4 space-y-4">
             {[
@@ -548,7 +548,7 @@ export default function MintPage() {
         </TerminalWindow>
 
         {/* ══════════════════ FAQ ══════════════════ */}
-        <TerminalWindow title="clawdmint — faq" className="mb-12">
+        <TerminalWindow title="clawdmint  -  faq" className="mb-12">
           <TermLine prefix="$" color="text-cyan-400">man clawdmint-agents</TermLine>
           <div className="mt-3">
             {[
@@ -608,7 +608,7 @@ export default function MintPage() {
 // ═══════════════════════════════════════════════════════════════════════
 
 // ═══════════════════════════════════════════════════════════════════════
-// AGENT CAROUSEL — cycles through 10 NFT images
+// AGENT CAROUSEL  -  cycles through 10 NFT images
 // ═══════════════════════════════════════════════════════════════════════
 
 const CAROUSEL_IDS = [42, 137, 256, 888, 1337, 2048, 4096, 5555, 7777, 9999];

@@ -186,7 +186,7 @@ async function fetchGammaMarkets(limit: number): Promise<PolyMarket[]> {
 }
 
 // ═══════════════════════════════════════════════════════════════════════
-// GET — Fetch markets
+// GET  -  Fetch markets
 // ═══════════════════════════════════════════════════════════════════════
 
 export async function GET(request: Request) {
@@ -240,7 +240,7 @@ export async function GET(request: Request) {
 }
 
 // ═══════════════════════════════════════════════════════════════════════
-// POST — Submit actions (non-blocking) or poll job status
+// POST  -  Submit actions (non-blocking) or poll job status
 // ═══════════════════════════════════════════════════════════════════════
 
 export async function POST(request: Request) {

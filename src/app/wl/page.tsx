@@ -5,7 +5,7 @@ import { clsx } from "clsx";
 import { CheckCircle, Circle, ExternalLink, Wallet, Send, Shield, Copy, Check } from "lucide-react";
 
 // ═══════════════════════════════════════════════════════════════════════
-// CONFIG — Update these values
+// CONFIG  -  Update these values
 // ═══════════════════════════════════════════════════════════════════════
 
 const TWITTER_HANDLE = "clawdmint";
@@ -151,7 +151,7 @@ export default function WhitelistPage() {
                 <div className="w-2.5 h-2.5 rounded-full bg-yellow-500/50" />
                 <div className="w-2.5 h-2.5 rounded-full bg-emerald-500/50" />
               </div>
-              <span className="font-mono text-[10px] text-emerald-500/60 ml-2">clawdmint — whitelist</span>
+              <span className="font-mono text-[10px] text-emerald-500/60 ml-2">clawdmint  -  whitelist</span>
             </div>
             <div className="p-8 text-center space-y-4">
               <div className="w-16 h-16 mx-auto rounded-full bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center">
@@ -218,7 +218,7 @@ export default function WhitelistPage() {
               <div className="w-2.5 h-2.5 rounded-full bg-yellow-500/50" />
               <div className="w-2.5 h-2.5 rounded-full bg-emerald-500/50" />
             </div>
-            <span className="font-mono text-[10px] text-emerald-500/60 ml-2">clawdmint — tasks</span>
+            <span className="font-mono text-[10px] text-emerald-500/60 ml-2">clawdmint  -  tasks</span>
             <span className="ml-auto font-mono text-[10px] text-gray-600">
               {completedTasks.size}/{TASKS.length}
             </span>

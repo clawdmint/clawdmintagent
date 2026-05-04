@@ -122,7 +122,7 @@ export function middleware(request: NextRequest) {
 export const config = {
   matcher: [
     /*
-     * Include "/" explicitly — some Next matcher patterns skip the bare root path, which
+     * Include "/" explicitly  -  some Next matcher patterns skip the bare root path, which
      * would leave the cPEG subdomain homepage without rewrites (and unrelated paths could
      * fall through to redirectMain).
      */

@@ -349,7 +349,7 @@ function SettingsPanel({
             {slippage > 5 && (
               <div className="mt-2 flex items-center gap-1.5 text-yellow-500/80">
                 <AlertTriangle className="w-3 h-3" />
-                <span className="font-mono text-[10px]">High slippage — you may receive significantly less</span>
+                <span className="font-mono text-[10px]">High slippage  -  you may receive significantly less</span>
               </div>
             )}
           </div>
@@ -390,7 +390,7 @@ function TradeHistory({ history }: { history: TradeRecord[] }) {
   if (history.length === 0) return null;
 
   return (
-    <TerminalWindow title="trade-history — recent swaps">
+    <TerminalWindow title="trade-history  -  recent swaps">
       <div className="divide-y divide-white/[0.04]">
         {history.slice(0, 10).map((trade) => (
           <div key={trade.id} className="flex items-center gap-3 px-4 py-3">
@@ -638,7 +638,7 @@ export default function TradePage() {
 
         {/* ─── API KEY CONNECTION ─── */}
         {!connected ? (
-          <TerminalWindow title="bankr-connect — api key setup">
+          <TerminalWindow title="bankr-connect  -  api key setup">
             <div className="p-6">
               <div className="max-w-md mx-auto">
                 <div className="mb-6 p-4 rounded-lg bg-cyan-500/[0.05] border border-cyan-500/10">
@@ -740,7 +740,7 @@ export default function TradePage() {
             </div>
 
             {/* ─── SWAP CARD ─── */}
-            <TerminalWindow title="swap-terminal — execute trades">
+            <TerminalWindow title="swap-terminal  -  execute trades">
               <div className="p-5 space-y-1">
                 {/* FROM */}
                 <div className="rounded-xl bg-white/[0.02] border border-white/[0.06] p-4">
@@ -792,7 +792,7 @@ export default function TradePage() {
                       {response ? (
                         <span className="text-emerald-400 text-lg">{response.slice(0, 60)}...</span>
                       ) : (
-                        "—"
+                        " - "
                       )}
                     </div>
                     <button
@@ -907,7 +907,7 @@ export default function TradePage() {
             {/* ─── RESPONSE ─── */}
             {(response || error) && !loading && (
               <div className="mt-4">
-                <TerminalWindow title="bankr-agent — trade result">
+                <TerminalWindow title="bankr-agent  -  trade result">
                   <div className="p-5">
                     {error && (
                       <div className="p-4 rounded-lg bg-red-500/10 border border-red-500/20 space-y-2">

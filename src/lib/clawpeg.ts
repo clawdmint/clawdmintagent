@@ -623,7 +623,7 @@ export function buildClawPegBuyPegEscrowManifest(params: ClawPegBuyPegEscrowPara
   // Trade-art recording is now bundled atomically into every market fill via CPI from
   // cpeg-market -> clawpeg::record_trade_art. The trade_index is the peg_id so each
   // PEG identity has at most one canonical "first sale" art piece, and re-runs are safe
-  // because the on-chain instruction is idempotent. This mirrors uPEG's Uniswap-v4 hook
+  // because the on-chain instruction is idempotent. This keeps routed trades art-emitting
   // pattern where every swap automatically materializes one piece of art.
   const tradeArt = findTradeArtRecordAddress(collectionAddress.toBase58(), BigInt(params.pegId));
   const data = Buffer.concat([Buffer.from([1]), encodeU32(params.pegId)]);
@@ -761,10 +761,25 @@ export interface ParsedCpegMarketListingAccount {
   closedSlot: bigint;
 }
 
+export interface ParsedClawPegRecordAccount {
+  isInitialized: boolean;
+  status: number;
+  collection: string;
+  owner: string;
+  pegId: number;
+  seed: string;
+  mintedSlot: bigint;
+  transferredSlot: bigint;
+  burnedSlot: bigint;
+}
+
 export const CPEG_MARKET_LISTING_ACCOUNT_SIZE = 152;
 export const CPEG_MARKET_LISTING_STATUS_ACTIVE = 1;
 export const CPEG_MARKET_LISTING_STATUS_FILLED = 2;
 export const CPEG_MARKET_LISTING_STATUS_CANCELLED = 3;
+export const CLAWPEG_RECORD_ACCOUNT_SIZE = 126;
+export const CLAWPEG_PEG_STATUS_ACTIVE = 1;
+export const CLAWPEG_PEG_STATUS_BURNED = 2;
 
 export function parseCpegMarketListingAccount(data: Buffer): ParsedCpegMarketListingAccount {
   if (data.length < CPEG_MARKET_LISTING_ACCOUNT_SIZE) {
@@ -795,6 +810,36 @@ export function describeCpegMarketListingStatus(status: number): string {
       return "FILLED";
     case CPEG_MARKET_LISTING_STATUS_CANCELLED:
       return "CANCELLED";
+    default:
+      return `UNKNOWN(${status})`;
+  }
+}
+
+export function parseClawPegRecordAccount(data: Buffer): ParsedClawPegRecordAccount {
+  if (data.length < CLAWPEG_RECORD_ACCOUNT_SIZE) {
+    throw new Error(
+      `PegRecord account data too small: got ${data.length}, expected >= ${CLAWPEG_RECORD_ACCOUNT_SIZE}`
+    );
+  }
+  return {
+    isInitialized: data[0] === 1,
+    status: data[1],
+    collection: new PublicKey(data.subarray(2, 34)).toBase58(),
+    owner: new PublicKey(data.subarray(34, 66)).toBase58(),
+    pegId: data.readUInt32LE(66),
+    seed: data.subarray(70, 102).toString("hex"),
+    mintedSlot: data.readBigUInt64LE(102),
+    transferredSlot: data.readBigUInt64LE(110),
+    burnedSlot: data.readBigUInt64LE(118),
+  };
+}
+
+export function describeClawPegRecordStatus(status: number): string {
+  switch (status) {
+    case CLAWPEG_PEG_STATUS_ACTIVE:
+      return "ACTIVE";
+    case CLAWPEG_PEG_STATUS_BURNED:
+      return "BURNED";
     default:
       return `UNKNOWN(${status})`;
   }

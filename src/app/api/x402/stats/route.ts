@@ -7,7 +7,7 @@ export const dynamic = "force-dynamic";
 
 // ═══════════════════════════════════════════════════════════════════════
 // GET /api/x402/stats
-// Premium platform analytics — x402 payment required
+// Premium platform analytics  -  x402 payment required
 // ═══════════════════════════════════════════════════════════════════════
 
 export async function GET(request: NextRequest) {

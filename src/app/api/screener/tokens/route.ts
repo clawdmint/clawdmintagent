@@ -216,7 +216,7 @@ async function fetchBankrTokens(limit: number, sortBy = "market-cap", sort = "de
   return allTokens;
 }
 
-// Fetch newest tokens — no socialInterface filter for broader coverage
+// Fetch newest tokens  -  no socialInterface filter for broader coverage
 async function fetchNewestTokens(limit: number): Promise<ClankerToken[]> {
   const allTokens: ClankerToken[] = [];
   const seen = new Set<string>();

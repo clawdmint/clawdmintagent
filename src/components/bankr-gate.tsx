@@ -91,7 +91,7 @@ export function BankrGate({ children }: BankrGateProps) {
                 <div className="w-2.5 h-2.5 rounded-full bg-yellow-500/50" />
                 <div className="w-2.5 h-2.5 rounded-full bg-cyan-500/50" />
               </div>
-              <span className="font-mono text-[10px] text-cyan-500/60 ml-2">bankr-access — gated content</span>
+              <span className="font-mono text-[10px] text-cyan-500/60 ml-2">bankr-access: gated content</span>
             </div>
 
             <div className="p-8 text-center">
@@ -143,7 +143,7 @@ export function BankrGate({ children }: BankrGateProps) {
               ) : !unlocked ? (
                 <div className="space-y-3">
                   <div className="py-3 rounded-xl bg-red-500/10 border border-red-500/20 font-mono text-xs text-red-400 text-center">
-                    Insufficient balance — requirements not met
+                    Insufficient balance: requirements not met
                   </div>
                   <div className="flex gap-2">
                     <a href="/mint" className="flex-1 py-2.5 rounded-xl bg-cyan-500/10 border border-cyan-500/20 font-mono text-[11px] text-cyan-400 hover:bg-cyan-500/20 transition-all text-center flex items-center justify-center gap-1.5">

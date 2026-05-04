@@ -3,7 +3,7 @@ import { prisma } from "@/lib/db";
 
 export const dynamic = "force-dynamic";
 
-// POST /api/whitelist — Submit wallet for WL
+// POST /api/whitelist  -  Submit wallet for WL
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
@@ -58,7 +58,7 @@ export async function POST(request: NextRequest) {
   }
 }
 
-// GET /api/whitelist — Check if wallet is already on WL
+// GET /api/whitelist  -  Check if wallet is already on WL
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);

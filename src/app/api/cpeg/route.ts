@@ -120,9 +120,20 @@ export async function GET(request: NextRequest) {
   return NextResponse.json({
     success: true,
     standard: "ClawPEG",
+    standard_version: "cPEG Standard v0.1",
     symbol: "cPEG",
     description:
       "Solana Token-2022 PEG launch standard for deterministic IPFS-free collectible identities.",
+    invariants: [
+      "One whole Token-2022 unit grants capacity for one PEG identity.",
+      "PEG identity state lives in PegRecord and OwnerPeg PDAs.",
+      "Official cPEG routes emit TradeArtRecord accounts for supported trades.",
+      "Renderer output is deterministic from on-chain seeds and versioned renderer rules.",
+    ],
+    indexer: {
+      standard_events: "/api/cpeg/indexer/events?program=standard",
+      market_events: "/api/cpeg/indexer/events?program=market",
+    },
     token2022: {
       mint_extension: "TransferHook",
       mint_account_size: getClawPegToken2022MintAccountSize(),
@@ -180,6 +191,7 @@ export async function GET(request: NextRequest) {
         },
         is_sealed: sealedMap.get(launch.tokenMint) ?? false,
         preview_image: `/api/cpeg/${launch.tokenMint}/pegs/1/svg`,
+        trade_router: `/api/cpeg/${launch.tokenMint}/trade-router`,
       };
     }),
   });

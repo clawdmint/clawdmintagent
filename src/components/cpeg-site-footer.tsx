@@ -35,7 +35,7 @@ export function CpegSiteFooter() {
               {lobster} Claw + JPEG = cPEG
             </p>
             <p className={clsx("mt-1 max-w-md text-xs", theme === "dark" ? "text-white/45" : "text-gray-500")}>
-              Token-2022 units with on-chain PEG identity. Same brand line as Clawdmint—just a focused surface
+              Token-2022 units with on-chain PEG identity. Same brand line as Clawdmint, focused for cPEG
               for the standard.
             </p>
           </div>

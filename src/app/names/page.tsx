@@ -119,7 +119,7 @@ export default function NamesPage() {
 
   return (
     <div className="min-h-[80vh] flex flex-col">
-      {/* Hero + Search — centered vertically when no results */}
+      {/* Hero + Search  -  centered vertically when no results */}
       <div className={clsx(
         "flex-1 flex flex-col items-center justify-center px-4 transition-all duration-500",
         (searchName || myNames.length > 0) ? "pt-10 pb-6" : "pt-0"
@@ -324,7 +324,7 @@ export default function NamesPage() {
             )}
           </div>
 
-          {/* Minimal pricing hint — only shown when no search */}
+          {/* Minimal pricing hint  -  only shown when no search */}
           {!searchName && (
             <div className={clsx(
               "flex items-center justify-center gap-4 mt-6 text-[11px] font-medium",
@@ -340,7 +340,7 @@ export default function NamesPage() {
         </div>
       </div>
 
-      {/* My Names — only when connected and has names */}
+      {/* My Names  -  only when connected and has names */}
       {isConnected && (myNames.length > 0 || loadingNames) && (
         <div className="px-4 pb-10">
           <div className="max-w-2xl mx-auto">

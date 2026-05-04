@@ -551,10 +551,10 @@ export default function LaunchPage() {
               </div>
               <div className="space-y-3">
                 {[
-                  { step: "1", title: "Fill Details", desc: "Name, symbol, metadata — all stored on-chain" },
+                  { step: "1", title: "Fill Details", desc: "Name, symbol, metadata  -  all stored on-chain" },
                   { step: "2", title: "Set Fee Recipient", desc: "Who receives 57% of 1.2% trading fees" },
                   { step: "3", title: "Simulate First", desc: "Preview your token address risk-free" },
-                  { step: "4", title: "Deploy", desc: "One click — live on Base with bonding curve" },
+                  { step: "4", title: "Deploy", desc: "One click  -  live on Base with bonding curve" },
                 ].map((s) => (
                   <div key={s.step} className="flex items-start gap-3">
                     <div className={clsx("w-6 h-6 rounded-lg flex items-center justify-center font-mono text-[10px] font-bold shrink-0 mt-0.5", isDark ? "bg-cyan-500/10 text-cyan-400" : "bg-cyan-50 text-cyan-600")}>{s.step}</div>

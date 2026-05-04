@@ -300,7 +300,7 @@ impl Processor {
         }
 
         // Close the listing PDA so the same (collection, peg_id) pair can be re-listed in
-        // the future. uPEG's Uniswap-v4 hook implicitly recycles per-swap state every fill;
+        // the future. cPEG recycles per-fill state so each fill can be listed again later;
         // on Solana we replicate that semantic by transferring the listing's rent back to
         // the seller and resetting the PDA. After this point, any read of the listing
         // account will return an empty system-owned account.
@@ -428,7 +428,7 @@ impl Processor {
             ],
             &[&[b"listing", collection.key.as_ref(), &peg_id.to_le_bytes(), &[bump]]],
         )?;
-        // Close the listing PDA so the seller can re-list this peg later. Mirrors uPEG's
+        // Close the listing PDA so the seller can re-list this peg later. Mirrors cPEG's
         // implicit per-swap state recycling: a cancelled listing should not leave a sticky
         // PDA at [b"listing", collection, peg_id] that blocks re-listing.
         close_account_into(listing, seller)?;
