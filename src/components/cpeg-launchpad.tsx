@@ -454,7 +454,7 @@ export function CpegLaunchpad() {
 
   if (result) {
     return (
-      <section className="border-y border-white/10 bg-[#101010]">
+      <section className="border-y border-neutral-200 dark:border-white/10 bg-neutral-50 dark:bg-[#101010]">
         <div className="mx-auto grid max-w-7xl gap-8 px-5 py-14 md:grid-cols-[1fr_420px] md:px-10 md:py-20">
           <div>
             <p className="font-mono text-xs uppercase tracking-[0.28em] text-[#53c7ff]">Launch confirmed</p>
@@ -462,7 +462,7 @@ export function CpegLaunchpad() {
               <PartyPopper className="h-10 w-10 text-[#53c7ff]" />
               {form.name || "cPEG"} is live.
             </h2>
-            <p className="mt-5 max-w-xl text-sm leading-7 text-white/70">
+            <p className="mt-5 max-w-xl text-sm leading-7 text-neutral-700 dark:text-white/70">
               Token-2022 mint, transfer hook, and PEG registry are all on-chain. The
               contract address below is your asset. Share it like any token CA.
             </p>
@@ -475,7 +475,7 @@ export function CpegLaunchpad() {
               />
             </div>
 
-            <div className="mt-6 grid gap-2 font-mono text-xs text-white/72">
+            <div className="mt-6 grid gap-2 font-mono text-xs text-neutral-700 dark:text-white/72">
               {[
                 ["Token mint", result.mint],
                 ["Collection PDA", result.collection],
@@ -486,12 +486,12 @@ export function CpegLaunchpad() {
                   key={label}
                   type="button"
                   onClick={() => copyValue(value)}
-                  className="group flex items-center justify-between gap-3 border border-white/10 bg-black/40 px-3 py-2 text-left transition hover:border-[#53c7ff]/40"
+                  className="group flex items-center justify-between gap-3 border border-neutral-200 dark:border-white/10 bg-neutral-100/90 dark:bg-black/40 px-3 py-2 text-left transition hover:border-[#53c7ff]/40"
                 >
-                  <span className="text-white/40">{label}</span>
+                  <span className="text-neutral-500 dark:text-white/40">{label}</span>
                   <span className="flex items-center gap-2">
                     <span className="truncate">{truncateAddress(value, 8, 8)}</span>
-                    <Copy className="h-3 w-3 text-white/35 transition group-hover:text-[#53c7ff]" />
+                    <Copy className="h-3 w-3 text-neutral-500 dark:text-white/35 transition group-hover:text-[#53c7ff]" />
                   </span>
                 </button>
               ))}
@@ -508,7 +508,7 @@ export function CpegLaunchpad() {
                 href={explorerTxUrl(result.signature, result.cluster)}
                 target="_blank"
                 rel="noreferrer"
-                className="inline-flex items-center gap-2 border border-white/20 px-5 py-3 text-sm font-bold uppercase tracking-wide text-white transition hover:border-[#53c7ff] hover:text-[#53c7ff]"
+                className="inline-flex items-center gap-2 border border-neutral-400 dark:border-white/20 px-5 py-3 text-sm font-bold uppercase tracking-wide text-neutral-950 dark:text-white transition hover:border-[#53c7ff] hover:text-[#53c7ff]"
               >
                 View transaction <ExternalLink className="h-4 w-4" />
               </a>
@@ -519,7 +519,7 @@ export function CpegLaunchpad() {
             <p className="font-mono text-[10px] uppercase tracking-[0.22em] text-[#9fe2ff]">Genesis preview</p>
             <div className="mt-4 grid grid-cols-2 gap-3">
               {[1, 2, 3, 4].map((pegId) => (
-                <div key={pegId} className="aspect-square overflow-hidden border border-white/10 bg-black">
+                <div key={pegId} className="aspect-square overflow-hidden border border-neutral-200 dark:border-white/10 bg-neutral-200 dark:bg-black">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
                     src={`/api/cpeg/preview/svg?pegId=${pegId}&${previewQuery}`}
@@ -552,16 +552,16 @@ export function CpegLaunchpad() {
   };
 
   return (
-    <section className="border-y border-white/10 bg-[#0a0a0a]">
+    <section className="border-y border-neutral-200 dark:border-white/10 bg-neutral-100 dark:bg-[#0a0a0a]">
       <div className="mx-auto grid max-w-7xl gap-8 px-5 py-12 md:grid-cols-[1.1fr_0.9fr] md:px-10 md:py-14">
         <div className="space-y-5">
-          <div className="border border-white/10 bg-[#0c0c0c] p-5">
+          <div className="border border-neutral-200 dark:border-white/10 bg-neutral-100 dark:bg-[#0c0c0c] p-5">
             <div className="flex items-center justify-between gap-3">
               <p className="font-mono text-[11px] uppercase tracking-[0.25em] text-[#53c7ff]">Identity</p>
               <button
                 type="button"
                 onClick={randomize}
-                className="inline-flex items-center gap-1.5 border border-white/15 px-3 py-1.5 font-mono text-[10px] uppercase tracking-[0.2em] text-white/65 transition hover:border-[#53c7ff] hover:text-[#53c7ff]"
+                className="inline-flex items-center gap-1.5 border border-neutral-300 dark:border-white/15 px-3 py-1.5 font-mono text-[10px] uppercase tracking-[0.2em] text-neutral-600 dark:text-white/65 transition hover:border-[#53c7ff] hover:text-[#53c7ff]"
               >
                 <RefreshCw className="h-3 w-3" /> Randomize art
               </button>
@@ -602,7 +602,7 @@ export function CpegLaunchpad() {
                   key={`${name}-${symbol}`}
                   type="button"
                   onClick={() => applyPreset(name, symbol, subject, palette)}
-                  className="border border-white/10 bg-white/[0.03] px-3 py-1.5 font-mono text-[10px] uppercase tracking-[0.18em] text-white/55 transition hover:border-[#53c7ff]/50 hover:text-[#53c7ff]"
+                  className="border border-neutral-200 dark:border-white/10 bg-neutral-100/95 dark:bg-white/[0.03] px-3 py-1.5 font-mono text-[10px] uppercase tracking-[0.18em] text-neutral-700 dark:text-white/55 transition hover:border-[#53c7ff]/50 hover:text-[#53c7ff]"
                 >
                   {name}
                 </button>
@@ -610,7 +610,7 @@ export function CpegLaunchpad() {
             </div>
           </div>
 
-          <div className="border border-white/10 bg-[#0c0c0c] p-5">
+          <div className="border border-neutral-200 dark:border-white/10 bg-neutral-100 dark:bg-[#0c0c0c] p-5">
             <p className="font-mono text-[11px] uppercase tracking-[0.25em] text-[#53c7ff]">Art</p>
             <div className="mt-4 grid gap-3 md:grid-cols-2">
               <Select label="Subject" value={form.subject} onChange={(value) => updateForm("subject", value)} options={SUBJECT_OPTIONS} />
@@ -621,7 +621,7 @@ export function CpegLaunchpad() {
             </div>
           </div>
 
-          <div className="border border-white/10 bg-[#0c0c0c] p-5">
+          <div className="border border-neutral-200 dark:border-white/10 bg-neutral-100 dark:bg-[#0c0c0c] p-5">
             <p className="font-mono text-[11px] uppercase tracking-[0.25em] text-[#53c7ff]">Economics</p>
             <div className="mt-4 grid gap-4 md:grid-cols-2">
               <Field
@@ -632,7 +632,7 @@ export function CpegLaunchpad() {
                 hint={`${bpsToPercent(royaltyNumber)} of every fill.`}
                 error={!royaltyValid && form.royaltyBps.length > 0 ? "0 to 1500 bps." : ""}
               />
-              <label className="flex items-start gap-3 border border-white/10 bg-white/[0.03] p-4">
+              <label className="flex items-start gap-3 border border-neutral-200 dark:border-white/10 bg-neutral-100/95 dark:bg-white/[0.03] p-4">
                 <input
                   type="checkbox"
                   checked={form.premiumIndexing}
@@ -640,10 +640,10 @@ export function CpegLaunchpad() {
                   className="mt-1 h-4 w-4 accent-[#53c7ff]"
                 />
                 <span>
-                  <span className="block font-mono text-[10px] uppercase tracking-[0.18em] text-white/55">
+                  <span className="block font-mono text-[10px] uppercase tracking-[0.18em] text-neutral-700 dark:text-white/55">
                     Premium indexing
                   </span>
-                  <span className="mt-1 block text-xs leading-5 text-white/55">
+                  <span className="mt-1 block text-xs leading-5 text-neutral-700 dark:text-white/55">
                     Rarity views and faster renderer APIs.
                   </span>
                 </span>
@@ -651,7 +651,7 @@ export function CpegLaunchpad() {
             </div>
 
             {feeQuote ? (
-              <div className="mt-5 grid gap-2 border border-white/10 bg-black/40 p-4 font-mono text-[10px] uppercase tracking-[0.18em] text-white/55">
+              <div className="mt-5 grid gap-2 border border-neutral-200 dark:border-white/10 bg-neutral-100/90 dark:bg-black/40 p-4 font-mono text-[10px] uppercase tracking-[0.18em] text-neutral-700 dark:text-white/55">
                 <Row label="Launch fee" value={`${feeQuote.launch.base_sol} SOL`} />
                 {form.premiumIndexing && BigInt(feeQuote.launch.premium_lamports) > BigInt(0) ? (
                   <Row label="Premium" value={`${feeQuote.launch.premium_sol} SOL`} />
@@ -672,10 +672,10 @@ export function CpegLaunchpad() {
         </div>
 
         <div className="space-y-4">
-          <div className="border border-white/10 bg-[#0c0c0c] p-5">
+          <div className="border border-neutral-200 dark:border-white/10 bg-neutral-100 dark:bg-[#0c0c0c] p-5">
             <div className="flex items-center justify-between">
               <p className="font-mono text-[11px] uppercase tracking-[0.25em] text-[#53c7ff]">Live preview</p>
-              <span className="font-mono text-[10px] uppercase tracking-[0.2em] text-white/40">
+              <span className="font-mono text-[10px] uppercase tracking-[0.2em] text-neutral-500 dark:text-white/40">
                 v0.3.0
               </span>
             </div>
@@ -683,7 +683,7 @@ export function CpegLaunchpad() {
               {PREVIEW_PEG_IDS.map((pegId) => (
                 <div
                   key={pegId}
-                  className="relative aspect-square overflow-hidden border border-white/10 bg-black"
+                  className="relative aspect-square overflow-hidden border border-neutral-200 dark:border-white/10 bg-neutral-200 dark:bg-black"
                 >
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
@@ -691,7 +691,7 @@ export function CpegLaunchpad() {
                     alt={`Preview #${pegId}`}
                     className="h-full w-full object-cover [image-rendering:pixelated]"
                   />
-                  <span className="absolute bottom-1 left-1 bg-black/70 px-1.5 py-0.5 font-mono text-[9px] uppercase tracking-[0.15em] text-white/70">
+                  <span className="absolute bottom-1 left-1 bg-neutral-900/70 dark:bg-black/70 px-1.5 py-0.5 font-mono text-[9px] uppercase tracking-[0.15em] text-neutral-700 dark:text-white/70">
                     #{pegId}
                   </span>
                 </div>
@@ -699,11 +699,11 @@ export function CpegLaunchpad() {
             </div>
           </div>
 
-          <div className="border border-white/10 bg-[#0c0c0c] p-5">
+          <div className="border border-neutral-200 dark:border-white/10 bg-neutral-100 dark:bg-[#0c0c0c] p-5">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div>
-                <p className="font-mono text-[10px] uppercase tracking-[0.22em] text-white/45">Wallet</p>
-                <p className="mt-1 font-mono text-sm text-white">
+                <p className="font-mono text-[10px] uppercase tracking-[0.22em] text-neutral-500 dark:text-white/45">Wallet</p>
+                <p className="mt-1 font-mono text-sm text-neutral-950 dark:text-white">
                   {connectedAddress ? truncateAddress(connectedAddress, 6, 6) : "Not connected"}
                 </p>
               </div>
@@ -728,10 +728,10 @@ export function CpegLaunchpad() {
               </div>
             ) : null}
             {!error && !status && isConnected && !canLaunch ? (
-              <p className="mt-3 text-[11px] text-white/45">Complete the form to launch.</p>
+              <p className="mt-3 text-[11px] text-neutral-500 dark:text-white/45">Complete the form to launch.</p>
             ) : null}
             {!isConnected ? (
-              <p className="mt-3 text-[11px] text-white/55">Connect Phantom on devnet or mainnet.</p>
+              <p className="mt-3 text-[11px] text-neutral-700 dark:text-white/55">Connect Phantom on devnet or mainnet.</p>
             ) : null}
           </div>
         </div>
@@ -753,20 +753,20 @@ interface FieldProps {
 function Field({ label, value, onChange, placeholder, hint, error, inputMode }: FieldProps) {
   return (
     <label className="block">
-      <span className="font-mono text-[10px] uppercase tracking-[0.2em] text-white/45">{label}</span>
+      <span className="font-mono text-[10px] uppercase tracking-[0.2em] text-neutral-500 dark:text-white/45">{label}</span>
       <input
         value={value}
         placeholder={placeholder}
         inputMode={inputMode}
         onChange={(event) => onChange(event.target.value)}
-        className={`mt-2 w-full border bg-white/[0.04] px-3 py-3 text-sm text-white outline-none transition focus:border-[#53c7ff] ${
-          error ? "border-red-400/60" : "border-white/12"
+        className={`mt-2 w-full border bg-neutral-50 dark:bg-white/[0.04] px-3 py-3 text-sm text-neutral-950 dark:text-white outline-none transition focus:border-[#53c7ff] ${
+          error ? "border-red-400/60" : "border-neutral-300 dark:border-white/12"
         }`}
       />
       {error ? (
         <span className="mt-1 block text-[10px] text-red-300">{error}</span>
       ) : hint ? (
-        <span className="mt-1 block text-[10px] text-white/40">{hint}</span>
+        <span className="mt-1 block text-[10px] text-neutral-500 dark:text-white/40">{hint}</span>
       ) : null}
     </label>
   );
@@ -782,11 +782,11 @@ interface SelectProps {
 function Select({ label, value, onChange, options }: SelectProps) {
   return (
     <label className="block">
-      <span className="font-mono text-[10px] uppercase tracking-[0.2em] text-white/45">{label}</span>
+      <span className="font-mono text-[10px] uppercase tracking-[0.2em] text-neutral-500 dark:text-white/45">{label}</span>
       <select
         value={value}
         onChange={(event) => onChange(event.target.value)}
-        className="mt-2 w-full border border-white/12 bg-[#151515] px-3 py-3 text-sm text-white outline-none transition focus:border-[#53c7ff]"
+        className="mt-2 w-full border border-neutral-300 dark:border-white/12 bg-neutral-100 dark:bg-[#151515] px-3 py-3 text-sm text-neutral-950 dark:text-white outline-none transition focus:border-[#53c7ff]"
       >
         {options.map(([optionValue, optionLabel]) => (
           <option key={optionValue} value={optionValue}>
@@ -808,8 +808,8 @@ interface RowProps {
 function Row({ label, value, highlight, muted }: RowProps) {
   return (
     <div className="flex items-center justify-between">
-      <span className={muted ? "text-white/35" : "text-white/55"}>{label}</span>
-      <span className={highlight ? "text-[#53c7ff]" : muted ? "text-white/55" : "text-[#f7f2df]"}>{value}</span>
+      <span className={muted ? "text-neutral-500 dark:text-white/35" : "text-neutral-700 dark:text-white/55"}>{label}</span>
+      <span className={highlight ? "text-[#53c7ff]" : muted ? "text-neutral-700 dark:text-white/55" : "text-neutral-900 dark:text-[#f7f2df]"}>{value}</span>
     </div>
   );
 }

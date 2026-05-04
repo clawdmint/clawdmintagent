@@ -16,7 +16,9 @@ export function CpegSiteFooter() {
       <div
         className={clsx(
           "border-t",
-          theme === "dark" ? "border-white/[0.06] bg-[#090909]/80" : "border-gray-200 bg-white/80"
+          theme === "dark"
+            ? "border-white/[0.06] bg-[#0a0a0a]/90"
+            : "border-neutral-200 bg-white/90"
         )}
       >
         <div className="container mx-auto flex flex-col items-center justify-between gap-4 px-4 py-10 text-center sm:flex-row sm:text-left">

@@ -4,11 +4,12 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { WagmiProvider as BaseWagmiProvider, createConfig as baseCreateConfig, http } from "wagmi";
 import { injected } from "wagmi/connectors";
 import { base, baseSepolia } from "wagmi/chains";
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { ThemeProvider } from "./theme-provider";
 import { FallbackWalletProvider } from "./wallet-context";
 import { NetworkProvider } from "./network-context";
 import { CpegSiteProvider } from "./cpeg-site-context";
+import { CpegVisualShell } from "./cpeg-visual-shell";
 
 // Get chain based on environment
 const chainId = parseInt(process.env["NEXT_PUBLIC_CHAIN_ID"] || "8453");
@@ -42,9 +43,6 @@ export function Providers({
   children: React.ReactNode;
   cpegSite?: boolean;
 }) {
-  const [mounted, setMounted] = useState(false);
-  const [theme, setTheme] = useState<"dark" | "light">("dark");
-
   const [queryClient] = useState(
     () =>
       new QueryClient({
@@ -59,46 +57,18 @@ export function Providers({
       })
   );
 
-  useEffect(() => {
-    setMounted(true);
-
-    // Theme from localStorage or system preference
-    const saved = localStorage.getItem("clawdmint-theme") as "dark" | "light";
-    if (saved) {
-      setTheme(saved);
-    } else if (window.matchMedia("(prefers-color-scheme: light)").matches) {
-      setTheme("light");
-    }
-
-    // Listen for theme changes
-    const handleStorageChange = () => {
-      const newTheme = localStorage.getItem("clawdmint-theme") as "dark" | "light";
-      if (newTheme) setTheme(newTheme);
-    };
-
-    const handleThemeChange = (e: CustomEvent) => {
-      setTheme(e.detail as "dark" | "light");
-    };
-
-    window.addEventListener("storage", handleStorageChange);
-    window.addEventListener("themeChange", handleThemeChange as EventListener);
-
-    return () => {
-      window.removeEventListener("storage", handleStorageChange);
-      window.removeEventListener("themeChange", handleThemeChange as EventListener);
-    };
-  }, []);
-
   return (
     <CpegSiteProvider value={cpegSite}>
       <ThemeProvider>
-        <NetworkProvider>
-          <BaseWagmiProvider config={fallbackWagmiConfig}>
-            <QueryClientProvider client={queryClient}>
-              <FallbackWalletProvider>{children}</FallbackWalletProvider>
-            </QueryClientProvider>
-          </BaseWagmiProvider>
-        </NetworkProvider>
+        <CpegVisualShell>
+          <NetworkProvider>
+            <BaseWagmiProvider config={fallbackWagmiConfig}>
+              <QueryClientProvider client={queryClient}>
+                <FallbackWalletProvider>{children}</FallbackWalletProvider>
+              </QueryClientProvider>
+            </BaseWagmiProvider>
+          </NetworkProvider>
+        </CpegVisualShell>
       </ThemeProvider>
     </CpegSiteProvider>
   );

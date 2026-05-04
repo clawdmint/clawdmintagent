@@ -89,16 +89,16 @@ export function CpegContractBar({ tokenMint, cluster, symbol }: CpegContractBarP
     : [];
 
   return (
-    <div className="border border-white/10 bg-gradient-to-r from-[#53c7ff]/[0.08] via-white/[0.03] to-[#f7f2df]/[0.05] p-5">
+    <div className="border border-neutral-200 bg-gradient-to-r from-[#53c7ff]/[0.07] via-white/80 to-amber-50/40 p-5 dark:border-white/10 dark:from-[#53c7ff]/[0.08] dark:via-white/[0.03] dark:to-[#f7f2df]/[0.05]">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0 flex-1">
           <p className="font-mono text-[10px] uppercase tracking-[0.28em] text-[#53c7ff]">
             Contract address / {symbol}
           </p>
-          <p className="mt-2 break-all font-mono text-base font-bold tracking-tight text-[#f7f2df] md:text-lg">
+          <p className="mt-2 break-all font-mono text-base font-bold tracking-tight text-neutral-950 dark:text-[#f7f2df] md:text-lg">
             {tokenMint}
           </p>
-          <p className="mt-2 text-xs leading-5 text-white/55">
+          <p className="mt-2 text-xs leading-5 text-neutral-700 dark:text-white/55">
             This is the Token-2022 mint. Holding 1 whole unit equals one cPEG identity.
             {isMainnet
               ? " The same address works on every Solana DEX aggregator."
@@ -108,7 +108,7 @@ export function CpegContractBar({ tokenMint, cluster, symbol }: CpegContractBarP
         <button
           type="button"
           onClick={handleCopy}
-          className="inline-flex items-center gap-2 border border-white/15 bg-black/40 px-3 py-2 font-mono text-[10px] uppercase tracking-[0.2em] text-white/75 transition hover:border-[#53c7ff] hover:text-[#53c7ff]"
+          className="inline-flex items-center gap-2 border border-neutral-300 bg-white/95 px-3 py-2 font-mono text-[10px] uppercase tracking-[0.2em] text-neutral-800 transition hover:border-[#53c7ff] hover:text-[#53c7ff] dark:border-white/15 dark:bg-black/40 dark:text-white/75"
         >
           {copied ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
           {copied ? "Copied" : "Copy"}
@@ -125,7 +125,7 @@ export function CpegContractBar({ tokenMint, cluster, symbol }: CpegContractBarP
             className={
               link.emphasis
                 ? "inline-flex items-center gap-1.5 border border-[#f7f2df] bg-[#f7f2df] px-3 py-1.5 font-mono text-[10px] uppercase tracking-[0.2em] text-black transition hover:bg-[#53c7ff]"
-                : "inline-flex items-center gap-1.5 border border-white/15 px-3 py-1.5 font-mono text-[10px] uppercase tracking-[0.2em] text-white/72 transition hover:border-[#53c7ff] hover:text-[#53c7ff]"
+                : "inline-flex items-center gap-1.5 border border-neutral-300 px-3 py-1.5 font-mono text-[10px] uppercase tracking-[0.2em] text-neutral-800 transition hover:border-[#53c7ff] hover:text-[#53c7ff] dark:border-white/15 dark:text-white/72"
             }
           >
             {link.label}
@@ -138,7 +138,7 @@ export function CpegContractBar({ tokenMint, cluster, symbol }: CpegContractBarP
             href={link.href}
             target="_blank"
             rel="noreferrer"
-            className="inline-flex items-center gap-1.5 border border-white/10 px-3 py-1.5 font-mono text-[10px] uppercase tracking-[0.2em] text-white/55 transition hover:border-[#53c7ff] hover:text-[#53c7ff]"
+            className="inline-flex items-center gap-1.5 border border-neutral-200 px-3 py-1.5 font-mono text-[10px] uppercase tracking-[0.2em] text-neutral-700 transition hover:border-[#53c7ff] hover:text-[#53c7ff] dark:border-white/10 dark:text-white/55"
           >
             {link.label}
             <ArrowUpRight className="h-3 w-3" />

@@ -11,26 +11,26 @@ export default function CpegLaunchPage() {
   const urls = cpegPublicPaths(site);
 
   return (
-    <div className="min-h-screen bg-[#090909] text-[#f7f2df]">
-      <section className="border-b border-white/10">
+    <div className="flex flex-col">
+      <section className="border-b border-neutral-200 dark:border-white/10">
         <div className="mx-auto max-w-7xl px-5 py-10 md:px-10 md:py-14">
           <Link
             href={urls.home}
-            className="inline-flex items-center gap-2 font-mono text-xs uppercase tracking-[0.18em] text-white/55 transition hover:text-[#53c7ff]"
+            className="inline-flex items-center gap-2 font-mono text-xs uppercase tracking-[0.18em] text-neutral-700 transition hover:text-[#53c7ff] dark:text-white/55"
           >
             <ArrowLeft className="h-3 w-3" /> Back to cPEG
           </Link>
           <p className="mt-6 font-mono text-xs uppercase tracking-[0.28em] text-[#53c7ff]">
             ClawPEG / Launch
           </p>
-          <h1 className="mt-3 max-w-4xl text-4xl font-black uppercase leading-[0.94] md:text-6xl">
+          <h1 className="mt-3 max-w-4xl text-4xl font-black uppercase leading-[0.94] text-neutral-950 dark:text-[#f7f2df] md:text-6xl">
             Launch a cPEG collection.
           </h1>
-          <p className="mt-5 max-w-2xl text-sm leading-7 text-white/65 md:text-base">
+          <p className="mt-5 max-w-2xl text-sm leading-7 text-neutral-600 dark:text-white/65 md:text-base">
             Pick a subject and palette, sign once, and your Token-2022 mint plus PEG registry
             go live in a single transaction.
           </p>
-          <p className="mt-3 max-w-2xl text-xs leading-6 text-white/45">
+          <p className="mt-3 max-w-2xl text-xs leading-6 text-neutral-500 dark:text-white/45">
             After launch you control genesis distribution. When the supply is final, seal the
             mint from the collection page. Sealing revokes the mint authority on-chain so no
             wallet, including yours, can ever create another unit. That is the uPEG-style

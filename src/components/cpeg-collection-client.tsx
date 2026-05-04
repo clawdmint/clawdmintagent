@@ -565,7 +565,7 @@ export function CpegCollectionClient({ launch }: CpegCollectionClientProps) {
                 stats.collection.total_minted !== null
                   ? `${stats.collection.total_minted.toLocaleString()} / ${stats.collection.max_pegs.toLocaleString()}`
                   : `-- / ${stats.collection.max_pegs.toLocaleString()}`,
-              accent: "text-[#f7f2df]",
+              accent: "text-neutral-900 dark:text-[#f7f2df]",
             },
             {
               label: "Floor",
@@ -575,24 +575,24 @@ export function CpegCollectionClient({ launch }: CpegCollectionClientProps) {
             {
               label: "Volume",
               value: `${stats.market.volume_sol} SOL`,
-              accent: "text-[#f7f2df]",
+              accent: "text-neutral-900 dark:text-[#f7f2df]",
             },
             {
               label: "Listed",
               value: stats.market.active_listings.toLocaleString(),
-              accent: "text-white/72",
+              accent: "text-neutral-700 dark:text-white/72",
             },
             {
               label: "Burned",
               value: (stats.collection.burned_pegs ?? 0).toLocaleString(),
-              accent: "text-white/55",
+              accent: "text-neutral-700 dark:text-white/55",
             },
           ].map((cell) => (
             <div
               key={cell.label}
-              className="border border-white/10 bg-white/[0.03] p-4"
+              className="border border-neutral-200 dark:border-white/10 bg-neutral-100/95 dark:bg-white/[0.03] p-4"
             >
-              <p className="font-mono text-[10px] uppercase tracking-[0.22em] text-white/40">
+              <p className="font-mono text-[10px] uppercase tracking-[0.22em] text-neutral-500 dark:text-white/40">
                 {cell.label}
               </p>
               <p className={`mt-2 text-xl font-black ${cell.accent}`}>{cell.value}</p>
@@ -614,7 +614,7 @@ export function CpegCollectionClient({ launch }: CpegCollectionClientProps) {
           }`}
           target="_blank"
           rel="noreferrer"
-          className="inline-flex items-center gap-2 border border-white/15 px-4 py-2 font-mono text-xs uppercase tracking-[0.18em] text-white/70 transition hover:border-[#53c7ff] hover:text-[#53c7ff]"
+          className="inline-flex items-center gap-2 border border-neutral-300 dark:border-white/15 px-4 py-2 font-mono text-xs uppercase tracking-[0.18em] text-neutral-700 dark:text-white/70 transition hover:border-[#53c7ff] hover:text-[#53c7ff]"
         >
           Solana Explorer <ArrowUpRight className="h-3 w-3" />
         </a>
@@ -624,7 +624,7 @@ export function CpegCollectionClient({ launch }: CpegCollectionClientProps) {
               <Lock className="h-3 w-3" /> Supply sealed
             </span>
           ) : (
-            <span className="inline-flex items-center gap-2 border border-white/15 px-4 py-2 font-mono text-xs uppercase tracking-[0.18em] text-white/55">
+            <span className="inline-flex items-center gap-2 border border-neutral-300 dark:border-white/15 px-4 py-2 font-mono text-xs uppercase tracking-[0.18em] text-neutral-700 dark:text-white/55">
               <Unlock className="h-3 w-3" /> Mint open
             </span>
           )
@@ -632,7 +632,7 @@ export function CpegCollectionClient({ launch }: CpegCollectionClientProps) {
       </div>
 
       {token ? (
-        <section className="border border-white/10 bg-white/[0.03] p-5">
+        <section className="border border-neutral-200 dark:border-white/10 bg-neutral-100/95 dark:bg-white/[0.03] p-5">
           <header className="flex flex-wrap items-start justify-between gap-3">
             <div>
               <p className="font-mono text-xs uppercase tracking-[0.25em] text-[#53c7ff]">
@@ -641,7 +641,7 @@ export function CpegCollectionClient({ launch }: CpegCollectionClientProps) {
               <h2 className="mt-1 text-2xl font-black uppercase">
                 {token.token.is_sealed ? "Supply is permanently sealed" : "Supply is still open"}
               </h2>
-              <p className="mt-2 max-w-3xl text-sm leading-6 text-white/65">
+              <p className="mt-2 max-w-3xl text-sm leading-6 text-neutral-600 dark:text-white/65">
                 {token.token.is_sealed
                   ? "The mint authority has been revoked on-chain. No wallet, including the launch authority, can ever create another token. Total supply is fixed forever and identity follows the token unit on every transfer."
                   : "The launch authority can still mint new units while the supply is open. Sealing it revokes the mint authority on-chain and locks the supply forever, matching the uPEG fixed-supply guarantee."}
@@ -652,65 +652,65 @@ export function CpegCollectionClient({ launch }: CpegCollectionClientProps) {
                 <ShieldCheck className="h-3 w-3" /> Authority revoked
               </span>
             ) : (
-              <span className="inline-flex items-center gap-2 border border-white/15 px-3 py-1.5 font-mono text-[10px] uppercase tracking-[0.22em] text-white/60">
+              <span className="inline-flex items-center gap-2 border border-neutral-300 dark:border-white/15 px-3 py-1.5 font-mono text-[10px] uppercase tracking-[0.22em] text-neutral-600 dark:text-white/60">
                 <Unlock className="h-3 w-3" /> Authority active
               </span>
             )}
           </header>
 
           <div className="mt-5 grid gap-3 md:grid-cols-4">
-            <div className="border border-white/10 bg-black/25 p-4">
-              <p className="flex items-center gap-2 font-mono text-[10px] uppercase tracking-[0.22em] text-white/45">
+            <div className="border border-neutral-200 dark:border-white/10 bg-neutral-100/90 dark:bg-black/25 p-4">
+              <p className="flex items-center gap-2 font-mono text-[10px] uppercase tracking-[0.22em] text-neutral-500 dark:text-white/45">
                 <Coins className="h-3 w-3" /> Circulating supply
               </p>
-              <p className="mt-2 text-xl font-black text-[#f7f2df]">
+              <p className="mt-2 text-xl font-black text-neutral-900 dark:text-[#f7f2df]">
                 {token.token.whole_units.toLocaleString()}
               </p>
-              <p className="mt-1 font-mono text-[10px] uppercase tracking-[0.18em] text-white/40">
+              <p className="mt-1 font-mono text-[10px] uppercase tracking-[0.18em] text-neutral-500 dark:text-white/40">
                 of {token.token.max_pegs.toLocaleString()} target
               </p>
             </div>
-            <div className="border border-white/10 bg-black/25 p-4">
-              <p className="flex items-center gap-2 font-mono text-[10px] uppercase tracking-[0.22em] text-white/45">
+            <div className="border border-neutral-200 dark:border-white/10 bg-neutral-100/90 dark:bg-black/25 p-4">
+              <p className="flex items-center gap-2 font-mono text-[10px] uppercase tracking-[0.22em] text-neutral-500 dark:text-white/45">
                 <Users className="h-3 w-3" /> Top holders
               </p>
               <p className="mt-2 text-xl font-black text-[#53c7ff]">
                 {token.holders.top.length || "--"}
               </p>
-              <p className="mt-1 font-mono text-[10px] uppercase tracking-[0.18em] text-white/40">
+              <p className="mt-1 font-mono text-[10px] uppercase tracking-[0.18em] text-neutral-500 dark:text-white/40">
                 tracked from largest accounts
               </p>
             </div>
-            <div className="border border-white/10 bg-black/25 p-4">
-              <p className="flex items-center gap-2 font-mono text-[10px] uppercase tracking-[0.22em] text-white/45">
+            <div className="border border-neutral-200 dark:border-white/10 bg-neutral-100/90 dark:bg-black/25 p-4">
+              <p className="flex items-center gap-2 font-mono text-[10px] uppercase tracking-[0.22em] text-neutral-500 dark:text-white/45">
                 {token.token.is_sealed ? <Lock className="h-3 w-3" /> : <Unlock className="h-3 w-3" />}
                 Mint authority
               </p>
-              <p className="mt-2 text-xl font-black text-[#f7f2df]">
+              <p className="mt-2 text-xl font-black text-neutral-900 dark:text-[#f7f2df]">
                 {token.token.is_sealed ? "Sealed" : truncateAddress(token.token.mint_authority || "")}
               </p>
-              <p className="mt-1 font-mono text-[10px] uppercase tracking-[0.18em] text-white/40">
+              <p className="mt-1 font-mono text-[10px] uppercase tracking-[0.18em] text-neutral-500 dark:text-white/40">
                 {token.token.is_sealed ? "no further mints possible" : "can still mint until sealed"}
               </p>
             </div>
-            <div className="border border-white/10 bg-black/25 p-4">
-              <p className="flex items-center gap-2 font-mono text-[10px] uppercase tracking-[0.22em] text-white/45">
+            <div className="border border-neutral-200 dark:border-white/10 bg-neutral-100/90 dark:bg-black/25 p-4">
+              <p className="flex items-center gap-2 font-mono text-[10px] uppercase tracking-[0.22em] text-neutral-500 dark:text-white/45">
                 <ShieldCheck className="h-3 w-3" /> Decimals
               </p>
-              <p className="mt-2 text-xl font-black text-[#f7f2df]">{token.token.decimals}</p>
-              <p className="mt-1 font-mono text-[10px] uppercase tracking-[0.18em] text-white/40">
+              <p className="mt-2 text-xl font-black text-neutral-900 dark:text-[#f7f2df]">{token.token.decimals}</p>
+              <p className="mt-1 font-mono text-[10px] uppercase tracking-[0.18em] text-neutral-500 dark:text-white/40">
                 1 cPEG = 1 whole unit
               </p>
             </div>
           </div>
 
           {token.holders.top.length > 0 ? (
-            <div className="mt-5 border border-white/10 bg-black/30">
-              <header className="flex items-center justify-between border-b border-white/10 px-4 py-3">
-                <p className="font-mono text-[10px] uppercase tracking-[0.22em] text-white/55">
+            <div className="mt-5 border border-neutral-200 dark:border-white/10 bg-neutral-100 dark:bg-black/30">
+              <header className="flex items-center justify-between border-b border-neutral-200 dark:border-white/10 px-4 py-3">
+                <p className="font-mono text-[10px] uppercase tracking-[0.22em] text-neutral-700 dark:text-white/55">
                   Largest holders
                 </p>
-                <p className="font-mono text-[10px] uppercase tracking-[0.22em] text-white/35">
+                <p className="font-mono text-[10px] uppercase tracking-[0.22em] text-neutral-500 dark:text-white/35">
                   share of supply
                 </p>
               </header>
@@ -722,21 +722,21 @@ export function CpegCollectionClient({ launch }: CpegCollectionClientProps) {
                       key={holder.address}
                       className="flex items-center justify-between gap-3 px-4 py-2.5 font-mono text-xs"
                     >
-                      <span className="flex items-center gap-3 text-white/70">
-                        <span className="text-white/35">{(index + 1).toString().padStart(2, "0")}</span>
+                      <span className="flex items-center gap-3 text-neutral-700 dark:text-white/70">
+                        <span className="text-neutral-500 dark:text-white/35">{(index + 1).toString().padStart(2, "0")}</span>
                         <a
                           href={`https://explorer.solana.com/address/${holder.address}${
                             launch.cluster === "devnet" ? "?cluster=devnet" : ""
                           }`}
                           target="_blank"
                           rel="noreferrer"
-                          className="text-white/85 transition hover:text-[#53c7ff]"
+                          className="text-neutral-900 dark:text-white/85 transition hover:text-[#53c7ff]"
                         >
                           {truncateAddress(holder.address)}
                         </a>
                       </span>
-                      <span className="text-white/55">
-                        {holder.ui_amount.toLocaleString()} <span className="text-white/30">/ {sharePct}%</span>
+                      <span className="text-neutral-700 dark:text-white/55">
+                        {holder.ui_amount.toLocaleString()} <span className="text-neutral-400 dark:text-white/30">/ {sharePct}%</span>
                       </span>
                     </li>
                   );
@@ -752,7 +752,7 @@ export function CpegCollectionClient({ launch }: CpegCollectionClientProps) {
                   <p className="font-mono text-[10px] uppercase tracking-[0.22em] text-[#f7c948]">
                     Authority action
                   </p>
-                  <p className="mt-2 text-sm leading-6 text-white/72">
+                  <p className="mt-2 text-sm leading-6 text-neutral-700 dark:text-white/72">
                     Once you finish the genesis distribution, seal the supply. This sets the
                     mint authority to null on-chain and ends your ability to mint new units.
                     There is no unseal. Buyers gain a permanent fixed-supply guarantee.
@@ -797,8 +797,8 @@ export function CpegCollectionClient({ launch }: CpegCollectionClientProps) {
       </div>
 
       <div className="grid gap-8 lg:grid-cols-[420px_1fr]">
-        <div className="border border-white/10 bg-white/[0.03] p-5">
-          <div className="aspect-square border border-white/10 bg-black">
+        <div className="border border-neutral-200 dark:border-white/10 bg-neutral-100/95 dark:bg-white/[0.03] p-5">
+          <div className="aspect-square border border-neutral-200 dark:border-white/10 bg-neutral-200 dark:bg-black">
             <Image
               src={`/api/cpeg/${launch.tokenMint}/pegs/${previewPegId}/svg`}
               alt={`${launch.symbol} cPEG #${previewPegId}`}
@@ -808,20 +808,20 @@ export function CpegCollectionClient({ launch }: CpegCollectionClientProps) {
               unoptimized
             />
           </div>
-          <p className="mt-3 font-mono text-xs uppercase tracking-[0.18em] text-white/50">
+          <p className="mt-3 font-mono text-xs uppercase tracking-[0.18em] text-neutral-600 dark:text-white/50">
             deterministic renderer / cPEG #{previewPegId}
           </p>
         </div>
 
         {isMintAuthority && !token?.token.is_sealed ? (
-          <div className="border border-white/10 bg-black/28 p-5">
+          <div className="border border-neutral-200 dark:border-white/10 bg-neutral-50/95 dark:bg-black/28 p-5">
             <p className="font-mono text-xs uppercase tracking-[0.25em] text-[#53c7ff]">
               Genesis distribution
             </p>
             <h2 className="mt-3 text-3xl font-black uppercase">
               Mint a PEG to seed the collection.
             </h2>
-            <p className="mt-4 max-w-2xl text-sm leading-6 text-white/62">
+            <p className="mt-4 max-w-2xl text-sm leading-6 text-neutral-600 dark:text-white/62">
               Available only while the mint is open. Pick a PEG ID to mint one whole Token-2022
               unit plus its matching PegRecord identity in a single transaction. When the
               genesis is complete, seal the supply from the Token-2022 panel above.
@@ -829,18 +829,18 @@ export function CpegCollectionClient({ launch }: CpegCollectionClientProps) {
 
             <div className="mt-6 grid gap-4 md:grid-cols-2">
               <label className="block">
-                <span className="font-mono text-[10px] uppercase tracking-[0.18em] text-white/45">
+                <span className="font-mono text-[10px] uppercase tracking-[0.18em] text-neutral-500 dark:text-white/45">
                   PEG ID
                 </span>
                 <input
                   value={pegId}
                   inputMode="numeric"
                   onChange={(event) => setPegId(event.target.value)}
-                  className="mt-2 w-full border border-white/12 bg-white/[0.04] px-3 py-3 text-sm text-white outline-none focus:border-[#53c7ff]"
+                  className="mt-2 w-full border border-neutral-300 dark:border-white/12 bg-neutral-50 dark:bg-white/[0.04] px-3 py-3 text-sm text-neutral-950 dark:text-white outline-none focus:border-[#53c7ff]"
                 />
               </label>
-              <label className="flex items-center justify-between border border-white/12 bg-white/[0.04] px-3 py-3 md:mt-6">
-                <span className="font-mono text-[10px] uppercase tracking-[0.18em] text-white/55">
+              <label className="flex items-center justify-between border border-neutral-300 dark:border-white/12 bg-neutral-50 dark:bg-white/[0.04] px-3 py-3 md:mt-6">
+                <span className="font-mono text-[10px] uppercase tracking-[0.18em] text-neutral-700 dark:text-white/55">
                   Mint token unit first
                 </span>
                 <input
@@ -852,17 +852,17 @@ export function CpegCollectionClient({ launch }: CpegCollectionClientProps) {
               </label>
             </div>
 
-            <div className="mt-5 grid gap-2 border border-white/10 bg-white/[0.03] p-4 font-mono text-xs text-white/64">
+            <div className="mt-5 grid gap-2 border border-neutral-200 dark:border-white/10 bg-neutral-100/95 dark:bg-white/[0.03] p-4 font-mono text-xs text-neutral-600 dark:text-white/64">
               <div className="flex justify-between gap-3">
-                <span className="text-white/40">Token mint</span>
+                <span className="text-neutral-500 dark:text-white/40">Token mint</span>
                 <span title={launch.tokenMint}>{short(launch.tokenMint)}</span>
               </div>
               <div className="flex justify-between gap-3">
-                <span className="text-white/40">Collection</span>
+                <span className="text-neutral-500 dark:text-white/40">Collection</span>
                 <span title={launch.collectionAddress}>{short(launch.collectionAddress)}</span>
               </div>
               <div className="flex justify-between gap-3">
-                <span className="text-white/40">Authority</span>
+                <span className="text-neutral-500 dark:text-white/40">Authority</span>
                 <span title={launch.authorityAddress}>{short(launch.authorityAddress)}</span>
               </div>
             </div>
@@ -880,7 +880,7 @@ export function CpegCollectionClient({ launch }: CpegCollectionClientProps) {
               )}
               {isConnected ? `Mint cPEG #${previewPegId}` : "Connect Phantom"}
             </button>
-            <p className="mt-3 text-[10px] uppercase tracking-[0.18em] text-white/35">
+            <p className="mt-3 text-[10px] uppercase tracking-[0.18em] text-neutral-500 dark:text-white/35">
               Authority-only · syncPeg + mintPeg are bundled in one signature
             </p>
 
@@ -895,7 +895,7 @@ export function CpegCollectionClient({ launch }: CpegCollectionClientProps) {
                   href={getExplorerTx(signature, launch.cluster)}
                   target="_blank"
                   rel="noreferrer"
-                  className="mt-3 inline-flex items-center gap-2 text-sm font-bold uppercase tracking-wide text-white hover:text-[#53c7ff]"
+                  className="mt-3 inline-flex items-center gap-2 text-sm font-bold uppercase tracking-wide text-neutral-950 dark:text-white hover:text-[#53c7ff]"
                 >
                   View transaction <ArrowUpRight className="h-4 w-4" />
                 </a>
@@ -903,19 +903,19 @@ export function CpegCollectionClient({ launch }: CpegCollectionClientProps) {
             ) : null}
           </div>
         ) : (
-          <div className="border border-white/10 bg-black/28 p-5">
+          <div className="border border-neutral-200 dark:border-white/10 bg-neutral-50/95 dark:bg-black/28 p-5">
             <p className="font-mono text-xs uppercase tracking-[0.25em] text-[#53c7ff]">
               How do I get a cPEG?
             </p>
             <h2 className="mt-3 text-3xl font-black uppercase">
               Token + identity move as one.
             </h2>
-            <p className="mt-4 max-w-2xl text-sm leading-6 text-white/65">
+            <p className="mt-4 max-w-2xl text-sm leading-6 text-neutral-600 dark:text-white/65">
               Every whole Token-2022 unit is bound to a discrete on-chain identity (the PegRecord
               PDA). The transfer hook enforces this: you can&apos;t move a token without also
               moving its PEG. You don&apos;t claim one. You acquire one and the identity follows.
             </p>
-            <ol className="mt-6 grid gap-3 text-sm text-white/72">
+            <ol className="mt-6 grid gap-3 text-sm text-neutral-700 dark:text-white/72">
               <li className="flex items-start gap-3">
                 <span className="font-mono text-[10px] uppercase tracking-[0.18em] text-[#53c7ff]">
                   01
@@ -951,22 +951,22 @@ export function CpegCollectionClient({ launch }: CpegCollectionClientProps) {
               >
                 <ShoppingBag className="h-4 w-4" /> Browse market
               </Link>
-              <span className="font-mono text-[10px] uppercase tracking-[0.18em] text-white/40">
+              <span className="font-mono text-[10px] uppercase tracking-[0.18em] text-neutral-500 dark:text-white/40">
                 or wait for a listing you like
               </span>
             </div>
 
-            <div className="mt-6 grid gap-2 border border-white/10 bg-white/[0.03] p-4 font-mono text-xs text-white/64">
+            <div className="mt-6 grid gap-2 border border-neutral-200 dark:border-white/10 bg-neutral-100/95 dark:bg-white/[0.03] p-4 font-mono text-xs text-neutral-600 dark:text-white/64">
               <div className="flex justify-between gap-3">
-                <span className="text-white/40">Token mint</span>
+                <span className="text-neutral-500 dark:text-white/40">Token mint</span>
                 <span title={launch.tokenMint}>{short(launch.tokenMint)}</span>
               </div>
               <div className="flex justify-between gap-3">
-                <span className="text-white/40">Collection</span>
+                <span className="text-neutral-500 dark:text-white/40">Collection</span>
                 <span title={launch.collectionAddress}>{short(launch.collectionAddress)}</span>
               </div>
               <div className="flex justify-between gap-3">
-                <span className="text-white/40">Wallet</span>
+                <span className="text-neutral-500 dark:text-white/40">Wallet</span>
                 <span>{connectedAddress ? short(connectedAddress) : "not connected"}</span>
               </div>
             </div>
@@ -975,14 +975,14 @@ export function CpegCollectionClient({ launch }: CpegCollectionClientProps) {
       </div>
 
       {(tradeArtGallery?.trade_art?.length ?? 0) > 0 ? (
-        <section className="border border-white/10 bg-white/[0.03] p-5">
+        <section className="border border-neutral-200 dark:border-white/10 bg-neutral-100/95 dark:bg-white/[0.03] p-5">
           <div className="flex flex-wrap items-end justify-between gap-4">
             <div>
               <p className="font-mono text-xs uppercase tracking-[0.25em] text-[#53c7ff]">
                 Trade art
               </p>
               <h2 className="mt-2 text-2xl font-black uppercase">Recorded on every fill</h2>
-              <p className="mt-3 max-w-2xl text-sm leading-6 text-white/55">
+              <p className="mt-3 max-w-2xl text-sm leading-6 text-neutral-700 dark:text-white/55">
                 Auto-generated from on-chain sale data. One piece per market fill.
               </p>
             </div>
@@ -1000,7 +1000,7 @@ export function CpegCollectionClient({ launch }: CpegCollectionClientProps) {
                     const prev = tradeArtGallery?.page.previous_offset;
                     if (prev !== null && prev !== undefined) setTradeArtOffset(prev);
                   }}
-                  className="border border-white/15 px-3 py-2 font-mono text-xs uppercase tracking-wide text-white/70 disabled:opacity-40"
+                  className="border border-neutral-300 dark:border-white/15 px-3 py-2 font-mono text-xs uppercase tracking-wide text-neutral-700 dark:text-white/70 disabled:opacity-40"
                 >
                   Prev
                 </button>
@@ -1011,7 +1011,7 @@ export function CpegCollectionClient({ launch }: CpegCollectionClientProps) {
                     const next = tradeArtGallery?.page.next_offset;
                     if (next !== null && next !== undefined) setTradeArtOffset(next);
                   }}
-                  className="border border-white/15 px-3 py-2 font-mono text-xs uppercase tracking-wide text-white/70 disabled:opacity-40"
+                  className="border border-neutral-300 dark:border-white/15 px-3 py-2 font-mono text-xs uppercase tracking-wide text-neutral-700 dark:text-white/70 disabled:opacity-40"
                 >
                   Next
                 </button>
@@ -1030,9 +1030,9 @@ export function CpegCollectionClient({ launch }: CpegCollectionClientProps) {
                 }
                 target={item.sale.tx ? "_blank" : undefined}
                 rel={item.sale.tx ? "noreferrer" : undefined}
-                className="group border border-white/10 bg-black/30 p-2 transition hover:border-[#53c7ff]/40"
+                className="group border border-neutral-200 dark:border-white/10 bg-neutral-100 dark:bg-black/30 p-2 transition hover:border-[#53c7ff]/40"
               >
-                <div className="aspect-square overflow-hidden bg-black">
+                <div className="aspect-square overflow-hidden bg-neutral-200 dark:bg-black">
                   <Image
                     src={item.image}
                     alt={`cPEG trade art #${item.trade_index}`}
@@ -1043,7 +1043,7 @@ export function CpegCollectionClient({ launch }: CpegCollectionClientProps) {
                   />
                 </div>
                 <div className="mt-2 flex items-center justify-between gap-2">
-                  <p className="font-mono text-[11px] uppercase tracking-wide text-white/70">
+                  <p className="font-mono text-[11px] uppercase tracking-wide text-neutral-700 dark:text-white/70">
                     cPEG #{item.peg_id}
                   </p>
                   <span className="font-mono text-[10px] uppercase tracking-wide text-[#53c7ff]">
@@ -1059,19 +1059,19 @@ export function CpegCollectionClient({ launch }: CpegCollectionClientProps) {
         </section>
       ) : null}
 
-      <section className="border border-white/10 bg-white/[0.03] p-5">
+      <section className="border border-neutral-200 dark:border-white/10 bg-neutral-100/95 dark:bg-white/[0.03] p-5">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <p className="font-mono text-xs uppercase tracking-[0.25em] text-[#53c7ff]">
               Recent activity
             </p>
             <h2 className="mt-2 text-2xl font-black uppercase">Market pulse</h2>
-            <p className="mt-2 max-w-xl text-sm leading-6 text-white/55">
+            <p className="mt-2 max-w-xl text-sm leading-6 text-neutral-700 dark:text-white/55">
               Listings, fills, and cancellations in chronological order. Click an event to view
               the on-chain transaction.
             </p>
           </div>
-          <RefreshCw className={`h-3 w-3 text-white/30 ${activityLoading ? "animate-spin" : ""}`} />
+          <RefreshCw className={`h-3 w-3 text-neutral-400 dark:text-white/30 ${activityLoading ? "animate-spin" : ""}`} />
         </div>
 
         {activity.length ? (
@@ -1081,8 +1081,8 @@ export function CpegCollectionClient({ launch }: CpegCollectionClientProps) {
                 event.kind === "FILLED"
                   ? "text-[#53c7ff]"
                   : event.kind === "CANCELLED"
-                  ? "text-white/40"
-                  : "text-[#f7f2df]";
+                  ? "text-neutral-500 dark:text-white/40"
+                  : "text-neutral-900 dark:text-[#f7f2df]";
               const Wrapper = event.tx
                 ? (props: React.ComponentProps<"a">) => (
                     <a {...props} href={getExplorerTx(event.tx as string, launch.cluster)} target="_blank" rel="noreferrer" />
@@ -1091,9 +1091,9 @@ export function CpegCollectionClient({ launch }: CpegCollectionClientProps) {
               return (
                 <Wrapper
                   key={event.id}
-                  className="group flex items-center gap-3 border border-white/10 bg-black/30 p-3 transition hover:border-[#53c7ff]/40"
+                  className="group flex items-center gap-3 border border-neutral-200 dark:border-white/10 bg-neutral-100 dark:bg-black/30 p-3 transition hover:border-[#53c7ff]/40"
                 >
-                  <div className="h-12 w-12 shrink-0 overflow-hidden border border-white/10 bg-black">
+                  <div className="h-12 w-12 shrink-0 overflow-hidden border border-neutral-200 dark:border-white/10 bg-neutral-200 dark:bg-black">
                     <ActivityEventThumb
                       event={event}
                       alt={`cPEG #${event.peg_id}`}
@@ -1107,9 +1107,9 @@ export function CpegCollectionClient({ launch }: CpegCollectionClientProps) {
                       <span className={`font-mono text-[10px] uppercase tracking-[0.2em] ${accent}`}>
                         {event.kind === "FILLED" ? "Sold" : event.kind === "CANCELLED" ? "Delisted" : "Listed"}
                       </span>
-                      <span className="font-bold uppercase text-white/85">#{event.peg_id}</span>
+                      <span className="font-bold uppercase text-neutral-900 dark:text-white/85">#{event.peg_id}</span>
                     </div>
-                    <p className="mt-0.5 truncate font-mono text-[10px] uppercase tracking-[0.18em] text-white/40">
+                    <p className="mt-0.5 truncate font-mono text-[10px] uppercase tracking-[0.18em] text-neutral-500 dark:text-white/40">
                       {event.kind === "FILLED" && event.buyer
                         ? `${truncateAddress(event.buyer)} ← ${truncateAddress(event.seller)}`
                         : truncateAddress(event.seller)}
@@ -1121,7 +1121,7 @@ export function CpegCollectionClient({ launch }: CpegCollectionClientProps) {
                     </span>
                     <CpegRelativeTime
                       iso={event.at}
-                      className="font-mono text-[10px] uppercase tracking-[0.16em] text-white/40"
+                      className="font-mono text-[10px] uppercase tracking-[0.16em] text-neutral-500 dark:text-white/40"
                     />
                   </div>
                 </Wrapper>
@@ -1129,8 +1129,8 @@ export function CpegCollectionClient({ launch }: CpegCollectionClientProps) {
             })}
           </div>
         ) : (
-          <div className="mt-5 border border-dashed border-white/10 bg-white/[0.02] p-8 text-center">
-            <p className="font-mono text-xs uppercase tracking-[0.2em] text-white/40">
+          <div className="mt-5 border border-dashed border-neutral-200 dark:border-white/10 bg-neutral-50 dark:bg-white/[0.02] p-8 text-center">
+            <p className="font-mono text-xs uppercase tracking-[0.2em] text-neutral-500 dark:text-white/40">
               No marketplace activity for this collection yet
             </p>
             <Link
@@ -1143,7 +1143,7 @@ export function CpegCollectionClient({ launch }: CpegCollectionClientProps) {
         )}
       </section>
 
-      <section className="border border-white/10 bg-white/[0.03] p-5">
+      <section className="border border-neutral-200 dark:border-white/10 bg-neutral-100/95 dark:bg-white/[0.03] p-5">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <p className="font-mono text-xs uppercase tracking-[0.25em] text-[#53c7ff]">
@@ -1159,7 +1159,7 @@ export function CpegCollectionClient({ launch }: CpegCollectionClientProps) {
                 const previousStart = gallery?.page.previous_start;
                 if (previousStart !== null && previousStart !== undefined) setGalleryStart(previousStart);
               }}
-              className="border border-white/15 px-3 py-2 font-mono text-xs uppercase tracking-wide text-white/70 disabled:opacity-40"
+              className="border border-neutral-300 dark:border-white/15 px-3 py-2 font-mono text-xs uppercase tracking-wide text-neutral-700 dark:text-white/70 disabled:opacity-40"
             >
               Prev
             </button>
@@ -1167,7 +1167,7 @@ export function CpegCollectionClient({ launch }: CpegCollectionClientProps) {
               type="button"
               disabled={galleryLoading || gallery?.page.next_start === null}
               onClick={() => gallery?.page.next_start !== null && gallery?.page.next_start !== undefined && setGalleryStart(gallery.page.next_start)}
-              className="border border-white/15 px-3 py-2 font-mono text-xs uppercase tracking-wide text-white/70 disabled:opacity-40"
+              className="border border-neutral-300 dark:border-white/15 px-3 py-2 font-mono text-xs uppercase tracking-wide text-neutral-700 dark:text-white/70 disabled:opacity-40"
             >
               Next
             </button>
@@ -1180,9 +1180,9 @@ export function CpegCollectionClient({ launch }: CpegCollectionClientProps) {
               key={peg.id}
               type="button"
               onClick={() => setPegId(String(peg.id))}
-              className="border border-white/10 bg-black/30 p-2 text-left transition hover:border-[#53c7ff]"
+              className="border border-neutral-200 dark:border-white/10 bg-neutral-100 dark:bg-black/30 p-2 text-left transition hover:border-[#53c7ff]"
             >
-              <div className="aspect-square bg-black">
+              <div className="aspect-square bg-neutral-200 dark:bg-black">
                 <Image
                   src={peg.image}
                   alt={peg.name}
@@ -1193,13 +1193,13 @@ export function CpegCollectionClient({ launch }: CpegCollectionClientProps) {
                 />
               </div>
               <div className="mt-2 flex items-center justify-between gap-2">
-                <p className="font-mono text-[11px] uppercase tracking-wide text-white/70">#{peg.id}</p>
-                <span className={peg.minted ? "text-[10px] uppercase text-[#53c7ff]" : "text-[10px] uppercase text-white/35"}>
+                <p className="font-mono text-[11px] uppercase tracking-wide text-neutral-700 dark:text-white/70">#{peg.id}</p>
+                <span className={peg.minted ? "text-[10px] uppercase text-[#53c7ff]" : "text-[10px] uppercase text-neutral-500 dark:text-white/35"}>
                   {peg.minted ? "minted" : "open"}
                 </span>
               </div>
-              <p className="mt-1 truncate text-xs text-white/42">{peg.traits.rarity}</p>
-              <p className="mt-1 truncate font-mono text-[10px] uppercase text-white/30">
+              <p className="mt-1 truncate text-xs text-neutral-600 dark:text-white/42">{peg.traits.rarity}</p>
+              <p className="mt-1 truncate font-mono text-[10px] uppercase text-neutral-400 dark:text-white/30">
                 {[peg.traits.accessory, peg.traits.marking, peg.traits.aura].filter(Boolean).join(" / ")}
               </p>
             </button>

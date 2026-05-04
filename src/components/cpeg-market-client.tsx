@@ -807,31 +807,31 @@ export function CpegMarketClient() {
     {
       label: "Volume",
       value: summary ? `${summary.volume_sol} SOL` : "0 SOL",
-      accent: "text-[#f7f2df]",
+      accent: "text-neutral-900 dark:text-[#f7f2df]",
       icon: Sparkles,
     },
     {
       label: "Listed",
       value: summary ? summary.active_listings.toLocaleString() : "0",
-      accent: "text-white/72",
+      accent: "text-neutral-700 dark:text-white/72",
       icon: Layers,
     },
     {
       label: "Trades",
       value: summary ? summary.filled_listings.toLocaleString() : "0",
-      accent: "text-white/72",
+      accent: "text-neutral-700 dark:text-white/72",
       icon: Users,
     },
     {
       label: "Royalty",
       value: collection ? bpsToPercent(collection.royalty_bps) : "--",
-      accent: "text-white/55",
+      accent: "text-neutral-700 dark:text-white/55",
       icon: Tag,
     },
     {
       label: "Fee",
       value: collection ? bpsToPercent(collection.marketplace_fee_bps) : "--",
-      accent: "text-white/55",
+      accent: "text-neutral-700 dark:text-white/55",
       icon: Tag,
     },
   ];
@@ -842,11 +842,11 @@ export function CpegMarketClient() {
         <div className="flex items-center gap-3">
           <Link
             href={cpegUrls.home}
-            className="font-mono text-xs uppercase tracking-[0.18em] text-white/55 transition hover:text-[#53c7ff]"
+            className="font-mono text-xs uppercase tracking-[0.18em] text-neutral-700 dark:text-white/55 transition hover:text-[#53c7ff]"
           >
             ← cPEG
           </Link>
-          <span className="font-mono text-[10px] uppercase tracking-[0.22em] text-white/30">
+          <span className="font-mono text-[10px] uppercase tracking-[0.22em] text-neutral-400 dark:text-white/30">
             P2P Market
           </span>
         </div>
@@ -856,25 +856,25 @@ export function CpegMarketClient() {
             void refreshListings(selectedMint);
             void refreshActivity(selectedMint);
           }}
-          className="inline-flex items-center gap-2 border border-white/15 px-3 py-2 font-mono text-[10px] uppercase tracking-[0.2em] text-white/65 transition hover:border-[#53c7ff] hover:text-[#53c7ff]"
+          className="inline-flex items-center gap-2 border border-neutral-300 dark:border-white/15 px-3 py-2 font-mono text-[10px] uppercase tracking-[0.2em] text-neutral-600 dark:text-white/65 transition hover:border-[#53c7ff] hover:text-[#53c7ff]"
         >
           <RefreshCw className={`h-3 w-3 ${loadingListings ? "animate-spin" : ""}`} /> Refresh
         </button>
       </div>
 
-      <section className="mt-6 grid gap-6 border border-white/10 bg-white/[0.02] p-6 lg:grid-cols-[1fr_360px]">
+      <section className="mt-6 grid gap-6 border border-neutral-200 dark:border-white/10 bg-neutral-50 dark:bg-white/[0.02] p-6 lg:grid-cols-[1fr_360px]">
         <div>
           <div ref={collectionMenuRef} className="relative inline-block">
             <button
               type="button"
               onClick={() => setCollectionMenuOpen((current) => !current)}
-              className="inline-flex items-center gap-2 border border-white/15 bg-white/[0.04] px-3 py-2 font-mono text-[10px] uppercase tracking-[0.22em] text-white/70 transition hover:border-[#53c7ff] hover:text-[#53c7ff]"
+              className="inline-flex items-center gap-2 border border-neutral-300 dark:border-white/15 bg-neutral-50 dark:bg-white/[0.04] px-3 py-2 font-mono text-[10px] uppercase tracking-[0.22em] text-neutral-700 dark:text-white/70 transition hover:border-[#53c7ff] hover:text-[#53c7ff]"
             >
               {selectedLaunch ? (
                 <>
-                  <span className="text-white">{selectedLaunch.symbol}</span>
-                  <span className="text-white/35">·</span>
-                  <span className="text-white/55">{truncateAddress(selectedLaunch.token_mint, 4, 4)}</span>
+                  <span className="text-neutral-950 dark:text-white">{selectedLaunch.symbol}</span>
+                  <span className="text-neutral-500 dark:text-white/35">·</span>
+                  <span className="text-neutral-700 dark:text-white/55">{truncateAddress(selectedLaunch.token_mint, 4, 4)}</span>
                 </>
               ) : (
                 "Pick a collection"
@@ -882,7 +882,7 @@ export function CpegMarketClient() {
               <ChevronDown className="h-3 w-3" />
             </button>
             {collectionMenuOpen ? (
-              <div className="absolute left-0 top-full z-20 mt-2 max-h-[420px] w-[360px] overflow-y-auto border border-white/15 bg-[#0c0c0c] shadow-xl">
+              <div className="absolute left-0 top-full z-20 mt-2 max-h-[420px] w-[360px] overflow-y-auto border border-neutral-300 dark:border-white/15 bg-neutral-100 dark:bg-[#0c0c0c] shadow-xl">
                 {launches.length ? (
                   launches.map((launch) => (
                     <button
@@ -892,13 +892,13 @@ export function CpegMarketClient() {
                         setSelectedMint(launch.token_mint);
                         setCollectionMenuOpen(false);
                       }}
-                      className={`flex w-full items-center justify-between gap-3 border-b border-white/5 px-3 py-3 text-left transition hover:bg-white/[0.04] ${
+                      className={`flex w-full items-center justify-between gap-3 border-b border-neutral-200/60 dark:border-white/5 px-3 py-3 text-left transition hover:bg-neutral-50 dark:bg-white/[0.04] ${
                         launch.token_mint === selectedMint ? "bg-[#53c7ff]/10" : ""
                       }`}
                     >
                       <div className="min-w-0">
                         <p className="truncate text-sm font-bold uppercase">{launch.name}</p>
-                        <p className="mt-0.5 font-mono text-[10px] uppercase tracking-[0.18em] text-white/40">
+                        <p className="mt-0.5 font-mono text-[10px] uppercase tracking-[0.18em] text-neutral-500 dark:text-white/40">
                           {launch.symbol} · {launch.market.active_listings} listed
                         </p>
                       </div>
@@ -908,7 +908,7 @@ export function CpegMarketClient() {
                     </button>
                   ))
                 ) : (
-                  <div className="p-4 text-xs text-white/40">No collections found.</div>
+                  <div className="p-4 text-xs text-neutral-500 dark:text-white/40">No collections found.</div>
                 )}
               </div>
             ) : null}
@@ -917,7 +917,7 @@ export function CpegMarketClient() {
           <h1 className="mt-4 text-4xl font-black uppercase leading-[1.05] md:text-6xl">
             {selectedLaunch?.name || collection?.name || "cPEG market"}
           </h1>
-          <p className="mt-3 max-w-2xl text-sm leading-7 text-white/60">
+          <p className="mt-3 max-w-2xl text-sm leading-7 text-neutral-600 dark:text-white/60">
             Listings move PEGs into program escrow. Buys execute a 3-way SOL split — seller,
             creator royalty, protocol fee — atomically. No off-chain books, no wrapped fees.
           </p>
@@ -926,7 +926,7 @@ export function CpegMarketClient() {
             <div className="mt-5 flex flex-wrap items-center gap-3">
               <Link
                 href={cpegUrls.collection(selectedLaunch.token_mint)}
-                className="inline-flex items-center gap-2 border border-white/15 px-3 py-2 font-mono text-[10px] uppercase tracking-[0.2em] text-white/70 transition hover:border-[#53c7ff] hover:text-[#53c7ff]"
+                className="inline-flex items-center gap-2 border border-neutral-300 dark:border-white/15 px-3 py-2 font-mono text-[10px] uppercase tracking-[0.2em] text-neutral-700 dark:text-white/70 transition hover:border-[#53c7ff] hover:text-[#53c7ff]"
               >
                 Open collection <ArrowUpRight className="h-3 w-3" />
               </Link>
@@ -949,10 +949,10 @@ export function CpegMarketClient() {
           {headerStats.map((cell) => {
             const Icon = cell.icon;
             return (
-              <div key={cell.label} className="border border-white/10 bg-[#0c0c0c] px-4 py-3">
+              <div key={cell.label} className="border border-neutral-200 dark:border-white/10 bg-neutral-100 dark:bg-[#0c0c0c] px-4 py-3">
                 <div className="flex items-center gap-2">
-                  <Icon className="h-3 w-3 text-white/30" />
-                  <p className="font-mono text-[10px] uppercase tracking-[0.22em] text-white/40">
+                  <Icon className="h-3 w-3 text-neutral-400 dark:text-white/30" />
+                  <p className="font-mono text-[10px] uppercase tracking-[0.22em] text-neutral-500 dark:text-white/40">
                     {cell.label}
                   </p>
                 </div>
@@ -968,7 +968,7 @@ export function CpegMarketClient() {
           <div className="flex flex-wrap items-end justify-between gap-3">
             <div>
               <p className="font-mono text-xs uppercase tracking-[0.25em] text-[#53c7ff]">List a PEG</p>
-              <p className="mt-2 text-sm text-white/65">
+              <p className="mt-2 text-sm text-neutral-600 dark:text-white/65">
                 Pick from your unlisted PEGs and set a SOL price. Creator royalty and protocol fee
                 are calculated below.
               </p>
@@ -976,7 +976,7 @@ export function CpegMarketClient() {
             <button
               type="button"
               onClick={() => setShowListPanel(false)}
-              className="font-mono text-[10px] uppercase tracking-[0.2em] text-white/55 transition hover:text-[#53c7ff]"
+              className="font-mono text-[10px] uppercase tracking-[0.2em] text-neutral-700 dark:text-white/55 transition hover:text-[#53c7ff]"
             >
               Close
             </button>
@@ -984,7 +984,7 @@ export function CpegMarketClient() {
 
           <div className="mt-5 grid gap-5 lg:grid-cols-[1fr_360px]">
             <div>
-              <p className="font-mono text-[10px] uppercase tracking-[0.2em] text-white/45">
+              <p className="font-mono text-[10px] uppercase tracking-[0.2em] text-neutral-500 dark:text-white/45">
                 Your PEGs in this collection
               </p>
               {connectedAddress ? (
@@ -995,11 +995,11 @@ export function CpegMarketClient() {
                         key={peg.id}
                         type="button"
                         onClick={() => setPegId(String(peg.id))}
-                        className={`group border bg-black/40 p-1 text-left transition ${
-                          pegId === String(peg.id) ? "border-[#53c7ff]" : "border-white/10 hover:border-[#53c7ff]/50"
+                        className={`group border bg-neutral-100/90 dark:bg-black/40 p-1 text-left transition ${
+                          pegId === String(peg.id) ? "border-[#53c7ff]" : "border-neutral-200 dark:border-white/10 hover:border-[#53c7ff]/50"
                         }`}
                       >
-                        <div className="aspect-square overflow-hidden bg-black">
+                        <div className="aspect-square overflow-hidden bg-neutral-200 dark:bg-black">
                           {/* eslint-disable-next-line @next/next/no-img-element */}
                           <img
                             src={peg.image}
@@ -1008,40 +1008,40 @@ export function CpegMarketClient() {
                             loading="lazy"
                           />
                         </div>
-                        <p className="mt-1 text-center font-mono text-[10px] uppercase tracking-[0.18em] text-white/65">
+                        <p className="mt-1 text-center font-mono text-[10px] uppercase tracking-[0.18em] text-neutral-600 dark:text-white/65">
                           #{peg.id}
                         </p>
                       </button>
                     ))}
                   </div>
                 ) : (
-                  <p className="mt-3 text-xs text-white/45">
+                  <p className="mt-3 text-xs text-neutral-500 dark:text-white/45">
                     No PEGs found in your wallet for this collection. You can still list one by typing
                     a PEG ID below.
                   </p>
                 )
               ) : (
-                <p className="mt-3 text-xs text-white/45">Connect a wallet to see your PEGs.</p>
+                <p className="mt-3 text-xs text-neutral-500 dark:text-white/45">Connect a wallet to see your PEGs.</p>
               )}
 
               <div className="mt-5 grid gap-3 md:grid-cols-2">
                 <label className="block">
-                  <span className="font-mono text-[10px] uppercase tracking-[0.2em] text-white/45">PEG ID</span>
+                  <span className="font-mono text-[10px] uppercase tracking-[0.2em] text-neutral-500 dark:text-white/45">PEG ID</span>
                   <input
                     value={pegId}
                     inputMode="numeric"
                     onChange={(event) => setPegId(event.target.value)}
                     placeholder="e.g. 42"
-                    className="mt-2 w-full border border-white/12 bg-white/[0.04] px-3 py-3 text-sm text-white outline-none focus:border-[#53c7ff]"
+                    className="mt-2 w-full border border-neutral-300 dark:border-white/12 bg-neutral-50 dark:bg-white/[0.04] px-3 py-3 text-sm text-neutral-950 outline-none transition focus:border-[#53c7ff] dark:text-white"
                   />
                 </label>
                 <label className="block">
-                  <span className="font-mono text-[10px] uppercase tracking-[0.2em] text-white/45">Price (SOL)</span>
+                  <span className="font-mono text-[10px] uppercase tracking-[0.2em] text-neutral-500 dark:text-white/45">Price (SOL)</span>
                   <input
                     value={priceSol}
                     inputMode="decimal"
                     onChange={(event) => setPriceSol(event.target.value)}
-                    className="mt-2 w-full border border-white/12 bg-white/[0.04] px-3 py-3 text-sm text-white outline-none focus:border-[#53c7ff]"
+                    className="mt-2 w-full border border-neutral-300 dark:border-white/12 bg-neutral-50 dark:bg-white/[0.04] px-3 py-3 text-sm text-neutral-950 outline-none transition focus:border-[#53c7ff] dark:text-white"
                   />
                 </label>
               </div>
@@ -1049,7 +1049,7 @@ export function CpegMarketClient() {
 
             <div className="grid gap-4">
               {listPreview ? (
-                <div className="border border-white/10 bg-black/40 p-4 font-mono text-[10px] uppercase tracking-[0.18em] text-white/55">
+                <div className="border border-neutral-200 dark:border-white/10 bg-neutral-100/90 dark:bg-black/40 p-4 font-mono text-[10px] uppercase tracking-[0.18em] text-neutral-700 dark:text-white/55">
                   <Row label="Seller proceeds" value={`${listPreview.seller} SOL`} highlight />
                   <Row label={`Creator royalty (${bpsToPercent(listPreview.royaltyBps)})`} value={`${listPreview.royalty} SOL`} />
                   <Row label={`Protocol fee (${bpsToPercent(listPreview.protocolBps)})`} value={`${listPreview.protocol} SOL`} muted />
@@ -1073,12 +1073,12 @@ export function CpegMarketClient() {
         <div>
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div className="flex flex-wrap items-center gap-2">
-              <div className="flex items-center gap-2 border border-white/12 bg-[#0c0c0c] px-3 py-2">
-                <ArrowDownUp className="h-3 w-3 text-white/40" />
+              <div className="flex items-center gap-2 border border-neutral-300 dark:border-white/12 bg-neutral-100 dark:bg-[#0c0c0c] px-3 py-2">
+                <ArrowDownUp className="h-3 w-3 text-neutral-500 dark:text-white/40" />
                 <select
                   value={sort}
                   onChange={(event) => setSort(event.target.value)}
-                  className="bg-transparent font-mono text-[10px] uppercase tracking-[0.2em] text-white outline-none"
+                  className="bg-transparent font-mono text-[10px] uppercase tracking-[0.2em] text-neutral-950 outline-none transition dark:text-white"
                 >
                   {SORT_OPTIONS.map(([value, label]) => (
                     <option key={value} value={value}>
@@ -1087,24 +1087,24 @@ export function CpegMarketClient() {
                   ))}
                 </select>
               </div>
-              <div className="flex items-center gap-2 border border-white/12 bg-[#0c0c0c] px-3 py-2">
-                <Search className="h-3 w-3 text-white/40" />
+              <div className="flex items-center gap-2 border border-neutral-300 dark:border-white/12 bg-neutral-100 dark:bg-[#0c0c0c] px-3 py-2">
+                <Search className="h-3 w-3 text-neutral-500 dark:text-white/40" />
                 <input
                   value={searchPeg}
                   inputMode="numeric"
                   onChange={(event) => setSearchPeg(event.target.value)}
                   placeholder="PEG #"
-                  className="w-20 bg-transparent font-mono text-[10px] uppercase tracking-[0.2em] text-white outline-none placeholder:text-white/30"
+                  className="w-20 bg-transparent font-mono text-[10px] uppercase tracking-[0.2em] text-neutral-950 outline-none transition placeholder:text-neutral-500 dark:text-white dark:placeholder:text-white/30"
                 />
               </div>
-              <div className="flex items-center gap-2 border border-white/12 bg-[#0c0c0c] px-3 py-2">
-                <Filter className="h-3 w-3 text-white/40" />
+              <div className="flex items-center gap-2 border border-neutral-300 dark:border-white/12 bg-neutral-100 dark:bg-[#0c0c0c] px-3 py-2">
+                <Filter className="h-3 w-3 text-neutral-500 dark:text-white/40" />
                 <input
                   value={maxPriceSol}
                   inputMode="decimal"
                   onChange={(event) => setMaxPriceSol(event.target.value)}
                   placeholder="Max SOL"
-                  className="w-20 bg-transparent font-mono text-[10px] uppercase tracking-[0.2em] text-white outline-none placeholder:text-white/30"
+                  className="w-20 bg-transparent font-mono text-[10px] uppercase tracking-[0.2em] text-neutral-950 outline-none transition placeholder:text-neutral-500 dark:text-white dark:placeholder:text-white/30"
                 />
               </div>
               {connectedAddress ? (
@@ -1114,7 +1114,7 @@ export function CpegMarketClient() {
                   className={`border px-3 py-2 font-mono text-[10px] uppercase tracking-[0.2em] transition ${
                     showOnlyMine
                       ? "border-[#53c7ff] bg-[#53c7ff]/10 text-[#53c7ff]"
-                      : "border-white/12 bg-[#0c0c0c] text-white/65 hover:border-[#53c7ff]/40 hover:text-[#53c7ff]"
+                      : "border-neutral-300 dark:border-white/12 bg-neutral-100 dark:bg-[#0c0c0c] text-neutral-600 dark:text-white/65 hover:border-[#53c7ff]/40 hover:text-[#53c7ff]"
                   }`}
                 >
                   My listings
@@ -1125,7 +1125,7 @@ export function CpegMarketClient() {
             <div className="flex flex-wrap items-center gap-2">
               {selectMode ? (
                 <>
-                  <span className="font-mono text-[10px] uppercase tracking-[0.18em] text-white/55">
+                  <span className="font-mono text-[10px] uppercase tracking-[0.18em] text-neutral-700 dark:text-white/55">
                     {selectedPegIds.length}/6 selected
                   </span>
                   <button
@@ -1140,7 +1140,7 @@ export function CpegMarketClient() {
                   <button
                     type="button"
                     onClick={exitSelectMode}
-                    className="border border-white/15 px-3 py-2 font-mono text-[10px] uppercase tracking-[0.2em] text-white/60"
+                    className="border border-neutral-300 dark:border-white/15 px-3 py-2 font-mono text-[10px] uppercase tracking-[0.2em] text-neutral-600 dark:text-white/60"
                   >
                     Done
                   </button>
@@ -1149,7 +1149,7 @@ export function CpegMarketClient() {
                 <button
                   type="button"
                   onClick={() => setSelectMode(true)}
-                  className="inline-flex items-center gap-2 border border-white/15 px-3 py-2 font-mono text-[10px] uppercase tracking-[0.2em] text-white/70"
+                  className="inline-flex items-center gap-2 border border-neutral-300 dark:border-white/15 px-3 py-2 font-mono text-[10px] uppercase tracking-[0.2em] text-neutral-700 dark:text-white/70"
                 >
                   <CheckSquare className="h-3 w-3" /> Multi-select
                 </button>
@@ -1158,7 +1158,7 @@ export function CpegMarketClient() {
           </div>
 
           {selectMode && batchTotals && batchTotals.count > 0 ? (
-            <div className="mt-4 grid gap-3 border border-[#53c7ff]/35 bg-[#53c7ff]/10 p-3 font-mono text-[10px] uppercase tracking-[0.16em] text-white/65 sm:grid-cols-4">
+            <div className="mt-4 grid gap-3 border border-[#53c7ff]/35 bg-[#53c7ff]/10 p-3 font-mono text-[10px] uppercase tracking-[0.16em] text-neutral-600 dark:text-white/65 sm:grid-cols-4">
               <Row label="Total" value={`${batchTotals.total} SOL`} highlight />
               <Row label="Sellers" value={`${batchTotals.seller} SOL`} />
               <Row label="Royalty" value={`${batchTotals.royalty} SOL`} />
@@ -1169,7 +1169,7 @@ export function CpegMarketClient() {
           {(status || error || lastTx) && (
             <div className="mt-4 grid gap-2">
               {status ? (
-                <div className="flex items-center gap-2 border border-white/10 bg-white/[0.03] p-3 text-sm text-[#53c7ff]">
+                <div className="flex items-center gap-2 border border-neutral-200 dark:border-white/10 bg-neutral-100/95 dark:bg-white/[0.03] p-3 text-sm text-[#53c7ff]">
                   {busy ? <Loader2 className="h-3 w-3 animate-spin" /> : null}
                   {status}
                 </div>
@@ -1182,7 +1182,7 @@ export function CpegMarketClient() {
                   href={explorerTxUrl(lastTx, selectedLaunch.cluster)}
                   target="_blank"
                   rel="noreferrer"
-                  className="inline-flex items-center gap-2 font-mono text-[10px] uppercase tracking-[0.2em] text-white/55 transition hover:text-[#53c7ff]"
+                  className="inline-flex items-center gap-2 font-mono text-[10px] uppercase tracking-[0.2em] text-neutral-700 dark:text-white/55 transition hover:text-[#53c7ff]"
                 >
                   Last transaction <ArrowUpRight className="h-3 w-3" />
                 </a>
@@ -1197,7 +1197,7 @@ export function CpegMarketClient() {
                   <p className="font-mono text-[10px] uppercase tracking-[0.22em] text-[#9fe2ff]">
                     Trade art recorded on-chain
                   </p>
-                  <p className="mt-1 text-sm leading-5 text-white/75">
+                  <p className="mt-1 text-sm leading-5 text-neutral-700 dark:text-white/75">
                     Your fill atomically minted {lastTradeArt.length === 1 ? "one" : lastTradeArt.length} deterministic
                     {lastTradeArt.length === 1 ? " piece" : " pieces"} of trade art via the cpeg-market &rarr; clawpeg
                     CPI. The art is permanent.
@@ -1211,10 +1211,10 @@ export function CpegMarketClient() {
                     href={`/api/cpeg/${selectedLaunch.token_mint}/trade-art/${art.trade_index}/svg`}
                     target="_blank"
                     rel="noreferrer"
-                    className="group block border border-white/10 bg-black/40 p-1 transition hover:border-[#53c7ff]"
+                    className="group block border border-neutral-200 dark:border-white/10 bg-neutral-100/90 dark:bg-black/40 p-1 transition hover:border-[#53c7ff]"
                     title={art.address}
                   >
-                    <div className="aspect-square overflow-hidden border border-white/5 bg-black">
+                    <div className="aspect-square overflow-hidden border border-neutral-200/60 dark:border-white/5 bg-neutral-200 dark:bg-black">
                       <Image
                         src={art.image_url}
                         alt={`Trade art for cPEG #${art.peg_id}`}
@@ -1224,7 +1224,7 @@ export function CpegMarketClient() {
                         unoptimized
                       />
                     </div>
-                    <p className="mt-1 truncate font-mono text-[9px] uppercase tracking-[0.2em] text-white/55 group-hover:text-[#53c7ff]">
+                    <p className="mt-1 truncate font-mono text-[9px] uppercase tracking-[0.2em] text-neutral-700 dark:text-white/55 group-hover:text-[#53c7ff]">
                       T#{art.trade_index}
                     </p>
                   </a>
@@ -1244,17 +1244,17 @@ export function CpegMarketClient() {
                   return (
                     <div
                       key={listing.listing_address}
-                      className={`group relative border bg-[#0c0c0c] p-2 transition ${
+                      className={`group relative border bg-neutral-100 dark:bg-[#0c0c0c] p-2 transition ${
                         selectMode && isSelected
                           ? "border-[#53c7ff]"
-                          : "border-white/10 hover:border-[#53c7ff]/40"
+                          : "border-neutral-200 dark:border-white/10 hover:border-[#53c7ff]/40"
                       }`}
                     >
                       {selectMode ? (
                         <button
                           type="button"
                           onClick={() => toggleSelectedPeg(listing.peg_id)}
-                          className="absolute right-2 top-2 z-10 inline-flex h-7 w-7 items-center justify-center border border-white/30 bg-black/70 text-white/70 transition hover:border-[#53c7ff] hover:text-[#53c7ff]"
+                          className="absolute right-2 top-2 z-10 inline-flex h-7 w-7 items-center justify-center border border-neutral-400 dark:border-white/30 bg-neutral-900/70 dark:bg-black/70 text-neutral-700 dark:text-white/70 transition hover:border-[#53c7ff] hover:text-[#53c7ff]"
                         >
                           {isSelected ? (
                             <CheckSquare className="h-4 w-4 text-[#53c7ff]" />
@@ -1263,7 +1263,7 @@ export function CpegMarketClient() {
                           )}
                         </button>
                       ) : null}
-                      <div className="aspect-square overflow-hidden border border-white/10 bg-black">
+                      <div className="aspect-square overflow-hidden border border-neutral-200 dark:border-white/10 bg-neutral-200 dark:bg-black">
                         <Image
                           src={listing.image}
                           alt={`cPEG #${listing.peg_id}`}
@@ -1274,24 +1274,24 @@ export function CpegMarketClient() {
                         />
                       </div>
                       <div className="mt-3 flex items-center justify-between gap-2">
-                        <p className="font-mono text-xs uppercase tracking-wide text-white/65">
+                        <p className="font-mono text-xs uppercase tracking-wide text-neutral-600 dark:text-white/65">
                           #{listing.peg_id}
                         </p>
                         <p className="font-mono text-sm font-black tracking-tight text-[#53c7ff]">
                           {listing.price_sol} SOL
                         </p>
                       </div>
-                      <div className="mt-1 flex items-center justify-between font-mono text-[10px] uppercase tracking-[0.18em] text-white/35">
+                      <div className="mt-1 flex items-center justify-between font-mono text-[10px] uppercase tracking-[0.18em] text-neutral-500 dark:text-white/35">
                         <span>{truncateAddress(listing.seller)}</span>
                         {listing.listed_at ? (
-                          <CpegRelativeTime iso={listing.listed_at} className="text-white/35" />
+                          <CpegRelativeTime iso={listing.listed_at} className="text-neutral-500 dark:text-white/35" />
                         ) : null}
                       </div>
 
                       <div className="mt-3 grid grid-cols-3 gap-1 font-mono text-[9px] uppercase tracking-[0.14em]">
-                        <FeeCell label="Seller" value={listing.seller_proceeds_sol || "--"} accent="text-[#f7f2df]" />
+                        <FeeCell label="Seller" value={listing.seller_proceeds_sol || "--"} accent="text-neutral-900 dark:text-[#f7f2df]" />
                         <FeeCell label="Royal" value={listing.creator_royalty_sol || "--"} accent="text-[#53c7ff]" />
-                        <FeeCell label="Fee" value={listing.protocol_fee_sol || "--"} accent="text-white/65" />
+                        <FeeCell label="Fee" value={listing.protocol_fee_sol || "--"} accent="text-neutral-600 dark:text-white/65" />
                       </div>
 
                       <div className="mt-3 grid grid-cols-2 gap-2">
@@ -1312,7 +1312,7 @@ export function CpegMarketClient() {
                           type="button"
                           onClick={() => handleCancel(listing)}
                           disabled={Boolean(busy) || !isOwn}
-                          className="inline-flex items-center justify-center gap-1 border border-white/15 px-2 py-2 text-[10px] font-black uppercase tracking-wide text-white/55 transition hover:border-red-300/40 hover:text-red-200 disabled:opacity-30"
+                          className="inline-flex items-center justify-center gap-1 border border-neutral-300 dark:border-white/15 px-2 py-2 text-[10px] font-black uppercase tracking-wide text-neutral-700 dark:text-white/55 transition hover:border-red-300/40 hover:text-red-200 disabled:opacity-30"
                         >
                           {busy === `cancel-${listing.peg_id}` ? (
                             <Loader2 className="h-3 w-3 animate-spin" />
@@ -1327,11 +1327,11 @@ export function CpegMarketClient() {
                 })}
               </div>
             ) : (
-              <div className="border border-dashed border-white/10 bg-white/[0.02] py-16 text-center">
-                <p className="font-mono text-xs uppercase tracking-[0.2em] text-white/45">
+              <div className="border border-dashed border-neutral-200 dark:border-white/10 bg-neutral-50 dark:bg-white/[0.02] py-16 text-center">
+                <p className="font-mono text-xs uppercase tracking-[0.2em] text-neutral-500 dark:text-white/45">
                   No listings match your filter
                 </p>
-                <p className="mt-2 text-xs text-white/30">
+                <p className="mt-2 text-xs text-neutral-400 dark:text-white/30">
                   Try a different sort, clear the filters, or open another collection.
                 </p>
               </div>
@@ -1340,13 +1340,13 @@ export function CpegMarketClient() {
         </div>
 
         <aside className="grid gap-4 self-start lg:sticky lg:top-24">
-          <div className="border border-white/10 bg-[#0c0c0c] p-4">
+          <div className="border border-neutral-200 dark:border-white/10 bg-neutral-100 dark:bg-[#0c0c0c] p-4">
             <div className="flex items-center justify-between gap-3">
               <p className="font-mono text-xs uppercase tracking-[0.22em] text-[#53c7ff]">
                 Live activity
               </p>
               <RefreshCw
-                className={`h-3 w-3 text-white/30 ${loadingActivity ? "animate-spin" : ""}`}
+                className={`h-3 w-3 text-neutral-400 dark:text-white/30 ${loadingActivity ? "animate-spin" : ""}`}
               />
             </div>
             {activity.length ? (
@@ -1356,8 +1356,8 @@ export function CpegMarketClient() {
                     event.kind === "FILLED"
                       ? "text-[#53c7ff]"
                       : event.kind === "CANCELLED"
-                      ? "text-white/40"
-                      : "text-[#f7f2df]";
+                      ? "text-neutral-500 dark:text-white/40"
+                      : "text-neutral-900 dark:text-[#f7f2df]";
                   return (
                     <a
                       key={event.id}
@@ -1368,9 +1368,9 @@ export function CpegMarketClient() {
                       }
                       target={event.tx ? "_blank" : undefined}
                       rel={event.tx ? "noreferrer" : undefined}
-                      className="group flex items-center gap-3 border border-white/8 bg-[#0a0a0a] p-2 transition hover:border-[#53c7ff]/40"
+                      className="group flex items-center gap-3 border border-neutral-200 dark:border-white/8 bg-neutral-100 dark:bg-[#0a0a0a] p-2 transition hover:border-[#53c7ff]/40"
                     >
-                      <div className="h-10 w-10 shrink-0 overflow-hidden border border-white/10 bg-black">
+                      <div className="h-10 w-10 shrink-0 overflow-hidden border border-neutral-200 dark:border-white/10 bg-neutral-200 dark:bg-black">
                         {/* eslint-disable-next-line @next/next/no-img-element */}
                         <img
                           src={event.image}
@@ -1388,12 +1388,12 @@ export function CpegMarketClient() {
                             {event.price_sol}
                           </span>
                         </div>
-                        <p className="mt-0.5 truncate font-mono text-[10px] uppercase tracking-[0.18em] text-white/40">
+                        <p className="mt-0.5 truncate font-mono text-[10px] uppercase tracking-[0.18em] text-neutral-500 dark:text-white/40">
                           #{event.peg_id} · {truncateAddress(event.seller)}
                         </p>
                         <CpegRelativeTime
                           iso={event.at}
-                          className="font-mono text-[10px] uppercase tracking-[0.18em] text-white/35"
+                          className="font-mono text-[10px] uppercase tracking-[0.18em] text-neutral-500 dark:text-white/35"
                         />
                       </div>
                     </a>
@@ -1401,7 +1401,7 @@ export function CpegMarketClient() {
                 })}
               </div>
             ) : (
-              <p className="mt-4 text-xs text-white/40">No activity yet for this collection.</p>
+              <p className="mt-4 text-xs text-neutral-500 dark:text-white/40">No activity yet for this collection.</p>
             )}
           </div>
         </aside>
@@ -1414,14 +1414,14 @@ function ListingsSkeleton() {
   return (
     <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
       {Array.from({ length: 8 }).map((_, index) => (
-        <div key={index} className="border border-white/10 bg-[#0c0c0c] p-2">
-          <div className="aspect-square animate-pulse bg-white/[0.03]" />
-          <div className="mt-3 h-3 w-12 animate-pulse bg-white/[0.05]" />
-          <div className="mt-2 h-2 w-20 animate-pulse bg-white/[0.04]" />
+        <div key={index} className="border border-neutral-200 dark:border-white/10 bg-neutral-100 dark:bg-[#0c0c0c] p-2">
+          <div className="aspect-square animate-pulse bg-neutral-100/95 dark:bg-white/[0.03]" />
+          <div className="mt-3 h-3 w-12 animate-pulse bg-neutral-200/70 dark:bg-white/[0.05]" />
+          <div className="mt-2 h-2 w-20 animate-pulse bg-neutral-50 dark:bg-white/[0.04]" />
           <div className="mt-3 grid grid-cols-3 gap-1">
-            <div className="h-7 animate-pulse bg-white/[0.04]" />
-            <div className="h-7 animate-pulse bg-white/[0.04]" />
-            <div className="h-7 animate-pulse bg-white/[0.04]" />
+            <div className="h-7 animate-pulse bg-neutral-50 dark:bg-white/[0.04]" />
+            <div className="h-7 animate-pulse bg-neutral-50 dark:bg-white/[0.04]" />
+            <div className="h-7 animate-pulse bg-neutral-50 dark:bg-white/[0.04]" />
           </div>
         </div>
       ))}
@@ -1437,8 +1437,8 @@ interface FeeCellProps {
 
 function FeeCell({ label, value, accent }: FeeCellProps) {
   return (
-    <div className="border border-white/8 bg-black/40 px-1 py-1 text-center">
-      <div className="text-[8px] uppercase tracking-[0.18em] text-white/30">{label}</div>
+    <div className="border border-neutral-200 dark:border-white/8 bg-neutral-100/90 dark:bg-black/40 px-1 py-1 text-center">
+      <div className="text-[8px] uppercase tracking-[0.18em] text-neutral-400 dark:text-white/30">{label}</div>
       <div className={`mt-0.5 ${accent}`}>{value}</div>
     </div>
   );
@@ -1454,8 +1454,8 @@ interface RowProps {
 function Row({ label, value, highlight, muted }: RowProps) {
   return (
     <div className="flex items-center justify-between gap-3">
-      <span className={muted ? "text-white/35" : "text-white/55"}>{label}</span>
-      <span className={highlight ? "text-[#53c7ff]" : muted ? "text-white/55" : "text-[#f7f2df]"}>
+      <span className={muted ? "text-neutral-500 dark:text-white/35" : "text-neutral-700 dark:text-white/55"}>{label}</span>
+      <span className={highlight ? "text-[#53c7ff]" : muted ? "text-neutral-700 dark:text-white/55" : "text-neutral-900 dark:text-[#f7f2df]"}>
         {value}
       </span>
     </div>

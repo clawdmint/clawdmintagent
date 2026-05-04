@@ -1,6 +1,5 @@
 "use client";
 
-import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -65,40 +64,29 @@ export function CpegSiteHeader() {
         className={clsx(
           "sticky top-0 z-50 border-b backdrop-blur-2xl backdrop-saturate-150 transition-colors duration-300",
           theme === "dark"
-            ? "border-white/[0.04] bg-[#090909]/90"
-            : "border-gray-200/30 bg-white/85"
+            ? "border-white/[0.04] bg-[#080808]/92"
+            : "border-neutral-200/50 bg-white/90"
         )}
       >
         <div className="container mx-auto px-4">
           <div className="flex h-14 items-center justify-between gap-4">
-            <div className="flex min-w-0 flex-1 items-center gap-6">
-              <Link href={p.home} className="group flex shrink-0 items-center gap-2">
-                <div className="relative h-8 w-8 shrink-0 transition-transform duration-300 group-hover:scale-110">
-                  <Image src="/logo.png" alt="cPEG" width={32} height={32} className="object-contain opacity-98" />
-                </div>
-                <div className="min-w-0">
-                  <div className="flex flex-wrap items-baseline gap-x-1.5 gap-y-0">
-                    <span className="text-lg" aria-hidden>
-                      {lobster}
-                    </span>
-                    <span
-                      className={clsx(
-                        "font-mono text-[15px] font-black tracking-[-0.02em] uppercase",
-                        theme === "dark" ? "text-[#f7f2df]" : "text-gray-900"
-                      )}
-                    >
-                      c<span className={theme === "dark" ? "text-cyan-400" : "text-cyan-600"}>PEG</span>
-                    </span>
-                  </div>
-                  <p
-                    className={clsx(
-                      "hidden font-mono text-[10px] uppercase tracking-[0.22em] sm:block truncate",
-                      theme === "dark" ? "text-white/40" : "text-gray-500"
-                    )}
-                  >
-                    claw + jpeg = identity
-                  </p>
-                </div>
+            <div className="flex min-w-0 flex-1 items-center gap-4 sm:gap-6">
+              <Link
+                href={p.home}
+                className="group flex min-w-0 shrink-0 items-baseline gap-1.5 font-mono text-[12px] font-semibold tracking-tight transition-opacity hover:opacity-90 sm:text-[13px]"
+                title="cPEG — claw + jpeg = cPEG"
+              >
+                <span className="shrink-0 text-base leading-none sm:text-lg" aria-hidden>
+                  {lobster}
+                </span>
+                <span
+                  className={clsx(
+                    "min-w-0 truncate",
+                    theme === "dark" ? "text-[#f0ebe0]" : "text-neutral-900"
+                  )}
+                >
+                  claw + jpeg = <span className={theme === "dark" ? "text-cyan-400" : "text-cyan-600"}>cPEG</span>
+                </span>
               </Link>
 
               <nav
@@ -276,9 +264,10 @@ export function CpegSiteHeader() {
               theme === "dark" ? "border-white/[0.05] bg-[#090909]/98" : "border-gray-200 bg-white/98"
             )}
           >
-            <div className={clsx("px-5 pt-3 pb-2", theme === "dark" ? "text-white/50" : "text-gray-500")}>
-              <p className="font-mono text-[10px] uppercase tracking-[0.2em]">cPEG</p>
-              <p className="mt-1 font-mono text-xs">{lobster} Claw + JPEG = cPEG</p>
+            <div className={clsx("px-5 pt-3 pb-2", theme === "dark" ? "text-white/55" : "text-neutral-600")}>
+              <p className="font-mono text-xs leading-snug">
+                <span aria-hidden>{lobster} </span>claw + jpeg = cPEG
+              </p>
             </div>
             <nav className="space-y-0.5 px-4 pb-4">
               {navItems.map((item) => {

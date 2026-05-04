@@ -147,7 +147,7 @@ export function CpegOrcaSplashPool({ cluster, tokenMint }: CpegOrcaSplashPoolPro
 
   if (!isMainnet) {
     return (
-      <div className="mt-5 border border-white/15 bg-black/30 px-4 py-3 font-mono text-[10px] uppercase tracking-[0.2em] text-white/50">
+      <div className="mt-5 border border-neutral-300 bg-neutral-100/90 px-4 py-3 font-mono text-[10px] uppercase tracking-[0.2em] text-neutral-600 dark:border-white/15 dark:bg-black/30 dark:text-white/50">
         In-app Splash pools rely on Orca&apos;s pinned mainnet program + config IDs. Deploy on devnet using the escrow
         market while testing.
       </div>
@@ -155,12 +155,12 @@ export function CpegOrcaSplashPool({ cluster, tokenMint }: CpegOrcaSplashPoolPro
   }
 
   return (
-    <div className="mt-5 border border-white/10 bg-black/25 p-4">
+    <div className="mt-5 border border-neutral-200 bg-neutral-100/90 p-4 dark:border-white/10 dark:bg-black/25">
       <div className="flex items-start gap-2">
         <Waves className="mt-1 h-4 w-4 text-[#53c7ff]" />
         <div>
           <p className="font-mono text-[10px] uppercase tracking-[0.22em] text-[#53c7ff]">Orca splash pool</p>
-          <p className="mt-2 text-sm leading-6 text-white/65">
+          <p className="mt-2 text-sm leading-6 text-neutral-600 dark:text-white/65">
             Spins up a canonical full-range Whirlpool so swaps route through Jupiter. You pay rent for vault PDAs plus
             your priority tip.
           </p>
@@ -168,11 +168,11 @@ export function CpegOrcaSplashPool({ cluster, tokenMint }: CpegOrcaSplashPoolPro
       </div>
 
       <label className="mt-4 block">
-        <span className="font-mono text-[10px] uppercase tracking-[0.2em] text-white/45">Whole cPEG per 1 SOL</span>
+        <span className="font-mono text-[10px] uppercase tracking-[0.2em] text-neutral-500 dark:text-white/45">Whole cPEG per 1 SOL</span>
         <input
           value={pegPerSol}
           onChange={(event) => setPegPerSol(event.target.value)}
-          className="mt-2 w-full border border-white/12 bg-white/[0.04] px-3 py-3 text-sm outline-none focus:border-[#53c7ff]"
+          className="mt-2 w-full border border-neutral-300 bg-neutral-50 px-3 py-3 text-sm text-neutral-950 outline-none transition focus:border-[#53c7ff] dark:border-white/12 dark:bg-white/[0.04] dark:text-white"
           inputMode="decimal"
           placeholder="e.g. 100"
         />

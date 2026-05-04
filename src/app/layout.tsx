@@ -94,7 +94,7 @@ export default function RootLayout({
   const isCpegSite = headers().get(CPEG_SITE_HEADER) === "1";
 
   return (
-    <html lang="en" className="dark" suppressHydrationWarning>
+    <html lang="en" className={isCpegSite ? undefined : "dark"} suppressHydrationWarning>
         <body className={`${inter.variable} ${jetbrains.variable} font-sans antialiased min-h-screen transition-colors duration-300`}>
         <Providers cpegSite={isCpegSite}>
           <MiniAppInit />

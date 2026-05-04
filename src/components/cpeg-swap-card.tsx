@@ -340,12 +340,12 @@ export function CpegSwapCard({ tokenMint, cluster, symbol, decimals, onComplete 
   const dexActionReady = dexRoutePossible && solValue > 0 && isMainnet;
 
   return (
-    <section className="border border-white/10 bg-gradient-to-br from-[#53c7ff]/[0.06] via-white/[0.02] to-[#f7f2df]/[0.04] p-5">
+    <section className="border border-neutral-200 bg-gradient-to-br from-[#53c7ff]/[0.05] via-white/90 to-[#f7f2df]/35 p-5 dark:border-white/10 dark:from-[#53c7ff]/[0.06] dark:via-white/[0.02] dark:to-[#f7f2df]/[0.04]">
       <header className="flex items-center gap-3">
         <Zap className="h-5 w-5 text-[#53c7ff]" />
         <div>
           <p className="font-mono text-xs uppercase tracking-[0.25em] text-[#53c7ff]">Quick swap desk</p>
-          <h2 className="mt-1 text-2xl font-black uppercase">Pay SOL · receive {symbol}</h2>
+          <h2 className="mt-1 text-2xl font-black uppercase text-neutral-950 dark:text-[#f7f2df]">Pay SOL · receive {symbol}</h2>
         </div>
       </header>
 
@@ -357,7 +357,7 @@ export function CpegSwapCard({ tokenMint, cluster, symbol, decimals, onComplete 
           className={`flex-1 border px-3 py-2 font-mono text-[10px] uppercase tracking-[0.2em] transition ${
             mode === "amm"
               ? "border-[#53c7ff] bg-[#53c7ff]/10 text-[#53c7ff]"
-              : "border-white/15 text-white/60 hover:border-white/35"
+              : "border-neutral-300 text-neutral-600 hover:border-neutral-400 dark:border-white/15 dark:text-white/60 dark:hover:border-white/35"
           } disabled:opacity-35`}
         >
           Jupiter swap + art
@@ -368,26 +368,26 @@ export function CpegSwapCard({ tokenMint, cluster, symbol, decimals, onComplete 
           className={`flex-1 border px-3 py-2 font-mono text-[10px] uppercase tracking-[0.2em] transition ${
             mode === "floor"
               ? "border-[#53c7ff] bg-[#53c7ff]/10 text-[#53c7ff]"
-              : "border-white/15 text-white/60 hover:border-white/35"
+              : "border-neutral-300 text-neutral-600 hover:border-neutral-400 dark:border-white/15 dark:text-white/60 dark:hover:border-white/35"
           }`}
         >
           P2P floor sweep
         </button>
       </div>
       {!isMainnet ? (
-        <p className="mt-3 text-xs text-white/52">AMM tab disabled on devnet. Floor sweep stays available via escrow listings.</p>
+        <p className="mt-3 text-xs text-neutral-600 dark:text-white/52">AMM tab disabled on devnet. Floor sweep stays available via escrow listings.</p>
       ) : !dexRoutePossible ? (
-        <p className="mt-3 text-xs text-white/52">AMM tab unlocks automatically once Jupiter can route SOL into this mint (seed Splash pool).</p>
+        <p className="mt-3 text-xs text-neutral-600 dark:text-white/52">AMM tab unlocks automatically once Jupiter can route SOL into this mint (seed Splash pool).</p>
       ) : (
-        <p className="mt-3 text-xs text-white/55">
+        <p className="mt-3 text-xs text-neutral-700 dark:text-white/55">
           AMM swaps append `record_trade_art` on-chain, matching uPEG&apos;s swap hook visuals.
         </p>
       )}
 
       <div className="mt-5 grid gap-3">
-        <div className="border border-white/12 bg-black/30 p-4">
+        <div className="border border-neutral-300 bg-neutral-100/90 p-4 dark:border-white/12 dark:bg-black/30">
           <div className="flex justify-between gap-3">
-            <p className="font-mono text-[10px] uppercase tracking-[0.22em] text-white/45">You pay</p>
+            <p className="font-mono text-[10px] uppercase tracking-[0.22em] text-neutral-500 dark:text-white/45">You pay</p>
             <div className="flex gap-1">
               {PRESET_AMOUNTS.map((amount) => (
                 <button
@@ -397,7 +397,7 @@ export function CpegSwapCard({ tokenMint, cluster, symbol, decimals, onComplete 
                   className={
                     solInput === amount
                       ? "border border-[#53c7ff]/60 bg-[#53c7ff]/10 px-2 py-1 font-mono text-[10px] uppercase tracking-[0.18em] text-[#53c7ff]"
-                      : "border border-white/10 px-2 py-1 font-mono text-[10px] uppercase tracking-[0.18em] text-white/55 transition hover:border-[#53c7ff] hover:text-[#53c7ff]"
+                      : "border border-neutral-200 px-2 py-1 font-mono text-[10px] uppercase tracking-[0.18em] text-neutral-700 transition hover:border-[#53c7ff] hover:text-[#53c7ff] dark:border-white/10 dark:text-white/55"
                   }
                 >
                   {amount}
@@ -413,28 +413,28 @@ export function CpegSwapCard({ tokenMint, cluster, symbol, decimals, onComplete 
               step="0.01"
               value={solInput}
               onChange={(event) => setSolInput(event.target.value)}
-              className="w-full bg-transparent text-3xl font-black text-[#f7f2df] outline-none"
+              className="w-full bg-transparent text-3xl font-black text-neutral-950 outline-none transition dark:text-[#f7f2df]"
               placeholder="0.0"
             />
-            <span className="font-mono text-sm font-bold uppercase tracking-[0.2em] text-white/55">SOL</span>
+            <span className="font-mono text-sm font-bold uppercase tracking-[0.2em] text-neutral-700 dark:text-white/55">SOL</span>
           </div>
 
           {mode === "floor" ? (
-            <div className="mt-3 flex items-center justify-between font-mono text-[10px] uppercase tracking-[0.18em] text-white/40">
+            <div className="mt-3 flex items-center justify-between font-mono text-[10px] uppercase tracking-[0.18em] text-neutral-500 dark:text-white/40">
               <span>per-transaction peg cap</span>
               <div className="flex items-center gap-2">
                 <button
                   type="button"
                   onClick={() => setMaxPegs(Math.max(1, maxPegs - 1))}
-                  className="border border-white/10 px-2 py-1 text-white/55 transition hover:border-[#53c7ff]"
+                  className="border border-neutral-200 px-2 py-1 text-neutral-700 transition hover:border-[#53c7ff] dark:border-white/10 dark:text-white/55"
                 >
                   -
                 </button>
-                <span className="text-white/72">{maxPegs} cPEG</span>
+                <span className="text-neutral-800 dark:text-white/72">{maxPegs} cPEG</span>
                 <button
                   type="button"
                   onClick={() => setMaxPegs(Math.min(6, maxPegs + 1))}
-                  className="border border-white/10 px-2 py-1 text-white/55 transition hover:border-[#53c7ff]"
+                  className="border border-neutral-200 px-2 py-1 text-neutral-700 transition hover:border-[#53c7ff] dark:border-white/10 dark:text-white/55"
                 >
                   +
                 </button>
@@ -444,11 +444,11 @@ export function CpegSwapCard({ tokenMint, cluster, symbol, decimals, onComplete 
         </div>
 
         <div className="flex items-center justify-center">
-          <ArrowDown className="h-4 w-4 text-white/35" />
+          <ArrowDown className="h-4 w-4 text-neutral-500 dark:text-white/35" />
         </div>
 
-        <div className="border border-white/12 bg-black/30 p-4">
-          <p className="font-mono text-[10px] uppercase tracking-[0.22em] text-white/45">
+        <div className="border border-neutral-300 bg-neutral-100/90 p-4 dark:border-white/12 dark:bg-black/30">
+          <p className="font-mono text-[10px] uppercase tracking-[0.22em] text-neutral-500 dark:text-white/45">
             You receive (~{decimalsSafe === 0 ? "whole" : decimalsSafe}-decimal units)
           </p>
 
@@ -469,24 +469,24 @@ export function CpegSwapCard({ tokenMint, cluster, symbol, decimals, onComplete 
           </div>
 
           {mode === "floor" && quote ? (
-            <div className="mt-3 grid grid-cols-3 gap-2 font-mono text-[10px] uppercase tracking-[0.18em] text-white/45">
+            <div className="mt-3 grid grid-cols-3 gap-2 font-mono text-[10px] uppercase tracking-[0.18em] text-neutral-500 dark:text-white/45">
               <div>
-                <p className="text-white/35">spent</p>
-                <p className="mt-1 text-white/72">{quote.total_sol.toLocaleString(undefined, { maximumFractionDigits: 6 })} SOL</p>
+                <p className="text-neutral-500 dark:text-white/35">spent</p>
+                <p className="mt-1 text-neutral-900 dark:text-white/72">{quote.total_sol.toLocaleString(undefined, { maximumFractionDigits: 6 })} SOL</p>
               </div>
               <div>
-                <p className="text-white/35">avg</p>
-                <p className="mt-1 text-white/72">{quote.average_price_sol.toLocaleString(undefined, { maximumFractionDigits: 6 })} SOL</p>
+                <p className="text-neutral-500 dark:text-white/35">avg</p>
+                <p className="mt-1 text-neutral-900 dark:text-white/72">{quote.average_price_sol.toLocaleString(undefined, { maximumFractionDigits: 6 })} SOL</p>
               </div>
               <div>
-                <p className="text-white/35">floor</p>
-                <p className="mt-1 text-white/72">
+                <p className="text-neutral-500 dark:text-white/35">floor</p>
+                <p className="mt-1 text-neutral-900 dark:text-white/72">
                   {quote.floor_sol !== null ? quote.floor_sol.toLocaleString(undefined, { maximumFractionDigits: 6 }) : "--"} SOL
                 </p>
               </div>
             </div>
           ) : mode === "amm" ? (
-            <p className="mt-3 text-xs leading-6 text-white/54">
+            <p className="mt-3 text-xs leading-6 text-neutral-600 dark:text-white/54">
               Probed with {dexPreview?.probe_sol ?? "--"} SOL. Route depth + price-impact shown in dex panel beside this card.
             </p>
           ) : null}
@@ -522,7 +522,7 @@ export function CpegSwapCard({ tokenMint, cluster, symbol, decimals, onComplete 
 
       {status ? <p className="mt-4 text-sm text-[#53c7ff]">{status}</p> : null}
       {swapError ? <p className="mt-4 text-sm text-red-300">{swapError}</p> : null}
-      {!swapError && quoteReason ? <p className="mt-4 text-xs text-white/45">{quoteReason}</p> : null}
+      {!swapError && quoteReason ? <p className="mt-4 text-xs text-neutral-600 dark:text-white/45">{quoteReason}</p> : null}
 
       {lastTx ? (
         <a
@@ -539,7 +539,7 @@ export function CpegSwapCard({ tokenMint, cluster, symbol, decimals, onComplete 
         <img
           src={dexArtUrl}
           alt="Latest dex trade-art"
-          className="mx-auto mt-4 h-32 w-32 border border-white/15 object-cover [image-rendering:pixelated]"
+          className="mx-auto mt-4 h-32 w-32 border border-neutral-300 object-cover [image-rendering:pixelated] dark:border-white/15"
         />
       ) : null}
     </section>

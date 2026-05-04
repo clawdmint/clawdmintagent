@@ -86,7 +86,7 @@ export function CpegDexPanel({ tokenMint, cluster, symbol, decimals }: CpegDexPa
   // Devnet / unsupported clusters: keep the panel calm and direct buyers to the P2P market.
   if (data && !data.supported) {
     return (
-      <section className="border border-white/10 bg-white/[0.03] p-5">
+      <section className="border border-neutral-200 dark:border-white/10 bg-neutral-100/95 dark:bg-white/[0.03] p-5">
         <header className="flex items-center gap-3">
           <Waves className="h-5 w-5 text-[#53c7ff]" />
           <div>
@@ -96,7 +96,7 @@ export function CpegDexPanel({ tokenMint, cluster, symbol, decimals }: CpegDexPa
             <h2 className="mt-1 text-2xl font-black uppercase">Aggregators do not index this cluster</h2>
           </div>
         </header>
-        <p className="mt-3 max-w-3xl text-sm leading-6 text-white/60">
+        <p className="mt-3 max-w-3xl text-sm leading-6 text-neutral-600 dark:text-white/60">
           Jupiter, Birdeye, and DEXScreener only cover Solana mainnet. On devnet you can still buy
           a cPEG via the P2P market, where listings are escrowed by the cpeg-market program.
         </p>
@@ -114,7 +114,7 @@ export function CpegDexPanel({ tokenMint, cluster, symbol, decimals }: CpegDexPa
   const pricePerToken = tokensReceived && tokensReceived > 0 ? probeSol / tokensReceived : null;
 
   return (
-    <section className="border border-white/10 bg-white/[0.03] p-5">
+    <section className="border border-neutral-200 dark:border-white/10 bg-neutral-100/95 dark:bg-white/[0.03] p-5">
       <header className="flex flex-wrap items-start justify-between gap-3">
         <div className="flex items-start gap-3">
           <Waves className="mt-1 h-5 w-5 text-[#53c7ff]" />
@@ -129,7 +129,7 @@ export function CpegDexPanel({ tokenMint, cluster, symbol, decimals }: CpegDexPa
                 ? `Tradeable on Jupiter`
                 : "No DEX pool yet"}
             </h2>
-            <p className="mt-2 max-w-3xl text-sm leading-6 text-white/60">
+            <p className="mt-2 max-w-3xl text-sm leading-6 text-neutral-600 dark:text-white/60">
               {loading
                 ? "Asking Jupiter whether a SOL -> cPEG route exists right now."
                 : hasRoute
@@ -139,13 +139,13 @@ export function CpegDexPanel({ tokenMint, cluster, symbol, decimals }: CpegDexPa
           </div>
         </div>
         {loading ? (
-          <Loader2 className="h-4 w-4 animate-spin text-white/35" />
+          <Loader2 className="h-4 w-4 animate-spin text-neutral-500 dark:text-white/35" />
         ) : (
           <span
             className={
               hasRoute
                 ? "inline-flex items-center gap-2 border border-[#53c7ff]/40 bg-[#53c7ff]/10 px-3 py-1.5 font-mono text-[10px] uppercase tracking-[0.22em] text-[#53c7ff]"
-                : "inline-flex items-center gap-2 border border-white/15 px-3 py-1.5 font-mono text-[10px] uppercase tracking-[0.22em] text-white/55"
+                : "inline-flex items-center gap-2 border border-neutral-300 dark:border-white/15 px-3 py-1.5 font-mono text-[10px] uppercase tracking-[0.22em] text-neutral-700 dark:text-white/55"
             }
           >
             <Droplets className="h-3 w-3" /> {hasRoute ? "Live route" : "Awaiting liquidity"}
@@ -155,20 +155,20 @@ export function CpegDexPanel({ tokenMint, cluster, symbol, decimals }: CpegDexPa
 
       {hasRoute && quote ? (
         <div className="mt-5 grid gap-3 md:grid-cols-3">
-          <div className="border border-white/10 bg-black/25 p-4">
-            <p className="font-mono text-[10px] uppercase tracking-[0.22em] text-white/45">
+          <div className="border border-neutral-200 dark:border-white/10 bg-neutral-100/90 dark:bg-black/25 p-4">
+            <p className="font-mono text-[10px] uppercase tracking-[0.22em] text-neutral-500 dark:text-white/45">
               Spot price
             </p>
             <p className="mt-2 text-xl font-black text-[#f7f2df]">
               {pricePerToken ? pricePerToken.toLocaleString(undefined, { maximumFractionDigits: 6 }) : "--"}
-              <span className="ml-1 text-xs font-mono uppercase tracking-[0.2em] text-white/45">SOL / cPEG</span>
+              <span className="ml-1 text-xs font-mono uppercase tracking-[0.2em] text-neutral-500 dark:text-white/45">SOL / cPEG</span>
             </p>
-            <p className="mt-1 font-mono text-[10px] uppercase tracking-[0.18em] text-white/40">
+            <p className="mt-1 font-mono text-[10px] uppercase tracking-[0.18em] text-neutral-500 dark:text-white/40">
               from a {probeSol} SOL probe
             </p>
           </div>
-          <div className="border border-white/10 bg-black/25 p-4">
-            <p className="font-mono text-[10px] uppercase tracking-[0.22em] text-white/45">
+          <div className="border border-neutral-200 dark:border-white/10 bg-neutral-100/90 dark:bg-black/25 p-4">
+            <p className="font-mono text-[10px] uppercase tracking-[0.22em] text-neutral-500 dark:text-white/45">
               Probe output
             </p>
             <p className="mt-2 text-xl font-black text-[#53c7ff]">
@@ -176,18 +176,18 @@ export function CpegDexPanel({ tokenMint, cluster, symbol, decimals }: CpegDexPa
                 ? tokensReceived.toLocaleString(undefined, { maximumFractionDigits: 6 })
                 : "--"}
             </p>
-            <p className="mt-1 font-mono text-[10px] uppercase tracking-[0.18em] text-white/40">
+            <p className="mt-1 font-mono text-[10px] uppercase tracking-[0.18em] text-neutral-500 dark:text-white/40">
               {symbol} for {probeSol} SOL
             </p>
           </div>
-          <div className="border border-white/10 bg-black/25 p-4">
-            <p className="font-mono text-[10px] uppercase tracking-[0.22em] text-white/45">
+          <div className="border border-neutral-200 dark:border-white/10 bg-neutral-100/90 dark:bg-black/25 p-4">
+            <p className="font-mono text-[10px] uppercase tracking-[0.22em] text-neutral-500 dark:text-white/45">
               Route depth
             </p>
             <p className="mt-2 text-xl font-black text-[#f7f2df]">
               {quote.route_steps || 1} hop{quote.route_steps && quote.route_steps > 1 ? "s" : ""}
             </p>
-            <p className="mt-1 font-mono text-[10px] uppercase tracking-[0.18em] text-white/40">
+            <p className="mt-1 font-mono text-[10px] uppercase tracking-[0.18em] text-neutral-500 dark:text-white/40">
               impact {quote.price_impact_pct !== null ? `${(quote.price_impact_pct * 100).toFixed(2)}%` : "--"}
             </p>
           </div>
@@ -218,7 +218,7 @@ export function CpegDexPanel({ tokenMint, cluster, symbol, decimals }: CpegDexPa
           href={`https://dexscreener.com/solana/${tokenMint}`}
           target="_blank"
           rel="noreferrer"
-          className="inline-flex items-center gap-2 border border-white/15 px-4 py-2.5 font-mono text-[10px] uppercase tracking-[0.2em] text-white/72 transition hover:border-[#53c7ff] hover:text-[#53c7ff]"
+          className="inline-flex items-center gap-2 border border-neutral-300 dark:border-white/15 px-4 py-2.5 font-mono text-[10px] uppercase tracking-[0.2em] text-neutral-700 dark:text-white/72 transition hover:border-[#53c7ff] hover:text-[#53c7ff]"
         >
           DEXScreener <ArrowUpRight className="h-3 w-3" />
         </a>
@@ -226,18 +226,18 @@ export function CpegDexPanel({ tokenMint, cluster, symbol, decimals }: CpegDexPa
           href={`https://birdeye.so/token/${tokenMint}?chain=solana`}
           target="_blank"
           rel="noreferrer"
-          className="inline-flex items-center gap-2 border border-white/15 px-4 py-2.5 font-mono text-[10px] uppercase tracking-[0.2em] text-white/72 transition hover:border-[#53c7ff] hover:text-[#53c7ff]"
+          className="inline-flex items-center gap-2 border border-neutral-300 dark:border-white/15 px-4 py-2.5 font-mono text-[10px] uppercase tracking-[0.2em] text-neutral-700 dark:text-white/72 transition hover:border-[#53c7ff] hover:text-[#53c7ff]"
         >
           Birdeye <ArrowUpRight className="h-3 w-3" />
         </a>
       </div>
 
       {isMainnetCluster && data?.supported && !hasRoute && !loading ? (
-        <div className="mt-5 border border-white/10 bg-black/20 p-4">
-          <p className="font-mono text-[10px] uppercase tracking-[0.2em] text-white/45">
+        <div className="mt-5 border border-neutral-200 dark:border-white/10 bg-neutral-100/80 dark:bg-black/20 p-4">
+          <p className="font-mono text-[10px] uppercase tracking-[0.2em] text-neutral-500 dark:text-white/45">
             In-wallet (mainnet)
           </p>
-          <p className="mt-2 max-w-3xl text-xs leading-5 text-white/55">
+          <p className="mt-2 max-w-3xl text-xs leading-5 text-neutral-700 dark:text-white/55">
             Create a concentrated Orca Splash pool from the app so Jupiter can pick up the route
             after indexers refresh. Alternatively use the Orca website link above.
           </p>
@@ -248,7 +248,7 @@ export function CpegDexPanel({ tokenMint, cluster, symbol, decimals }: CpegDexPa
       ) : null}
 
       {!hasRoute && !loading ? (
-        <p className="mt-4 max-w-3xl text-xs leading-5 text-white/45">
+        <p className="mt-4 max-w-3xl text-xs leading-5 text-neutral-500 dark:text-white/45">
           The Token-2022 mint with TransferHook is supported by Whirlpool V2. Once a pool is
           live, every Jupiter swap will move both the token unit and its PEG identity atomically
           via the same transfer hook the P2P market uses today.
@@ -256,7 +256,7 @@ export function CpegDexPanel({ tokenMint, cluster, symbol, decimals }: CpegDexPa
       ) : null}
 
       {hasRoute ? (
-        <div className="mt-5 overflow-hidden border border-white/10 bg-black">
+        <div className="mt-5 overflow-hidden border border-neutral-200 dark:border-white/10 bg-neutral-200 dark:bg-black">
           <iframe
             title="DEXScreener price chart"
             src={`https://dexscreener.com/solana/${tokenMint}?embed=1&theme=dark&trades=0&info=0`}
