@@ -466,27 +466,16 @@ export function buildClawPegToken2022MintSetupManifest(
     : mintAccountSize;
   const rentLamports =
     typeof params.rentLamports === "number" ? params.rentLamports : Number(params.rentLamports);
-  const baseRentLamports =
-    params.baseRentLamports === undefined
-      ? rentLamports
-      : typeof params.baseRentLamports === "number"
-        ? params.baseRentLamports
-        : Number(params.baseRentLamports);
-  const metadataExtraRentLamports = Math.max(0, rentLamports - baseRentLamports);
-
   if (!Number.isSafeInteger(rentLamports) || rentLamports <= 0) {
     throw new Error("rentLamports must be a positive safe integer");
-  }
-  if (!Number.isSafeInteger(baseRentLamports) || baseRentLamports <= 0) {
-    throw new Error("baseRentLamports must be a positive safe integer");
   }
 
   const instructions = [
     SystemProgram.createAccount({
       fromPubkey: payer,
       newAccountPubkey: mint,
-      space: mintAccountSize,
-      lamports: baseRentLamports,
+      space: finalMintAccountSize,
+      lamports: rentLamports,
       programId: TOKEN_2022_PROGRAM_ID,
     }),
     ...(tokenMetadata
@@ -494,15 +483,6 @@ export function buildClawPegToken2022MintSetupManifest(
       : []),
     createInitializeTransferHookInstruction(mint, payer, programId, TOKEN_2022_PROGRAM_ID),
     createInitializeMintInstruction(mint, params.decimals, mintAuthority, freezeAuthority, TOKEN_2022_PROGRAM_ID),
-    ...(tokenMetadata && metadataExtraRentLamports > 0
-      ? [
-          SystemProgram.transfer({
-            fromPubkey: payer,
-            toPubkey: mint,
-            lamports: metadataExtraRentLamports,
-          }),
-        ]
-      : []),
     ...(tokenMetadata
       ? [
           createInitializeTokenMetadataInstruction({
@@ -521,12 +501,9 @@ export function buildClawPegToken2022MintSetupManifest(
 
   return {
     token_program_id: TOKEN_2022_PROGRAM_ID.toBase58(),
-    mint_account_size: mintAccountSize,
+    mint_account_size: finalMintAccountSize,
     ...(finalMintAccountSize !== mintAccountSize ? { final_mint_account_size: finalMintAccountSize } : {}),
     rent_lamports: rentLamports.toString(),
-    ...(metadataExtraRentLamports > 0
-      ? { metadata_extra_rent_lamports: metadataExtraRentLamports.toString() }
-      : {}),
     ...(tokenMetadata ? { metadata_uri: tokenMetadata.uri } : {}),
     instructions: instructions.map(instructionToManifest),
   };
