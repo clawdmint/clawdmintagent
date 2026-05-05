@@ -16,6 +16,7 @@ const CPEG_EVENT_NAMES = [
   "CpegMarketSold",
   "CpegMarketCancelled",
   "PegTransferHookExecuted",
+  "OwnerPegTransferHookSynced",
 ] as const;
 
 function parseCpegEvents(logs: string[] | null | undefined) {

@@ -1232,10 +1232,15 @@ impl Processor {
             return Err(ClawPegError::InvalidMint.into());
         }
 
-        let source = OwnerPeg::unpack(&source_owner_peg_account.try_borrow_data()?)?;
-        let destination = OwnerPeg::unpack(&destination_owner_peg_account.try_borrow_data()?)?;
+        let mut source = OwnerPeg::unpack(&source_owner_peg_account.try_borrow_data()?)?;
+        let mut destination = OwnerPeg::unpack(&destination_owner_peg_account.try_borrow_data()?)?;
         if source.owner != source_owner || destination.owner != destination_owner {
             return Err(ClawPegError::InvalidOwner.into());
+        }
+        if source.collection != *collection_account.key
+            || destination.collection != *collection_account.key
+        {
+            return Err(ClawPegError::InvalidAccount.into());
         }
 
         let source_capacity = whole_capacity(source_amount, collection.peg_unit)?;
@@ -1244,7 +1249,22 @@ impl Processor {
             return Err(ClawPegError::CapacityExceeded.into());
         }
 
+        let slot = Clock::get()?.slot;
+        if source.synced_capacity != source_capacity {
+            source.synced_capacity = source_capacity;
+            source.generation = source.generation.saturating_add(1);
+            source.last_synced_slot = slot;
+            source.pack(&mut source_owner_peg_account.try_borrow_mut_data()?)?;
+        }
+        if destination.synced_capacity != destination_capacity {
+            destination.synced_capacity = destination_capacity;
+            destination.generation = destination.generation.saturating_add(1);
+            destination.last_synced_slot = slot;
+            destination.pack(&mut destination_owner_peg_account.try_borrow_mut_data()?)?;
+        }
+
         msg!("PegTransferHookExecuted");
+        msg!("OwnerPegTransferHookSynced");
         msg!("Amount: {}", amount);
         Ok(())
     }

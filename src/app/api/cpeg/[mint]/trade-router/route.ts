@@ -34,10 +34,12 @@ export async function GET(_request: NextRequest, { params }: RouteContext) {
     cluster: launch.cluster,
     router: {
       canonical_prepare: `/api/cpeg/${launch.tokenMint}/trade-router/prepare`,
+      transfer_hook_mode: "strict_owner_peg_sync",
       guarantees: [
-        "Token-2022 ownership remains enforced by the cPEG transfer hook.",
+        "Token-2022 ownership is enforced by the cPEG transfer hook.",
+        "Every routed identity transfer syncs OwnerPeg capacity during the hook execution.",
+        "Transfers that would detach a PEG identity from its whole token unit are rejected by the hook.",
         "Official identity-market fills invoke record_trade_art from on-chain sale data.",
-        "Bypassing the official router may transfer tokens, but trade art is not guaranteed.",
       ],
       modes: {
         market_identity_buy: {

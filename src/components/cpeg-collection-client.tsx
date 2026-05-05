@@ -913,7 +913,7 @@ export function CpegCollectionClient({ launch }: CpegCollectionClientProps) {
           <div className="aspect-square border border-neutral-200 dark:border-white/10 bg-neutral-200 dark:bg-black">
             <Image
               src={`/api/cpeg/${launch.tokenMint}/pegs/${previewPegId}/svg`}
-              alt={`${launch.symbol} cPEG #${previewPegId}`}
+              alt={`${launch.symbol} #${previewPegId}`}
               width={640}
               height={640}
               className="h-full w-full object-cover [image-rendering:pixelated]"
@@ -921,7 +921,7 @@ export function CpegCollectionClient({ launch }: CpegCollectionClientProps) {
             />
           </div>
           <p className="mt-3 font-mono text-xs uppercase tracking-[0.18em] text-neutral-600 dark:text-white/50">
-            deterministic renderer / cPEG #{previewPegId}
+            deterministic renderer / {launch.symbol} #{previewPegId}
           </p>
         </div>
 
@@ -990,7 +990,7 @@ export function CpegCollectionClient({ launch }: CpegCollectionClientProps) {
               ) : (
                 <Sparkles className="h-4 w-4" />
               )}
-              {isConnected ? `Mint cPEG #${previewPegId}` : "Connect Phantom"}
+              {isConnected ? `Mint ${launch.symbol} #${previewPegId}` : "Connect Phantom"}
             </button>
             <p className="mt-3 text-[10px] uppercase tracking-[0.18em] text-neutral-500 dark:text-white/35">
               Authority-only / syncPeg + mintPeg are bundled in one signature
@@ -1001,7 +1001,7 @@ export function CpegCollectionClient({ launch }: CpegCollectionClientProps) {
             {signature && mintedPeg !== null ? (
               <div className="mt-5 border border-[#53c7ff]/30 bg-[#53c7ff]/10 p-4">
                 <p className="font-mono text-xs uppercase tracking-[0.2em] text-[#9fe2ff]">
-                  cPEG #{mintedPeg} is live
+                  {launch.symbol} #{mintedPeg} is live
                 </p>
                 <a
                   href={getExplorerTx(signature, launch.cluster)}
@@ -1153,7 +1153,7 @@ export function CpegCollectionClient({ launch }: CpegCollectionClientProps) {
                 </div>
                 <div className="mt-2 flex items-center justify-between gap-2">
                   <p className="font-mono text-[11px] uppercase tracking-wide text-neutral-700 dark:text-white/70">
-                    cPEG #{item.peg_id}
+                    {launch.symbol} #{item.peg_id}
                   </p>
                   <span className="font-mono text-[10px] uppercase tracking-wide text-[#53c7ff]">
                     {(Number(item.sale.price_lamports) / 1_000_000_000).toLocaleString(undefined, {
@@ -1205,7 +1205,7 @@ export function CpegCollectionClient({ launch }: CpegCollectionClientProps) {
                   <div className="h-12 w-12 shrink-0 overflow-hidden border border-neutral-200 dark:border-white/10 bg-neutral-200 dark:bg-black">
                     <ActivityEventThumb
                       event={event}
-                      alt={`cPEG #${event.peg_id}`}
+                      alt={`${launch.symbol} #${event.peg_id}`}
                       width={64}
                       height={64}
                       className="h-full w-full object-cover [image-rendering:pixelated]"

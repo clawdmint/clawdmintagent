@@ -227,7 +227,7 @@ export default async function CpegPage() {
                   dangerouslySetInnerHTML={{ __html: sample.svg }}
                 />
                 <div className="mt-2 font-mono text-[10px] uppercase tracking-[0.18em] text-neutral-500 dark:text-white/45">
-                  cPEG #{sample.pegId}
+                  PEG #{sample.pegId}
                 </div>
               </div>
             ))}
@@ -260,7 +260,7 @@ export default async function CpegPage() {
             <p className="font-mono text-xs uppercase tracking-[0.25em] text-[#53c7ff]">
               Featured collections
             </p>
-            <h2 className="mt-3 text-3xl font-black uppercase text-neutral-950 dark:text-[#f7f2df] md:text-4xl">Live cPEGs on Solana</h2>
+            <h2 className="mt-3 text-3xl font-black uppercase text-neutral-950 dark:text-[#f7f2df] md:text-4xl">Live PEG collections on Solana</h2>
             <p className="mt-3 max-w-xl text-sm leading-6 text-neutral-700 dark:text-white/55">
               Every collection below is live on-chain with deterministic rendering, transfer-hook
               enforced PEG identity, and a P2P escrow market.
@@ -313,7 +313,7 @@ export default async function CpegPage() {
                       {/* eslint-disable-next-line @next/next/no-img-element */}
                       <img
                         src={`/api/cpeg/${launch.token_mint}/pegs/${peg}/svg`}
-                        alt={`${launch.symbol} cPEG #${peg}`}
+                        alt={`${launch.symbol} #${peg}`}
                         className="h-full w-full object-cover [image-rendering:pixelated]"
                         loading="lazy"
                       />
@@ -350,7 +350,7 @@ export default async function CpegPage() {
                     {launch.token_mint.slice(0, 6)}...{launch.token_mint.slice(-6)}
                   </span>
                   <span className="inline-flex items-center gap-1 font-mono text-[10px] uppercase tracking-[0.18em] text-neutral-700 dark:text-white/55">
-                    Open collection
+                    Open market
                     <ArrowUpRight className="h-3.5 w-3.5 transition group-hover:translate-x-0.5 group-hover:text-[#53c7ff]" />
                   </span>
                 </div>
@@ -412,7 +412,7 @@ export default async function CpegPage() {
                         {/* eslint-disable-next-line @next/next/no-img-element */}
                         <img
                           src={event.image}
-                          alt={`cPEG #${event.peg_id}`}
+                          alt={`${event.collection_symbol || "PEG"} #${event.peg_id}`}
                           className="h-full w-full object-cover [image-rendering:pixelated]"
                           loading="lazy"
                         />

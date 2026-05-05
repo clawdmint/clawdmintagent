@@ -46,24 +46,38 @@ export function readCpegSiteFromHeaders(h: { get(name: string): string | null })
  */
 export function cpegPublicPaths(isCpegSubdomain: boolean) {
   const root = isCpegSubdomain ? "/" : "/cpeg";
+  const marketPath = (query?: URLSearchParams | Record<string, string | undefined | null>) => {
+    const base = isCpegSubdomain ? "/market" : "/cpeg/market";
+    if (!query) return base;
+    const sp = query instanceof URLSearchParams ? query : new URLSearchParams();
+    if (!(query instanceof URLSearchParams) && query) {
+      for (const [k, v] of Object.entries(query)) {
+        if (v != null && v !== "") sp.set(k, v);
+      }
+    }
+    const qs = sp.toString();
+    return qs ? `${base}?${qs}` : base;
+  };
   return {
     /** Hub */
     home: root,
+    explore: isCpegSubdomain ? "/explore" : "/cpeg/explore",
     launch: isCpegSubdomain ? "/launch" : "/cpeg/launch",
-    market: (query?: URLSearchParams | Record<string, string | undefined | null>) => {
-      const base = isCpegSubdomain ? "/market" : "/cpeg/market";
-      if (!query) return base;
-      const sp = query instanceof URLSearchParams ? query : new URLSearchParams();
-      if (!(query instanceof URLSearchParams) && query) {
-        for (const [k, v] of Object.entries(query)) {
-          if (v != null && v !== "") sp.set(k, v);
-        }
-      }
-      const qs = sp.toString();
-      return qs ? `${base}?${qs}` : base;
-    },
-    collection: (mint: string) => (isCpegSubdomain ? `/${mint}` : `/cpeg/${mint}`),
+    market: marketPath,
+    /** Short collection links resolve to the trade market. /<mint> remains as an external redirect alias. */
+    collection: (mint: string) => marketPath({ mint }),
     collectionWithHash: (mint: string, hash: string) =>
-      `${isCpegSubdomain ? `/${mint}` : `/cpeg/${mint}`}${hash.startsWith("#") ? hash : `#${hash}`}`,
+      `${marketPath({ mint })}${hash.startsWith("#") ? hash : `#${hash}`}`,
   };
+}
+
+export function extractCpegMintFromPath(pathname: string) {
+  const parts = pathname.split("/").filter(Boolean);
+  if (parts.length === 1 && isLikelyMintPathSegment(parts[0])) {
+    return parts[0];
+  }
+  if (parts.length === 2 && parts[0] === "cpeg" && isLikelyMintPathSegment(parts[1])) {
+    return parts[1];
+  }
+  return "";
 }

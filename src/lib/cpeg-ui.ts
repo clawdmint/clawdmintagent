@@ -37,7 +37,7 @@ export function formatRelativeTime(input: string | number | Date | null | undefi
   if (Number.isNaN(target.getTime())) return "--";
   const now = Date.now();
   let diffSeconds = (target.getTime() - now) / 1000;
-  const formatter = new Intl.RelativeTimeFormat(undefined, { numeric: "auto" });
+  const formatter = new Intl.RelativeTimeFormat("en", { numeric: "auto" });
   let unit: Intl.RelativeTimeFormatUnit = "second";
   for (const [step, candidate] of RELATIVE_DIVISIONS) {
     if (Math.abs(diffSeconds) < step) {

@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { clsx } from "clsx";
 import { ChevronRight, ExternalLink, Menu, Moon, Sun, X } from "lucide-react";
@@ -9,7 +9,7 @@ import { useTheme } from "./theme-provider";
 import { useWallet } from "./wallet-context";
 import { SolanaLogo } from "./network-icons";
 import { useCpegSite } from "@/components/cpeg-site-context";
-import { cpegPublicPaths } from "@/lib/cpeg-site-paths";
+import { cpegPublicPaths, extractCpegMintFromPath } from "@/lib/cpeg-site-paths";
 
 const lobster = "\u{1F99E}"; // 🦞
 
@@ -17,10 +17,15 @@ const MAIN_APP_URL = process.env["NEXT_PUBLIC_APP_URL"] || "https://clawdmint.xy
 
 export function CpegSiteHeader() {
   const pathname = usePathname();
+  const searchParams = useSearchParams();
   const { theme, toggleTheme } = useTheme();
   const site = useCpegSite();
   const p = cpegPublicPaths(site);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const currentMint = extractCpegMintFromPath(pathname || "");
+  const queryMint = searchParams?.get("mint") || "";
+  const activeMint = currentMint || queryMint;
+  const marketQuery = activeMint ? { mint: activeMint } : undefined;
 
   const {
     ready,
@@ -33,8 +38,9 @@ export function CpegSiteHeader() {
 
   const navItems = [
     { href: p.home, label: "Hub" },
+    { href: p.explore, label: "Explore" },
+    { href: p.market(marketQuery), label: "Market" },
     { href: p.launch, label: "Launch" },
-    { href: p.market(), label: "Market" },
   ] as const;
 
   useEffect(() => {
@@ -99,10 +105,12 @@ export function CpegSiteHeader() {
                   const path = pathname || "";
                   const active =
                     item.label === "Hub"
-                      ? path === "/" || path === ""
+                      ? path === "/" || path === "" || path === "/cpeg"
+                    : item.label === "Explore"
+                        ? path === "/explore" || path === "/cpeg/explore"
                       : item.label === "Launch"
-                        ? path === "/launch"
-                        : path === "/market" || path.startsWith("/market/");
+                        ? path === "/launch" || path === "/cpeg/launch"
+                        : path === "/market" || path.startsWith("/market/") || path === "/cpeg/market";
 
                   return (
                     <Link
@@ -274,10 +282,12 @@ export function CpegSiteHeader() {
                 const path = pathname || "";
                 const isActive =
                   item.label === "Hub"
-                    ? path === "/" || path === ""
+                    ? path === "/" || path === "" || path === "/cpeg"
+                    : item.label === "Explore"
+                      ? path === "/explore" || path === "/cpeg/explore"
                     : item.label === "Launch"
-                      ? path === "/launch"
-                      : path === "/market" || path.startsWith("/market/");
+                      ? path === "/launch" || path === "/cpeg/launch"
+                      : path === "/market" || path.startsWith("/market/") || path === "/cpeg/market";
                 return (
                   <Link
                     key={item.label}

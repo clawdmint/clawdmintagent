@@ -502,7 +502,7 @@ export function CpegLaunchpad() {
                 href={cpegUrls.collection(result.mint)}
                 className="inline-flex items-center gap-2 border border-[#f7f2df] bg-[#f7f2df] px-5 py-3 text-sm font-black uppercase tracking-wide text-black transition hover:bg-[#53c7ff]"
               >
-                Open collection <ArrowRight className="h-4 w-4" />
+                Open market <ArrowRight className="h-4 w-4" />
               </a>
               <a
                 href={explorerTxUrl(result.signature, result.cluster)}

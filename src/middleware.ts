@@ -80,6 +80,14 @@ function handleCpegSubdomain(request: NextRequest) {
     return NextResponse.rewrite(internal, { request: { headers: requestHeaders } });
   }
 
+  if (pathname === "/explore" || pathname === "/explore/") {
+    const internal = new URL("/cpeg/explore", request.url);
+    internal.search = request.nextUrl.search;
+    const requestHeaders = new Headers(request.headers);
+    requestHeaders.set(CPEG_SITE_HEADER, "1");
+    return NextResponse.rewrite(internal, { request: { headers: requestHeaders } });
+  }
+
   if (pathname === "/market" || pathname === "/market/") {
     const internal = new URL(`/cpeg/market`, request.url);
     internal.search = request.nextUrl.search;
@@ -90,11 +98,9 @@ function handleCpegSubdomain(request: NextRequest) {
 
   const top = pathname.split("/").filter(Boolean)[0];
   if (top && isLikelyMintPathSegment(top) && pathname.split("/").filter(Boolean).length === 1) {
-    const internal = new URL(`/cpeg/${top}`, request.url);
-    internal.search = request.nextUrl.search;
-    const requestHeaders = new Headers(request.headers);
-    requestHeaders.set(CPEG_SITE_HEADER, "1");
-    return NextResponse.rewrite(internal, { request: { headers: requestHeaders } });
+    const target = new URL("/market", request.url);
+    target.searchParams.set("mint", top);
+    return NextResponse.redirect(target, 308);
   }
 
   return redirectMain(request, pathname === "" ? "/" : pathname);
