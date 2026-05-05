@@ -1,11 +1,20 @@
 import { Connection, PublicKey, TransactionMessage, VersionedTransaction } from "@solana/web3.js";
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import { buildClawPegRecordTradeArtManifest, findClawPegCollectionAddress } from "@/lib/clawpeg";
+import {
+  buildClawPegInitializeOwnerPegManifest,
+  buildClawPegMintPegManifest,
+  buildClawPegRecordTradeArtManifest,
+  buildClawPegSyncPegManifest,
+  findClawPegCollectionAddress,
+  findOwnerPegAddress,
+  findPegRecordAddress,
+} from "@/lib/clawpeg";
 import { allocateDexAggregatorTradeIndex } from "@/lib/cpeg-dex-trade-index";
 import { transactionInstructionFromManifest } from "@/lib/cpeg-manifest";
 import { prisma } from "@/lib/db";
 import { getClawPegRpcUrl } from "@/lib/env";
+import { getAssociatedTokenAddressSync, TOKEN_2022_PROGRAM_ID } from "@solana/spl-token";
 
 export const dynamic = "force-dynamic";
 
@@ -16,8 +25,10 @@ const REQUEST_MS = 12000;
 
 const PrepareSchema = z.object({
   buyer: z.string().min(32),
+  side: z.enum(["buy", "sell"]).optional().default("buy"),
   sol_amount: z.number().positive().max(2500),
   slippage_bps: z.number().int().min(10).max(2000).optional().default(100),
+  peg_id: z.number().int().min(1).optional(),
 });
 
 interface RouteContext {
@@ -44,10 +55,23 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
       collectionAddress: true,
       cluster: true,
       status: true,
+      maxPegs: true,
+      pegUnitRaw: true,
     },
   });
   if (!launch?.collectionAddress) {
     return NextResponse.json({ success: false, error: "cPEG launch not found" }, { status: 404 });
+  }
+
+  if (parsed.data.side === "sell") {
+    return NextResponse.json(
+      {
+        success: false,
+        error:
+          "Identity-backed token sells must use the cPEG market until the AMM sell adapter can escrow a specific PEG identity.",
+      },
+      { status: 501 }
+    );
   }
 
   const isMainnet = launch.cluster === "mainnet-beta" || launch.cluster === "mainnet";
@@ -210,6 +234,66 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
     return NextResponse.json({ success: false, error: "Collection PDA drift" }, { status: 409 });
   }
 
+  const identityInstructions = [];
+  const buyerTokenAccount = getAssociatedTokenAddressSync(
+    new PublicKey(launch.tokenMint),
+    buyerPk,
+    false,
+    TOKEN_2022_PROGRAM_ID
+  );
+  if (parsed.data.peg_id !== undefined) {
+    if (parsed.data.peg_id > launch.maxPegs) {
+      return NextResponse.json({ success: false, error: "PEG id exceeds collection supply." }, { status: 400 });
+    }
+    if (amountOutBig < BigInt(launch.pegUnitRaw)) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "The swap quote returns less than one whole cPEG unit, so it cannot assign an identity.",
+        },
+        { status: 422 }
+      );
+    }
+
+    const ownerPeg = findOwnerPegAddress(launch.collectionAddress, buyerPk.toBase58());
+    const pegRecord = findPegRecordAddress(launch.collectionAddress, parsed.data.peg_id);
+    const [ownerPegInfo, pegRecordInfo] = await connection.getMultipleAccountsInfo([ownerPeg, pegRecord], "confirmed");
+    if (pegRecordInfo) {
+      return NextResponse.json({ success: false, error: `PEG #${parsed.data.peg_id} is already assigned.` }, { status: 409 });
+    }
+    if (!ownerPegInfo) {
+      identityInstructions.push(
+        transactionInstructionFromManifest(
+          buildClawPegInitializeOwnerPegManifest({
+            payer: buyerPk.toBase58(),
+            owner: buyerPk.toBase58(),
+            tokenMint: launch.tokenMint,
+          })
+        )
+      );
+    }
+    identityInstructions.push(
+      transactionInstructionFromManifest(
+        buildClawPegSyncPegManifest({
+          owner: buyerPk.toBase58(),
+          ownerTokenAccount: buyerTokenAccount.toBase58(),
+          tokenMint: launch.tokenMint,
+        })
+      )
+    );
+    identityInstructions.push(
+      transactionInstructionFromManifest(
+        buildClawPegMintPegManifest({
+          payer: buyerPk.toBase58(),
+          owner: buyerPk.toBase58(),
+          ownerTokenAccount: buyerTokenAccount.toBase58(),
+          tokenMint: launch.tokenMint,
+          pegId: parsed.data.peg_id,
+        })
+      )
+    );
+  }
+
   const recordIx = transactionInstructionFromManifest(
     buildClawPegRecordTradeArtManifest({
       payer: buyerPk.toBase58(),
@@ -228,7 +312,7 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
       addressLookupTableAccounts: addressLookupAccounts,
       payerKey: vtx.message.staticAccountKeys[0],
     });
-    const merged = [...decompiled.instructions, recordIx];
+    const merged = [...decompiled.instructions, ...identityInstructions, recordIx];
     const messageV0 = new TransactionMessage({
       payerKey: decompiled.payerKey,
       instructions: merged,
@@ -245,6 +329,15 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
         trade_index: tradeIndexStr,
         preview_svg_url: `/api/cpeg/${launch.tokenMint}/trade-art/${tradeIndexStr}/svg`,
       },
+      identity_assignment:
+        parsed.data.peg_id === undefined
+          ? null
+          : {
+              peg_id: parsed.data.peg_id,
+              owner: buyerPk.toBase58(),
+              owner_token_account: buyerTokenAccount.toBase58(),
+              mode: "swap_then_sync_then_mint",
+            },
       jupiter_quote: quotePayload,
       swap_transaction_base64: Buffer.from(composed.serialize()).toString("base64"),
     });

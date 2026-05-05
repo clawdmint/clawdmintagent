@@ -19,6 +19,7 @@
     "db:reset": "prisma migrate reset",
     "metaplex:resync": "node scripts/resync-metaplex-agents.js",
     "cpeg:verify": "node scripts/run-cpeg-verify.js",
+    "cpeg:token-audit": "npx ts-node scripts/cpeg-token-audit.ts",
     "contracts:compile": "cd contracts && forge build",
     "contracts:test": "cd contracts && forge test -vvv",
     "contracts:deploy:testnet": "cd contracts && forge script script/Deploy.s.sol --rpc-url base-sepolia --broadcast --verify",

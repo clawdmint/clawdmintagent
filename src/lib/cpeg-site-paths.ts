@@ -62,6 +62,7 @@ export function cpegPublicPaths(isCpegSubdomain: boolean) {
     /** Hub */
     home: root,
     explore: isCpegSubdomain ? "/explore" : "/cpeg/explore",
+    swap: isCpegSubdomain ? "/swap" : "/cpeg/swap",
     launch: isCpegSubdomain ? "/launch" : "/cpeg/launch",
     market: marketPath,
     /** Short collection links resolve to the trade market. /<mint> remains as an external redirect alias. */

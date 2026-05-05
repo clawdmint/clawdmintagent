@@ -42,7 +42,9 @@ interface JupiterQuoteResponse {
 }
 
 export async function GET(request: NextRequest, { params }: RouteContext) {
+  const side = request.nextUrl.searchParams.get("side") === "sell" ? "sell" : "buy";
   const previewSolRaw = request.nextUrl.searchParams.get("preview_sol");
+  const previewTokenRaw = request.nextUrl.searchParams.get("preview_token");
   let probeSolAmount = 0.1;
   if (previewSolRaw !== null) {
     const parsed = Number.parseFloat(previewSolRaw);
@@ -50,10 +52,17 @@ export async function GET(request: NextRequest, { params }: RouteContext) {
       probeSolAmount = parsed;
     }
   }
+  let probeTokenAmount = 1;
+  if (previewTokenRaw !== null) {
+    const parsed = Number.parseFloat(previewTokenRaw);
+    if (Number.isFinite(parsed) && parsed > 0 && parsed <= 1_000_000_000) {
+      probeTokenAmount = parsed;
+    }
+  }
 
   const launch = await prisma.clawPegLaunch.findUnique({
     where: { tokenMint: params.mint },
-    select: { cluster: true, tokenMint: true, name: true, symbol: true },
+    select: { cluster: true, tokenMint: true, name: true, symbol: true, pegUnitRaw: true },
   });
   if (!launch) {
     return NextResponse.json({ success: false, error: "cPEG launch not found" }, { status: 404 });
@@ -65,16 +74,23 @@ export async function GET(request: NextRequest, { params }: RouteContext) {
       success: true,
       supported: false,
       cluster: launch.cluster,
+      side,
       reason: "Aggregators do not index devnet/testnet pools.",
-      probe: { input_lamports: String(Math.floor(probeSolAmount * 1_000_000_000)), sol_amount: probeSolAmount },
+      probe:
+        side === "sell"
+          ? { input_raw: String(Math.floor(probeTokenAmount * Number(launch.pegUnitRaw))), token_amount: probeTokenAmount }
+          : { input_lamports: String(Math.floor(probeSolAmount * 1_000_000_000)), sol_amount: probeSolAmount },
     });
   }
 
-  const probeLamports = Math.floor(probeSolAmount * 1_000_000_000);
+  const probeInputRaw =
+    side === "sell"
+      ? String(Math.floor(probeTokenAmount * Number(launch.pegUnitRaw)))
+      : String(Math.floor(probeSolAmount * 1_000_000_000));
   const url = new URL(JUPITER_API);
-  url.searchParams.set("inputMint", SOL_MINT);
-  url.searchParams.set("outputMint", params.mint);
-  url.searchParams.set("amount", String(probeLamports));
+  url.searchParams.set("inputMint", side === "sell" ? params.mint : SOL_MINT);
+  url.searchParams.set("outputMint", side === "sell" ? SOL_MINT : params.mint);
+  url.searchParams.set("amount", probeInputRaw);
   url.searchParams.set("slippageBps", "300");
   url.searchParams.set("swapMode", "ExactIn");
   url.searchParams.set("onlyDirectRoutes", "false");
@@ -112,9 +128,13 @@ export async function GET(request: NextRequest, { params }: RouteContext) {
       success: true,
       supported: true,
       cluster: launch.cluster,
+      side,
       has_route: false,
-      reason: error || "No Jupiter route detected for SOL -> cPEG.",
-      probe: { input_lamports: String(probeLamports), sol_amount: probeSolAmount },
+      reason: error || `No Jupiter route detected for ${side === "sell" ? "cPEG -> SOL" : "SOL -> cPEG"}.`,
+      probe:
+        side === "sell"
+          ? { input_raw: probeInputRaw, token_amount: probeTokenAmount }
+          : { input_lamports: probeInputRaw, sol_amount: probeSolAmount },
     });
   }
 
@@ -129,11 +149,12 @@ export async function GET(request: NextRequest, { params }: RouteContext) {
     success: true,
     supported: true,
     cluster: launch.cluster,
+    side,
     has_route: true,
-    probe: {
-      input_lamports: String(probeLamports),
-      sol_amount: probeSolAmount,
-    },
+    probe:
+      side === "sell"
+        ? { input_raw: probeInputRaw, token_amount: probeTokenAmount }
+        : { input_lamports: probeInputRaw, sol_amount: probeSolAmount },
     quote: {
       out_amount_raw: quote.outAmount,
       out_amount_number: outNumber,
@@ -142,7 +163,8 @@ export async function GET(request: NextRequest, { params }: RouteContext) {
       slippage_bps: 300,
     },
     links: {
-      jupiter_swap: `https://jup.ag/swap/SOL-${params.mint}`,
+      jupiter_swap:
+        side === "sell" ? `https://jup.ag/swap/${params.mint}-SOL` : `https://jup.ag/swap/SOL-${params.mint}`,
       birdeye: `https://birdeye.so/token/${params.mint}?chain=solana`,
       dexscreener: `https://dexscreener.com/solana/${params.mint}`,
     },

@@ -39,6 +39,7 @@ export function CpegSiteHeader() {
   const navItems = [
     { href: p.home, label: "Hub" },
     { href: p.explore, label: "Explore" },
+    { href: p.swap, label: "Swap" },
     { href: p.market(marketQuery), label: "Market" },
     { href: p.launch, label: "Launch" },
   ] as const;
@@ -108,6 +109,8 @@ export function CpegSiteHeader() {
                       ? path === "/" || path === "" || path === "/cpeg"
                     : item.label === "Explore"
                         ? path === "/explore" || path === "/cpeg/explore"
+                    : item.label === "Swap"
+                        ? path === "/swap" || path === "/cpeg/swap"
                       : item.label === "Launch"
                         ? path === "/launch" || path === "/cpeg/launch"
                         : path === "/market" || path.startsWith("/market/") || path === "/cpeg/market";
@@ -285,6 +288,8 @@ export function CpegSiteHeader() {
                     ? path === "/" || path === "" || path === "/cpeg"
                     : item.label === "Explore"
                       ? path === "/explore" || path === "/cpeg/explore"
+                    : item.label === "Swap"
+                      ? path === "/swap" || path === "/cpeg/swap"
                     : item.label === "Launch"
                       ? path === "/launch" || path === "/cpeg/launch"
                       : path === "/market" || path.startsWith("/market/") || path === "/cpeg/market";

@@ -88,6 +88,14 @@ function handleCpegSubdomain(request: NextRequest) {
     return NextResponse.rewrite(internal, { request: { headers: requestHeaders } });
   }
 
+  if (pathname === "/swap" || pathname === "/swap/") {
+    const internal = new URL("/cpeg/swap", request.url);
+    internal.search = request.nextUrl.search;
+    const requestHeaders = new Headers(request.headers);
+    requestHeaders.set(CPEG_SITE_HEADER, "1");
+    return NextResponse.rewrite(internal, { request: { headers: requestHeaders } });
+  }
+
   if (pathname === "/market" || pathname === "/market/") {
     const internal = new URL(`/cpeg/market`, request.url);
     internal.search = request.nextUrl.search;
