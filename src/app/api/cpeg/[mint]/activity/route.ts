@@ -1,4 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
+import { Prisma } from "@prisma/client";
+import { ensureCpegIndexerEventTable } from "@/lib/cpeg-indexer-store";
 import { prisma } from "@/lib/db";
 
 interface RouteContext {
@@ -78,7 +80,47 @@ export async function GET(request: NextRequest, { params }: RouteContext) {
       };
     });
 
-    return NextResponse.json({ success: true, events });
+    let onchainEvents: Array<{
+      signature: string;
+      slot: number;
+      event_name: string;
+      log: string;
+      at: string | null;
+    }> = [];
+    try {
+      await ensureCpegIndexerEventTable();
+      const signatures = rows
+        .flatMap((row) => [row.listTxHash, row.buyTxHash, row.cancelTxHash])
+        .filter((value): value is string => Boolean(value));
+      if (signatures.length) {
+        const indexedRows = await prisma.$queryRaw<
+          Array<{
+            signature: string;
+            slot: bigint;
+            blockTime: Date | null;
+            eventName: string;
+            logLine: string;
+          }>
+        >`
+          SELECT "signature", "slot", "blockTime", "eventName", "logLine"
+          FROM "ClawPegIndexerEvent"
+          WHERE "signature" IN (${Prisma.join(signatures)})
+          ORDER BY "slot" DESC, "createdAt" DESC
+          LIMIT ${Math.min(limit * 8, 240)}
+        `;
+        onchainEvents = indexedRows.map((row) => ({
+          signature: row.signature,
+          slot: Number(row.slot),
+          event_name: row.eventName,
+          log: row.logLine,
+          at: row.blockTime ? row.blockTime.toISOString() : null,
+        }));
+      }
+    } catch {
+      onchainEvents = [];
+    }
+
+    return NextResponse.json({ success: true, events, onchain_events: onchainEvents });
   } catch (error) {
     return NextResponse.json(
       { success: true, events: [], warning: error instanceof Error ? error.message : "activity unavailable" },

@@ -54,6 +54,13 @@ export async function GET(_request: NextRequest, { params }: RouteContext) {
           requires: ["buyer", "sol_amount", "slippage_bps"],
           effect: "Optional mainnet routed swap surface. Identity guarantees depend on the cPEG route.",
         },
+        identity_sell: {
+          enabled: true,
+          prepare: `/api/cpeg/${launch.tokenMint}/trade-router/prepare`,
+          requires: ["seller", "peg_id", "slippage_bps"],
+          effect:
+            "Escrows the selected identity and creates a route-aware market listing so token and PEG remain paired.",
+        },
         market_floor_sweep: {
           enabled: true,
           prepare: `/api/cpeg/${launch.tokenMint}/trade-router/prepare`,

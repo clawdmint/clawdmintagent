@@ -6,6 +6,8 @@ import { prisma } from "@/lib/db";
 import {
   CLAWPEG_DEFAULT_RENDERER_ID,
   CLAWPEG_DEFAULT_RENDERER_VERSION,
+  CLAWPEG_FIXED_CREATOR_ROYALTY_BPS,
+  CLAWPEG_MAX_SUPPLY_PER_COLLECTION,
   buildClawPegLaunchManifest,
   buildClawPegToken2022MintSetupManifest,
   createCollectionSeed,
@@ -23,7 +25,7 @@ const ClawPegLaunchSchema = z.object({
   token_mint: z.string().min(32),
   authority_address: z.string().min(32),
   creator_address: z.string().min(32).optional(),
-  max_pegs: z.number().int().min(1).max(1_000_000),
+  max_pegs: z.number().int().min(1).max(CLAWPEG_MAX_SUPPLY_PER_COLLECTION),
   decimals: z.number().int().min(0).max(9).default(9),
   peg_unit_raw: z.string().regex(/^\d+$/).optional(),
   renderer_id: z.string().min(1).max(80).default(CLAWPEG_DEFAULT_RENDERER_ID),
@@ -114,8 +116,9 @@ export async function POST(request: NextRequest) {
       );
     }
     const rendererParams = (input.renderer_params || {}) as Prisma.InputJsonObject;
+    const premiumIndexing = true;
     const fees = quoteClawPegLaunchFee({
-      premiumIndexing: input.premium_indexing,
+      premiumIndexing,
       partnerApiEnabled: input.partner_api_enabled,
       whiteLabelDomain: input.white_label_domain,
     });
@@ -127,7 +130,7 @@ export async function POST(request: NextRequest) {
     const collectionSeed = input.collection_seed || createCollectionSeed();
     const creatorAddress = input.creator_address || agent.solanaWalletAddress || input.authority_address;
     const feeVault = getClawPegFeeVaultAddress() || input.authority_address;
-    const royaltyBps = input.royalty_bps ?? fees.defaultCreatorRoyaltyBps;
+    const royaltyBps = CLAWPEG_FIXED_CREATOR_ROYALTY_BPS;
     const marketplaceFeeBps = input.marketplace_fee_bps ?? fees.marketplaceFeeBps;
     const pegUnitRaw = BigInt(input.peg_unit_raw || pegUnitFromDecimals(input.decimals).toString());
     const metadataUri = input.metadata_uri || getCpegMetadataUri(input.token_mint);
@@ -152,7 +155,7 @@ export async function POST(request: NextRequest) {
       royaltyBps,
       marketplaceFeeBps,
       launchFeeLamports: BigInt(fees.totalLamports),
-      premiumIndexing: input.premium_indexing,
+      premiumIndexing,
     });
     const token2022Setup =
       input.include_token2022_setup && input.mint_rent_lamports
@@ -192,7 +195,7 @@ export async function POST(request: NextRequest) {
           royaltyBps,
           marketplaceFeeBps,
           launchFeeLamports: fees.totalLamports,
-          premiumIndexing: input.premium_indexing,
+          premiumIndexing,
           partnerApiEnabled: input.partner_api_enabled,
           whiteLabelDomain: input.white_label_domain,
           authorityAddress: input.authority_address,
@@ -223,7 +226,7 @@ export async function POST(request: NextRequest) {
         max_pegs: input.max_pegs,
         royalty_bps: royaltyBps,
         marketplace_fee_bps: marketplaceFeeBps,
-        premium_indexing: input.premium_indexing,
+        premium_indexing: premiumIndexing,
         partner_api_enabled: input.partner_api_enabled,
         white_label_domain: input.white_label_domain || null,
       },

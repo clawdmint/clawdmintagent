@@ -31,6 +31,9 @@ const U16_MAX_BPS = 10_000;
 
 export const CLAWPEG_DEFAULT_RENDERER_ID = "clawpeg-agent-pixel";
 export const CLAWPEG_DEFAULT_RENDERER_VERSION = "0.3.0";
+export const CLAWPEG_FIXED_CREATOR_ROYALTY_BPS = 200;
+export const CLAWPEG_MAX_SUPPLY_PER_COLLECTION = 10_000;
+export const CLAWPEG_DEFAULT_LAUNCH_FEE_LAMPORTS = "1000000";
 
 export interface ClawPegRevenueConfig {
   launchFeeLamports: bigint;
@@ -173,9 +176,9 @@ export interface ClawPegLaunchManifest {
 
 export function getClawPegRevenueConfig(): ClawPegRevenueConfig {
   return {
-    launchFeeLamports: BigInt(getEnv("CLAWPEG_LAUNCH_FEE_LAMPORTS", "0")),
+    launchFeeLamports: BigInt(getEnv("CLAWPEG_LAUNCH_FEE_LAMPORTS", CLAWPEG_DEFAULT_LAUNCH_FEE_LAMPORTS)),
     marketplaceFeeBps: parseInt(getEnv("CLAWPEG_MARKETPLACE_FEE_BPS", "200"), 10),
-    creatorRoyaltyBps: parseInt(getEnv("CLAWPEG_DEFAULT_CREATOR_ROYALTY_BPS", "500"), 10),
+    creatorRoyaltyBps: CLAWPEG_FIXED_CREATOR_ROYALTY_BPS,
     premiumIndexingLamports: BigInt(getEnv("CLAWPEG_PREMIUM_INDEXING_FEE_LAMPORTS", "0")),
     partnerApiLamports: BigInt(getEnv("CLAWPEG_PARTNER_API_FEE_LAMPORTS", "0")),
     whiteLabelLamports: BigInt(getEnv("CLAWPEG_WHITE_LABEL_FEE_LAMPORTS", "0")),
@@ -893,11 +896,23 @@ export interface ParsedClawPegRecordAccount {
   burnedSlot: bigint;
 }
 
+export interface ParsedClawPegOwnerPegAccount {
+  isInitialized: boolean;
+  bump: number;
+  collection: string;
+  owner: string;
+  syncedCapacity: number;
+  activeCount: number;
+  generation: number;
+  lastSyncedSlot: bigint;
+}
+
 export const CPEG_MARKET_LISTING_ACCOUNT_SIZE = 152;
 export const CPEG_MARKET_LISTING_STATUS_ACTIVE = 1;
 export const CPEG_MARKET_LISTING_STATUS_FILLED = 2;
 export const CPEG_MARKET_LISTING_STATUS_CANCELLED = 3;
 export const CLAWPEG_RECORD_ACCOUNT_SIZE = 126;
+export const CLAWPEG_OWNER_PEG_ACCOUNT_SIZE = 86;
 export const CLAWPEG_PEG_STATUS_ACTIVE = 1;
 export const CLAWPEG_PEG_STATUS_BURNED = 2;
 
@@ -951,6 +966,24 @@ export function parseClawPegRecordAccount(data: Buffer): ParsedClawPegRecordAcco
     mintedSlot: data.readBigUInt64LE(102),
     transferredSlot: data.readBigUInt64LE(110),
     burnedSlot: data.readBigUInt64LE(118),
+  };
+}
+
+export function parseClawPegOwnerPegAccount(data: Buffer): ParsedClawPegOwnerPegAccount {
+  if (data.length < CLAWPEG_OWNER_PEG_ACCOUNT_SIZE) {
+    throw new Error(
+      `OwnerPeg account data too small: got ${data.length}, expected >= ${CLAWPEG_OWNER_PEG_ACCOUNT_SIZE}`
+    );
+  }
+  return {
+    isInitialized: data[0] === 1,
+    bump: data[1],
+    collection: new PublicKey(data.subarray(2, 34)).toBase58(),
+    owner: new PublicKey(data.subarray(34, 66)).toBase58(),
+    syncedCapacity: data.readUInt32LE(66),
+    activeCount: data.readUInt32LE(70),
+    generation: data.readUInt32LE(74),
+    lastSyncedSlot: data.readBigUInt64LE(78),
   };
 }
 

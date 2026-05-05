@@ -23,7 +23,7 @@ import {
 import { CpegContractBar } from "@/components/cpeg-contract-bar";
 import { getPhantomProvider, useWallet } from "@/components/wallet-context";
 import { useCpegSite } from "@/components/cpeg-site-context";
-import { bpsToPercent, describeError, explorerTxUrl, truncateAddress } from "@/lib/cpeg-ui";
+import { describeError, explorerTxUrl, truncateAddress } from "@/lib/cpeg-ui";
 import { cpegPublicPaths } from "@/lib/cpeg-site-paths";
 
 type SolanaWeb3Transaction = InstanceType<typeof Transaction> | InstanceType<typeof VersionedTransaction>;
@@ -89,6 +89,56 @@ interface FeeQuote {
   total_sol: string;
 }
 
+interface LaunchTokenStatePayload {
+  success: boolean;
+  token?: {
+    whole_units: number;
+    is_sealed: boolean;
+    metadata: { name: string; symbol: string; uri: string } | null;
+  };
+}
+
+interface LaunchDexCompatibilityPayload {
+  success: boolean;
+  token?: { is_token_2022: boolean };
+  hook?: { matches_cpeg_program: boolean };
+  collection?: {
+    collection_exists: boolean;
+    validation_exists: boolean;
+  };
+  dex?: {
+    official_router: { available: boolean };
+    orca: { candidate: boolean; blockers?: string[] };
+    meteora: { candidate: boolean; blockers?: string[] };
+  };
+}
+
+interface LaunchStatsPayload {
+  success: boolean;
+  market?: {
+    active_listings: number;
+    filled_listings: number;
+  };
+}
+
+interface LaunchPegsPayload {
+  success: boolean;
+  pegs?: Array<{ minted: boolean }>;
+}
+
+interface LaunchReadiness {
+  token2022: boolean;
+  transferHook: boolean;
+  metadata: boolean;
+  supplyMinted: boolean;
+  initialPegsAssigned: boolean;
+  marketOpen: boolean;
+  routeAvailable: boolean;
+  orcaCandidate: boolean;
+  meteoraCandidate: boolean;
+  sealed: boolean;
+}
+
 const DEFAULT_FORM = {
   name: "",
   symbol: "",
@@ -99,9 +149,10 @@ const DEFAULT_FORM = {
   vibe: "balanced",
   maxPegs: "1000",
   decimals: "6",
-  royaltyBps: "500",
-  premiumIndexing: true,
 };
+
+const FIXED_CREATOR_ROYALTY_BPS = 200;
+const MAX_PEGS_PER_COLLECTION = 10_000;
 
 const SUBJECT_OPTIONS: Array<[string, string]> = [
   ["ape", "Ape"],
@@ -226,6 +277,8 @@ export function CpegLaunchpad() {
   const [launching, setLaunching] = useState(false);
   const [result, setResult] = useState<LaunchResult | null>(null);
   const [feeQuote, setFeeQuote] = useState<FeeQuote | null>(null);
+  const [readiness, setReadiness] = useState<LaunchReadiness | null>(null);
+  const [readinessLoading, setReadinessLoading] = useState(false);
 
   const connectedAddress = solanaAddress || "";
 
@@ -233,13 +286,11 @@ export function CpegLaunchpad() {
   const symbolValid = useMemo(() => /^[A-Z0-9]{1,12}$/.test(normalizedSymbol), [normalizedSymbol]);
   const nameValid = form.name.trim().length >= 2;
   const maxPegsNumber = useMemo(() => Number.parseInt(form.maxPegs, 10), [form.maxPegs]);
-  const maxPegsValid = Number.isFinite(maxPegsNumber) && maxPegsNumber > 0 && maxPegsNumber <= 1_000_000;
+  const maxPegsValid = Number.isFinite(maxPegsNumber) && maxPegsNumber > 0 && maxPegsNumber <= MAX_PEGS_PER_COLLECTION;
   const decimalsNumber = useMemo(() => Number.parseInt(form.decimals, 10), [form.decimals]);
   const decimalsValid = Number.isFinite(decimalsNumber) && decimalsNumber >= 0 && decimalsNumber <= 9;
-  const royaltyNumber = useMemo(() => Number.parseInt(form.royaltyBps, 10), [form.royaltyBps]);
-  const royaltyValid = Number.isFinite(royaltyNumber) && royaltyNumber >= 0 && royaltyNumber <= 1500;
 
-  const formValid = nameValid && symbolValid && maxPegsValid && decimalsValid && royaltyValid;
+  const formValid = nameValid && symbolValid && maxPegsValid && decimalsValid;
   const canLaunch = Boolean(connectedAddress) && formValid;
 
   const previewQuery = useMemo(() => {
@@ -344,8 +395,8 @@ export function CpegLaunchpad() {
           authority_address: connectedAddress,
           max_pegs: maxPegsNumber,
           decimals: decimalsNumber,
-          royalty_bps: royaltyNumber,
-          premium_indexing: form.premiumIndexing,
+          royalty_bps: FIXED_CREATOR_ROYALTY_BPS,
+          premium_indexing: true,
           renderer_params: {
             subject: form.subject,
             palette: form.palette,
@@ -442,15 +493,58 @@ export function CpegLaunchpad() {
     form.background,
     form.name,
     form.palette,
-    form.premiumIndexing,
     form.subject,
     form.vibe,
     isConnected,
     login,
     maxPegsNumber,
     normalizedSymbol,
-    royaltyNumber,
   ]);
+
+  useEffect(() => {
+    if (!result?.mint) {
+      setReadiness(null);
+      return;
+    }
+    let cancelled = false;
+    setReadinessLoading(true);
+    void (async () => {
+      try {
+        const [tokenRes, dexRes, statsRes, pegsRes, probeRes] = await Promise.all([
+          fetch(`/api/cpeg/${result.mint}/token`, { cache: "no-store" }),
+          fetch(`/api/cpeg/${result.mint}/dex/compatibility`, { cache: "no-store" }),
+          fetch(`/api/cpeg/${result.mint}/stats`, { cache: "no-store" }),
+          fetch(`/api/cpeg/${result.mint}/pegs?start=1&limit=8`, { cache: "no-store" }),
+          fetch(`/api/cpeg/${result.mint}/dex?side=buy&preview_sol=0.1`, { cache: "no-store" }),
+        ]);
+        const tokenBody = (await tokenRes.json().catch(() => null)) as LaunchTokenStatePayload | null;
+        const dexBody = (await dexRes.json().catch(() => null)) as LaunchDexCompatibilityPayload | null;
+        const statsBody = (await statsRes.json().catch(() => null)) as LaunchStatsPayload | null;
+        const pegsBody = (await pegsRes.json().catch(() => null)) as LaunchPegsPayload | null;
+        const probeBody = (await probeRes.json().catch(() => null)) as { has_route?: boolean } | null;
+        if (cancelled) return;
+        setReadiness({
+          token2022: Boolean(dexBody?.token?.is_token_2022),
+          transferHook: Boolean(dexBody?.hook?.matches_cpeg_program),
+          metadata: Boolean(tokenBody?.token?.metadata),
+          supplyMinted: Boolean((tokenBody?.token?.whole_units || 0) > 0),
+          initialPegsAssigned: Boolean((pegsBody?.pegs || []).some((peg) => peg.minted)),
+          marketOpen: Boolean((statsBody?.market?.active_listings || 0) > 0 || (statsBody?.market?.filled_listings || 0) > 0),
+          routeAvailable: Boolean(probeBody?.has_route),
+          orcaCandidate: Boolean(dexBody?.dex?.orca?.candidate),
+          meteoraCandidate: Boolean(dexBody?.dex?.meteora?.candidate),
+          sealed: Boolean(tokenBody?.token?.is_sealed),
+        });
+      } catch {
+        if (!cancelled) setReadiness(null);
+      } finally {
+        if (!cancelled) setReadinessLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [result?.mint]);
 
   if (result) {
     return (
@@ -499,10 +593,16 @@ export function CpegLaunchpad() {
 
             <div className="mt-8 flex flex-wrap gap-3">
               <a
-                href={cpegUrls.collection(result.mint)}
+                href={cpegUrls.market({ mint: result.mint })}
                 className="inline-flex items-center gap-2 border border-[#f7f2df] bg-[#f7f2df] px-5 py-3 text-sm font-black uppercase tracking-wide text-black transition hover:bg-[#53c7ff]"
               >
                 Open market <ArrowRight className="h-4 w-4" />
+              </a>
+              <a
+                href={`${cpegUrls.swap}?mint=${encodeURIComponent(result.mint)}`}
+                className="inline-flex items-center gap-2 border border-neutral-400 dark:border-white/20 px-5 py-3 text-sm font-bold uppercase tracking-wide text-neutral-950 dark:text-white transition hover:border-[#53c7ff] hover:text-[#53c7ff]"
+              >
+                Open swap <ArrowRight className="h-4 w-4" />
               </a>
               <a
                 href={explorerTxUrl(result.signature, result.cluster)}
@@ -528,6 +628,50 @@ export function CpegLaunchpad() {
                   />
                 </div>
               ))}
+            </div>
+            <div className="mt-5 grid gap-2 border border-neutral-200 bg-neutral-50/80 p-4 font-mono text-[10px] uppercase tracking-[0.16em] text-neutral-600 dark:border-white/10 dark:bg-black/35 dark:text-white/55">
+              <Row label="Token-2022" value="Ready" highlight />
+              <Row label="Transfer hook" value="Ready" highlight />
+              <Row label="Metadata" value="Ready" highlight />
+              <Row label="Creator royalty" value="2.00%" />
+              <Row label="Indexing" value="Included" />
+            </div>
+
+            <div className="mt-5 border border-neutral-200 bg-neutral-50/90 p-4 dark:border-white/10 dark:bg-black/40">
+              <p className="font-mono text-[10px] uppercase tracking-[0.2em] text-[#53c7ff]">Liquidity setup</p>
+              {readinessLoading ? (
+                <p className="mt-3 font-mono text-[10px] uppercase tracking-[0.18em] text-neutral-500 dark:text-white/45">
+                  Checking on-chain readiness...
+                </p>
+              ) : readiness ? (
+                <div className="mt-3 grid gap-2 font-mono text-[10px] uppercase tracking-[0.16em]">
+                  <Row label="Token-2022" value={readiness.token2022 ? "OK" : "Pending"} highlight={readiness.token2022} />
+                  <Row label="Transfer hook" value={readiness.transferHook ? "OK" : "Pending"} highlight={readiness.transferHook} />
+                  <Row label="Metadata" value={readiness.metadata ? "OK" : "Pending"} highlight={readiness.metadata} />
+                  <Row label="Supply minted" value={readiness.supplyMinted ? "Yes" : "No"} highlight={readiness.supplyMinted} />
+                  <Row label="PEGs assigned" value={readiness.initialPegsAssigned ? "Yes" : "No"} highlight={readiness.initialPegsAssigned} />
+                  <Row label="Market open" value={readiness.marketOpen ? "Yes" : "No"} highlight={readiness.marketOpen} />
+                  <Row label="Router quote" value={readiness.routeAvailable ? "Available" : "Unavailable"} highlight={readiness.routeAvailable} />
+                  <Row label="Orca readiness" value={readiness.orcaCandidate ? "Candidate" : "Review"} highlight={readiness.orcaCandidate} />
+                  <Row label="Meteora readiness" value={readiness.meteoraCandidate ? "Candidate" : "Review"} highlight={readiness.meteoraCandidate} />
+                  <Row label="Mint authority sealed" value={readiness.sealed ? "Yes" : "No"} highlight={readiness.sealed} muted={!readiness.sealed} />
+                </div>
+              ) : (
+                <p className="mt-3 font-mono text-[10px] uppercase tracking-[0.18em] text-neutral-500 dark:text-white/45">
+                  Readiness data unavailable.
+                </p>
+              )}
+            </div>
+
+            <div className="mt-5 border border-neutral-200 bg-neutral-50/90 p-4 dark:border-white/10 dark:bg-black/40">
+              <p className="font-mono text-[10px] uppercase tracking-[0.2em] text-[#53c7ff]">Post-launch steps</p>
+              <ol className="mt-3 space-y-2 text-xs text-neutral-700 dark:text-white/70">
+                <li>1. Mint initial supply to the creator wallet.</li>
+                <li>2. Assign initial PEG identities with syncPeg and mintPeg.</li>
+                <li>3. Add liquidity to your chosen DEX pool.</li>
+                <li>4. Open the market and list the first identities.</li>
+                <li>5. Seal mint authority when distribution is final.</li>
+              </ol>
             </div>
           </div>
         </div>
@@ -586,7 +730,8 @@ export function CpegLaunchpad() {
                 value={form.maxPegs}
                 onChange={(value) => updateForm("maxPegs", value)}
                 inputMode="numeric"
-                error={!maxPegsValid && form.maxPegs.length > 0 ? "1 to 1,000,000." : ""}
+                hint="Whole units only. Protocol limit is 10,000."
+                error={!maxPegsValid && form.maxPegs.length > 0 ? "1 to 10,000." : ""}
               />
               <Field
                 label="Decimals"
@@ -623,47 +768,24 @@ export function CpegLaunchpad() {
 
           <div className="border border-neutral-200 dark:border-white/10 bg-neutral-100 dark:bg-[#0c0c0c] p-5">
             <p className="font-mono text-[11px] uppercase tracking-[0.25em] text-[#53c7ff]">Economics</p>
-            <div className="mt-4 grid gap-4 md:grid-cols-2">
-              <Field
-                label="Creator royalty (bps)"
-                value={form.royaltyBps}
-                onChange={(value) => updateForm("royaltyBps", value)}
-                inputMode="numeric"
-                hint={`${bpsToPercent(royaltyNumber)} of every fill.`}
-                error={!royaltyValid && form.royaltyBps.length > 0 ? "0 to 1500 bps." : ""}
-              />
-              <label className="flex items-start gap-3 border border-neutral-200 dark:border-white/10 bg-neutral-100/95 dark:bg-white/[0.03] p-4">
-                <input
-                  type="checkbox"
-                  checked={form.premiumIndexing}
-                  onChange={(event) => updateForm("premiumIndexing", event.target.checked)}
-                  className="mt-1 h-4 w-4 accent-[#53c7ff]"
-                />
-                <span>
-                  <span className="block font-mono text-[10px] uppercase tracking-[0.18em] text-neutral-700 dark:text-white/55">
-                    Premium indexing
-                  </span>
-                  <span className="mt-1 block text-xs leading-5 text-neutral-700 dark:text-white/55">
-                    Rarity views and faster renderer APIs.
-                  </span>
-                </span>
-              </label>
+            <div className="mt-4 grid gap-3 md:grid-cols-3">
+              <InfoCell label="Creator royalty" value="2.00%" />
+              <InfoCell label="Indexing" value="Included" />
+              <InfoCell label="Max supply" value="10,000" />
             </div>
 
             {feeQuote ? (
               <div className="mt-5 grid gap-2 border border-neutral-200 dark:border-white/10 bg-neutral-100/90 dark:bg-black/40 p-4 font-mono text-[10px] uppercase tracking-[0.18em] text-neutral-700 dark:text-white/55">
-                <Row label="Launch fee" value={`${feeQuote.launch.base_sol} SOL`} />
-                {form.premiumIndexing && BigInt(feeQuote.launch.premium_lamports) > BigInt(0) ? (
-                  <Row label="Premium" value={`${feeQuote.launch.premium_sol} SOL`} />
+                <Row label="Protocol fee" value={`${feeQuote.launch.base_sol} SOL`} />
+                {BigInt(feeQuote.launch.premium_lamports) > BigInt(0) ? (
+                  <Row label="Indexing fee" value={`${feeQuote.launch.premium_sol} SOL`} />
                 ) : null}
                 {BigInt(feeQuote.rent.lamports) > BigInt(0) ? (
-                  <Row label="Mint rent" value={`${feeQuote.rent.sol} SOL`} muted />
+                  <Row label="Estimated rent" value={`${feeQuote.rent.sol} SOL`} muted />
                 ) : null}
                 <Row
                   label="Total"
-                  value={`${
-                    form.premiumIndexing ? feeQuote.launch.total_sol : feeQuote.launch.base_sol
-                  } SOL + rent`}
+                  value={`${feeQuote.total_sol} SOL`}
                   highlight
                 />
               </div>
@@ -679,8 +801,20 @@ export function CpegLaunchpad() {
                 v0.3.0
               </span>
             </div>
-            <div className="mt-4 grid grid-cols-3 gap-2">
-              {PREVIEW_PEG_IDS.map((pegId) => (
+            <div className="mt-4 grid gap-3">
+              <div className="relative aspect-square overflow-hidden border border-[#53c7ff]/35 bg-neutral-200 shadow-[0_0_35px_rgba(83,199,255,0.12)] dark:bg-black">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={`/api/cpeg/preview/svg?pegId=${PREVIEW_PEG_IDS[0]}&${previewQuery}`}
+                  alt={`Featured preview #${PREVIEW_PEG_IDS[0]}`}
+                  className="h-full w-full object-cover [image-rendering:pixelated]"
+                />
+                <span className="absolute bottom-2 left-2 bg-neutral-950/75 px-2 py-1 font-mono text-[10px] uppercase tracking-[0.15em] text-white">
+                  #{PREVIEW_PEG_IDS[0]}
+                </span>
+              </div>
+              <div className="grid grid-cols-5 gap-2">
+              {PREVIEW_PEG_IDS.slice(1).map((pegId) => (
                 <div
                   key={pegId}
                   className="relative aspect-square overflow-hidden border border-neutral-200 dark:border-white/10 bg-neutral-200 dark:bg-black"
@@ -691,11 +825,12 @@ export function CpegLaunchpad() {
                     alt={`Preview #${pegId}`}
                     className="h-full w-full object-cover [image-rendering:pixelated]"
                   />
-                  <span className="absolute bottom-1 left-1 bg-neutral-900/70 dark:bg-black/70 px-1.5 py-0.5 font-mono text-[9px] uppercase tracking-[0.15em] text-neutral-700 dark:text-white/70">
+                  <span className="absolute bottom-1 left-1 bg-neutral-950/75 px-1.5 py-0.5 font-mono text-[9px] uppercase tracking-[0.15em] text-white">
                     #{pegId}
                   </span>
                 </div>
               ))}
+              </div>
             </div>
           </div>
 
@@ -748,6 +883,19 @@ interface FieldProps {
   hint?: string;
   error?: string;
   inputMode?: "text" | "numeric" | "decimal";
+}
+
+function InfoCell({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="border border-neutral-200 bg-neutral-50 p-4 dark:border-white/10 dark:bg-white/[0.03]">
+      <p className="font-mono text-[10px] uppercase tracking-[0.18em] text-neutral-500 dark:text-white/40">
+        {label}
+      </p>
+      <p className="mt-2 text-lg font-black uppercase tracking-tight text-neutral-950 dark:text-[#f7f2df]">
+        {value}
+      </p>
+    </div>
+  );
 }
 
 function Field({ label, value, onChange, placeholder, hint, error, inputMode }: FieldProps) {

@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { clusterApiUrl, Connection, VersionedTransaction } from "@solana/web3.js";
+import { clusterApiUrl, Connection, PublicKey, Transaction, TransactionInstruction, VersionedTransaction } from "@solana/web3.js";
 import { ArrowDown, ArrowDownUp, ExternalLink, Loader2, RefreshCw, Settings, Wallet } from "lucide-react";
 import { clsx } from "clsx";
 import { getPhantomProvider, useWallet } from "@/components/wallet-context";
@@ -65,6 +65,62 @@ interface DexProbePayload {
   quote?: { out_amount_raw: string; price_impact_pct: number | null; route_steps: number };
 }
 
+interface LaunchInstructionAccount {
+  pubkey: string;
+  isSigner: boolean;
+  isWritable: boolean;
+}
+
+interface LaunchInstruction {
+  programId: string;
+  accounts: LaunchInstructionAccount[];
+  dataBase64: string;
+}
+
+interface SellPreparePayload {
+  success: boolean;
+  error?: string;
+  listing?: {
+    listing_address: string;
+    escrow_owner_peg_address: string;
+    escrow_token_account: string;
+    peg_record_address: string;
+    seller: string;
+    peg_id: number;
+    price_lamports: string;
+  };
+  instructions?: LaunchInstruction[];
+}
+
+interface OwnedPeg {
+  id: number;
+  image: string;
+  owner: string | null;
+}
+
+type SolanaWeb3Transaction = InstanceType<typeof Transaction> | InstanceType<typeof VersionedTransaction>;
+
+function base64ToBytes(value: string): Uint8Array {
+  const binary = window.atob(value);
+  const bytes = new Uint8Array(binary.length);
+  for (let index = 0; index < binary.length; index += 1) {
+    bytes[index] = binary.charCodeAt(index);
+  }
+  return bytes;
+}
+
+function manifestToInstruction(instruction: LaunchInstruction) {
+  return new TransactionInstruction({
+    programId: new PublicKey(instruction.programId),
+    keys: instruction.accounts.map((account) => ({
+      pubkey: new PublicKey(account.pubkey),
+      isSigner: account.isSigner,
+      isWritable: account.isWritable,
+    })),
+    data: base64ToBytes(instruction.dataBase64),
+  });
+}
+
 function getClientRpcUrl(cluster: string) {
   if (cluster === "devnet") {
     return process.env["NEXT_PUBLIC_CPEG_BROWSER_RPC_URL"] || clusterApiUrl("devnet");
@@ -114,6 +170,7 @@ export function CpegSwapClient() {
   const [probe, setProbe] = useState<DexProbePayload | null>(null);
   const [payAmount, setPayAmount] = useState(side === "sell" ? "1" : "0.1");
   const [pegId, setPegId] = useState("1");
+  const [ownedPegs, setOwnedPegs] = useState<OwnedPeg[]>([]);
   const [slippage, setSlippage] = useState("150");
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -137,6 +194,7 @@ export function CpegSwapClient() {
       compatibility?.collection?.validation_exists
   );
   const routePair = side === "sell" ? `${symbol} -> SOL` : `SOL -> ${symbol}`;
+  const actionDisabled = busy || !mint || !tokenReady || (side === "buy" && !canUseOfficialRouter);
 
   const loadLaunches = useCallback(async () => {
     const response = await fetch("/api/cpeg?limit=50", { cache: "no-store" });
@@ -183,6 +241,42 @@ export function CpegSwapClient() {
     void loadReadiness(mint, payAmount, side);
   }, [loadReadiness, mint, payAmount, router, searchParams, side, urls.swap]);
 
+  useEffect(() => {
+    if (!mint || !solanaAddress || side !== "sell") {
+      setOwnedPegs([]);
+      return;
+    }
+    let cancelled = false;
+    void (async () => {
+      try {
+        const response = await fetch(
+          `/api/cpeg/${mint}/pegs?start=0&limit=60&owner=${encodeURIComponent(solanaAddress)}`,
+          { cache: "no-store" }
+        );
+        const body = await response.json().catch(() => null);
+        if (cancelled) return;
+        const pegs = Array.isArray(body?.pegs)
+          ? body.pegs
+              .filter((peg: { owner?: string | null }) => peg.owner === solanaAddress)
+              .map((peg: { id: number; image: string; owner: string | null }) => ({
+                id: peg.id,
+                image: peg.image,
+                owner: peg.owner,
+              }))
+          : [];
+        setOwnedPegs(pegs);
+        if (pegs[0] && !pegs.some((peg: OwnedPeg) => String(peg.id) === pegId)) {
+          setPegId(String(pegs[0].id));
+        }
+      } catch {
+        if (!cancelled) setOwnedPegs([]);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [mint, pegId, side, solanaAddress]);
+
   const flipSide = useCallback(() => {
     setSide((value) => {
       const next = value === "sell" ? "buy" : "sell";
@@ -198,10 +292,6 @@ export function CpegSwapClient() {
     setStatus("");
     setLastTx("");
     if (!mint) return;
-    if (side === "sell") {
-      setError("Identity-backed token sells use the market until AMM sell routing is enabled.");
-      return;
-    }
     if (!isConnected || !solanaAddress) {
       await login();
       return;
@@ -227,6 +317,68 @@ export function CpegSwapClient() {
 
     setBusy(true);
     try {
+      if (side === "sell") {
+        setStatus("Preparing identity-backed sell route...");
+        const sellPrepareResponse = await fetch(`/api/cpeg/${mint}/dex/sell/prepare`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            seller: solanaAddress,
+            peg_id: peg,
+            slippage_bps: Number.isInteger(bps) ? bps : 150,
+          }),
+        });
+        const sellPrepare = (await sellPrepareResponse.json()) as SellPreparePayload;
+        if (!sellPrepareResponse.ok || !sellPrepare.success || !sellPrepare.listing || !sellPrepare.instructions?.length) {
+          throw new Error(sellPrepare.error || "Could not prepare identity-backed sell.");
+        }
+
+        const connection = new Connection(getClientRpcUrl(cluster), "confirmed");
+        const transaction = new Transaction();
+        for (const instruction of sellPrepare.instructions) {
+          transaction.add(manifestToInstruction(instruction));
+        }
+
+        const latestBlockhash = await connection.getLatestBlockhash("confirmed");
+        transaction.feePayer = new PublicKey(solanaAddress);
+        transaction.recentBlockhash = latestBlockhash.blockhash;
+
+        setStatus("Waiting for signature...");
+        const signed = (await provider.signTransaction(transaction)) as SolanaWeb3Transaction;
+        const rawTransaction =
+          signed instanceof VersionedTransaction
+            ? signed.serialize()
+            : signed.serialize({ requireAllSignatures: true, verifySignatures: false });
+        const signature = await connection.sendRawTransaction(rawTransaction, {
+          skipPreflight: false,
+          maxRetries: 5,
+          preflightCommitment: "confirmed",
+        });
+        setStatus("Confirming...");
+        await connection.confirmTransaction(
+          {
+            signature,
+            blockhash: latestBlockhash.blockhash,
+            lastValidBlockHeight: latestBlockhash.lastValidBlockHeight,
+          },
+          "confirmed"
+        );
+
+        await fetch(`/api/cpeg/${mint}/market/listings/confirm`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            signature,
+            ...sellPrepare.listing,
+          }),
+        }).catch(() => null);
+
+        setLastTx(signature);
+        setStatus(`Identity #${peg} is now listed on the cPEG market.`);
+        void loadReadiness(mint, payAmount, side);
+        return;
+      }
+
       setStatus("Preparing route...");
       const response = await fetch(`/api/cpeg/${mint}/dex/jupiter/prepare`, {
         method: "POST",
@@ -374,6 +526,48 @@ export function CpegSwapClient() {
             </div>
           )}
 
+          {side === "sell" && (
+            <div className="mt-2 rounded-lg bg-[#101322] p-3">
+              <div className="flex items-center justify-between gap-3">
+                <p className="font-mono text-[10px] uppercase tracking-[0.18em] text-white/35">
+                  Identity to sell
+                </p>
+                <span className="font-mono text-[10px] uppercase tracking-[0.18em] text-white/30">
+                  {ownedPegs.length ? `${ownedPegs.length} found` : "market route required"}
+                </span>
+              </div>
+              {ownedPegs.length ? (
+                <div className="mt-3 grid grid-cols-5 gap-2">
+                  {ownedPegs.slice(0, 10).map((peg) => (
+                    <button
+                      key={peg.id}
+                      type="button"
+                      onClick={() => setPegId(String(peg.id))}
+                      className={clsx(
+                        "overflow-hidden rounded-md border bg-black transition",
+                        String(peg.id) === pegId ? "border-cyan-400" : "border-white/10 hover:border-white/35"
+                      )}
+                    >
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={peg.image}
+                        alt={`${symbol} #${peg.id}`}
+                        className="aspect-square w-full object-cover [image-rendering:pixelated]"
+                      />
+                      <span className="block bg-black px-1 py-1 font-mono text-[9px] text-white/70">
+                        #{peg.id}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              ) : (
+                <p className="mt-2 text-xs leading-5 text-white/45">
+                  Connect the holder wallet to select a specific PEG before selling tokens.
+                </p>
+              )}
+            </div>
+          )}
+
           <div className="px-4 py-3">
             <div className="flex items-center justify-between font-mono text-[11px] text-white/40">
               <span className="inline-flex items-center gap-2">
@@ -387,16 +581,16 @@ export function CpegSwapClient() {
           <button
             type="button"
             onClick={handleOfficialSwap}
-            disabled={busy || !mint || !canUseOfficialRouter || !tokenReady || side === "sell"}
+            disabled={actionDisabled}
             className={clsx(
               "flex w-full items-center justify-center gap-2 rounded-lg px-4 py-4 text-sm font-black uppercase tracking-wide",
-              busy || !mint || !canUseOfficialRouter || !tokenReady || side === "sell"
+              actionDisabled
                 ? "cursor-not-allowed bg-white/10 text-white/35"
                 : "bg-orange-600 text-white hover:bg-orange-500"
             )}
           >
             {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Wallet className="h-4 w-4" />}
-            {isConnected ? "Swap" : "Connect wallet"}
+            {isConnected ? (side === "sell" ? "List identity to sell" : "Swap") : "Connect wallet"}
           </button>
         </div>
 
@@ -424,7 +618,7 @@ export function CpegSwapClient() {
         )}
         {side === "sell" && (
           <p className="mt-4 max-w-[420px] text-center text-xs leading-6 text-neutral-500 dark:text-white/45">
-            Identity-backed sells use the market until the AMM sell route can escrow a specific identity.
+            Selling uses the identity-backed adapter: your selected PEG is escrowed and listed at route-aware pricing.
           </p>
         )}
         {status && <p className="mt-4 text-center text-sm text-emerald-500">{status}</p>}

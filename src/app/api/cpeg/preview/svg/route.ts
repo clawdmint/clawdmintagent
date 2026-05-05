@@ -34,7 +34,7 @@ function safeOption(value: string | null, allowed: Set<string>, fallback: string
 export async function GET(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams;
   const pegId = Number(searchParams.get("pegId") || "1");
-  if (!Number.isInteger(pegId) || pegId < 1 || pegId > 1_000_000) {
+  if (!Number.isInteger(pegId) || pegId < 1 || pegId > 10_000) {
     return NextResponse.json({ success: false, error: "Invalid peg id" }, { status: 400 });
   }
 

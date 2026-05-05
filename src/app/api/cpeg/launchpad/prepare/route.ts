@@ -4,6 +4,8 @@ import { z } from "zod";
 import {
   CLAWPEG_DEFAULT_RENDERER_ID,
   CLAWPEG_DEFAULT_RENDERER_VERSION,
+  CLAWPEG_FIXED_CREATOR_ROYALTY_BPS,
+  CLAWPEG_MAX_SUPPLY_PER_COLLECTION,
   buildClawPegLaunchManifest,
   buildClawPegToken2022MintSetupManifest,
   createCollectionSeed,
@@ -27,9 +29,9 @@ const LaunchpadPrepareSchema = z.object({
   authority_address: z.string().min(32),
   creator_address: z.string().min(32).optional(),
   fee_vault_address: z.string().min(32).optional(),
-  max_pegs: z.number().int().min(1).max(1_000_000),
+  max_pegs: z.number().int().min(1).max(CLAWPEG_MAX_SUPPLY_PER_COLLECTION),
   decimals: z.number().int().min(0).max(9).default(6),
-  royalty_bps: z.number().int().min(0).max(10000).default(500),
+  royalty_bps: z.number().int().min(0).max(10000).optional(),
   marketplace_fee_bps: z.number().int().min(0).max(10000).optional(),
   premium_indexing: z.boolean().default(false),
   partner_api_enabled: z.boolean().default(false),
@@ -75,8 +77,10 @@ export async function POST(request: NextRequest) {
     if (input.creator_address) assertPublicKey(input.creator_address, "creator_address");
     if (input.fee_vault_address) assertPublicKey(input.fee_vault_address, "fee_vault_address");
 
+    const premiumIndexing = true;
+    const royaltyBps = CLAWPEG_FIXED_CREATOR_ROYALTY_BPS;
     const fees = quoteClawPegLaunchFee({
-      premiumIndexing: input.premium_indexing,
+      premiumIndexing,
       partnerApiEnabled: input.partner_api_enabled,
       whiteLabelDomain: input.white_label_domain,
     });
@@ -153,10 +157,10 @@ export async function POST(request: NextRequest) {
       pegUnitRaw: pegUnitFromDecimals(input.decimals),
       maxPegs: input.max_pegs,
       decimals: input.decimals,
-      royaltyBps: input.royalty_bps,
+      royaltyBps,
       marketplaceFeeBps,
       launchFeeLamports: BigInt(fees.totalLamports),
-      premiumIndexing: input.premium_indexing,
+      premiumIndexing,
     });
 
     return NextResponse.json({
@@ -174,8 +178,9 @@ export async function POST(request: NextRequest) {
         renderer_params: rendererParams,
         peg_unit_raw: pegUnitFromDecimals(input.decimals).toString(),
         max_pegs: input.max_pegs,
-        royalty_bps: input.royalty_bps,
+        royalty_bps: royaltyBps,
         marketplace_fee_bps: marketplaceFeeBps,
+        premium_indexing: premiumIndexing,
         metadata_uri: metadataUri,
       },
       fees,

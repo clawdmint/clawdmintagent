@@ -222,6 +222,68 @@ For escrow routes, marketplace buy and floor-sweep instructions call the market 
 
 If a trade bypasses the official cPEG router, cPEG ownership remains valid through the Token-2022 hook, but trade art is not guaranteed.
 
+### Identity-Backed Sell Adapter
+
+The `/swap` sell flow is identity-backed. The seller must pick a specific PEG id.
+
+The adapter path is:
+
+1. Verify `PegRecord.owner == seller`.
+2. Create market escrow listing for that exact PEG.
+3. Confirm listing on-chain and index it.
+
+Current endpoint:
+
+```text
+POST /api/cpeg/{mint}/dex/sell/prepare
+```
+
+This preserves PEG identity correctness. Generic token sells without identity selection are not used.
+
+## Creator Operations
+
+Launch owner operations are tracked with a post-launch readiness panel.
+
+Required sequence:
+
+1. Mint initial supply
+2. Assign initial PEGs (`syncPeg` + `mintPeg`)
+3. Add DEX liquidity
+4. Open market listings
+5. Optionally seal mint authority
+
+Readiness checks include:
+
+- Token-2022 status
+- Transfer hook match
+- Metadata initialized
+- Supply minted
+- PEG assignments present
+- Market open
+- Route availability
+- Orca and Meteora candidate status
+- Sealed or unsealed mint authority
+
+## Indexer and Drift
+
+Indexer persistence is part of `cPEG Standard v0.1` operations.
+
+Event scan and persist:
+
+```text
+GET  /api/cpeg/indexer/events?program=standard|market
+GET  /api/cpeg/indexer/events?source=db
+POST /api/cpeg/indexer/sync
+```
+
+OwnerPeg drift check:
+
+```text
+GET /api/cpeg/{mint}/ownership/drift?owner={wallet}
+```
+
+Drift is raised when `OwnerPeg.synced_capacity` does not match whole token units.
+
 ## Route Strategy
 
 Preferred:
@@ -247,3 +309,11 @@ or fallback:
 ```text
 /cpeg/market
 ```
+
+## Mainnet Readiness Checklist
+
+- Program upgrade authority policy documented and restricted
+- Mint authority sealing policy documented per collection
+- Transfer hook and metadata verified on-chain
+- DEX routing candidate checks reviewed
+- Small-liquidity dry run completed before full launch

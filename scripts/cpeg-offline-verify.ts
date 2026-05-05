@@ -50,10 +50,10 @@ expect(noFee.sellerProceedsLamports === "1000000000", "no-fee seller proceeds");
 expect(noFee.creatorRoyaltyLamports === "0", "no-fee royalty");
 expect(noFee.protocolFeeLamports === "0", "no-fee protocol");
 
-const standard = splitClawPegMarketPayment(BigInt(1_000_000_000), 500, 200);
-expect(standard.creatorRoyaltyLamports === "50000000", "5% royalty");
+const standard = splitClawPegMarketPayment(BigInt(1_000_000_000), 200, 200);
+expect(standard.creatorRoyaltyLamports === "20000000", "2% royalty");
 expect(standard.protocolFeeLamports === "20000000", "2% protocol");
-expect(standard.sellerProceedsLamports === "930000000", "93% seller");
+expect(standard.sellerProceedsLamports === "960000000", "96% seller");
 
 const boundary = splitClawPegMarketPayment(BigInt(1_000), 5000, 5000);
 expect(boundary.sellerProceedsLamports === "0", "100% bps boundary seller");

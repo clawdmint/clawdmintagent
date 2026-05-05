@@ -194,7 +194,7 @@ export function CpegExploreClient({ initialPayload }: { initialPayload: ExploreP
   const selectedRarity = selected ? rarityRows(selected) : [];
 
   return (
-    <div className="relative min-h-screen overflow-hidden bg-[#070707] text-[#f7f2df]">
+    <div className="relative min-h-screen overflow-hidden bg-[#f4efe7] text-neutral-950 dark:bg-[#070707] dark:text-[#f7f2df]">
       <div
         aria-hidden="true"
         className="pointer-events-none fixed inset-0 opacity-30"
@@ -211,28 +211,28 @@ export function CpegExploreClient({ initialPayload }: { initialPayload: ExploreP
             <div className="mt-4 flex flex-wrap items-end justify-between gap-5">
               <div>
                 <h1 className="text-5xl font-black uppercase leading-none md:text-7xl">Gallery</h1>
-                <p className="mt-4 max-w-2xl text-sm leading-6 text-white/55">
+                <p className="mt-4 max-w-2xl text-sm leading-6 text-neutral-600 dark:text-white/55">
                   Browse deterministic PEG identities by score, owner, peg id, or collection.
                 </p>
               </div>
               <div className="grid grid-cols-3 gap-5 font-mono text-xs uppercase tracking-[0.18em]">
                 <div>
-                  <p className="text-2xl font-black text-white">{payload.stats.cpegs.toLocaleString()}</p>
-                  <p className="mt-1 text-white/35">Identities</p>
+                  <p className="text-2xl font-black text-neutral-950 dark:text-white">{payload.stats.cpegs.toLocaleString()}</p>
+                  <p className="mt-1 text-neutral-500 dark:text-white/35">Identities</p>
                 </div>
                 <div>
-                  <p className="text-2xl font-black text-white">{payload.stats.holders.toLocaleString()}</p>
-                  <p className="mt-1 text-white/35">Holders</p>
+                  <p className="text-2xl font-black text-neutral-950 dark:text-white">{payload.stats.holders.toLocaleString()}</p>
+                  <p className="mt-1 text-neutral-500 dark:text-white/35">Holders</p>
                 </div>
                 <div>
-                  <p className="text-2xl font-black text-white">{payload.stats.minted.toLocaleString()}</p>
-                  <p className="mt-1 text-white/35">Minted</p>
+                  <p className="text-2xl font-black text-neutral-950 dark:text-white">{payload.stats.minted.toLocaleString()}</p>
+                  <p className="mt-1 text-neutral-500 dark:text-white/35">Minted</p>
                 </div>
               </div>
             </div>
 
             <form onSubmit={submitSearch} className="mt-8 grid max-w-3xl gap-2">
-              <label className="font-mono text-[10px] uppercase tracking-[0.24em] text-white/45">
+              <label className="font-mono text-[10px] uppercase tracking-[0.24em] text-neutral-500 dark:text-white/45">
                 Search
               </label>
               <div className="grid gap-2 sm:grid-cols-[1fr_132px]">
@@ -240,7 +240,7 @@ export function CpegExploreClient({ initialPayload }: { initialPayload: ExploreP
                   value={query}
                   onChange={(event) => setQuery(event.target.value)}
                   placeholder="Wallet address, token mint, or PEG ID"
-                  className="h-12 border border-white/10 bg-[#1b1917] px-4 font-mono text-sm text-white outline-none transition placeholder:text-white/25 focus:border-[#53c7ff]"
+                  className="h-12 border border-neutral-300 bg-neutral-50 px-4 font-mono text-sm text-neutral-950 outline-none transition placeholder:text-neutral-400 focus:border-[#53c7ff] dark:border-white/10 dark:bg-[#1b1917] dark:text-white dark:placeholder:text-white/25"
                 />
                 <button
                   type="submit"
@@ -260,8 +260,8 @@ export function CpegExploreClient({ initialPayload }: { initialPayload: ExploreP
                 }}
                 className={`border px-3 py-2 font-mono text-[10px] uppercase tracking-[0.18em] transition ${
                   sort === "visual"
-                    ? "border-[#f7f2df] text-white"
-                    : "border-white/10 text-white/45 hover:border-[#53c7ff] hover:text-[#53c7ff]"
+                    ? "border-neutral-950 text-neutral-950 dark:border-[#f7f2df] dark:text-white"
+                    : "border-neutral-300 text-neutral-500 hover:border-[#53c7ff] hover:text-[#53c7ff] dark:border-white/10 dark:text-white/45"
                 }`}
               >
                 Visual Score
@@ -274,21 +274,21 @@ export function CpegExploreClient({ initialPayload }: { initialPayload: ExploreP
                 }}
                 className={`border px-3 py-2 font-mono text-[10px] uppercase tracking-[0.18em] transition ${
                   sort === "age"
-                    ? "border-[#f7f2df] text-white"
-                    : "border-white/10 text-white/45 hover:border-[#53c7ff] hover:text-[#53c7ff]"
+                    ? "border-neutral-950 text-neutral-950 dark:border-[#f7f2df] dark:text-white"
+                    : "border-neutral-300 text-neutral-500 hover:border-[#53c7ff] hover:text-[#53c7ff] dark:border-white/10 dark:text-white/45"
                 }`}
               >
                 Age Score
               </button>
-              <label className="inline-flex items-center gap-2 border border-white/10 bg-[#111] px-3 py-2 font-mono text-[10px] uppercase tracking-[0.18em] text-white/45">
+              <label className="inline-flex items-center gap-2 border border-neutral-300 bg-neutral-50 px-3 py-2 font-mono text-[10px] uppercase tracking-[0.18em] text-neutral-500 dark:border-white/10 dark:bg-[#111] dark:text-white/45">
                 <span>Set</span>
                 <select
                   value={mint}
                   onChange={(event) => changeMint(event.target.value)}
-                  className="bg-transparent text-white outline-none"
+                  className="bg-transparent text-neutral-950 outline-none dark:text-white"
                 >
                   {payload.collections.map((item) => (
-                    <option key={item.token_mint} value={item.token_mint} className="bg-[#111]">
+                    <option key={item.token_mint} value={item.token_mint} className="bg-neutral-50 dark:bg-[#111]">
                       {item.symbol}
                     </option>
                   ))}
@@ -297,30 +297,30 @@ export function CpegExploreClient({ initialPayload }: { initialPayload: ExploreP
               <button
                 type="button"
                 onClick={() => void load()}
-                className="inline-flex items-center gap-2 border border-white/10 px-3 py-2 font-mono text-[10px] uppercase tracking-[0.18em] text-white/45 transition hover:border-[#53c7ff] hover:text-[#53c7ff]"
+                className="inline-flex items-center gap-2 border border-neutral-300 px-3 py-2 font-mono text-[10px] uppercase tracking-[0.18em] text-neutral-500 transition hover:border-[#53c7ff] hover:text-[#53c7ff] dark:border-white/10 dark:text-white/45"
               >
                 <ArrowDownWideNarrow className="h-3.5 w-3.5" /> Refresh
               </button>
             </div>
           </div>
 
-          <aside className="border border-white/10 bg-white/[0.03] p-5">
+          <aside className="border border-neutral-200 bg-neutral-50 p-5 dark:border-white/10 dark:bg-white/[0.03]">
             <p className="font-mono text-[10px] uppercase tracking-[0.24em] text-[#53c7ff]">Collection</p>
             <h2 className="mt-3 text-3xl font-black uppercase leading-none">
               {collection?.name || "No collection"}
             </h2>
-            <div className="mt-4 grid gap-2 font-mono text-[10px] uppercase tracking-[0.18em] text-white/45">
+            <div className="mt-4 grid gap-2 font-mono text-[10px] uppercase tracking-[0.18em] text-neutral-500 dark:text-white/45">
               <div className="flex items-center justify-between gap-3">
                 <span>Symbol</span>
-                <span className="text-white">{collection?.symbol || "--"}</span>
+                <span className="text-neutral-950 dark:text-white">{collection?.symbol || "--"}</span>
               </div>
               <div className="flex items-center justify-between gap-3">
                 <span>Renderer</span>
-                <span className="truncate text-white">{collection?.renderer || "--"}</span>
+                <span className="truncate text-neutral-950 dark:text-white">{collection?.renderer || "--"}</span>
               </div>
               <div className="flex items-center justify-between gap-3">
                 <span>Mint</span>
-                <span className="text-white">{collection ? truncateAddress(collection.token_mint, 5, 5) : "--"}</span>
+                <span className="text-neutral-950 dark:text-white">{collection ? truncateAddress(collection.token_mint, 5, 5) : "--"}</span>
               </div>
             </div>
             {collection ? (
@@ -342,7 +342,7 @@ export function CpegExploreClient({ initialPayload }: { initialPayload: ExploreP
           {busy ? (
             <div className="grid grid-cols-2 gap-4 md:grid-cols-4 lg:grid-cols-6">
               {Array.from({ length: 18 }).map((_, index) => (
-                <div key={index} className="aspect-[0.76] animate-pulse bg-white/[0.04]" />
+                <div key={index} className="aspect-[0.76] animate-pulse bg-neutral-200 dark:bg-white/[0.04]" />
               ))}
             </div>
           ) : pegs.length > 0 ? (
@@ -355,7 +355,7 @@ export function CpegExploreClient({ initialPayload }: { initialPayload: ExploreP
                     setSelected(peg);
                     setTab("traits");
                   }}
-                  className="group border border-white/10 bg-[#171717] text-left transition hover:-translate-y-0.5 hover:border-[#ec5cff]/60"
+                  className="group border border-neutral-200 bg-neutral-100 text-left transition hover:-translate-y-0.5 hover:border-[#ec5cff]/60 dark:border-white/10 dark:bg-[#171717]"
                 >
                   <div className="relative aspect-square overflow-hidden bg-black">
                     {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -373,11 +373,11 @@ export function CpegExploreClient({ initialPayload }: { initialPayload: ExploreP
                     </span>
                   </div>
                   <div className="p-3">
-                    <p className="font-mono text-[10px] uppercase tracking-[0.2em] text-white/40">
-                      {peg.collection_symbol} <span className="text-white">#{peg.id}</span>
+                    <p className="font-mono text-[10px] uppercase tracking-[0.2em] text-neutral-500 dark:text-white/40">
+                      {peg.collection_symbol} <span className="text-neutral-950 dark:text-white">#{peg.id}</span>
                     </p>
-                    <div className="mt-2 flex items-center justify-between gap-2 border-t border-white/10 pt-2 font-mono text-[10px] uppercase tracking-[0.16em]">
-                      <span className="text-white/40">Score</span>
+                    <div className="mt-2 flex items-center justify-between gap-2 border-t border-neutral-200 pt-2 font-mono text-[10px] uppercase tracking-[0.16em] dark:border-white/10">
+                      <span className="text-neutral-500 dark:text-white/40">Score</span>
                       <span className="bg-[#f7c948] px-1.5 py-0.5 font-black text-black">
                         #{peg.visual_score.toLocaleString()}
                       </span>
@@ -387,8 +387,8 @@ export function CpegExploreClient({ initialPayload }: { initialPayload: ExploreP
               ))}
             </div>
           ) : (
-            <div className="border border-dashed border-white/10 bg-white/[0.03] p-12 text-center">
-              <p className="font-mono text-xs uppercase tracking-[0.2em] text-white/45">No PEGs found</p>
+            <div className="border border-dashed border-neutral-300 bg-neutral-50 p-12 text-center dark:border-white/10 dark:bg-white/[0.03]">
+              <p className="font-mono text-xs uppercase tracking-[0.2em] text-neutral-500 dark:text-white/45">No PEGs found</p>
             </div>
           )}
 
@@ -397,18 +397,18 @@ export function CpegExploreClient({ initialPayload }: { initialPayload: ExploreP
               type="button"
               disabled={payload.page.previous_offset == null || busy}
               onClick={() => setOffset(payload.page.previous_offset || 0)}
-              className="inline-flex items-center gap-2 border border-white/10 px-4 py-2 font-mono text-[10px] uppercase tracking-[0.18em] text-white/55 transition hover:border-[#53c7ff] hover:text-[#53c7ff] disabled:cursor-not-allowed disabled:opacity-35"
+              className="inline-flex items-center gap-2 border border-neutral-300 px-4 py-2 font-mono text-[10px] uppercase tracking-[0.18em] text-neutral-600 transition hover:border-[#53c7ff] hover:text-[#53c7ff] disabled:cursor-not-allowed disabled:opacity-35 dark:border-white/10 dark:text-white/55"
             >
               <ChevronLeft className="h-3.5 w-3.5" /> Previous
             </button>
-            <span className="font-mono text-[10px] uppercase tracking-[0.18em] text-white/35">
+            <span className="font-mono text-[10px] uppercase tracking-[0.18em] text-neutral-500 dark:text-white/35">
               {payload.page.offset + 1} to {payload.page.offset + pegs.length}
             </span>
             <button
               type="button"
               disabled={payload.page.next_offset == null || busy}
               onClick={() => setOffset(payload.page.next_offset || 0)}
-              className="inline-flex items-center gap-2 border border-white/10 px-4 py-2 font-mono text-[10px] uppercase tracking-[0.18em] text-white/55 transition hover:border-[#53c7ff] hover:text-[#53c7ff] disabled:cursor-not-allowed disabled:opacity-35"
+              className="inline-flex items-center gap-2 border border-neutral-300 px-4 py-2 font-mono text-[10px] uppercase tracking-[0.18em] text-neutral-600 transition hover:border-[#53c7ff] hover:text-[#53c7ff] disabled:cursor-not-allowed disabled:opacity-35 dark:border-white/10 dark:text-white/55"
             >
               Next <ChevronRight className="h-3.5 w-3.5" />
             </button>
