@@ -81,6 +81,8 @@ interface SolanaPaymentRequirement {
     decimals: 6;
     recipientTokenAccount: string;
     cluster: "mainnet-beta" | "devnet";
+    /** Required by Coinbase x402 SVM scheme and AgentCash patched exact-SVM flow (SOL fee payer pubkey). */
+    feePayer?: string;
   };
   outputSchema?: {
     input: X402DiscoveryInputSchema;
@@ -246,6 +248,26 @@ function getPaymentHeader(request: NextRequest): string | null {
   return null;
 }
 
+/**
+ * Coinbase x402 SVM scheme and AgentCash's patched exact scheme require paymentRequirements.extra.feePayer
+ * (SOL fee payer pubkey for the assembled transaction message).
+ *
+ * Base value comes from X402_SOLANA_SVM_FEE_PAYER so unpaid GET probes and paid retries agree even when the client
+ * does not repeat optional headers. Per-request overrides: X-S402-Fee-Payer or X-X402-Fee-Payer.
+ */
+function resolveSvmFeePayer(request: NextRequest): string | undefined {
+  const envCandidates = [process.env["X402_SOLANA_SVM_FEE_PAYER"], process.env["X402_SVM_FEE_PAYER"]];
+  const rawEnv = envCandidates.find((candidate) => candidate && isSolanaAddress(candidate.trim()));
+  const fromEnv = rawEnv?.trim();
+
+  const header =
+    request.headers.get("x-s402-fee-payer")?.trim() ||
+    request.headers.get("x-x402-fee-payer")?.trim();
+  const fromHeader = header && isSolanaAddress(header) ? header : undefined;
+
+  return fromHeader ?? fromEnv;
+}
+
 function inferDiscoveryInput(request: NextRequest, options: X402Options): X402DiscoveryInputSchema {
   if (options.discovery?.input) {
     return options.discovery.input;
@@ -287,6 +309,7 @@ function buildPaymentRequirement(request: NextRequest, options: X402Options): So
   const asset = new PublicKey(getUsdcMintAddress());
   const recipientTokenAccount = getAssociatedTokenAddressSync(asset, payTo, false, TOKEN_PROGRAM_ID);
   const discoveryBlocks = buildDiscoveryBlocks(request, options);
+  const svmFeePayer = resolveSvmFeePayer(request);
 
   return {
     scheme: "exact",
@@ -303,6 +326,7 @@ function buildPaymentRequirement(request: NextRequest, options: X402Options): So
       decimals: USDC_DECIMALS,
       recipientTokenAccount: recipientTokenAccount.toBase58(),
       cluster: getCluster(),
+      ...(svmFeePayer ? { feePayer: svmFeePayer } : {}),
     },
     ...discoveryBlocks,
   };
@@ -487,6 +511,31 @@ function decodeLegacy(raw: Buffer): DecodedPaymentTransaction {
 function decodePaymentTransaction(transactionBase64: string): DecodedPaymentTransaction {
   const raw = Buffer.from(transactionBase64, "base64");
   return decodeVersioned(raw) || decodeLegacy(raw);
+}
+
+/** Fee payer pubkey (first signer / header account) encoded in the transaction message. */
+function getDecodedFeePayerPk(decoded: DecodedPaymentTransaction): SolanaPublicKey | undefined {
+  if (decoded.versioned) {
+    const k = decoded.versioned.message.staticAccountKeys[0];
+    return k;
+  }
+
+  const legacyTx = decoded.legacy;
+  if (!legacyTx) {
+    return undefined;
+  }
+
+  if (legacyTx.feePayer) {
+    return legacyTx.feePayer;
+  }
+
+  try {
+    const compiled = legacyTx.compileMessage();
+    const k = compiled.accountKeys[0];
+    return k;
+  } catch {
+    return undefined;
+  }
 }
 
 function signatureFromBytes(signature?: Uint8Array): string | undefined {
@@ -682,6 +731,18 @@ async function settleSolanaPayment(
   }
 
   const decoded = decodePaymentTransaction(normalized.transactionBase64);
+  const advertisedFeePayer = requirement.extra.feePayer;
+  if (advertisedFeePayer) {
+    const feePayerKey = getDecodedFeePayerPk(decoded);
+    if (!feePayerKey) {
+      throw new Error("Could not determine transaction fee payer for x402 verification");
+    }
+
+    if (feePayerKey.toBase58() !== advertisedFeePayer) {
+      throw new Error("Transaction fee payer pubkey does not match payment requirement extras");
+    }
+  }
+
   const transfer = verifyTransferInstruction(decoded, requirement);
   if (!transfer.valid) {
     throw new Error(transfer.reason || "Invalid payment transaction");
