@@ -35,10 +35,35 @@ export const X402_PRICING = {
 export type X402PricingTier = keyof typeof X402_PRICING;
 type X402SolanaNetwork = "solana" | "solana-devnet";
 
+interface X402DiscoveryInputSchema {
+  type: "http";
+  method: "GET" | "POST" | "PUT" | "PATCH" | "DELETE" | "HEAD";
+  queryParams?: Record<string, unknown>;
+  bodyFields?: Record<string, unknown>;
+  bodyType?: "json" | "form" | "multipart";
+}
+
+interface X402DiscoveryOutputSchema {
+  type?: string;
+  properties?: Record<string, unknown>;
+  required?: string[];
+  example?: unknown;
+}
+
+interface X402DiscoveryMetadata {
+  name?: string;
+  summary?: string;
+  category?: string;
+  tags?: string[];
+  input?: X402DiscoveryInputSchema;
+  output?: X402DiscoveryOutputSchema | null;
+}
+
 interface X402Options {
   price: string;
   description: string;
   mimeType?: string;
+  discovery?: X402DiscoveryMetadata;
 }
 
 interface SolanaPaymentRequirement {
@@ -56,6 +81,25 @@ interface SolanaPaymentRequirement {
     decimals: 6;
     recipientTokenAccount: string;
     cluster: "mainnet-beta" | "devnet";
+  };
+  outputSchema?: {
+    input: X402DiscoveryInputSchema;
+    output: X402DiscoveryOutputSchema | null;
+  };
+  extensions?: {
+    bazaar: {
+      discoverable: true;
+      info: {
+        name?: string;
+        description: string;
+        category?: string;
+        tags?: string[];
+        input: X402DiscoveryInputSchema;
+        output: X402DiscoveryOutputSchema | null;
+      };
+      inputSchema?: X402DiscoveryInputSchema;
+      outputSchema?: X402DiscoveryOutputSchema | null;
+    };
   };
 }
 
@@ -181,10 +225,47 @@ function getPaymentHeader(request: NextRequest): string | null {
   return null;
 }
 
+function inferDiscoveryInput(request: NextRequest, options: X402Options): X402DiscoveryInputSchema {
+  if (options.discovery?.input) {
+    return options.discovery.input;
+  }
+
+  const method = (request.method?.toUpperCase() || "GET") as X402DiscoveryInputSchema["method"];
+  return { type: "http", method };
+}
+
+function buildDiscoveryBlocks(
+  request: NextRequest,
+  options: X402Options
+): Pick<SolanaPaymentRequirement, "outputSchema" | "extensions"> {
+  const input = inferDiscoveryInput(request, options);
+  const output = options.discovery?.output ?? null;
+
+  return {
+    outputSchema: { input, output },
+    extensions: {
+      bazaar: {
+        discoverable: true,
+        info: {
+          name: options.discovery?.name,
+          description: options.description,
+          category: options.discovery?.category,
+          tags: options.discovery?.tags,
+          input,
+          output,
+        },
+        inputSchema: input,
+        outputSchema: output,
+      },
+    },
+  };
+}
+
 function buildPaymentRequirement(request: NextRequest, options: X402Options): SolanaPaymentRequirement {
   const payTo = new PublicKey(getPayToAddress());
   const asset = new PublicKey(getUsdcMintAddress());
   const recipientTokenAccount = getAssociatedTokenAddressSync(asset, payTo, false, TOKEN_PROGRAM_ID);
+  const discoveryBlocks = buildDiscoveryBlocks(request, options);
 
   return {
     scheme: "exact",
@@ -202,6 +283,7 @@ function buildPaymentRequirement(request: NextRequest, options: X402Options): So
       recipientTokenAccount: recipientTokenAccount.toBase58(),
       cluster: getCluster(),
     },
+    ...discoveryBlocks,
   };
 }
 
@@ -522,6 +604,32 @@ async function settleSolanaPayment(
     payTo: requirement.payTo,
     explorerUrl: getTransactionExplorerUrl(signature, getCluster()),
   };
+}
+
+export async function withX402Probe(
+  request: NextRequest,
+  options: X402Options
+): Promise<NextResponse> {
+  if (!isX402Enabled()) {
+    return NextResponse.json(
+      {
+        error: "x402 not configured on this deployment",
+      },
+      { status: 503 }
+    );
+  }
+
+  const requirement = buildPaymentRequirement(request, options);
+  return paymentRequired(requirement);
+}
+
+export function getX402OwnershipProofs(): string[] {
+  const raw = process.env["X402_OWNERSHIP_PROOFS"] || process.env["X402_OWNERSHIP_PROOF"];
+  if (!raw) return [];
+  return raw
+    .split(",")
+    .map((value) => value.trim())
+    .filter((value) => value.length > 0);
 }
 
 export async function withX402Payment(

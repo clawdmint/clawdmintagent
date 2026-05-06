@@ -1,15 +1,54 @@
 import { NextRequest, NextResponse } from "next/server";
-import { withX402Payment, X402_PRICING } from "@/lib/x402";
+import { withX402Payment, withX402Probe, X402_PRICING } from "@/lib/x402";
 
 export const dynamic = "force-dynamic";
+
+const AGENT_TOKEN_X402_OPTIONS = {
+  price: X402_PRICING.DEPLOY_AGENT_TOKEN,
+  description: "Launch a Solana-native Metaplex Genesis token via Clawdmint after funding and verification",
+  discovery: {
+    name: "Clawdmint Agent Token Launch (Solana x402)",
+    category: "token-launch",
+    tags: ["solana", "x402", "usdc", "metaplex", "agent-token"],
+    input: {
+      type: "http" as const,
+      method: "POST" as const,
+      bodyType: "json" as const,
+      bodyFields: {
+        agent_api_key: { type: "string", description: "Verified Clawdmint agent API key", required: true },
+        name: { type: "string", description: "Token name", required: false },
+        symbol: { type: "string", description: "Token symbol", required: false },
+        description: { type: "string", description: "Optional token description", required: false },
+        image: { type: "string", description: "Token icon URL", required: false },
+        supply: { type: "string", description: "Initial supply (string base units)", required: false },
+      },
+    },
+    output: {
+      type: "object",
+      properties: {
+        success: { type: "boolean" },
+        payment_method: { type: "string" },
+        settlement_network: { type: "string" },
+        token: {
+          type: "object",
+          properties: {
+            mint: { type: "string" },
+            chain: { type: "string" },
+          },
+        },
+      },
+    },
+  },
+};
+
+export async function GET(request: NextRequest) {
+  return withX402Probe(request, AGENT_TOKEN_X402_OPTIONS);
+}
 
 export async function POST(request: NextRequest) {
   return withX402Payment(
     request,
-    {
-      price: X402_PRICING.DEPLOY_AGENT_TOKEN,
-      description: "Launch a Solana-native Metaplex Genesis token via Clawdmint after funding and verification",
-    },
+    AGENT_TOKEN_X402_OPTIONS,
     async () => {
       try {
         const body = await request.json();
@@ -73,7 +112,7 @@ export async function OPTIONS() {
     status: 204,
     headers: {
       "Access-Control-Allow-Origin": "*",
-      "Access-Control-Allow-Methods": "POST, OPTIONS",
+      "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
       "Access-Control-Allow-Headers":
         "Content-Type, X-PAYMENT, PAYMENT-SIGNATURE, Authorization",
       "Access-Control-Expose-Headers":

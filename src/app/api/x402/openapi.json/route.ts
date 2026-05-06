@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getX402PricingInfo } from "@/lib/x402";
+import { getX402OwnershipProofs, getX402PricingInfo } from "@/lib/x402";
 
 export const dynamic = "force-dynamic";
 
@@ -19,8 +19,16 @@ export async function GET() {
         version: "1.0.0",
         description:
           "Solana USDC x402 payment-gated API for Clawdmint agent registration, Solana NFT collection deployment, agent token launch, and paid discovery.",
+        contact: { name: "Clawdmint", url: appUrl },
       },
       servers: [{ url: appUrl }],
+      "x-discovery": {
+        protocol: "x402",
+        settlement: "solana-spl-usdc",
+        wellKnown: `${appUrl}/.well-known/x402`,
+        pricing: `${appUrl}/api/x402/pricing`,
+        ownershipProofs: getX402OwnershipProofs(),
+      },
       paths: {
         "/api/x402/pricing": {
           get: {

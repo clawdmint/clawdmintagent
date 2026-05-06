@@ -5,13 +5,62 @@ import { formatCollectionMintPrice, getCollectionNativeToken } from "@/lib/colle
 
 export const dynamic = "force-dynamic";
 
+const COLLECTIONS_X402_OPTIONS = {
+  price: X402_PRICING.API_COLLECTIONS_READ,
+  description: "List all NFT collections on Clawdmint with agent info",
+  discovery: {
+    name: "Clawdmint Solana Collections Index (x402)",
+    category: "nft-discovery",
+    tags: ["solana", "x402", "usdc", "metaplex", "collections", "discovery"],
+    input: {
+      type: "http" as const,
+      method: "GET" as const,
+      queryParams: {
+        limit: { type: "integer", description: "Max items per page (default 50, max 100)", required: false },
+        offset: { type: "integer", description: "Pagination offset (default 0)", required: false },
+        status: { type: "string", description: "Filter by status, e.g. ACTIVE, SOLD_OUT, all", required: false },
+      },
+    },
+    output: {
+      type: "object",
+      properties: {
+        success: { type: "boolean" },
+        payment_method: { type: "string" },
+        settlement_network: { type: "string" },
+        collections: {
+          type: "array",
+          items: {
+            type: "object",
+            properties: {
+              id: { type: "string" },
+              address: { type: "string" },
+              chain: { type: "string" },
+              name: { type: "string" },
+              symbol: { type: "string" },
+              total_minted: { type: "integer" },
+              max_supply: { type: "integer" },
+              status: { type: "string" },
+            },
+          },
+        },
+        pagination: {
+          type: "object",
+          properties: {
+            total: { type: "integer" },
+            limit: { type: "integer" },
+            offset: { type: "integer" },
+            has_more: { type: "boolean" },
+          },
+        },
+      },
+    },
+  },
+};
+
 export async function GET(request: NextRequest) {
   return withX402Payment(
     request,
-    {
-      price: X402_PRICING.API_COLLECTIONS_READ,
-      description: "List all NFT collections on Clawdmint with agent info",
-    },
+    COLLECTIONS_X402_OPTIONS,
     async () => {
       const { searchParams } = new URL(request.url);
       const limit = Math.min(parseInt(searchParams.get("limit") || "50"), 100);

@@ -4,7 +4,7 @@ import {
   BaseDeployCollectionSchema,
   refineDeployCollectionInput,
 } from "@/lib/collection-deploy";
-import { withX402Payment, X402_PRICING } from "@/lib/x402";
+import { withX402Payment, withX402Probe, X402_PRICING } from "@/lib/x402";
 
 export const dynamic = "force-dynamic";
 
@@ -12,13 +12,56 @@ const X402DeploySchema = BaseDeployCollectionSchema.extend({
   agent_api_key: z.string().optional(),
 }).superRefine(refineDeployCollectionInput);
 
+const DEPLOY_X402_OPTIONS = {
+  price: X402_PRICING.DEPLOY_COLLECTION,
+  description: "Deploy a Solana NFT collection via Clawdmint after funding and verification",
+  discovery: {
+    name: "Clawdmint Solana Collection Deploy (x402)",
+    category: "nft-deploy",
+    tags: ["solana", "x402", "usdc", "metaplex", "nft-collection"],
+    input: {
+      type: "http" as const,
+      method: "POST" as const,
+      bodyType: "json" as const,
+      bodyFields: {
+        agent_api_key: { type: "string", description: "Verified Clawdmint agent API key", required: true },
+        name: { type: "string", description: "Collection name", required: true },
+        symbol: { type: "string", description: "Collection symbol", required: true },
+        description: { type: "string", description: "Optional collection description", required: false },
+        image: { type: "string", description: "Collection cover image URL", required: true },
+        max_supply: { type: "integer", description: "Maximum mintable supply", required: true, minimum: 1 },
+        mint_price_sol: { type: "string", description: "Mint price in SOL", required: false },
+        payout_address: { type: "string", description: "Solana payout address (base58)", required: true },
+        royalty_bps: { type: "integer", description: "Royalty in basis points (0-10000)", required: false, minimum: 0, maximum: 10000 },
+      },
+    },
+    output: {
+      type: "object",
+      properties: {
+        success: { type: "boolean" },
+        payment_method: { type: "string" },
+        settlement_network: { type: "string" },
+        collection: {
+          type: "object",
+          properties: {
+            address: { type: "string" },
+            chain: { type: "string" },
+            status: { type: "string" },
+          },
+        },
+      },
+    },
+  },
+};
+
+export async function GET(request: NextRequest) {
+  return withX402Probe(request, DEPLOY_X402_OPTIONS);
+}
+
 export async function POST(request: NextRequest) {
   return withX402Payment(
     request,
-    {
-      price: X402_PRICING.DEPLOY_COLLECTION,
-      description: "Deploy a Solana NFT collection via Clawdmint after funding and verification",
-    },
+    DEPLOY_X402_OPTIONS,
     async () => {
       try {
         const body = await request.json();
@@ -97,7 +140,7 @@ export async function OPTIONS() {
     status: 204,
     headers: {
       "Access-Control-Allow-Origin": "*",
-      "Access-Control-Allow-Methods": "POST, OPTIONS",
+      "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
       "Access-Control-Allow-Headers":
         "Content-Type, X-PAYMENT, PAYMENT-SIGNATURE, Authorization",
       "Access-Control-Expose-Headers":

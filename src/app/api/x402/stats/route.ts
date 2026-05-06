@@ -10,13 +10,49 @@ export const dynamic = "force-dynamic";
 // Premium platform analytics  -  x402 payment required
 // ═══════════════════════════════════════════════════════════════════════
 
+const STATS_X402_OPTIONS = {
+  price: X402_PRICING.API_STATS_PREMIUM,
+  description: "Premium Clawdmint Solana analytics and statistics",
+  discovery: {
+    name: "Clawdmint Premium Solana Analytics (x402)",
+    category: "analytics",
+    tags: ["solana", "x402", "usdc", "analytics", "stats"],
+    input: {
+      type: "http" as const,
+      method: "GET" as const,
+    },
+    output: {
+      type: "object",
+      properties: {
+        success: { type: "boolean" },
+        payment_method: { type: "string" },
+        settlement_network: { type: "string" },
+        stats: {
+          type: "object",
+          properties: {
+            agents: { type: "object", properties: { total: { type: "integer" }, verified: { type: "integer" } } },
+            collections: { type: "object", properties: { total: { type: "integer" }, active: { type: "integer" }, sold_out: { type: "integer" } } },
+            mints: { type: "object", properties: { total: { type: "integer" }, last_24h: { type: "integer" }, total_quantity: { type: "integer" } } },
+            network: { type: "object", properties: { cluster: { type: "string" }, name: { type: "string" } } },
+          },
+        },
+        leaderboard: {
+          type: "object",
+          properties: {
+            top_agents: { type: "array", items: { type: "object" } },
+          },
+        },
+        recent_collections: { type: "array", items: { type: "object" } },
+        timestamp: { type: "string" },
+      },
+    },
+  },
+};
+
 export async function GET(request: NextRequest) {
   return withX402Payment(
     request,
-    {
-      price: X402_PRICING.API_STATS_PREMIUM,
-      description: "Premium Clawdmint Solana analytics and statistics",
-    },
+    STATS_X402_OPTIONS,
     async () => {
       const solanaChains = ["solana", "solana-devnet"];
       // Get comprehensive stats

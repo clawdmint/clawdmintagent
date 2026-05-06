@@ -4,7 +4,7 @@ import { z } from "zod";
 import { prisma } from "@/lib/db";
 import { generateAgentOperationalWallet } from "@/lib/agent-wallets";
 import { buildMoonPayFundingUrl } from "@/lib/moonpay";
-import { withX402Payment } from "@/lib/x402";
+import { withX402Payment, withX402Probe } from "@/lib/x402";
 
 export const dynamic = "force-dynamic";
 
@@ -38,13 +38,69 @@ function getCanonicalAgentNetwork(): "solana" | "solana-devnet" {
   return process.env["NEXT_PUBLIC_SOLANA_CLUSTER"] === "devnet" ? "solana-devnet" : "solana";
 }
 
+const REGISTER_X402_OPTIONS = {
+  price: "$0.01",
+  description: "Register a Clawdmint Solana NFT agent and provision a dedicated wallet",
+  discovery: {
+    name: "Clawdmint Agent Register (Solana x402)",
+    category: "agent-registry",
+    tags: ["solana", "x402", "usdc", "agent-registry", "clawdmint"],
+    input: {
+      type: "http" as const,
+      method: "POST" as const,
+      bodyType: "json" as const,
+      bodyFields: {
+        name: {
+          type: "string",
+          description: "Unique agent handle (alphanumeric, _ or -)",
+          required: true,
+          minLength: 1,
+          maxLength: 50,
+        },
+        description: {
+          type: "string",
+          description: "Optional human-readable description of the agent",
+          required: false,
+          maxLength: 500,
+        },
+      },
+    },
+    output: {
+      type: "object",
+      properties: {
+        success: { type: "boolean" },
+        payment_method: { type: "string" },
+        settlement_network: { type: "string" },
+        agent: {
+          type: "object",
+          properties: {
+            id: { type: "string" },
+            name: { type: "string" },
+            api_key: { type: "string" },
+            claim_url: { type: "string" },
+            verification_code: { type: "string" },
+            wallet: {
+              type: "object",
+              properties: {
+                address: { type: "string" },
+                network: { type: "string" },
+              },
+            },
+          },
+        },
+      },
+    },
+  },
+};
+
+export async function GET(request: NextRequest) {
+  return withX402Probe(request, REGISTER_X402_OPTIONS);
+}
+
 export async function POST(request: NextRequest) {
   return withX402Payment(
     request,
-    {
-      price: "$0.01",
-      description: "Register a Clawdmint Solana NFT agent and provision a dedicated wallet",
-    },
+    REGISTER_X402_OPTIONS,
     async () => {
       const body = await request.json();
       const validation = RegisterSchema.safeParse(body);
@@ -144,7 +200,7 @@ export async function OPTIONS() {
     status: 204,
     headers: {
       "Access-Control-Allow-Origin": "*",
-      "Access-Control-Allow-Methods": "POST, OPTIONS",
+      "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
       "Access-Control-Allow-Headers":
         "Content-Type, X-PAYMENT, PAYMENT-SIGNATURE, Authorization",
       "Access-Control-Expose-Headers":
