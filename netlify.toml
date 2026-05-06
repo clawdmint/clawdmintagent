@@ -51,6 +51,37 @@
     Referrer-Policy = "strict-origin-when-cross-origin"
 
 # ═══════════════════════════════════════════════════════════════════════════════
+# FIX: "environment variables exceed the 4KB limit" (AWS Lambda on Netlify)
+# ═══════════════════════════════════════════════════════════════════════════════
+#
+# Netlify attaches every Production variable scoped to "Functions" onto each Next.js
+# serverless route. Name+value totals must stay ≤ ~4096 bytes. Fix in the dashboard
+# (Site settings → Environment variables):
+#
+# A) Scope NEXT_PUBLIC_* as "Build" only (uncheck "Functions" / runtime for Production)
+#    Next.js inlines these literals at `next build`; they usually are not required in
+#    the Lambda env blob. After deploy, smoke-test a few API routes and client pages.
+#
+# B) Remove duplicate x402 pay-to keys: keep ONE of
+#    X402_SOLANA_PAY_TO_ADDRESS, X402_PAY_TO_ADDRESS, SOLANA_PLATFORM_FEE_RECIPIENT...
+#    (`src/lib/x402.ts` merges several fallbacks.)
+#
+# C) If `X402_SOLANA_FEE_PAYER_PRIVATE_KEY` equals `SOLANA_DEPLOYER_PRIVATE_KEY`, delete
+#    the X402_* fee-payer key from Netlify entirely and delete `X402_SVM_FEE_PAYER` /
+#    `X402_SOLANA_SVM_FEE_PAYER` (pubkey is derived from the deployer keypair in code).
+#
+# D) Pinata: if uploads use JWT (`PINATA_JWT` with three-dot shape), remove `PINATA_API_KEY`
+#    and `PINATA_SECRET_KEY` from the Functions scope or delete them entirely.
+#
+# E) Fairscale: if agent and human keys are the same, keep only `FAIRSCALE_API_KEY` and
+#    drop `FAIRSCALE_AGENT_API_KEY` / `FAIRSCALE_HUMAN_API_KEY`. Prefer one base URL if defaults work.
+#
+# F) Delete vars not read by this repo (e.g. `X402_FACILITATOR_URL` is unused in code).
+#
+# G) Long RPC URLs: shorten with a short reverse-proxy domain, or use "Build" scope if
+#    the var is only referenced from code that is fully build-inlined (rare for server routes).
+#
+# ═══════════════════════════════════════════════════════════════════════════════
 # AWS LAMBDA ENV SIZE (4 KB) — DEPLOY FAILURES
 # ═══════════════════════════════════════════════════════════════════════════════
 #
