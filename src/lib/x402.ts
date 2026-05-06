@@ -9,6 +9,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import {
   Connection,
+  Keypair,
   PublicKey,
   Transaction,
   TransactionInstruction,
@@ -136,6 +137,7 @@ type SolanaPublicKey = InstanceType<typeof PublicKey>;
 type SolanaTransaction = InstanceType<typeof Transaction>;
 type SolanaVersionedTransaction = InstanceType<typeof VersionedTransaction>;
 type SolanaTransactionInstruction = InstanceType<typeof TransactionInstruction>;
+type SolanaKeypair = InstanceType<typeof Keypair>;
 type ConfirmedTransaction = Awaited<ReturnType<SolanaConnection["getTransaction"]>>;
 
 interface DecodedPaymentTransaction {
@@ -249,23 +251,71 @@ function getPaymentHeader(request: NextRequest): string | null {
 }
 
 /**
- * Coinbase x402 SVM scheme and AgentCash's patched exact scheme require paymentRequirements.extra.feePayer
- * (SOL fee payer pubkey for the assembled transaction message).
- *
- * Base value comes from X402_SOLANA_SVM_FEE_PAYER so unpaid GET probes and paid retries agree even when the client
- * does not repeat optional headers. Per-request overrides: X-S402-Fee-Payer or X-X402-Fee-Payer.
+ * Coinbase x402 SVM scheme (and AgentCash's patched exact scheme) require paymentRequirements.extra.feePayer
+ * (SOL fee payer pubkey for the assembled transaction message). The fee payer must sign the transaction —
+ * since the x402/svm client only signs as the token authority (`partiallySign`), Clawdmint plays facilitator:
+ * we declare a fee payer pubkey we control, and complete the partial signature server-side before broadcast.
  */
-function resolveSvmFeePayer(request: NextRequest): string | undefined {
-  const envCandidates = [process.env["X402_SOLANA_SVM_FEE_PAYER"], process.env["X402_SVM_FEE_PAYER"]];
-  const rawEnv = envCandidates.find((candidate) => candidate && isSolanaAddress(candidate.trim()));
-  const fromEnv = rawEnv?.trim();
+function getSvmFeePayerKeypair(): SolanaKeypair | undefined {
+  const raw =
+    process.env["X402_SOLANA_FEE_PAYER_PRIVATE_KEY"]?.trim() ||
+    process.env["X402_SVM_FEE_PAYER_PRIVATE_KEY"]?.trim() ||
+    process.env["SOLANA_DEPLOYER_PRIVATE_KEY"]?.trim() ||
+    "";
 
+  if (!raw) return undefined;
+
+  try {
+    if (raw.startsWith("[")) {
+      return Keypair.fromSecretKey(Uint8Array.from(JSON.parse(raw) as number[]));
+    }
+    return Keypair.fromSecretKey(bs58.decode(raw));
+  } catch (error) {
+    console.warn("[x402/solana] Could not parse fee payer private key:", error);
+    return undefined;
+  }
+}
+
+function resolveSvmFeePayer(request: NextRequest): string | undefined {
   const header =
     request.headers.get("x-s402-fee-payer")?.trim() ||
     request.headers.get("x-x402-fee-payer")?.trim();
-  const fromHeader = header && isSolanaAddress(header) ? header : undefined;
+  if (header && isSolanaAddress(header)) {
+    return header;
+  }
 
-  return fromHeader ?? fromEnv;
+  const keypair = getSvmFeePayerKeypair();
+  if (keypair) {
+    return keypair.publicKey.toBase58();
+  }
+
+  const envCandidates = [process.env["X402_SOLANA_SVM_FEE_PAYER"], process.env["X402_SVM_FEE_PAYER"]];
+  const raw = envCandidates.find((candidate) => candidate && isSolanaAddress(candidate.trim()));
+  return raw?.trim();
+}
+
+function signWithFeePayer(decoded: DecodedPaymentTransaction, keypair: SolanaKeypair): DecodedPaymentTransaction {
+  if (decoded.versioned) {
+    decoded.versioned.sign([keypair]);
+    const raw = Buffer.from(decoded.versioned.serialize());
+    return {
+      ...decoded,
+      raw,
+      signature: signatureFromBytes(decoded.versioned.signatures[0]) ?? decoded.signature,
+    };
+  }
+
+  if (decoded.legacy) {
+    decoded.legacy.partialSign(keypair);
+    const raw = Buffer.from(decoded.legacy.serialize({ requireAllSignatures: false, verifySignatures: false }));
+    return {
+      ...decoded,
+      raw,
+      signature: decoded.legacy.signature ? bs58.encode(decoded.legacy.signature) : decoded.signature,
+    };
+  }
+
+  return decoded;
 }
 
 function inferDiscoveryInput(request: NextRequest, options: X402Options): X402DiscoveryInputSchema {
@@ -730,7 +780,7 @@ async function settleSolanaPayment(
     }
   }
 
-  const decoded = decodePaymentTransaction(normalized.transactionBase64);
+  let decoded = decodePaymentTransaction(normalized.transactionBase64);
   const advertisedFeePayer = requirement.extra.feePayer;
   if (advertisedFeePayer) {
     const feePayerKey = getDecodedFeePayerPk(decoded);
@@ -740,6 +790,11 @@ async function settleSolanaPayment(
 
     if (feePayerKey.toBase58() !== advertisedFeePayer) {
       throw new Error("Transaction fee payer pubkey does not match payment requirement extras");
+    }
+
+    const facilitatorKeypair = getSvmFeePayerKeypair();
+    if (facilitatorKeypair && facilitatorKeypair.publicKey.toBase58() === advertisedFeePayer) {
+      decoded = signWithFeePayer(decoded, facilitatorKeypair);
     }
   }
 
