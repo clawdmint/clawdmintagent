@@ -32,6 +32,16 @@
 #   to = "/index.html"
 #   status = 200
 
+# AgentCash discovery ( https://www.x402scan.com/discovery ) expects the
+# OpenAPI document at the canonical /openapi.json path. We mirror it from
+# the existing /api/x402/openapi.json route to avoid edge static-file
+# interception of paths that look like JSON assets.
+[[redirects]]
+  from = "/openapi.json"
+  to = "/api/x402/openapi.json"
+  status = 200
+  force = true
+
 # Headers for security
 [[headers]]
   for = "/*"
