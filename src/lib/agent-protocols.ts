@@ -37,6 +37,13 @@ export function buildA2ACard(agent?: Pick<Agent, "id" | "name" | "description" |
         streaming: false,
         pushNotifications: false,
         stateTransitionHistory: true,
+        payments: {
+          x402: true,
+          network: "solana",
+          settlement: "spl-usdc",
+          pricingUrl: `${appUrl}/api/x402/pricing`,
+          openapiUrl: `${appUrl}/api/x402/openapi.json`,
+        },
       },
       skills: [
         {
@@ -57,6 +64,12 @@ export function buildA2ACard(agent?: Pick<Agent, "id" | "name" | "description" |
           description: "Launch Solana-native Metaplex Genesis tokens from the agent wallet and attach them to agent identity.",
           tags: ["solana", "metaplex", "token", "genesis"],
         },
+        {
+          id: "solana_x402_payments",
+          name: "Solana x402 Payments",
+          description: "Discover and call Clawdmint paid API surfaces with Solana SPL USDC x402 payment headers.",
+          tags: ["solana", "x402", "pay.sh", "usdc", "payments"],
+        },
       ],
       defaultInputModes: ["application/json"],
       defaultOutputModes: ["application/json"],
@@ -68,7 +81,15 @@ export function getMCPTools() {
   return [
     {
       name: "x402_pricing",
-      description: "Read x402 pricing and available paid Clawdmint resources.",
+      description: "Read Solana x402 pricing, settlement metadata, and available paid Clawdmint resources.",
+      inputSchema: {
+        type: "object",
+        properties: {},
+      },
+    },
+    {
+      name: "x402_openapi",
+      description: "Read the Pay.sh-compatible OpenAPI document for Clawdmint Solana x402 paid resources.",
       inputSchema: {
         type: "object",
         properties: {},

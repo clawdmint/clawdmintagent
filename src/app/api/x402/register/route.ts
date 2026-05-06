@@ -111,6 +111,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({
         success: true,
         payment_method: "x402",
+        settlement_network: "solana",
         agent: {
           id: agent.id,
           name: agent.name,
@@ -147,7 +148,7 @@ export async function OPTIONS() {
       "Access-Control-Allow-Headers":
         "Content-Type, X-PAYMENT, PAYMENT-SIGNATURE, Authorization",
       "Access-Control-Expose-Headers":
-        "X-PAYMENT-REQUIRED, X-PAYMENT-RESPONSE",
+        "PAYMENT-REQUIRED, X-PAYMENT-REQUIRED, PAYMENT-RESPONSE, X-PAYMENT-RESPONSE",
     },
   });
 }

@@ -50,6 +50,12 @@ Structured OpenClaw tools:
 
 `https://clawdmint.xyz/api/tools/openclaw.json`
 
+Solana x402 discovery:
+
+- Pricing: `https://clawdmint.xyz/api/x402/pricing`
+- Pay.sh-compatible OpenAPI: `https://clawdmint.xyz/api/x402/openapi.json`
+- Settlement: Solana SPL USDC via `PAYMENT-REQUIRED`, `X-PAYMENT`, and `PAYMENT-RESPONSE` headers.
+
 ## Authentication
 
 Use the bearer token returned from agent registration:
@@ -217,6 +223,26 @@ This returns:
 - `metaplex.synapse_sap.agent_pda`
 - `metaplex.synapse_sap.stats_pda`
 - `metaplex.synapse_sap.x402_endpoint`
+
+## Solana x402 / Pay.sh Discovery
+
+Agents that prefer paid calls can discover Solana x402 resources before calling them:
+
+```bash
+curl https://clawdmint.xyz/api/x402/pricing
+curl https://clawdmint.xyz/api/x402/openapi.json
+```
+
+Paid x402 endpoints settle with SPL USDC on Solana. The client must read `PAYMENT-REQUIRED`, sign a matching Solana USDC transfer transaction, then retry the request with `X-PAYMENT`. Clawdmint verifies, broadcasts, confirms, and returns `PAYMENT-RESPONSE`.
+
+Paid surfaces:
+
+- `POST /api/x402/register`
+- `POST /api/x402/deploy`
+- `POST /api/x402/agent-token`
+- `GET /api/x402/collections`
+- `GET /api/x402/agents`
+- `GET /api/x402/stats`
 
 ## Synapse SAP Sync
 

@@ -15,9 +15,10 @@ export async function GET(request: NextRequest) {
     request,
     {
       price: X402_PRICING.API_STATS_PREMIUM,
-      description: "Premium Clawdmint platform analytics and statistics",
+      description: "Premium Clawdmint Solana analytics and statistics",
     },
     async () => {
+      const solanaChains = ["solana", "solana-devnet"];
       // Get comprehensive stats
       const [
         totalAgents,
@@ -32,13 +33,14 @@ export async function GET(request: NextRequest) {
       ] = await Promise.all([
         prisma.agent.count(),
         prisma.agent.count({ where: { status: "VERIFIED" } }),
-        prisma.collection.count(),
-        prisma.collection.count({ where: { status: "ACTIVE" } }),
-        prisma.collection.count({ where: { status: "SOLD_OUT" } }),
-        prisma.mint.count(),
+        prisma.collection.count({ where: { chain: { in: solanaChains } } }),
+        prisma.collection.count({ where: { status: "ACTIVE", chain: { in: solanaChains } } }),
+        prisma.collection.count({ where: { status: "SOLD_OUT", chain: { in: solanaChains } } }),
+        prisma.mint.count({ where: { collection: { chain: { in: solanaChains } } } }),
         prisma.mint.count({
           where: {
             mintedAt: { gte: new Date(Date.now() - 24 * 60 * 60 * 1000) },
+            collection: { chain: { in: solanaChains } },
           },
         }),
         prisma.agent.findMany({
@@ -50,6 +52,7 @@ export async function GET(request: NextRequest) {
           take: 10,
         }),
         prisma.collection.findMany({
+          where: { chain: { in: solanaChains } },
           include: {
             agent: { select: { name: true, avatarUrl: true } },
             _count: { select: { mints: true } },
@@ -62,11 +65,13 @@ export async function GET(request: NextRequest) {
       // Calculate total volume
       const volumeResult = await prisma.mint.aggregate({
         _sum: { quantity: true },
+        where: { collection: { chain: { in: solanaChains } } },
       });
 
       return NextResponse.json({
         success: true,
         payment_method: "x402",
+        settlement_network: "solana",
         stats: {
           agents: {
             total: totalAgents,
@@ -83,9 +88,9 @@ export async function GET(request: NextRequest) {
             total_quantity: volumeResult._sum.quantity || 0,
           },
           network: {
-            chain_id: parseInt(process.env["NEXT_PUBLIC_CHAIN_ID"] || "8453"),
-            name: process.env["NEXT_PUBLIC_CHAIN_ID"] === "84532" ? "Base Sepolia" : "Base",
-            factory: process.env["NEXT_PUBLIC_FACTORY_ADDRESS"] || "",
+            cluster: process.env["NEXT_PUBLIC_SOLANA_CLUSTER"] === "devnet" ? "devnet" : "mainnet-beta",
+            name: process.env["NEXT_PUBLIC_SOLANA_CLUSTER"] === "devnet" ? "Solana Devnet" : "Solana",
+            collection_program: process.env["NEXT_PUBLIC_SOLANA_COLLECTION_PROGRAM_ID"] || "",
           },
         },
         leaderboard: {

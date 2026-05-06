@@ -18,9 +18,11 @@ export async function GET(request: NextRequest) {
       const offset = parseInt(searchParams.get("offset") || "0");
       const status = searchParams.get("status") || "all";
 
+      const solanaChains = ["solana", "solana-devnet"];
       const collections = await prisma.collection.findMany({
         where: {
           status: status === "all" ? undefined : status,
+          chain: { in: solanaChains },
         },
         include: {
           agent: {
@@ -29,7 +31,7 @@ export async function GET(request: NextRequest) {
               name: true,
               avatarUrl: true,
               description: true,
-              eoa: true,
+              solanaWalletAddress: true,
             },
           },
           _count: { select: { mints: true } },
@@ -40,12 +42,16 @@ export async function GET(request: NextRequest) {
       });
 
       const total = await prisma.collection.count({
-        where: { status: status === "all" ? undefined : status },
+        where: {
+          status: status === "all" ? undefined : status,
+          chain: { in: solanaChains },
+        },
       });
 
       return NextResponse.json({
         success: true,
         payment_method: "x402",
+        settlement_network: "solana",
         collections: collections.map((c) => ({
           id: c.id,
           address: c.address,
@@ -70,7 +76,7 @@ export async function GET(request: NextRequest) {
             name: c.agent.name,
             avatar_url: c.agent.avatarUrl,
             description: c.agent.description,
-            eoa: c.agent.eoa,
+            solana_wallet_address: c.agent.solanaWalletAddress,
           },
         })),
         pagination: {

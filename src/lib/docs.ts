@@ -105,7 +105,13 @@ export function getDocBySlug(slug: string) {
   if (!entry) return null;
 
   const filePath = path.join(DOCS_DIR, entry.file);
-  const content = readFileSync(filePath, "utf8");
+  let content: string;
+  try {
+    content = readFileSync(filePath, "utf8");
+  } catch (error) {
+    console.error(`[docs] Failed to read ${entry.file}:`, error);
+    content = `# ${entry.title}\n\nThis documentation file is temporarily unavailable.`;
+  }
   const firstLine = content.split("\n").find((line) => line.trim().length > 0) || entry.title;
   const title = firstLine.replace(/^#\s+/, "").trim() || entry.title;
   const headings = extractHeadings(content);

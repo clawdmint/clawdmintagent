@@ -86,6 +86,9 @@ export async function POST(request: NextRequest) {
         case "x402_pricing":
           result = await callInternal("/api/x402/pricing");
           break;
+        case "x402_openapi":
+          result = await callInternal("/api/x402/openapi.json");
+          break;
         case "list_public_collections": {
           const query = new URLSearchParams();
           if (typeof args.offset === "number") query.set("offset", String(args.offset));

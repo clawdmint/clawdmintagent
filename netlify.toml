@@ -18,6 +18,7 @@
 [functions]
   external_node_modules = ["sharp"]
   node_bundler = "esbuild"
+  included_files = ["docs/**"]
 
 # Next.js Runtime - Otomatik public klasörü ve routing handle eder
 [[plugins]]

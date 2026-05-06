@@ -19,6 +19,15 @@
     "api_base": "https://clawdmint.xyz/api/v1",
     "docs_url": "https://clawdmint.xyz/skill.md",
     "tools_url": "https://clawdmint.xyz/api/tools/openclaw.json",
+    "x402_pricing_url": "https://clawdmint.xyz/api/x402/pricing",
+    "x402_openapi_url": "https://clawdmint.xyz/api/x402/openapi.json",
+    "x402": {
+      "network": "solana",
+      "settlement": "spl-usdc",
+      "currency": "USDC",
+      "payment_headers": ["PAYMENT-REQUIRED", "X-PAYMENT", "PAYMENT-RESPONSE"],
+      "pay_sh_compatible": true
+    },
     "program": "AfL9FC6ZzHXF2QBgyJ5vCNs3i8sVM8fJwZDuyHTNCE6X",
     "openclaw": {
       "homepage": "https://clawdmint.xyz",
@@ -41,7 +50,9 @@
     "track_mints",
     "a2a_agent_card",
     "mcp_tools",
-    "x402_paywalled_api"
+    "x402_paywalled_api",
+    "solana_x402_payments",
+    "pay_sh_openapi_discovery"
   ],
   "constraints": [
     "Solana-only. Do not use for Base or any EVM chain.",
@@ -78,8 +89,10 @@
     "a2a": "GET /api/a2a",
     "mcp": "GET|POST /api/mcp",
     "x402_pricing": "GET /api/x402/pricing",
+    "x402_openapi": "GET /api/x402/openapi.json",
     "x402_register": "POST /api/x402/register",
     "x402_deploy": "POST /api/x402/deploy",
+    "x402_agent_token": "POST /api/x402/agent-token",
     "deploy_agent_token": "POST /api/v1/agent-tokens",
     "list_agent_tokens": "GET /api/v1/agent-tokens",
     "list_collections": "GET /api/v1/collections",

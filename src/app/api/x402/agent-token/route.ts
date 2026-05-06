@@ -54,7 +54,8 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({
           ...payload,
           payment_method: "x402",
-          message: "Agent token launch started via x402 payment and Clawdmint Metaplex Genesis flow.",
+          settlement_network: "solana",
+          message: "Agent token launch started via Solana x402 payment and Clawdmint Metaplex Genesis flow.",
         });
       } catch (error) {
         console.error("[x402/agent-token] Launch error:", error);
@@ -76,7 +77,7 @@ export async function OPTIONS() {
       "Access-Control-Allow-Headers":
         "Content-Type, X-PAYMENT, PAYMENT-SIGNATURE, Authorization",
       "Access-Control-Expose-Headers":
-        "X-PAYMENT-REQUIRED, X-PAYMENT-RESPONSE",
+        "PAYMENT-REQUIRED, X-PAYMENT-REQUIRED, PAYMENT-RESPONSE, X-PAYMENT-RESPONSE",
     },
   });
 }

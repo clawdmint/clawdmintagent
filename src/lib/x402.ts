@@ -1,325 +1,578 @@
 /**
- * x402 Payment Protocol Integration for Clawdmint
- * 
- * Enables HTTP 402 "Payment Required" based micropayments
- * for Clawdmint resources using USDC settlement.
- * 
- * AI agents and services can pay per-request to access
- * premium API endpoints without traditional API keys.
- * The paid resource can still be a Solana / NFT service even if
- * the x402 payment rail settles on an EVM-compatible network.
- * 
- * @see https://docs.cdp.coinbase.com/x402/welcome
+ * Solana x402 payment wrapper for Clawdmint.
+ *
+ * Clawdmint's paid API surface settles with SPL USDC on Solana. The flow is:
+ * request -> 402 with x402 payment requirements -> signed Solana transaction in
+ * X-PAYMENT/PAYMENT-SIGNATURE -> server verifies, broadcasts, confirms -> data.
  */
 
 import { NextRequest, NextResponse } from "next/server";
-import { x402ResourceServer, HTTPFacilitatorClient } from "@x402/core/server";
-import { ExactEvmScheme } from "@x402/evm/exact/server";
 import {
-  decodePaymentSignatureHeader,
-  encodePaymentRequiredHeader,
-  encodePaymentResponseHeader,
-} from "@x402/core/http";
-import type { Network, PaymentRequired } from "@x402/core/types";
-
-// ═══════════════════════════════════════════════════════════════════════════════
-// CONFIGURATION
-// ═══════════════════════════════════════════════════════════════════════════════
-
-/** Wallet address to receive x402 payments */
-function getPayToAddress(): string {
-  return process.env["X402_PAY_TO_ADDRESS"] || process.env["TREASURY_ADDRESS"] || "";
-}
-
-/** Network identifier in CAIP-2 format */
-function getNetwork(): Network {
-  const chainId = process.env["NEXT_PUBLIC_CHAIN_ID"] || "8453";
-  return chainId === "8453" ? "eip155:8453" : "eip155:84532";
-}
-
-/** Facilitator URL (handles payment verification and settlement) */
-function getFacilitatorUrl(): string {
-  const custom = process.env["X402_FACILITATOR_URL"];
-  if (custom) return custom;
-
-  // Use x402.org for testnet, CDP for mainnet
-  const network = getNetwork();
-  if (network === "eip155:8453") {
-    // Mainnet - check for CDP keys
-    const cdpKeyId = process.env["CDP_API_KEY_ID"];
-    if (cdpKeyId) {
-      return "https://api.cdp.coinbase.com/platform/v2/x402";
-    }
-    // Fallback to x402.org (works for both)
-    return "https://x402.org/facilitator";
-  }
-  return "https://www.x402.org/facilitator";
-}
-
-/** Check if x402 is configured and enabled */
-export function isX402Enabled(): boolean {
-  return !!getPayToAddress();
-}
-
-// ═══════════════════════════════════════════════════════════════════════════════
-// PRICING TIERS
-// ═══════════════════════════════════════════════════════════════════════════════
+  Connection,
+  PublicKey,
+  Transaction,
+  TransactionInstruction,
+  VersionedTransaction,
+} from "@solana/web3.js";
+import {
+  getAssociatedTokenAddressSync,
+  TOKEN_2022_PROGRAM_ID,
+  TOKEN_PROGRAM_ID,
+} from "@solana/spl-token";
+import bs58 from "bs58";
+import { getPreferredSolanaRpcUrl } from "@/lib/env";
+import { getTransactionExplorerUrl, isSolanaAddress } from "@/lib/network-config";
 
 export const X402_PRICING = {
-  /** Register a new agent */
   REGISTER_AGENT: "$0.01",
-  /** Deploy a new NFT collection */
   DEPLOY_COLLECTION: "$2.00",
-  /** Launch a new agent token */
   DEPLOY_AGENT_TOKEN: "$2.00",
-  /** Read collection data (per request) */
   API_COLLECTIONS_READ: "$0.001",
-  /** Premium analytics/stats */
   API_STATS_PREMIUM: "$0.005",
-  /** Agent profile data */
   API_AGENTS_READ: "$0.001",
 } as const;
 
 export type X402PricingTier = keyof typeof X402_PRICING;
-
-// ═══════════════════════════════════════════════════════════════════════════════
-// x402 RESOURCE SERVER (singleton)
-// ═══════════════════════════════════════════════════════════════════════════════
-
-let _server: x402ResourceServer | null = null;
-let _serverInitPromise: Promise<x402ResourceServer> | null = null;
-
-/**
- * Get or initialize the x402 Resource Server
- * Thread-safe singleton with lazy initialization
- */
-async function getX402Server(): Promise<x402ResourceServer> {
-  if (_server) return _server;
-
-  if (!_serverInitPromise) {
-    _serverInitPromise = (async () => {
-      const facilitatorUrl = getFacilitatorUrl();
-      const network = getNetwork();
-
-      console.log(`[x402] Initializing: network=${network}, facilitator=${facilitatorUrl}`);
-
-      const facilitatorConfig: { url: string; createAuthHeaders?: () => Promise<{ verify: Record<string, string>; settle: Record<string, string>; supported: Record<string, string> }> } = {
-        url: facilitatorUrl,
-      };
-
-      // Add CDP auth headers if configured
-      const cdpKeyId = process.env["CDP_API_KEY_ID"];
-      const cdpKeySecret = process.env["CDP_API_KEY_SECRET"];
-      if (cdpKeyId && cdpKeySecret) {
-        facilitatorConfig.createAuthHeaders = async () => {
-          const headers = {
-            "X-CDP-API-KEY-ID": cdpKeyId,
-            "X-CDP-API-KEY-SECRET": cdpKeySecret,
-          };
-          return { verify: headers, settle: headers, supported: headers };
-        };
-      }
-
-      const facilitatorClient = new HTTPFacilitatorClient(facilitatorConfig);
-      const server = new x402ResourceServer(facilitatorClient);
-      server.register(network, new ExactEvmScheme());
-
-      try {
-        await server.initialize();
-        console.log("[x402] Server initialized successfully");
-      } catch (err) {
-        console.warn("[x402] Server init warning (will retry on request):", err);
-      }
-
-      _server = server;
-      return server;
-    })();
-  }
-
-  return _serverInitPromise;
-}
-
-// ═══════════════════════════════════════════════════════════════════════════════
-// x402 PAYMENT WRAPPER
-// ═══════════════════════════════════════════════════════════════════════════════
+type X402SolanaNetwork = "solana" | "solana-devnet";
 
 interface X402Options {
-  /** Price in USD (e.g., "$0.01") */
   price: string;
-  /** Human-readable description of the resource */
   description: string;
-  /** MIME type of the response */
   mimeType?: string;
 }
 
-/**
- * Wrap a Next.js API route handler with x402 payment protection.
- * 
- * If no payment header is present, returns HTTP 402 with payment requirements.
- * If a valid payment is provided, verifies and settles it before executing the handler.
- * 
- * @example
- * ```ts
- * export async function GET(request: NextRequest) {
- *   return withX402Payment(request, {
- *     price: "$0.001",
- *     description: "List all NFT collections",
- *   }, async () => {
- *     // Your actual handler logic
- *     return NextResponse.json({ data: "premium content" });
- *   });
- * }
- * ```
- */
+interface SolanaPaymentRequirement {
+  scheme: "exact";
+  network: X402SolanaNetwork;
+  maxAmountRequired: string;
+  resource: string;
+  description: string;
+  mimeType: string;
+  payTo: string;
+  maxTimeoutSeconds: number;
+  asset: string;
+  extra: {
+    token: "USDC";
+    decimals: 6;
+    recipientTokenAccount: string;
+    cluster: "mainnet-beta" | "devnet";
+  };
+}
+
+interface PaymentPayload {
+  x402Version?: number;
+  scheme?: string;
+  network?: string;
+  payload?: {
+    transaction?: string;
+    serializedTransaction?: string;
+  };
+  transaction?: string;
+  serializedTransaction?: string;
+}
+
+type SolanaConnection = InstanceType<typeof Connection>;
+type SolanaPublicKey = InstanceType<typeof PublicKey>;
+type SolanaTransaction = InstanceType<typeof Transaction>;
+type SolanaVersionedTransaction = InstanceType<typeof VersionedTransaction>;
+type SolanaTransactionInstruction = InstanceType<typeof TransactionInstruction>;
+type ConfirmedTransaction = Awaited<ReturnType<SolanaConnection["getTransaction"]>>;
+
+interface DecodedPaymentTransaction {
+  raw: Buffer;
+  legacy?: SolanaTransaction;
+  versioned?: SolanaVersionedTransaction;
+  instructions: DecodedInstruction[];
+  signature?: string;
+}
+
+interface DecodedInstruction {
+  programId: SolanaPublicKey;
+  keys: SolanaPublicKey[];
+  data: Buffer;
+}
+
+const MAINNET_USDC_MINT = "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v";
+const DEVNET_USDC_MINT = "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU";
+const PAYMENT_HEADER_NAMES = ["x-payment", "payment-signature", "X-PAYMENT", "PAYMENT-SIGNATURE"];
+const PAYMENT_REQUIRED_HEADER_NAMES = "PAYMENT-REQUIRED, X-PAYMENT-REQUIRED";
+const PAYMENT_RESPONSE_HEADER_NAMES = "PAYMENT-RESPONSE, X-PAYMENT-RESPONSE";
+const USDC_DECIMALS = 6;
+const USDC_BASE_UNITS = BigInt(1_000_000);
+
+function getPayToAddress(): string {
+  const candidates = [
+    process.env["X402_SOLANA_PAY_TO_ADDRESS"],
+    process.env["SOLANA_X402_PAY_TO_ADDRESS"],
+    process.env["X402_PAY_TO_ADDRESS"],
+    process.env["SOLANA_PLATFORM_FEE_RECIPIENT"],
+    process.env["SOLANA_DEPLOYER_ADDRESS"],
+    process.env["TREASURY_ADDRESS"],
+  ];
+
+  return candidates.find((value) => isSolanaAddress(value))?.trim() || "";
+}
+
+function getNetwork(): X402SolanaNetwork {
+  const explicit = (
+    process.env["X402_SOLANA_NETWORK"] ||
+    process.env["NEXT_PUBLIC_SOLANA_CLUSTER"] ||
+    "mainnet-beta"
+  ).toLowerCase();
+
+  return explicit.includes("devnet") ? "solana-devnet" : "solana";
+}
+
+function getCluster(): "mainnet-beta" | "devnet" {
+  return getNetwork() === "solana-devnet" ? "devnet" : "mainnet-beta";
+}
+
+function getUsdcMintAddress(): string {
+  const explicit = process.env["X402_SOLANA_USDC_MINT"] || process.env["SOLANA_USDC_MINT"];
+  if (explicit && isSolanaAddress(explicit)) {
+    return explicit;
+  }
+
+  return getNetwork() === "solana-devnet" ? DEVNET_USDC_MINT : MAINNET_USDC_MINT;
+}
+
+function getConnection(): SolanaConnection {
+  const explicit = process.env["X402_SOLANA_RPC_URL"] || process.env["SOLANA_X402_RPC_URL"];
+  if (explicit) {
+    return new Connection(explicit, "confirmed");
+  }
+
+  const appCluster = process.env["NEXT_PUBLIC_SOLANA_CLUSTER"] === "devnet" ? "solana-devnet" : "solana";
+  const fallbackRpc = getNetwork() === "solana-devnet"
+    ? "https://api.devnet.solana.com"
+    : "https://api.mainnet-beta.solana.com";
+
+  return new Connection(appCluster === getNetwork() ? getPreferredSolanaRpcUrl() : fallbackRpc, "confirmed");
+}
+
+export function isX402Enabled(): boolean {
+  return Boolean(getPayToAddress());
+}
+
+function parseUsdPriceToMicros(price: string): bigint {
+  const normalized = price.trim().replace(/^\$/, "");
+  if (!/^\d+(\.\d{1,6})?$/.test(normalized)) {
+    throw new Error(`Invalid x402 USDC price: ${price}`);
+  }
+
+  const [whole, fractional = ""] = normalized.split(".");
+  return BigInt(whole) * USDC_BASE_UNITS + BigInt(fractional.padEnd(USDC_DECIMALS, "0"));
+}
+
+function encodeHeaderJson(value: unknown): string {
+  return Buffer.from(JSON.stringify(value), "utf8").toString("base64");
+}
+
+function decodeHeaderJson<T>(value: string): T {
+  return JSON.parse(Buffer.from(value, "base64").toString("utf8")) as T;
+}
+
+function getPaymentHeader(request: NextRequest): string | null {
+  for (const name of PAYMENT_HEADER_NAMES) {
+    const value = request.headers.get(name);
+    if (value) return value;
+  }
+
+  return null;
+}
+
+function buildPaymentRequirement(request: NextRequest, options: X402Options): SolanaPaymentRequirement {
+  const payTo = new PublicKey(getPayToAddress());
+  const asset = new PublicKey(getUsdcMintAddress());
+  const recipientTokenAccount = getAssociatedTokenAddressSync(asset, payTo, false, TOKEN_PROGRAM_ID);
+
+  return {
+    scheme: "exact",
+    network: getNetwork(),
+    maxAmountRequired: parseUsdPriceToMicros(options.price).toString(),
+    resource: request.url,
+    description: options.description,
+    mimeType: options.mimeType || "application/json",
+    payTo: payTo.toBase58(),
+    maxTimeoutSeconds: 300,
+    asset: asset.toBase58(),
+    extra: {
+      token: "USDC",
+      decimals: USDC_DECIMALS,
+      recipientTokenAccount: recipientTokenAccount.toBase58(),
+      cluster: getCluster(),
+    },
+  };
+}
+
+function buildPaymentRequiredResponse(requirement: SolanaPaymentRequirement) {
+  return {
+    x402Version: 1,
+    accepts: [requirement],
+    payment: {
+      protocol: "x402",
+      token: "USDC",
+      network: requirement.network,
+      cluster: requirement.extra.cluster,
+      recipientWallet: requirement.payTo,
+      tokenAccount: requirement.extra.recipientTokenAccount,
+      mint: requirement.asset,
+      amount: requirement.maxAmountRequired,
+      amountUSDC: Number(requirement.maxAmountRequired) / 1_000_000,
+      message: "Send a signed SPL USDC transfer transaction in X-PAYMENT.",
+    },
+  };
+}
+
+function paymentRequired(requirement: SolanaPaymentRequirement, error?: string, status = 402): NextResponse {
+  const body = {
+    ...buildPaymentRequiredResponse(requirement),
+    ...(error ? { error } : {}),
+  };
+  const encoded = encodeHeaderJson(body);
+
+  return NextResponse.json(body, {
+    status,
+    headers: {
+      "PAYMENT-REQUIRED": encoded,
+      "X-PAYMENT-REQUIRED": encoded,
+      "Accept-Payment": `x402; network="${requirement.network}"; asset="USDC"; amount="${requirement.maxAmountRequired}"`,
+      "Access-Control-Allow-Origin": "*",
+      "Access-Control-Expose-Headers": `${PAYMENT_REQUIRED_HEADER_NAMES}, ${PAYMENT_RESPONSE_HEADER_NAMES}`,
+    },
+  });
+}
+
+function normalizePaymentPayload(header: string): PaymentPayload {
+  const payload = decodeHeaderJson<PaymentPayload>(header);
+  const transaction =
+    payload.payload?.transaction ||
+    payload.payload?.serializedTransaction ||
+    payload.transaction ||
+    payload.serializedTransaction;
+
+  if (!transaction) {
+    throw new Error("Missing Solana transaction in payment payload");
+  }
+
+  return {
+    ...payload,
+    payload: {
+      ...payload.payload,
+      transaction,
+    },
+  };
+}
+
+function decodeVersioned(raw: Buffer): DecodedPaymentTransaction | null {
+  try {
+    const tx = VersionedTransaction.deserialize(raw);
+    const staticKeys = tx.message.staticAccountKeys;
+    const instructions = tx.message.compiledInstructions.map((ix: { programIdIndex: number; accountKeyIndexes: number[]; data: Uint8Array }) => {
+      const programId = staticKeys[ix.programIdIndex];
+      if (!programId) {
+        throw new Error("Versioned transaction uses unsupported address lookup tables");
+      }
+
+      const keys = ix.accountKeyIndexes.map((index: number) => {
+        const key = staticKeys[index];
+        if (!key) {
+          throw new Error("Versioned transaction uses unsupported address lookup tables");
+        }
+        return key;
+      });
+
+      return {
+        programId,
+        keys,
+        data: Buffer.from(ix.data),
+      };
+    });
+
+    return {
+      raw,
+      versioned: tx,
+      instructions,
+      signature: signatureFromBytes(tx.signatures[0]),
+    };
+  } catch {
+    return null;
+  }
+}
+
+function decodeLegacy(raw: Buffer): DecodedPaymentTransaction {
+  const tx = Transaction.from(raw);
+  return {
+    raw,
+    legacy: tx,
+    instructions: tx.instructions.map((ix: SolanaTransactionInstruction) => ({
+      programId: ix.programId,
+      keys: ix.keys.map((key: SolanaTransactionInstruction["keys"][number]) => key.pubkey),
+      data: Buffer.from(ix.data),
+    })),
+    signature: tx.signature ? bs58.encode(tx.signature) : undefined,
+  };
+}
+
+function decodePaymentTransaction(transactionBase64: string): DecodedPaymentTransaction {
+  const raw = Buffer.from(transactionBase64, "base64");
+  return decodeVersioned(raw) || decodeLegacy(raw);
+}
+
+function signatureFromBytes(signature?: Uint8Array): string | undefined {
+  if (!signature || signature.every((byte) => byte === 0)) {
+    return undefined;
+  }
+
+  return bs58.encode(Buffer.from(signature));
+}
+
+function isTokenProgram(programId: SolanaPublicKey): boolean {
+  return programId.equals(TOKEN_PROGRAM_ID) || programId.equals(TOKEN_2022_PROGRAM_ID);
+}
+
+function readU64LE(data: Buffer, offset: number): bigint {
+  if (data.length < offset + 8) {
+    return BigInt(0);
+  }
+
+  return data.readBigUInt64LE(offset);
+}
+
+function verifyTransferInstruction(
+  decoded: DecodedPaymentTransaction,
+  requirement: SolanaPaymentRequirement
+): { valid: boolean; amount: bigint; payer?: string; reason?: string } {
+  const expectedRecipient = new PublicKey(requirement.extra.recipientTokenAccount);
+  const expectedMint = new PublicKey(requirement.asset);
+  const expectedAmount = BigInt(requirement.maxAmountRequired);
+
+  for (const instruction of decoded.instructions) {
+    if (!isTokenProgram(instruction.programId) || instruction.data.length < 1) {
+      continue;
+    }
+
+    const discriminator = instruction.data[0];
+
+    if (discriminator === 3) {
+      const amount = readU64LE(instruction.data, 1);
+      const destination = instruction.keys[1];
+      const authority = instruction.keys[2];
+
+      if (destination?.equals(expectedRecipient) && amount >= expectedAmount) {
+        return {
+          valid: true,
+          amount,
+          payer: authority?.toBase58(),
+        };
+      }
+    }
+
+    if (discriminator === 12) {
+      const amount = readU64LE(instruction.data, 1);
+      const mint = instruction.keys[1];
+      const destination = instruction.keys[2];
+      const authority = instruction.keys[3];
+
+      if (mint?.equals(expectedMint) && destination?.equals(expectedRecipient) && amount >= expectedAmount) {
+        return {
+          valid: true,
+          amount,
+          payer: authority?.toBase58(),
+        };
+      }
+    }
+  }
+
+  return {
+    valid: false,
+    amount: BigInt(0),
+    reason: "Transaction does not contain a USDC transfer to the required Clawdmint recipient token account",
+  };
+}
+
+async function ensureTransactionNotFailed(
+  connection: SolanaConnection,
+  signature: string
+): Promise<ConfirmedTransaction> {
+  const status = await connection.getSignatureStatuses([signature], { searchTransactionHistory: true });
+  const value = status.value[0];
+  if (!value) return null;
+
+  if (value.err) {
+    throw new Error("Payment transaction already exists but failed on-chain");
+  }
+
+  if (value.confirmationStatus === "confirmed" || value.confirmationStatus === "finalized") {
+    return connection.getTransaction(signature, {
+      commitment: "confirmed",
+      maxSupportedTransactionVersion: 0,
+    });
+  }
+
+  return null;
+}
+
+async function simulatePayment(connection: SolanaConnection, decoded: DecodedPaymentTransaction) {
+  const result = decoded.versioned
+    ? await connection.simulateTransaction(decoded.versioned)
+    : await connection.simulateTransaction(decoded.legacy!);
+
+  if (result.value.err) {
+    throw new Error(`Payment transaction simulation failed: ${JSON.stringify(result.value.err)}`);
+  }
+}
+
+async function sendAndConfirmPayment(
+  connection: SolanaConnection,
+  decoded: DecodedPaymentTransaction
+): Promise<string> {
+  if (decoded.signature) {
+    const existing = await ensureTransactionNotFailed(connection, decoded.signature);
+    if (existing) {
+      return decoded.signature;
+    }
+  }
+
+  await simulatePayment(connection, decoded);
+  const signature = await connection.sendRawTransaction(decoded.raw, {
+    skipPreflight: false,
+    preflightCommitment: "confirmed",
+  });
+
+  const confirmation = await connection.confirmTransaction(signature, "confirmed");
+  if (confirmation.value.err) {
+    throw new Error(`Payment transaction failed on-chain: ${JSON.stringify(confirmation.value.err)}`);
+  }
+
+  return signature;
+}
+
+function getTokenBalanceDelta(
+  tx: ConfirmedTransaction,
+  requirement: SolanaPaymentRequirement
+): bigint {
+  const preBalances = tx?.meta?.preTokenBalances || [];
+  const postBalances = tx?.meta?.postTokenBalances || [];
+  const mint = requirement.asset;
+  const owner = requirement.payTo;
+
+  let received = BigInt(0);
+  for (const post of postBalances) {
+    if (post.mint !== mint || post.owner !== owner) {
+      continue;
+    }
+
+    const pre = preBalances.find((candidate: (typeof preBalances)[number]) => candidate.accountIndex === post.accountIndex);
+    const postAmount = BigInt(post.uiTokenAmount.amount);
+    const preAmount = BigInt(pre?.uiTokenAmount.amount || "0");
+    const delta = postAmount - preAmount;
+    if (delta > received) {
+      received = delta;
+    }
+  }
+
+  return received;
+}
+
+async function settleSolanaPayment(
+  paymentHeader: string,
+  requirement: SolanaPaymentRequirement
+) {
+  const payload = normalizePaymentPayload(paymentHeader);
+  if (payload.scheme && payload.scheme !== "exact") {
+    throw new Error("Unsupported x402 scheme");
+  }
+
+  const acceptedNetworks =
+    requirement.network === "solana"
+      ? new Set([requirement.network, "solana-mainnet", "solana-mainnet-beta"])
+      : new Set([requirement.network]);
+  if (payload.network && !acceptedNetworks.has(payload.network)) {
+    throw new Error(`Payment network mismatch: expected ${requirement.network}`);
+  }
+
+  const decoded = decodePaymentTransaction(payload.payload!.transaction!);
+  const transfer = verifyTransferInstruction(decoded, requirement);
+  if (!transfer.valid) {
+    throw new Error(transfer.reason || "Invalid payment transaction");
+  }
+
+  const connection = getConnection();
+  const signature = await sendAndConfirmPayment(connection, decoded);
+  const confirmed = await connection.getTransaction(signature, {
+    commitment: "confirmed",
+    maxSupportedTransactionVersion: 0,
+  });
+  const received = getTokenBalanceDelta(confirmed, requirement) || transfer.amount;
+
+  if (received < BigInt(requirement.maxAmountRequired)) {
+    throw new Error(`Insufficient USDC received: ${received.toString()}`);
+  }
+
+  return {
+    success: true,
+    x402Version: payload.x402Version || 1,
+    scheme: "exact",
+    network: requirement.network,
+    transaction: signature,
+    payer: transfer.payer,
+    amount: received.toString(),
+    asset: requirement.asset,
+    payTo: requirement.payTo,
+    explorerUrl: getTransactionExplorerUrl(signature, getCluster()),
+  };
+}
+
 export async function withX402Payment(
   request: NextRequest,
   options: X402Options,
   handler: () => Promise<NextResponse>
 ): Promise<NextResponse> {
-  // If x402 is not configured, pass through
   if (!isX402Enabled()) {
     return handler();
   }
 
-  const payTo = getPayToAddress();
-  const network = getNetwork();
-  const server = await getX402Server();
-
-  // Check for payment header (x402 standard headers)
-  const paymentHeader =
-    request.headers.get("x-payment") ||
-    request.headers.get("payment-signature") ||
-    request.headers.get("X-PAYMENT") ||
-    request.headers.get("PAYMENT-SIGNATURE");
-
-  const resourceInfo = {
-    url: request.url,
-    description: options.description,
-    mimeType: options.mimeType || "application/json",
-  };
-
-  const resourceConfig = {
-    scheme: "exact",
-    payTo,
-    price: options.price,
-    network,
-  };
-
+  const requirement = buildPaymentRequirement(request, options);
+  const paymentHeader = getPaymentHeader(request);
   if (!paymentHeader) {
-    // ── No payment provided → return 402 with requirements ──────────────
-    try {
-      const requirements = await server.buildPaymentRequirements(resourceConfig);
-
-      const paymentRequired: PaymentRequired = await server.createPaymentRequiredResponse(
-        requirements,
-        resourceInfo,
-      );
-
-      const encodedHeader = encodePaymentRequiredHeader(paymentRequired);
-
-      return new NextResponse(JSON.stringify(paymentRequired), {
-        status: 402,
-        headers: {
-          "Content-Type": "application/json",
-          "X-PAYMENT-REQUIRED": encodedHeader,
-          "Access-Control-Expose-Headers": "X-PAYMENT-REQUIRED, X-PAYMENT-RESPONSE",
-          "Access-Control-Allow-Origin": "*",
-        },
-      });
-    } catch (err) {
-      console.error("[x402] Failed to build payment requirements:", err);
-      // Fallback: let request through if x402 infra is down
-      return handler();
-    }
+    return paymentRequired(requirement);
   }
 
-  // ── Payment provided → verify & settle ────────────────────────────────
   try {
-    const paymentPayload = decodePaymentSignatureHeader(paymentHeader);
-
-    const requirements = await server.buildPaymentRequirements(resourceConfig);
-
-    const matchedReqs = server.findMatchingRequirements(requirements, paymentPayload);
-    if (!matchedReqs) {
-      return NextResponse.json(
-        {
-          error: "Payment requirements mismatch",
-          message: "The provided payment does not match any accepted payment requirements",
-        },
-        { status: 400 }
-      );
-    }
-
-    // Verify payment
-    const verifyResult = await server.verifyPayment(paymentPayload, matchedReqs);
-    if (!verifyResult.isValid) {
-      return NextResponse.json(
-        {
-          error: "Payment verification failed",
-          reason: verifyResult.invalidReason,
-          message: verifyResult.invalidMessage,
-        },
-        { status: 402 }
-      );
-    }
-
-    // Settle payment on-chain
-    const settleResult = await server.settlePayment(paymentPayload, matchedReqs);
-    if (!settleResult.success) {
-      return NextResponse.json(
-        {
-          error: "Payment settlement failed",
-          reason: settleResult.errorReason,
-          message: settleResult.errorMessage,
-        },
-        { status: 402 }
-      );
-    }
-
-    console.log(`[x402] Payment settled: ${settleResult.transaction} from ${settleResult.payer}`);
-
-    // Payment successful → execute the actual handler
+    const settlement = await settleSolanaPayment(paymentHeader, requirement);
     const response = await handler();
+    const encoded = encodeHeaderJson(settlement);
 
-    // Attach settlement proof header
-    response.headers.set(
-      "X-PAYMENT-RESPONSE",
-      encodePaymentResponseHeader(settleResult)
-    );
-    response.headers.set(
-      "Access-Control-Expose-Headers",
-      "X-PAYMENT-REQUIRED, X-PAYMENT-RESPONSE"
-    );
-
+    response.headers.set("PAYMENT-RESPONSE", encoded);
+    response.headers.set("X-PAYMENT-RESPONSE", encoded);
+    response.headers.set("Access-Control-Expose-Headers", `${PAYMENT_REQUIRED_HEADER_NAMES}, ${PAYMENT_RESPONSE_HEADER_NAMES}`);
     return response;
-  } catch (err) {
-    console.error("[x402] Payment processing error:", err);
-    return NextResponse.json(
-      {
-        error: "Payment processing failed",
-        message: err instanceof Error ? err.message : "Unknown payment error",
-      },
-      { status: 402 }
+  } catch (error) {
+    console.error("[x402/solana] Payment processing failed:", error);
+    return paymentRequired(
+      requirement,
+      error instanceof Error ? error.message : "Payment processing failed"
     );
   }
 }
 
-// ═══════════════════════════════════════════════════════════════════════════════
-// PRICING INFO (for discovery / Bazaar)
-// ═══════════════════════════════════════════════════════════════════════════════
-
 export function getX402PricingInfo() {
+  const baseUrl = process.env["NEXT_PUBLIC_APP_URL"] || "https://clawdmint.xyz";
   const network = getNetwork();
   const payTo = getPayToAddress();
-  const baseUrl = process.env["NEXT_PUBLIC_APP_URL"] || "https://clawdmint.xyz";
+  const asset = getUsdcMintAddress();
 
   return {
     protocol: "x402",
-    version: 2,
+    version: 1,
     network,
-    facilitator: getFacilitatorUrl(),
+    settlement: "solana-spl-token",
     payTo,
+    asset,
     currency: "USDC",
+    decimals: Number(USDC_DECIMALS),
+    openapi: `${baseUrl}/api/x402/openapi.json`,
     endpoints: [
       {
         method: "POST",
@@ -350,7 +603,7 @@ export function getX402PricingInfo() {
         path: "/api/x402/collections",
         url: `${baseUrl}/api/x402/collections`,
         price: X402_PRICING.API_COLLECTIONS_READ,
-        description: "List all NFT collections with agent info",
+        description: "List Solana NFT collections with agent info",
         mimeType: "application/json",
       },
       {
@@ -358,7 +611,7 @@ export function getX402PricingInfo() {
         path: "/api/x402/stats",
         url: `${baseUrl}/api/x402/stats`,
         price: X402_PRICING.API_STATS_PREMIUM,
-        description: "Premium platform analytics and statistics",
+        description: "Premium Clawdmint Solana analytics and statistics",
         mimeType: "application/json",
       },
       {
@@ -366,7 +619,7 @@ export function getX402PricingInfo() {
         path: "/api/x402/agents",
         url: `${baseUrl}/api/x402/agents`,
         price: X402_PRICING.API_AGENTS_READ,
-        description: "List all verified AI agents with detailed profiles",
+        description: "List Clawdmint AI agents with Solana profiles",
         mimeType: "application/json",
       },
     ],

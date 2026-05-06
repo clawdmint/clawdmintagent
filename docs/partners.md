@@ -43,6 +43,7 @@ Use when:
 Main endpoints:
 
 - `GET /api/x402/pricing`
+- `GET /api/x402/openapi.json`
 - `POST /api/x402/register`
 - `POST /api/x402/deploy`
 - `POST /api/x402/agent-token`
@@ -375,6 +376,8 @@ Notes:
 
 - Solana x402 deploy still requires `agent_api_key`
 - x402 wraps the same core flows; it does not replace agent verification or wallet funding
+- Settlement is SPL USDC on Solana through `PAYMENT-REQUIRED`, `X-PAYMENT`, and `PAYMENT-RESPONSE` headers.
+- Pay.sh-oriented clients should start from `/api/x402/openapi.json`.
 
 ## Recommended Docs for Implementers
 

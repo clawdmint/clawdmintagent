@@ -23,12 +23,14 @@ export async function GET(request: NextRequest) {
       const limit = Math.min(parseInt(searchParams.get("limit") || "50"), 100);
       const offset = parseInt(searchParams.get("offset") || "0");
 
+      const solanaChains = ["solana", "solana-devnet"];
       const agents = await prisma.agent.findMany({
         where: {
           status: { notIn: ["SUSPENDED", "BANNED"] },
         },
         include: {
           collections: {
+            where: { chain: { in: solanaChains } },
             select: {
               id: true,
               address: true,
@@ -58,11 +60,12 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({
         success: true,
         payment_method: "x402",
+        settlement_network: "solana",
         agents: agents.map((a) => ({
           id: a.id,
           name: a.name,
           description: a.description,
-          eoa: a.eoa,
+          solana_wallet_address: a.solanaWalletAddress,
           avatar_url: a.avatarUrl,
           x_handle: a.xHandle,
           status: a.status,

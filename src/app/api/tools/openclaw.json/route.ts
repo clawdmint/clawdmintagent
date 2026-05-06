@@ -7,6 +7,16 @@ const OPENCLAW_TOOLS = {
   version: "2.4.0",
   description: "Clawdmint Solana mainnet Metaplex NFT deployment tools for funded AI agents.",
   baseUrl: process.env["NEXT_PUBLIC_APP_URL"] || "https://clawdmint.xyz",
+  payments: {
+    x402: {
+      enabled: true,
+      network: "solana",
+      settlement: "spl-usdc",
+      pricingPath: "/api/x402/pricing",
+      openapiPath: "/api/x402/openapi.json",
+      paymentHeaders: ["PAYMENT-REQUIRED", "X-PAYMENT", "PAYMENT-RESPONSE"],
+    },
+  },
   authentication: {
     type: "bearer",
     headers: {
@@ -17,6 +27,30 @@ const OPENCLAW_TOOLS = {
     },
   },
   tools: [
+    {
+      name: "x402_pricing",
+      description: "Discover Solana x402 USDC prices, settlement wallet, mint, and paid Clawdmint resources.",
+      inputSchema: {
+        type: "object",
+        properties: {},
+      },
+      endpoint: {
+        method: "GET",
+        path: "/api/x402/pricing",
+      },
+    },
+    {
+      name: "x402_openapi",
+      description: "Read the Pay.sh-compatible OpenAPI document for Clawdmint Solana x402 paid resources.",
+      inputSchema: {
+        type: "object",
+        properties: {},
+      },
+      endpoint: {
+        method: "GET",
+        path: "/api/x402/openapi.json",
+      },
+    },
     {
       name: "register_agent",
       description: "Register a new AI agent and provision a dedicated Solana operational wallet.",
@@ -34,6 +68,23 @@ const OPENCLAW_TOOLS = {
       },
     },
     {
+      name: "x402_register_agent",
+      description: "Register a new AI agent through the Solana x402 paid endpoint. Requires an X-PAYMENT header carrying a signed USDC transfer transaction.",
+      inputSchema: {
+        type: "object",
+        properties: {
+          name: { type: "string", maxLength: 50, pattern: "^[a-zA-Z0-9_-]+$" },
+          description: { type: "string", maxLength: 500 },
+        },
+        required: ["name"],
+      },
+      endpoint: {
+        method: "POST",
+        path: "/api/x402/register",
+        payment: "x402",
+      },
+    },
+    {
       name: "get_agent_status",
       description: "Check whether the agent has been claimed, verified, and funded for automatic deploys.",
       inputSchema: {
@@ -44,6 +95,37 @@ const OPENCLAW_TOOLS = {
         method: "GET",
         path: "/api/v1/agents/status",
         authentication: "required",
+      },
+    },
+    {
+      name: "x402_deploy_collection",
+      description: "Deploy a Solana collection through the Solana x402 paid endpoint. Requires X-PAYMENT plus a verified agent_api_key.",
+      inputSchema: {
+        type: "object",
+        properties: {
+          agent_api_key: { type: "string" },
+          chain: {
+            type: "string",
+            enum: ["solana"],
+            default: "solana",
+          },
+          name: { type: "string", maxLength: 100 },
+          symbol: { type: "string", pattern: "^[A-Z0-9]+$", maxLength: 10 },
+          description: { type: "string", maxLength: 1000 },
+          image: { type: "string" },
+          max_supply: { type: "integer", minimum: 1, maximum: 100000 },
+          mint_price: { type: "string", pattern: "^\\d+\\.?\\d*$" },
+          mint_price_sol: { type: "string", pattern: "^\\d+\\.?\\d*$" },
+          authority_address: { type: "string" },
+          payout_address: { type: "string" },
+          royalty_bps: { type: "integer", minimum: 0, maximum: 1000, default: 500 },
+        },
+        required: ["agent_api_key", "name", "symbol", "image", "max_supply", "payout_address"],
+      },
+      endpoint: {
+        method: "POST",
+        path: "/api/x402/deploy",
+        payment: "x402",
       },
     },
     {

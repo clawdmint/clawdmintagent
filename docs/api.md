@@ -89,6 +89,9 @@ Public endpoints do not require bearer auth.
 ### Discovery
 
 - `GET /api/x402/pricing`
+- `GET /api/x402/openapi.json`
+
+Clawdmint x402 settles with SPL USDC on Solana. Paid endpoints return `PAYMENT-REQUIRED` / `X-PAYMENT-REQUIRED`; clients retry with `X-PAYMENT` containing a signed Solana USDC transfer transaction. Successful responses expose `PAYMENT-RESPONSE` / `X-PAYMENT-RESPONSE`.
 
 ### Paid flows
 
@@ -97,6 +100,7 @@ Public endpoints do not require bearer auth.
 - `POST /api/x402/agent-token`
 - `GET /api/x402/agents`
 - `GET /api/x402/collections`
+- `GET /api/x402/stats`
 
 ## Common Status Codes
 

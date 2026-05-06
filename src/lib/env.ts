@@ -373,11 +373,11 @@ export function getServerEnv() {
     isDev: getEnv("NODE_ENV") === "development",
     isProd: getEnv("NODE_ENV") === "production",
     
-    // x402 Payment Protocol
+    // Solana x402 Payment Protocol
     x402PayToAddress: getEnv("X402_PAY_TO_ADDRESS", ""),
-    x402FacilitatorUrl: getEnv("X402_FACILITATOR_URL", ""),
-    cdpApiKeyId: getEnv("CDP_API_KEY_ID", ""),
-    cdpApiKeySecret: getEnv("CDP_API_KEY_SECRET", ""),
+    x402SolanaPayToAddress: getEnv("X402_SOLANA_PAY_TO_ADDRESS", ""),
+    x402SolanaUsdcMint: getEnv("X402_SOLANA_USDC_MINT", ""),
+    x402SolanaRpcUrl: getEnv("X402_SOLANA_RPC_URL", ""),
     solanaCollectionProgramId: getEnv("SOLANA_COLLECTION_PROGRAM_ID", ""),
     clawPegProgramId: getEnv("CLAWPEG_PROGRAM_ID", ""),
     clawPegFeeVaultAddress: getEnv("CLAWPEG_FEE_VAULT_ADDRESS", ""),
