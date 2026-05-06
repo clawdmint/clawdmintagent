@@ -33,10 +33,7 @@ function buildPaymentInfo(path: string, fallback: string): OpenApiPaymentInfo {
   const amount = priceForPath(path) || fallback;
   return {
     price: { mode: "fixed", currency: "USD", amount },
-    protocols: [
-      { x402: {} },
-      { mpp: { method: "", intent: "", currency: "USD" } },
-    ],
+    protocols: [{ x402: {} }],
   };
 }
 

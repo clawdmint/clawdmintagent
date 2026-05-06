@@ -139,7 +139,7 @@ interface DecodedInstruction {
 const MAINNET_USDC_MINT = "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v";
 const DEVNET_USDC_MINT = "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU";
 const PAYMENT_HEADER_NAMES = ["x-payment", "payment-signature", "X-PAYMENT", "PAYMENT-SIGNATURE"];
-const PAYMENT_REQUIRED_HEADER_NAMES = "PAYMENT-REQUIRED, X-PAYMENT-REQUIRED";
+const PAYMENT_REQUIRED_HEADER_NAMES = "X-PAYMENT-REQUIRED";
 const PAYMENT_RESPONSE_HEADER_NAMES = "PAYMENT-RESPONSE, X-PAYMENT-RESPONSE";
 const USDC_DECIMALS = 6;
 const USDC_BASE_UNITS = BigInt(1_000_000);
@@ -313,10 +313,16 @@ function paymentRequired(requirement: SolanaPaymentRequirement, error?: string, 
   };
   const encoded = encodeHeaderJson(body);
 
+  // Note: do not emit a `PAYMENT-REQUIRED` header carrying a v1 payload.
+  // x402 v2 consumers (e.g. agentcash discovery) expect the
+  // `payment-required` header to be base64-encoded v2 JSON; if they see the
+  // header but it doesn't decode as v2 they skip the v1 body parser entirely
+  // and treat the resource as if it had no payment options. The full v1
+  // payload is already returned in the response body, which is the canonical
+  // location for v1.
   return NextResponse.json(body, {
     status,
     headers: {
-      "PAYMENT-REQUIRED": encoded,
       "X-PAYMENT-REQUIRED": encoded,
       "Accept-Payment": `x402; network="${requirement.network}"; asset="USDC"; amount="${requirement.maxAmountRequired}"`,
       "Access-Control-Allow-Origin": "*",
