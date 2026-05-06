@@ -115,6 +115,20 @@ interface PaymentPayload {
   serializedTransaction?: string;
 }
 
+/** x402 v2 client payment (e.g. AgentCash / Pay.sh) */
+interface PaymentPayloadV2Shape {
+  x402Version: 2;
+  accepted?: {
+    scheme?: string;
+    network?: string;
+    payTo?: string;
+    asset?: string;
+    amount?: string;
+    maxTimeoutSeconds?: number;
+  };
+  payload?: Record<string, unknown>;
+}
+
 type SolanaConnection = InstanceType<typeof Connection>;
 type SolanaPublicKey = InstanceType<typeof PublicKey>;
 type SolanaTransaction = InstanceType<typeof Transaction>;
@@ -138,8 +152,11 @@ interface DecodedInstruction {
 
 const MAINNET_USDC_MINT = "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v";
 const DEVNET_USDC_MINT = "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU";
+/** CAIP-2 chain ids used by x402 v2 (Coinbase / AgentCash). */
+const SOLANA_MAINNET_CAIP2 = "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp";
+const SOLANA_DEVNET_CAIP2 = "solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1";
 const PAYMENT_HEADER_NAMES = ["x-payment", "payment-signature", "X-PAYMENT", "PAYMENT-SIGNATURE"];
-const PAYMENT_REQUIRED_HEADER_NAMES = "X-PAYMENT-REQUIRED";
+const PAYMENT_REQUIRED_HEADER_NAMES = "PAYMENT-REQUIRED, X-PAYMENT-REQUIRED";
 const PAYMENT_RESPONSE_HEADER_NAMES = "PAYMENT-RESPONSE, X-PAYMENT-RESPONSE";
 const USDC_DECIMALS = 6;
 const USDC_BASE_UNITS = BigInt(1_000_000);
@@ -169,6 +186,10 @@ function getNetwork(): X402SolanaNetwork {
 
 function getCluster(): "mainnet-beta" | "devnet" {
   return getNetwork() === "solana-devnet" ? "devnet" : "mainnet-beta";
+}
+
+function getSolanaCaip2ChainId(): string {
+  return getCluster() === "devnet" ? SOLANA_DEVNET_CAIP2 : SOLANA_MAINNET_CAIP2;
 }
 
 function getUsdcMintAddress(): string {
@@ -306,24 +327,53 @@ function buildPaymentRequiredResponse(requirement: SolanaPaymentRequirement) {
   };
 }
 
+/** x402 v2 payment challenge for `PAYMENT-REQUIRED` header (AgentCash CLI, Pay.sh). */
+function buildPaymentRequiredV2(
+  requirement: SolanaPaymentRequirement,
+  error?: string
+): Record<string, unknown> {
+  const body: Record<string, unknown> = {
+    x402Version: 2,
+    resource: {
+      url: requirement.resource,
+      description: requirement.description,
+      mimeType: requirement.mimeType,
+    },
+    accepts: [
+      {
+        scheme: requirement.scheme,
+        network: getSolanaCaip2ChainId(),
+        payTo: requirement.payTo,
+        maxTimeoutSeconds: requirement.maxTimeoutSeconds,
+        asset: requirement.asset,
+        amount: requirement.maxAmountRequired,
+        extra: { ...requirement.extra },
+      },
+    ],
+  };
+
+  if (requirement.extensions) {
+    body.extensions = requirement.extensions as Record<string, unknown>;
+  }
+  if (error) {
+    body.error = error;
+  }
+  return body;
+}
+
 function paymentRequired(requirement: SolanaPaymentRequirement, error?: string, status = 402): NextResponse {
   const body = {
     ...buildPaymentRequiredResponse(requirement),
     ...(error ? { error } : {}),
   };
-  const encoded = encodeHeaderJson(body);
+  const encodedV1 = encodeHeaderJson(body);
+  const encodedV2 = encodeHeaderJson(buildPaymentRequiredV2(requirement, error));
 
-  // Note: do not emit a `PAYMENT-REQUIRED` header carrying a v1 payload.
-  // x402 v2 consumers (e.g. agentcash discovery) expect the
-  // `payment-required` header to be base64-encoded v2 JSON; if they see the
-  // header but it doesn't decode as v2 they skip the v1 body parser entirely
-  // and treat the resource as if it had no payment options. The full v1
-  // payload is already returned in the response body, which is the canonical
-  // location for v1.
   return NextResponse.json(body, {
     status,
     headers: {
-      "X-PAYMENT-REQUIRED": encoded,
+      "PAYMENT-REQUIRED": encodedV2,
+      "X-PAYMENT-REQUIRED": encodedV1,
       "Accept-Payment": `x402; network="${requirement.network}"; asset="USDC"; amount="${requirement.maxAmountRequired}"`,
       "Access-Control-Allow-Origin": "*",
       "Access-Control-Expose-Headers": `${PAYMENT_REQUIRED_HEADER_NAMES}, ${PAYMENT_RESPONSE_HEADER_NAMES}`,
@@ -331,8 +381,41 @@ function paymentRequired(requirement: SolanaPaymentRequirement, error?: string, 
   });
 }
 
-function normalizePaymentPayload(header: string): PaymentPayload {
-  const payload = decodeHeaderJson<PaymentPayload>(header);
+interface NormalizedPaymentHeader {
+  x402Version: number;
+  transactionBase64: string;
+  scheme?: string;
+  /** v1 named network or v2 CAIP-2 id */
+  network?: string;
+}
+
+function normalizePaymentHeader(header: string): NormalizedPaymentHeader {
+  const raw = decodeHeaderJson<Record<string, unknown>>(header);
+  const version = typeof raw.x402Version === "number" ? raw.x402Version : 1;
+
+  if (version === 2) {
+    const v2 = raw as unknown as PaymentPayloadV2Shape;
+    const nested = v2.payload;
+    const tx =
+      nested && typeof nested === "object"
+        ? (typeof nested.transaction === "string" ? nested.transaction : undefined) ||
+          (typeof nested.serializedTransaction === "string" ? nested.serializedTransaction : undefined)
+        : undefined;
+
+    if (!tx) {
+      throw new Error("Missing Solana transaction in x402 v2 payment payload");
+    }
+
+    const acc = v2.accepted;
+    return {
+      x402Version: 2,
+      transactionBase64: tx,
+      scheme: acc?.scheme,
+      network: acc?.network,
+    };
+  }
+
+  const payload = raw as unknown as PaymentPayload;
   const transaction =
     payload.payload?.transaction ||
     payload.payload?.serializedTransaction ||
@@ -344,11 +427,10 @@ function normalizePaymentPayload(header: string): PaymentPayload {
   }
 
   return {
-    ...payload,
-    payload: {
-      ...payload.payload,
-      transaction,
-    },
+    x402Version: payload.x402Version || 1,
+    transactionBase64: transaction,
+    scheme: payload.scheme,
+    network: payload.network,
   };
 }
 
@@ -567,20 +649,39 @@ async function settleSolanaPayment(
   paymentHeader: string,
   requirement: SolanaPaymentRequirement
 ) {
-  const payload = normalizePaymentPayload(paymentHeader);
-  if (payload.scheme && payload.scheme !== "exact") {
+  const normalized = normalizePaymentHeader(paymentHeader);
+  if (normalized.scheme && normalized.scheme !== "exact") {
     throw new Error("Unsupported x402 scheme");
   }
 
-  const acceptedNetworks =
-    requirement.network === "solana"
-      ? new Set([requirement.network, "solana-mainnet", "solana-mainnet-beta"])
-      : new Set([requirement.network]);
-  if (payload.network && !acceptedNetworks.has(payload.network)) {
+  const paymentNetworksCompatible =
+    !normalized.network ||
+    normalized.network === requirement.network ||
+    normalized.network === getSolanaCaip2ChainId() ||
+    (requirement.network === "solana" && normalized.network === SOLANA_MAINNET_CAIP2) ||
+    (requirement.network === "solana-devnet" && normalized.network === SOLANA_DEVNET_CAIP2);
+
+  if (!paymentNetworksCompatible) {
     throw new Error(`Payment network mismatch: expected ${requirement.network}`);
   }
 
-  const decoded = decodePaymentTransaction(payload.payload!.transaction!);
+  if (normalized.x402Version === 2) {
+    const full = decodeHeaderJson(paymentHeader) as unknown as PaymentPayloadV2Shape;
+    const acc = full.accepted;
+    if (acc) {
+      if (acc.payTo && acc.payTo !== requirement.payTo) {
+        throw new Error("Payment recipient mismatch");
+      }
+      if (acc.asset && acc.asset !== requirement.asset) {
+        throw new Error("Payment asset mismatch");
+      }
+      if (acc.amount && acc.amount !== requirement.maxAmountRequired) {
+        throw new Error("Payment amount mismatch");
+      }
+    }
+  }
+
+  const decoded = decodePaymentTransaction(normalized.transactionBase64);
   const transfer = verifyTransferInstruction(decoded, requirement);
   if (!transfer.valid) {
     throw new Error(transfer.reason || "Invalid payment transaction");
@@ -600,7 +701,7 @@ async function settleSolanaPayment(
 
   return {
     success: true,
-    x402Version: payload.x402Version || 1,
+    x402Version: normalized.x402Version || 1,
     scheme: "exact",
     network: requirement.network,
     transaction: signature,
