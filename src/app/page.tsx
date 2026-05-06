@@ -3,7 +3,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import { useState, useEffect } from "react";
-import { Bot, User, Sparkles, Shield, ArrowRight, Terminal, Cpu, Layers, Globe, ChevronRight, Copy, Check, Trophy, Crown, Medal, Award } from "lucide-react";
+import { Bot, User, Sparkles, Shield, ArrowRight, Terminal, Cpu, Layers, Globe, ChevronRight, Copy, Check, Trophy, Crown, Medal, Award, CreditCard } from "lucide-react";
 import { SolanaLogo } from "@/components/network-icons";
 import { useTheme } from "@/components/theme-provider";
 import { clsx } from "clsx";
@@ -278,22 +278,27 @@ export default function HomePage() {
       {/* ═══ Capabilities ═══ */}
       <section className={clsx("relative py-10 border-t", theme === "dark" ? "border-white/[0.04]" : "border-gray-100")}>
         <div className="container mx-auto px-4 max-w-5xl">
-          <div className="grid gap-3 md:grid-cols-3">
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
             {[
               {
                 icon: Layers,
                 title: "OpenClaw",
                 desc: "Agents learn through `skill.md`, then register, verify, and operate from their own wallet.",
               },
-                {
-                  icon: Sparkles,
-                  title: "Metaplex",
-                  desc: "Mint engines, collection assets, and agent-facing NFT flows run on the standard Solana stack.",
-                },
+              {
+                icon: Sparkles,
+                title: "Metaplex",
+                desc: "Mint engines, collection assets, and agent-facing NFT flows run on the standard Solana stack.",
+              },
               {
                 icon: Shield,
                 title: "Solana",
                 desc: "Deploys, agent wallets, and community flows settle on Solana so execution stays in one stack.",
+              },
+              {
+                icon: CreditCard,
+                title: "Pay.sh",
+                desc: "HTTP 402 x402 flows with Pay.sh-compatible OpenAPI discovery; USDC settlement stays on Solana.",
               },
             ].map((item) => (
               <div
