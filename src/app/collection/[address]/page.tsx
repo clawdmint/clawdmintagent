@@ -6,7 +6,7 @@ import { useWriteContract, useWaitForTransactionReceipt } from "wagmi";
 import { getPhantomProvider, useWallet } from "@/components/wallet-context";
 import Link from "next/link";
 import Image from "next/image";
-import { Transaction, VersionedTransaction } from "@solana/web3.js";
+import { Connection, PublicKey, Transaction, VersionedTransaction } from "@solana/web3.js";
 import { COLLECTION_ABI } from "@/lib/contracts";
 import { useTheme } from "@/components/theme-provider";
 import { clsx } from "clsx";
@@ -34,6 +34,20 @@ const MAX_SOLANA_MINTS_PER_TX = 10;
 // Keep Solana mint batches at 1 until we introduce ALTs; larger multi-signer
 // transactions are much more likely to trigger Phantom safety warnings.
 const PHANTOM_SAFE_SOLANA_MINT_BATCH_SIZE = 1;
+
+// Per-NFT lamport reserve the minter must hold beyond mint price + platform
+// fee. Covers the rent-exempt minimum of the new Metaplex Core asset account
+// (~3,455,760 lamports observed) plus a small slack so wallets with the bare
+// minimum still simulate cleanly.
+const SOLANA_MINT_NETWORK_RESERVE_PER_NFT_LAMPORTS = BigInt(4_000_000);
+// Flat per-transaction overhead: base tx fee + small priority/signing buffer.
+const SOLANA_MINT_TX_FEE_BUFFER_LAMPORTS = BigInt(20_000);
+
+const SOLANA_BROWSER_RPC_URL =
+  process.env["NEXT_PUBLIC_SOLANA_RPC_URL"] ||
+  (process.env["NEXT_PUBLIC_SOLANA_CLUSTER"] === "devnet"
+    ? "https://api.devnet.solana.com"
+    : "https://api.mainnet-beta.solana.com");
 
 interface Collection {
   id: string;
@@ -402,6 +416,38 @@ export default function CollectionPage() {
     setSolanaMintTxHash(null);
 
     try {
+      const unitMintLamports = BigInt(collection.mint_price_raw || "0");
+      const unitPlatformLamports = BigInt(collection.platform_fee_raw || "0");
+      const totalDueLamports =
+        (unitMintLamports + unitPlatformLamports) * BigInt(quantity);
+      const reserveLamports =
+        SOLANA_MINT_NETWORK_RESERVE_PER_NFT_LAMPORTS * BigInt(quantity) +
+        SOLANA_MINT_TX_FEE_BUFFER_LAMPORTS;
+      const requiredLamports = totalDueLamports + reserveLamports;
+
+      try {
+        const connection = new Connection(SOLANA_BROWSER_RPC_URL, "confirmed");
+        const balance = await connection.getBalance(new PublicKey(solanaAddress), {
+          commitment: "confirmed",
+        });
+        if (BigInt(balance) < requiredLamports) {
+          const have = formatSolLamports(BigInt(balance));
+          const need = formatSolLamports(requiredLamports);
+          throw new Error(
+            `Insufficient SOL. This mint needs about ${need} SOL ` +
+              `(${formatSolLamports(totalDueLamports)} for the mint + platform fee, ` +
+              `plus ~${formatSolLamports(reserveLamports)} for asset rent and tx fees). ` +
+              `Your wallet currently has ${have} SOL.`
+          );
+        }
+      } catch (balanceError) {
+        if (balanceError instanceof Error && balanceError.message.startsWith("Insufficient SOL.")) {
+          throw balanceError;
+        }
+        // RPC failure shouldn't block the user; let the transaction simulate.
+        console.warn("Solana balance pre-check failed", balanceError);
+      }
+
       const batchPlan = buildSolanaMintBatchPlan(quantity);
       const signatures: string[] = [];
 
@@ -452,6 +498,8 @@ export default function CollectionPage() {
   }, [
     collection?.mint_confirm_endpoint,
     collection?.mint_prepare_endpoint,
+    collection?.mint_price_raw,
+    collection?.platform_fee_raw,
     loadCollection,
     quantity,
     signAndBroadcastSolanaTransaction,
@@ -522,9 +570,18 @@ export default function CollectionPage() {
   const baseSubtotalLamports = mintPriceLamports * BigInt(quantity);
   const platformFeeTotalLamports = unitPlatformFeeLamports * BigInt(quantity);
   const totalCostLamports = baseSubtotalLamports + platformFeeTotalLamports;
+  const isMetaplexMintCollectionForCost =
+    collection.mint_engine === "metaplex_core_candy_machine";
+  const networkReserveLamports = isMetaplexMintCollectionForCost
+    ? SOLANA_MINT_NETWORK_RESERVE_PER_NFT_LAMPORTS * BigInt(quantity) +
+      SOLANA_MINT_TX_FEE_BUFFER_LAMPORTS
+    : BigInt(0);
+  const totalRequiredLamports = totalCostLamports + networkReserveLamports;
   const baseSubtotalNative = formatSolLamports(baseSubtotalLamports);
   const platformFeeNative = formatSolLamports(platformFeeTotalLamports);
   const totalCostNative = formatSolLamports(totalCostLamports);
+  const networkReserveNative = formatSolLamports(networkReserveLamports);
+  const totalRequiredNative = formatSolLamports(totalRequiredLamports);
   const isSoldOut = collection.onchain?.is_sold_out || collection.status === "SOLD_OUT";
   const remaining = collection.onchain?.remaining || (collection.max_supply - collection.total_minted).toString();
   const totalMinted = collection.onchain?.total_minted || collection.total_minted.toString();
@@ -916,6 +973,30 @@ export default function CollectionPage() {
                         <p className="mt-1 text-xl font-semibold">{remainingCount}</p>
                       </div>
                     </div>
+
+                    {isMetaplexMintCollectionForCost && networkReserveLamports > BigInt(0) && (
+                      <div
+                        className={clsx(
+                          "mt-4 rounded-2xl border px-4 py-3 text-xs leading-relaxed",
+                          theme === "dark"
+                            ? "border-amber-500/20 bg-amber-500/[0.04] text-amber-200"
+                            : "border-amber-200 bg-amber-50 text-amber-900"
+                        )}
+                      >
+                        <p className="font-mono text-[10px] uppercase tracking-[0.18em] opacity-80">
+                          Network reserve (estimated)
+                        </p>
+                        <p className="mt-1 font-semibold">
+                          ~{networkReserveNative} {nativeToken}
+                          {quantity > 1 ? ` (${quantity} × ~${formatSolLamports(SOLANA_MINT_NETWORK_RESERVE_PER_NFT_LAMPORTS)} ${nativeToken})` : ""}
+                        </p>
+                        <p className="mt-1 opacity-80">
+                          Solana refunds asset rent to your wallet when the NFT is closed, but it must be available in your balance at mint time. Keep at least{" "}
+                          <span className="font-semibold">~{totalRequiredNative} {nativeToken}</span>{" "}
+                          in your wallet for this transaction.
+                        </p>
+                      </div>
+                    )}
 
                     {isMetaplexMintCollection && (
                       <div className={clsx(
