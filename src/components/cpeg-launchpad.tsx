@@ -439,6 +439,24 @@ export function CpegLaunchpad() {
           ? signedTransaction.serialize()
           : signedTransaction.serialize({ requireAllSignatures: true, verifySignatures: false });
 
+      // Diagnostic-only preflight: surface raw program logs to the browser console so
+      // launch failures can be triaged without exposing secrets in the UI. The actual
+      // broadcast still runs preflight via sendRawTransaction below.
+      try {
+        const sim = await connection.simulateTransaction(
+          signedTransaction as SolanaWeb3Transaction,
+          { sigVerify: false, commitment: "confirmed" } as Parameters<typeof connection.simulateTransaction>[1]
+        );
+        if (sim.value.err) {
+          console.warn("[cpeg-launch] preflight err:", sim.value.err);
+        }
+        if (sim.value.logs?.length) {
+          console.info("[cpeg-launch] preflight logs:\n" + sim.value.logs.join("\n"));
+        }
+      } catch (simError) {
+        console.warn("[cpeg-launch] preflight simulate threw:", simError);
+      }
+
       setStatus("Broadcasting cPEG launch transaction...");
       const signature = await connection.sendRawTransaction(rawTransaction, {
         skipPreflight: false,

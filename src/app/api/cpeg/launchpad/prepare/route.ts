@@ -9,7 +9,9 @@ import {
   buildClawPegLaunchManifest,
   buildClawPegToken2022MintSetupManifest,
   createCollectionSeed,
+  getClawPegCluster,
   getClawPegFeeVaultAddress,
+  getClawPegProgramId,
   getClawPegToken2022CreateAccountSize,
   getClawPegToken2022MintAccountSize,
   quoteClawPegLaunchFee,
@@ -93,6 +95,33 @@ export async function POST(request: NextRequest) {
       metadataUri,
     });
     const connection = new Connection(getClawPegRpcUrl(), "confirmed");
+
+    // Pre-flight sanity check: confirm the configured cPEG program is actually deployed
+    // and executable on the resolved cluster. This avoids opaque "program error" messages
+    // when CLAWPEG_PROGRAM_ID points to a program that has not been deployed on the
+    // active cluster (a common mainnet/devnet config drift). The program id is intentionally
+    // omitted from the response message to avoid leaking deployment metadata to the client.
+    let resolvedProgramId: InstanceType<typeof PublicKey>;
+    try {
+      resolvedProgramId = getClawPegProgramId();
+    } catch {
+      return NextResponse.json(
+        { success: false, error: "cPEG program is not configured on the server." },
+        { status: 503 }
+      );
+    }
+    const programAccount = await connection.getAccountInfo(resolvedProgramId, "confirmed");
+    if (!programAccount || !programAccount.executable) {
+      const cluster = getClawPegCluster();
+      return NextResponse.json(
+        {
+          success: false,
+          error: `cPEG program is not deployed on ${cluster}. Deploy the clawpeg program to this cluster or update the configured cluster.`,
+        },
+        { status: 503 }
+      );
+    }
+
     const baseMintAccountSize = getClawPegToken2022CreateAccountSize(true);
     const baseMintRentLamports = await connection.getMinimumBalanceForRentExemption(baseMintAccountSize);
     const mintRentLamports = await connection.getMinimumBalanceForRentExemption(mintAccountSize);
