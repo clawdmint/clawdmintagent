@@ -1,3 +1,13 @@
+/**
+ * Root OpenAPI document.
+ *
+ * Mirrored at /api/x402/openapi.json. AgentCash discovery (used by x402scan)
+ * looks for the document at the canonical /openapi.json location, so we serve
+ * the same Clawdmint Solana x402 spec from both routes.
+ *
+ * https://www.x402scan.com/discovery
+ */
+
 import { NextResponse } from "next/server";
 import { buildClawdmintOpenApiDocument } from "@/lib/x402-openapi";
 
