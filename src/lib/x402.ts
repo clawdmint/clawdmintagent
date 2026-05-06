@@ -219,6 +219,23 @@ function getConnection(): SolanaConnection {
   return new Connection(appCluster === getNetwork() ? getPreferredSolanaRpcUrl() : fallbackRpc, "confirmed");
 }
 
+function getPaymentConfirmTimeoutMs(): number {
+  const raw = process.env["X402_SOLANA_CONFIRM_TIMEOUT_MS"]?.trim();
+  if (raw && /^\d+$/.test(raw)) {
+    const n = parseInt(raw, 10);
+    if (n >= 5000 && n <= 120_000) return n;
+  }
+  return 25_000;
+}
+
+function shouldSkipPreflightAfterSimulate(): boolean {
+  return process.env["X402_SOLANA_PAYMENT_SKIP_PREFLIGHT"]?.trim().toLowerCase() !== "false";
+}
+
+function sleepMs(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 export function isX402Enabled(): boolean {
   return Boolean(getPayToAddress());
 }
@@ -692,6 +709,62 @@ async function simulatePayment(connection: SolanaConnection, decoded: DecodedPay
   }
 }
 
+/**
+ * Default `confirmTransaction` can exceed agent HTTP client timeouts on congested clusters.
+ * Poll signature status with a hard cap so we respond before ~30s upstream limits while still validating success.
+ */
+async function waitForPaymentSignatureLanded(connection: SolanaConnection, signature: string): Promise<void> {
+  const deadline = Date.now() + getPaymentConfirmTimeoutMs();
+  const intervalMs = 350;
+
+  while (Date.now() < deadline) {
+    const { value } = await connection.getSignatureStatuses([signature], { searchTransactionHistory: true });
+    const status = value[0];
+
+    if (status?.err) {
+      throw new Error(`Payment transaction failed on-chain: ${JSON.stringify(status.err)}`);
+    }
+
+    if (
+      status?.confirmationStatus === "processed" ||
+      status?.confirmationStatus === "confirmed" ||
+      status?.confirmationStatus === "finalized"
+    ) {
+      return;
+    }
+
+    await sleepMs(intervalMs);
+  }
+
+  throw new Error(
+    "Payment confirmation timed out on Solana RPC; the transaction may still land. Retry the request or check the explorer signature."
+  );
+}
+
+async function fetchLandedPaymentTransaction(connection: SolanaConnection, signature: string): Promise<ConfirmedTransaction> {
+  const fetchDeadline = Date.now() + Math.min(getPaymentConfirmTimeoutMs(), 12_000);
+
+  while (Date.now() < fetchDeadline) {
+    const confirmed =
+      (await connection.getTransaction(signature, {
+        commitment: "confirmed",
+        maxSupportedTransactionVersion: 0,
+      })) ??
+      (await connection.getTransaction(signature, {
+        commitment: "processed",
+        maxSupportedTransactionVersion: 0,
+      }));
+
+    if (confirmed?.meta !== undefined && confirmed.meta !== null) {
+      return confirmed;
+    }
+
+    await sleepMs(280);
+  }
+
+  throw new Error("Payment transaction landed but details were not returned by RPC yet");
+}
+
 async function sendAndConfirmPayment(
   connection: SolanaConnection,
   decoded: DecodedPaymentTransaction
@@ -704,15 +777,14 @@ async function sendAndConfirmPayment(
   }
 
   await simulatePayment(connection, decoded);
+  const skipPreflight = shouldSkipPreflightAfterSimulate();
   const signature = await connection.sendRawTransaction(decoded.raw, {
-    skipPreflight: false,
+    skipPreflight,
     preflightCommitment: "confirmed",
+    maxRetries: 3,
   });
 
-  const confirmation = await connection.confirmTransaction(signature, "confirmed");
-  if (confirmation.value.err) {
-    throw new Error(`Payment transaction failed on-chain: ${JSON.stringify(confirmation.value.err)}`);
-  }
+  await waitForPaymentSignatureLanded(connection, signature);
 
   return signature;
 }
@@ -805,10 +877,7 @@ async function settleSolanaPayment(
 
   const connection = getConnection();
   const signature = await sendAndConfirmPayment(connection, decoded);
-  const confirmed = await connection.getTransaction(signature, {
-    commitment: "confirmed",
-    maxSupportedTransactionVersion: 0,
-  });
+  const confirmed = await fetchLandedPaymentTransaction(connection, signature);
   const received = getTokenBalanceDelta(confirmed, requirement) || transfer.amount;
 
   if (received < BigInt(requirement.maxAmountRequired)) {
