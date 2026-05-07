@@ -65,10 +65,10 @@ export function cpegPublicPaths(isCpegSubdomain: boolean) {
     swap: isCpegSubdomain ? "/swap" : "/cpeg/swap",
     launch: isCpegSubdomain ? "/launch" : "/cpeg/launch",
     market: marketPath,
-    /** Short collection links resolve to the trade market. /<mint> remains as an external redirect alias. */
-    collection: (mint: string) => marketPath({ mint }),
+    /** Public token to cPEG convert page. The market remains /market?mint=... */
+    collection: (mint: string) => (isCpegSubdomain ? `/${mint}` : `/cpeg/${mint}`),
     collectionWithHash: (mint: string, hash: string) =>
-      `${marketPath({ mint })}${hash.startsWith("#") ? hash : `#${hash}`}`,
+      `${isCpegSubdomain ? `/${mint}` : `/cpeg/${mint}`}${hash.startsWith("#") ? hash : `#${hash}`}`,
   };
 }
 

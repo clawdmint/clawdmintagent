@@ -363,7 +363,7 @@ export default async function CpegPage() {
                     {launch.token_mint.slice(0, 6)}...{launch.token_mint.slice(-6)}
                   </span>
                   <span className="inline-flex items-center gap-1 font-mono text-[10px] uppercase tracking-[0.18em] text-neutral-700 dark:text-white/55">
-                    Open market
+                    {launch.standard_mode === "metaplex_hybrid" ? "Get cPEG" : "Open market"}
                     <ArrowUpRight className="h-3.5 w-3.5 transition group-hover:translate-x-0.5 group-hover:text-[#53c7ff]" />
                   </span>
                 </div>

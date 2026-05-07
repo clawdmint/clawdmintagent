@@ -106,9 +106,11 @@ function handleCpegSubdomain(request: NextRequest) {
 
   const top = pathname.split("/").filter(Boolean)[0];
   if (top && isLikelyMintPathSegment(top) && pathname.split("/").filter(Boolean).length === 1) {
-    const target = new URL("/market", request.url);
-    target.searchParams.set("mint", top);
-    return NextResponse.redirect(target, 308);
+    const internal = new URL(`/cpeg/${top}`, request.url);
+    internal.search = request.nextUrl.search;
+    const requestHeaders = new Headers(request.headers);
+    requestHeaders.set(CPEG_SITE_HEADER, "1");
+    return NextResponse.rewrite(internal, { request: { headers: requestHeaders } });
   }
 
   return redirectMain(request, pathname === "" ? "/" : pathname);
