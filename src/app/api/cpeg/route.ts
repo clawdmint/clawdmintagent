@@ -51,12 +51,15 @@ interface LaunchRow {
   rendererVersion: string | null;
   maxPegs: number;
   status: string;
+  standardMode: string;
   royaltyBps: number;
   marketplaceFeeBps: number;
   identityMode: string;
   canonicalRoot: string | null;
   agentAssetAddress: string | null;
   agentIdentityPda: string | null;
+  agentTokenMint: string | null;
+  hybridStatus: string | null;
   createdAt: Date;
 }
 
@@ -89,11 +92,11 @@ export async function GET(request: NextRequest) {
         : Prisma.sql`ORDER BY "createdAt" DESC`;
     launches = await prisma.$queryRaw<LaunchRow[]>`
       SELECT "id", "name", "symbol", "tokenMint", "collectionAddress", "hookValidationAddress",
-        "cluster", "rendererId", "rendererVersion", "maxPegs", "status", "royaltyBps",
-        "marketplaceFeeBps", "identityMode", "canonicalRoot", "agentAssetAddress",
-        "agentIdentityPda", "createdAt"
+        "cluster", "rendererId", "rendererVersion", "maxPegs", "status", "standardMode",
+        "royaltyBps", "marketplaceFeeBps", "identityMode", "canonicalRoot", "agentAssetAddress",
+        "agentIdentityPda", "agentTokenMint", "hybridStatus", "createdAt"
       FROM "ClawPegLaunch"
-      WHERE "status" IN (${"ACTIVE"}, ${"LAUNCHED"})
+      WHERE "status" IN (${"ACTIVE"}, ${"LAUNCHED"}, ${"HYBRID_READY"}, ${"HYBRID_CONFIGURED"})
       ${orderClause}
       LIMIT ${limit}
     `;
@@ -128,11 +131,11 @@ export async function GET(request: NextRequest) {
     standard_version: "cPEG Standard v0.1",
     symbol: "cPEG",
     description:
-      "Solana Token-2022 PEG launch standard for deterministic IPFS-free collectible identities.",
+      "Solana PEG launch standard for deterministic collectible identities around agent tokens.",
     invariants: [
-      "One whole Token-2022 unit grants capacity for one PEG identity.",
-      "PEG identity state lives in PegRecord and OwnerPeg PDAs.",
-      "Official cPEG routes emit TradeArtRecord accounts for supported trades.",
+      "Agent launches use the Metaplex Agent/Core Asset as the canonical root.",
+      "One whole agent token is the capacity source for one Agent PEG identity.",
+      "Hybrid launches use capture and release instead of a separate root identity.",
       "Renderer output is deterministic from on-chain seeds and versioned renderer rules.",
     ],
     indexer: {
@@ -184,12 +187,15 @@ export async function GET(request: NextRequest) {
         renderer_version: launch.rendererVersion,
         max_pegs: launch.maxPegs,
         status: launch.status,
+        standard_mode: launch.standardMode,
         royalty_bps: launch.royaltyBps,
         marketplace_fee_bps: launch.marketplaceFeeBps,
         identity_mode: launch.identityMode,
         canonical_root: launch.canonicalRoot,
         agent_asset_address: launch.agentAssetAddress,
         agent_identity_pda: launch.agentIdentityPda,
+        agent_token_mint: launch.agentTokenMint,
+        hybrid_status: launch.hybridStatus,
         created_at: launch.createdAt.toISOString(),
         market: {
           active_listings: active,

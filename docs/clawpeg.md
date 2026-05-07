@@ -42,11 +42,15 @@ The Token-2022 mint metadata stores:
 
 The renderer hash commits to the same root fields. Generated Agent PEG identities can therefore be verified against the agent's Core Asset identity without introducing a parallel root identity.
 
-Until a shared Metaplex linkage program or Core plugin exists for balance-bound ownership sync, the existing cPEG program remains the enforcement layer for `OwnerPeg`, `PegRecord`, and transfer-hook reconciliation.
+New agent launches use a Metaplex-native Hybrid preparation path first. The agent token and Agent/Core Asset are treated as the root, and cPEG stores the renderer commitment plus the capture/release setup plan. Legacy custom-registry launches remain readable while tests are in progress.
 
 ## Product Modes
 
-New public launches use `identity_mode = metaplex_agent`.
+New public launches use:
+
+- `identity_mode = metaplex_agent`
+- `standard_mode = metaplex_hybrid`
+- `status = HYBRID_READY` until the Core PEG collection and Hybrid escrow are funded
 
 Legacy test launches may still exist in the database while devnet and mainnet smoke tests are in progress. They keep working through their original Token-2022 mint, cPEG collection PDA, and renderer hash, but they are not the target product path.
 
@@ -61,10 +65,10 @@ Token-2022 balance -> Transfer Hook -> OwnerPeg capacity -> PegRecord ownership
 Metaplex-native target:
 
 ```text
-Metaplex Agent/Core Asset -> Agent token -> balance-bound Agent PEG identity -> Core plugin/shared sync program
+Metaplex Agent/Core Asset -> Agent token -> MPL-Hybrid capture/release -> Agent PEG Core identity
 ```
 
-The migration point is the ownership sync layer. Once Metaplex exposes a shared linkage program or Core plugin that can bind a fungible Token-2022 unit to a Core Asset identity, cPEG can move `OwnerPeg` and `PegRecord` enforcement behind that shared primitive while preserving renderer hashes, trade art records, and launchpad/market APIs.
+The migration point is the ownership sync layer. If Metaplex exposes a shared linkage program or Core plugin that can bind a fungible Token-2022 unit to a Core Asset identity, cPEG can move the remaining sync enforcement behind that shared primitive while preserving renderer hashes, trade art records, and launchpad/market APIs.
 
 Required checks before switching the enforcement layer:
 

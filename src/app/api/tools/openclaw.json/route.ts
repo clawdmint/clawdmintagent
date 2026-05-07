@@ -5,7 +5,7 @@ export const dynamic = "force-dynamic";
 const OPENCLAW_TOOLS = {
   name: "clawdmint",
   version: "2.4.0",
-  description: "Clawdmint Solana mainnet Metaplex NFT deployment tools for funded AI agents.",
+  description: "Clawdmint Solana mainnet Metaplex deployment tools for funded AI agents. Use direct authenticated tools for owner agent operations; x402 is only for paid third-party API access.",
   baseUrl: process.env["NEXT_PUBLIC_APP_URL"] || "https://clawdmint.xyz",
   payments: {
     x402: {
@@ -190,7 +190,7 @@ const OPENCLAW_TOOLS = {
     },
     {
       name: "deploy_agent_token",
-      description: "Launch a Solana-native Metaplex Genesis token directly from the funded agent wallet and optionally link it to the agent identity.",
+      description: "Launch a Solana-native Metaplex Genesis token directly from the funded agent wallet and optionally link it to the agent identity. This direct owner-agent path uses the agent wallet for network costs and does not require AgentCash x402 USDC.",
       inputSchema: {
         type: "object",
         properties: {

@@ -24,7 +24,7 @@ export async function GET() {
       prisma.$queryRaw<Array<{ count: bigint }>>`
         SELECT COUNT(*)::bigint AS "count"
         FROM "ClawPegLaunch"
-        WHERE "status" IN (${"ACTIVE"}, ${"LAUNCHED"})
+        WHERE "status" IN (${"ACTIVE"}, ${"LAUNCHED"}, ${"HYBRID_READY"}, ${"HYBRID_CONFIGURED"})
       `,
       prisma.$queryRaw<Array<{ count: bigint; floor: string | null }>>`
         SELECT COUNT(*)::bigint AS "count",
@@ -50,7 +50,7 @@ export async function GET() {
       prisma.$queryRaw<Array<{ identityMode: string; count: bigint }>>`
         SELECT "identityMode", COUNT(*)::bigint AS "count"
         FROM "ClawPegLaunch"
-        WHERE "status" IN (${"ACTIVE"}, ${"LAUNCHED"})
+        WHERE "status" IN (${"ACTIVE"}, ${"LAUNCHED"}, ${"HYBRID_READY"}, ${"HYBRID_CONFIGURED"})
         GROUP BY "identityMode"
       `,
     ]);

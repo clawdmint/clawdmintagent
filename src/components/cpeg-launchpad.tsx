@@ -43,18 +43,24 @@ interface LaunchInstruction {
 interface LaunchPreparePayload {
   success: boolean;
   error?: string;
+  requires_signature?: boolean;
+  standard_mode?: "custom_registry" | "metaplex_hybrid";
   launch?: {
     token_mint: string;
-    collection_address: string;
-    hook_validation_address: string;
+    cluster?: "devnet" | "mainnet-beta";
+    collection_address: string | null;
+    hook_validation_address: string | null;
     renderer_id: string;
     renderer_version: string;
     renderer_hash: string;
     collection_seed: string;
+    peg_unit_raw?: string;
     renderer_params: Record<string, unknown>;
     max_pegs: number;
     royalty_bps: number;
     marketplace_fee_bps: number;
+    launch_fee_lamports?: string;
+    standard_mode?: "custom_registry" | "metaplex_hybrid";
     identity_mode?: "standalone" | "metaplex_agent";
     canonical_root?: string | null;
     agent_asset_address?: string | null;
@@ -62,6 +68,17 @@ interface LaunchPreparePayload {
     agent_collection_address?: string | null;
     agent_wallet_address?: string | null;
     agent_registry_program_id?: string | null;
+    agent_token_mint?: string | null;
+    agent_token_launch_id?: string | null;
+    hybrid_program_id?: string | null;
+    hybrid_escrow_address?: string | null;
+    hybrid_core_collection_address?: string | null;
+    hybrid_asset_collection_address?: string | null;
+    hybrid_swap_amount_raw?: string;
+    hybrid_capture_fee_lamports?: string;
+    hybrid_reroll?: boolean;
+    hybrid_status?: string;
+    hybrid_plan?: Record<string, unknown>;
   };
   token2022_setup?: {
     mint_account_size: number;
@@ -78,6 +95,7 @@ interface LaunchPreparePayload {
     premium_indexing_fee_lamports?: string;
     total_lamports?: string;
   };
+  hybrid_setup?: Record<string, unknown>;
 }
 
 interface AgentRootPayload {
@@ -92,6 +110,12 @@ interface AgentRootPayload {
     agent_collection_address: string | null;
     agent_wallet_address: string | null;
     agent_registry_program_id: string;
+    agent_token_launch_id: string | null;
+    agent_token_name: string | null;
+    agent_token_symbol: string | null;
+    agent_token_mint: string | null;
+    agent_token_chain: string | null;
+    agent_token_network: string | null;
   } | null;
 }
 
@@ -281,12 +305,17 @@ function lamportsToSolDisplay(value?: string) {
 }
 
 interface LaunchResult {
-  signature: string;
+  signature?: string | null;
   cluster: "devnet" | "mainnet-beta";
   mint: string;
-  collection: string;
-  validation: string;
+  collection?: string | null;
+  validation?: string | null;
   rendererHash: string;
+  standardMode?: "custom_registry" | "metaplex_hybrid";
+  hybridStatus?: string | null;
+  agentAsset?: string | null;
+  agentIdentity?: string | null;
+  agentTokenMint?: string | null;
 }
 
 export function CpegLaunchpad() {
@@ -315,7 +344,11 @@ export function CpegLaunchpad() {
   const decimalsValid = Number.isFinite(decimalsNumber) && decimalsNumber >= 0 && decimalsNumber <= 9;
 
   const formValid = nameValid && symbolValid && maxPegsValid && decimalsValid;
-  const canLaunch = Boolean(connectedAddress) && formValid && Boolean(agentRoot?.agent_asset_address);
+  const canLaunch =
+    Boolean(connectedAddress) &&
+    formValid &&
+    Boolean(agentRoot?.agent_asset_address) &&
+    Boolean(agentRoot?.agent_token_mint);
 
   const previewQuery = useMemo(() => {
     const params = new URLSearchParams({
@@ -421,41 +454,40 @@ export function CpegLaunchpad() {
     }
     if (!canLaunch) {
       setError(
-        agentRoot?.agent_asset_address
-          ? "Please complete the form before launching."
+        agentRoot?.agent_asset_address && !agentRoot?.agent_token_mint
+          ? "Launch an agent token first, then return to cPEG."
+          : agentRoot?.agent_asset_address
+            ? "Please complete the form before launching."
           : "Connect a wallet with a verified Metaplex Agent root before launching."
       );
       return;
     }
 
-    const provider = getPhantomProvider();
-    if (!provider?.signTransaction) {
-      setError("Phantom transaction signing is unavailable.");
-      return;
-    }
-
     setLaunching(true);
     try {
-      const mint = Keypair.generate();
-      setStatus("Preparing cPEG launch manifest...");
+      const agentTokenMint = agentRoot?.agent_token_mint || "";
+      setStatus("Preparing Metaplex-native cPEG launch...");
       const prepareResponse = await fetch("/api/cpeg/launchpad/prepare", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           name: form.name.trim(),
           symbol: normalizedSymbol,
-          token_mint: mint.publicKey.toBase58(),
+          token_mint: agentTokenMint,
           authority_address: connectedAddress,
           max_pegs: maxPegsNumber,
           decimals: decimalsNumber,
           royalty_bps: FIXED_CREATOR_ROYALTY_BPS,
           premium_indexing: true,
+          standard_mode: "metaplex_hybrid",
+          agent_token_mint: agentTokenMint,
           identity_mode: "metaplex_agent",
           agent_asset_address: agentRoot?.agent_asset_address || undefined,
           agent_identity_pda: agentRoot?.agent_identity_pda || undefined,
           agent_collection_address: agentRoot?.agent_collection_address || undefined,
           agent_wallet_address: agentRoot?.agent_wallet_address || undefined,
           agent_name: agentRoot?.agent_name || undefined,
+          agent_token_launch_id: agentRoot?.agent_token_launch_id || undefined,
           renderer_params: {
             subject: form.subject,
             palette: form.palette,
@@ -466,15 +498,86 @@ export function CpegLaunchpad() {
         }),
       });
       const prepareBody = (await prepareResponse.json().catch(() => null)) as LaunchPreparePayload | null;
-      if (
-        !prepareResponse.ok ||
-        !prepareBody?.success ||
-        !prepareBody.token2022_setup ||
-        !prepareBody.manifest ||
-        !prepareBody.launch
-      ) {
+      if (!prepareResponse.ok || !prepareBody?.success || !prepareBody.launch) {
         throw new Error(prepareBody?.error || "Failed to prepare launch transaction.");
       }
+
+      if (prepareBody.requires_signature === false || prepareBody.standard_mode === "metaplex_hybrid") {
+        setStatus("Saving Metaplex Hybrid setup plan...");
+        const confirmResponse = await fetch("/api/cpeg/launchpad/confirm", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            name: form.name.trim(),
+            symbol: normalizedSymbol,
+            token_mint: prepareBody.launch.token_mint,
+            authority_address: connectedAddress,
+            creator_address: connectedAddress,
+            fee_vault_address: connectedAddress,
+            standard_mode: "metaplex_hybrid",
+            collection_address: prepareBody.launch.collection_address,
+            hook_validation_address: prepareBody.launch.hook_validation_address,
+            renderer_id: prepareBody.launch.renderer_id,
+            renderer_version: prepareBody.launch.renderer_version,
+            renderer_hash: prepareBody.launch.renderer_hash,
+            collection_seed: prepareBody.launch.collection_seed,
+            peg_unit_raw: prepareBody.launch.peg_unit_raw,
+            max_pegs: prepareBody.launch.max_pegs,
+            royalty_bps: prepareBody.launch.royalty_bps,
+            marketplace_fee_bps: prepareBody.launch.marketplace_fee_bps,
+            launch_fee_lamports: prepareBody.launch.launch_fee_lamports,
+            renderer_params: prepareBody.launch.renderer_params,
+            identity_mode: prepareBody.launch.identity_mode || "metaplex_agent",
+            agent_asset_address: prepareBody.launch.agent_asset_address || undefined,
+            agent_identity_pda: prepareBody.launch.agent_identity_pda || undefined,
+            agent_collection_address: prepareBody.launch.agent_collection_address || undefined,
+            agent_wallet_address: prepareBody.launch.agent_wallet_address || undefined,
+            agent_token_mint: prepareBody.launch.agent_token_mint || prepareBody.launch.token_mint,
+            agent_token_launch_id: agentRoot?.agent_token_launch_id || undefined,
+            hybrid_program_id: prepareBody.launch.hybrid_program_id || null,
+            hybrid_escrow_address: prepareBody.launch.hybrid_escrow_address || null,
+            hybrid_core_collection_address: prepareBody.launch.hybrid_core_collection_address || null,
+            hybrid_asset_collection_address: prepareBody.launch.hybrid_asset_collection_address || null,
+            hybrid_swap_amount_raw: prepareBody.launch.hybrid_swap_amount_raw,
+            hybrid_capture_fee_lamports: prepareBody.launch.hybrid_capture_fee_lamports,
+            hybrid_reroll: prepareBody.launch.hybrid_reroll,
+            hybrid_status: prepareBody.launch.hybrid_status,
+            hybrid_plan: prepareBody.launch.hybrid_plan || prepareBody.hybrid_setup || {},
+          }),
+        });
+        const confirmBody = (await confirmResponse.json().catch(() => null)) as
+          | { success?: boolean; error?: string }
+          | null;
+        if (!confirmResponse.ok || !confirmBody?.success) {
+          throw new Error(confirmBody?.error || "Failed to save Metaplex Hybrid setup.");
+        }
+        setResult({
+          signature: null,
+          cluster: prepareBody.launch.cluster || "mainnet-beta",
+          mint: prepareBody.launch.token_mint,
+          collection: prepareBody.launch.collection_address,
+          validation: prepareBody.launch.hook_validation_address,
+          rendererHash: prepareBody.launch.renderer_hash,
+          standardMode: "metaplex_hybrid",
+          hybridStatus: prepareBody.launch.hybrid_status || null,
+          agentAsset: prepareBody.launch.agent_asset_address || null,
+          agentIdentity: prepareBody.launch.agent_identity_pda || null,
+          agentTokenMint: prepareBody.launch.agent_token_mint || prepareBody.launch.token_mint,
+        });
+        setStatus("");
+        return;
+      }
+
+      if (!prepareBody.token2022_setup || !prepareBody.manifest) {
+        throw new Error("Launch transaction manifest is missing.");
+      }
+
+      const provider = getPhantomProvider();
+      if (!provider?.signTransaction) {
+        setError("Phantom transaction signing is unavailable.");
+        return;
+      }
+      const mint = Keypair.generate();
 
       setStatus("Opening Phantom for launch signature...");
       const cluster = prepareBody.manifest.cluster;
@@ -589,6 +692,11 @@ export function CpegLaunchpad() {
       setReadiness(null);
       return;
     }
+    if (result.standardMode === "metaplex_hybrid") {
+      setReadiness(null);
+      setReadinessLoading(false);
+      return;
+    }
     let cancelled = false;
     setReadinessLoading(true);
     void (async () => {
@@ -627,9 +735,23 @@ export function CpegLaunchpad() {
     return () => {
       cancelled = true;
     };
-  }, [result?.mint]);
+  }, [result?.mint, result?.standardMode]);
 
   if (result) {
+    const isHybridLaunch = result.standardMode === "metaplex_hybrid";
+    const resultRows = isHybridLaunch
+      ? [
+          ["Agent token", result.agentTokenMint || result.mint],
+          ["Agent Core asset", result.agentAsset || ""],
+          ["Agent identity", result.agentIdentity || ""],
+          ["Renderer hash", result.rendererHash],
+        ].filter(([, value]) => value)
+      : [
+          ["Token mint", result.mint],
+          ["Collection PDA", result.collection || ""],
+          ["Validation PDA", result.validation || ""],
+          ["Renderer hash", result.rendererHash],
+        ].filter(([, value]) => value);
     return (
       <section className="border-y border-neutral-200 dark:border-white/10 bg-neutral-50 dark:bg-[#101010]">
         <div className="mx-auto grid max-w-7xl gap-8 px-5 py-14 md:grid-cols-[1fr_420px] md:px-10 md:py-20">
@@ -637,11 +759,12 @@ export function CpegLaunchpad() {
             <p className="font-mono text-xs uppercase tracking-[0.28em] text-[#53c7ff]">Launch confirmed</p>
             <h2 className="mt-4 flex items-center gap-3 text-4xl font-black uppercase leading-none md:text-5xl">
               <PartyPopper className="h-10 w-10 text-[#53c7ff]" />
-              {form.name || "cPEG"} is live.
+              {isHybridLaunch ? `${form.name || "cPEG"} is ready.` : `${form.name || "cPEG"} is live.`}
             </h2>
             <p className="mt-5 max-w-xl text-sm leading-7 text-neutral-700 dark:text-white/70">
-              Token-2022 mint, transfer hook, and PEG registry are all on-chain. The
-              contract address below is your asset. Share it like any token CA.
+              {isHybridLaunch
+                ? "Metaplex Agent root and Hybrid setup plan are ready. The agent token below is the asset that will back capture and release once the Core PEG escrow is funded."
+                : "Token-2022 mint, transfer hook, and PEG registry are all on-chain. The contract address below is your asset. Share it like any token CA."}
             </p>
 
             <div className="mt-7">
@@ -653,12 +776,7 @@ export function CpegLaunchpad() {
             </div>
 
             <div className="mt-6 grid gap-2 font-mono text-xs text-neutral-700 dark:text-white/72">
-              {[
-                ["Token mint", result.mint],
-                ["Collection PDA", result.collection],
-                ["Validation PDA", result.validation],
-                ["Renderer hash", result.rendererHash],
-              ].map(([label, value]) => (
+              {resultRows.map(([label, value]) => (
                 <button
                   key={label}
                   type="button"
@@ -687,14 +805,16 @@ export function CpegLaunchpad() {
               >
                 Open swap <ArrowRight className="h-4 w-4" />
               </a>
-              <a
-                href={explorerTxUrl(result.signature, result.cluster)}
-                target="_blank"
-                rel="noreferrer"
-                className="inline-flex items-center gap-2 border border-neutral-400 dark:border-white/20 px-5 py-3 text-sm font-bold uppercase tracking-wide text-neutral-950 dark:text-white transition hover:border-[#53c7ff] hover:text-[#53c7ff]"
-              >
-                View transaction <ExternalLink className="h-4 w-4" />
-              </a>
+              {result.signature ? (
+                <a
+                  href={explorerTxUrl(result.signature, result.cluster)}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex items-center gap-2 border border-neutral-400 dark:border-white/20 px-5 py-3 text-sm font-bold uppercase tracking-wide text-neutral-950 dark:text-white transition hover:border-[#53c7ff] hover:text-[#53c7ff]"
+                >
+                  View transaction <ExternalLink className="h-4 w-4" />
+                </a>
+              ) : null}
             </div>
           </div>
 
@@ -713,16 +833,25 @@ export function CpegLaunchpad() {
               ))}
             </div>
             <div className="mt-5 grid gap-2 border border-neutral-200 bg-neutral-50/80 p-4 font-mono text-[10px] uppercase tracking-[0.16em] text-neutral-600 dark:border-white/10 dark:bg-black/35 dark:text-white/55">
-              <Row label="Token-2022" value="Ready" highlight />
-              <Row label="Transfer hook" value="Ready" highlight />
-              <Row label="Metadata" value="Ready" highlight />
+              <Row label={isHybridLaunch ? "Agent root" : "Token-2022"} value="Ready" highlight />
+              <Row label={isHybridLaunch ? "Agent token" : "Transfer hook"} value="Ready" highlight />
+              <Row label={isHybridLaunch ? "Hybrid plan" : "Metadata"} value={isHybridLaunch ? "Saved" : "Ready"} highlight />
               <Row label="Creator royalty" value="2.00%" />
               <Row label="Indexing" value="Included" />
             </div>
 
             <div className="mt-5 border border-neutral-200 bg-neutral-50/90 p-4 dark:border-white/10 dark:bg-black/40">
               <p className="font-mono text-[10px] uppercase tracking-[0.2em] text-[#53c7ff]">Liquidity setup</p>
-              {readinessLoading ? (
+              {isHybridLaunch ? (
+                <div className="mt-3 grid gap-2 font-mono text-[10px] uppercase tracking-[0.16em]">
+                  <Row label="Metaplex Agent root" value="OK" highlight />
+                  <Row label="Agent token" value="OK" highlight />
+                  <Row label="Core PEG collection" value="Next" muted />
+                  <Row label="Hybrid escrow" value="Next" muted />
+                  <Row label="Capture and release" value="Next" muted />
+                  <Row label="Market" value="After funding" muted />
+                </div>
+              ) : readinessLoading ? (
                 <p className="mt-3 font-mono text-[10px] uppercase tracking-[0.18em] text-neutral-500 dark:text-white/45">
                   Checking on-chain readiness...
                 </p>
@@ -749,11 +878,23 @@ export function CpegLaunchpad() {
             <div className="mt-5 border border-neutral-200 bg-neutral-50/90 p-4 dark:border-white/10 dark:bg-black/40">
               <p className="font-mono text-[10px] uppercase tracking-[0.2em] text-[#53c7ff]">Post-launch steps</p>
               <ol className="mt-3 space-y-2 text-xs text-neutral-700 dark:text-white/70">
-                <li>1. Mint initial supply to the creator wallet.</li>
-                <li>2. Assign initial PEG identities with syncPeg and mintPeg.</li>
-                <li>3. Add liquidity to your chosen DEX pool.</li>
-                <li>4. Open the market and list the first identities.</li>
-                <li>5. Seal mint authority when distribution is final.</li>
+                {isHybridLaunch ? (
+                  <>
+                    <li>1. Create or select the Core PEG collection for this agent.</li>
+                    <li>2. Create the MPL-Hybrid capture and release escrow.</li>
+                    <li>3. Fund the escrow with deterministic Agent PEG Core assets.</li>
+                    <li>4. Open token to PEG capture and PEG to token release.</li>
+                    <li>5. Open the market after the escrow is funded.</li>
+                  </>
+                ) : (
+                  <>
+                    <li>1. Mint initial supply to the creator wallet.</li>
+                    <li>2. Assign initial PEG identities with syncPeg and mintPeg.</li>
+                    <li>3. Add liquidity to your chosen DEX pool.</li>
+                    <li>4. Open the market and list the first identities.</li>
+                    <li>5. Seal mint authority when distribution is final.</li>
+                  </>
+                )}
               </ol>
             </div>
           </div>
@@ -844,6 +985,12 @@ export function CpegLaunchpad() {
                 <div className="mt-3 grid gap-2 font-mono text-[10px] uppercase tracking-[0.14em] text-neutral-600 dark:text-white/55">
                   <Row label="Mode" value="Metaplex Agent" highlight />
                   <Row label="Agent" value={agentRoot.agent_name} />
+                  <Row
+                    label="Agent token"
+                    value={agentRoot.agent_token_symbol || (agentRoot.agent_token_mint ? truncateAddress(agentRoot.agent_token_mint, 6, 6) : "Missing")}
+                    highlight={Boolean(agentRoot.agent_token_mint)}
+                    muted={!agentRoot.agent_token_mint}
+                  />
                   <Row label="Core asset" value={truncateAddress(agentRoot.agent_asset_address, 6, 6)} />
                   <Row label="Identity PDA" value={truncateAddress(agentRoot.agent_identity_pda, 6, 6)} />
                 </div>
@@ -949,7 +1096,7 @@ export function CpegLaunchpad() {
                 className="inline-flex items-center gap-2 border border-[#f7f2df] bg-[#f7f2df] px-5 py-3 text-xs font-black uppercase tracking-wide text-black transition hover:bg-[#53c7ff] disabled:cursor-not-allowed disabled:opacity-50"
               >
                 {launching ? <Loader2 className="h-4 w-4 animate-spin" /> : <Rocket className="h-4 w-4" />}
-                {isConnected ? "Launch cPEG" : "Connect Phantom"}
+                {isConnected ? "Prepare cPEG" : "Connect Phantom"}
               </button>
             </div>
             {status ? (
@@ -965,7 +1112,9 @@ export function CpegLaunchpad() {
             {!error && !status && isConnected && !canLaunch ? (
               <p className="mt-3 text-[11px] text-neutral-500 dark:text-white/45">
                 {agentRoot?.agent_asset_address
-                  ? "Complete the form to launch."
+                  ? agentRoot?.agent_token_mint
+                    ? "Complete the form to launch."
+                    : "Launch an agent token first, then return to cPEG."
                   : "A verified Metaplex Agent root is required for new launches."}
               </p>
             ) : null}

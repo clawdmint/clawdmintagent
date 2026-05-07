@@ -24,17 +24,16 @@ export default function CpegLaunchPage() {
             ClawPEG / Launch
           </p>
           <h1 className="mt-3 max-w-4xl text-4xl font-black uppercase leading-[0.94] text-neutral-950 dark:text-[#f7f2df] md:text-6xl">
-            Launch a cPEG collection.
+            Prepare Agent PEGs.
           </h1>
           <p className="mt-5 max-w-2xl text-sm leading-7 text-neutral-600 dark:text-white/65 md:text-base">
-            Pick a subject and palette, sign once, and your Token-2022 mint plus PEG registry
-            go live in a single transaction.
+            Pick a subject and palette, then bind cPEG to your verified Metaplex Agent root and
+            existing agent token.
           </p>
           <p className="mt-3 max-w-2xl text-xs leading-6 text-neutral-500 dark:text-white/45">
-            After launch you control genesis distribution. When the supply is final, seal the
-            mint from the post-launch tools. Sealing revokes the mint authority on-chain so no
-            wallet, including yours, can ever create another unit. That is the cPEG-style
-            fixed-supply guarantee.
+            The first step saves the Hybrid setup plan. The next steps create and fund the Core
+            PEG collection so capture and release can map whole agent token units to Agent PEG
+            identities.
           </p>
         </div>
       </section>

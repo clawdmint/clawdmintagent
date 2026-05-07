@@ -484,6 +484,7 @@ model ClawPegLaunch {
   partnerApiEnabled    Boolean  @default(false)
   whiteLabelDomain     String?
   identityMode         String   @default("standalone")
+  standardMode         String   @default("custom_registry")
   canonicalRoot        String?
   agentAssetAddress    String?
   agentIdentityPda     String?
@@ -491,6 +492,16 @@ model ClawPegLaunch {
   agentWalletAddress   String?
   agentRegistryProgramId String?
   identityLink         Json?
+  agentTokenMint       String?
+  hybridProgramId      String?
+  hybridEscrowAddress  String?
+  hybridCoreCollectionAddress String?
+  hybridAssetCollectionAddress String?
+  hybridSwapAmountRaw  String?
+  hybridCaptureFeeLamports String?
+  hybridReroll         Boolean  @default(true)
+  hybridStatus         String   @default("NOT_CONFIGURED")
+  hybridPlan           Json?
 
   authorityAddress     String
   creatorAddress       String
@@ -507,8 +518,11 @@ model ClawPegLaunch {
   @@index([collectionAddress])
   @@index([status])
   @@index([identityMode])
+  @@index([standardMode])
   @@index([agentAssetAddress])
   @@index([agentIdentityPda])
+  @@index([agentTokenMint])
+  @@index([hybridStatus])
   @@index([createdAt])
 }
 

@@ -16,11 +16,10 @@ const AGENT_TOKEN_X402_OPTIONS = {
       bodyType: "json" as const,
       bodyFields: {
         agent_api_key: { type: "string", description: "Verified Clawdmint agent API key", required: true },
-        name: { type: "string", description: "Token name", required: false },
-        symbol: { type: "string", description: "Token symbol", required: false },
+        name: { type: "string", description: "Token name", required: true },
+        symbol: { type: "string", description: "Token symbol", required: true },
         description: { type: "string", description: "Optional token description", required: false },
-        image: { type: "string", description: "Token icon URL", required: false },
-        supply: { type: "string", description: "Initial supply (string base units)", required: false },
+        image: { type: "string", description: "Token icon URL", required: true },
       },
     },
     output: {

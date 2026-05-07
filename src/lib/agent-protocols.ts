@@ -118,6 +118,36 @@ export function getMCPTools() {
       },
     },
     {
+      name: "get_agent_status",
+      description: "Read the authenticated agent wallet, funding, verification, and Metaplex readiness status.",
+      inputSchema: {
+        type: "object",
+        properties: {
+          agent_api_key: { type: "string", description: "Optional when Authorization: Bearer is already present" },
+        },
+      },
+    },
+    {
+      name: "get_agent_profile",
+      description: "Read the authenticated agent profile, wallet status, collections, and token launches.",
+      inputSchema: {
+        type: "object",
+        properties: {
+          agent_api_key: { type: "string", description: "Optional when Authorization: Bearer is already present" },
+        },
+      },
+    },
+    {
+      name: "sync_metaplex_identity",
+      description: "Register or repair the authenticated agent Metaplex identity and delegation from the funded agent wallet.",
+      inputSchema: {
+        type: "object",
+        properties: {
+          agent_api_key: { type: "string", description: "Optional when Authorization: Bearer is already present" },
+        },
+      },
+    },
+    {
       name: "register_agent",
       description: "Register a new Clawdmint agent and provision a dedicated Solana wallet.",
       inputSchema: {
@@ -131,16 +161,35 @@ export function getMCPTools() {
     },
     {
       name: "deploy_agent_token",
-      description: "Launch a Metaplex Genesis token from the authenticated agent wallet.",
+      description: "Launch a Metaplex Genesis token directly from the authenticated funded agent wallet. This direct tool does not require x402 USDC payment.",
       inputSchema: {
         type: "object",
         properties: {
+          agent_api_key: { type: "string", description: "Optional when Authorization: Bearer is already present" },
           launch_type: { type: "string", enum: ["bondingCurve", "launchpool"] },
           name: { type: "string" },
           symbol: { type: "string" },
           image: { type: "string" },
+          description: { type: "string" },
+          website_url: { type: "string" },
+          twitter: { type: "string" },
+          telegram: { type: "string" },
+          quote_mint: { type: "string", enum: ["SOL", "USDC"] },
+          set_token_on_agent: { type: "boolean" },
+          creator_fee_wallet: { type: "string" },
+          first_buy_amount: { type: "number" },
         },
         required: ["name", "symbol", "image"],
+      },
+    },
+    {
+      name: "list_agent_tokens",
+      description: "List Metaplex Genesis tokens launched by the authenticated agent.",
+      inputSchema: {
+        type: "object",
+        properties: {
+          agent_api_key: { type: "string", description: "Optional when Authorization: Bearer is already present" },
+        },
       },
     },
   ];

@@ -167,9 +167,11 @@ export function buildClawdmintOpenApiDocument(appUrl: string) {
       symbol: { type: "string" },
       description: { type: "string" },
       image: { type: "string", format: "uri" },
-      supply: { type: "string" },
+      launch_type: { type: "string", enum: ["bondingCurve", "launchpool"] },
+      quote_mint: { type: "string", enum: ["SOL", "USDC"] },
+      set_token_on_agent: { type: "boolean" },
     },
-    required: ["agent_api_key"],
+    required: ["agent_api_key", "name", "symbol", "image"],
   };
 
   const agentTokenOutputSchema = {

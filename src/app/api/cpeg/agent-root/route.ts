@@ -30,6 +30,18 @@ export async function GET(request: NextRequest) {
         metaplexIdentityPda: true,
         metaplexCollectionAddress: true,
         solanaWalletAddress: true,
+        tokenLaunches: {
+          orderBy: { createdAt: "desc" },
+          take: 1,
+          select: {
+            id: true,
+            tokenName: true,
+            tokenSymbol: true,
+            tokenAddress: true,
+            chain: true,
+            network: true,
+          },
+        },
       },
     })
     .catch(() => null);
@@ -46,6 +58,7 @@ export async function GET(request: NextRequest) {
     agentWalletAddress: agent.solanaWalletAddress || wallet,
     agentName: agent.name,
   });
+  const tokenLaunch = agent.tokenLaunches[0] || null;
 
   return NextResponse.json({
     success: true,
@@ -59,6 +72,12 @@ export async function GET(request: NextRequest) {
       agent_collection_address: link.agentCollectionAddress,
       agent_wallet_address: link.agentWalletAddress,
       agent_registry_program_id: link.registryProgramId,
+      agent_token_launch_id: tokenLaunch?.id || null,
+      agent_token_name: tokenLaunch?.tokenName || null,
+      agent_token_symbol: tokenLaunch?.tokenSymbol || null,
+      agent_token_mint: tokenLaunch?.tokenAddress || null,
+      agent_token_chain: tokenLaunch?.chain || null,
+      agent_token_network: tokenLaunch?.network || null,
     },
   });
 }

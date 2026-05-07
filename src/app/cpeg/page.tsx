@@ -54,6 +54,9 @@ interface LaunchRow {
   cluster: string;
   max_pegs: number;
   status: string;
+  standard_mode?: string;
+  agent_token_mint?: string | null;
+  hybrid_status?: string | null;
   identity_mode?: string;
   canonical_root?: string | null;
   agent_asset_address?: string | null;
@@ -124,7 +127,9 @@ export default async function CpegPage() {
   const launches = launchesBody?.launches || [];
   const events = activityBody?.events || [];
 
-  const featured = launches.filter((launch) => launch.collection_address).slice(0, 6);
+  const featured = launches
+    .filter((launch) => launch.collection_address || launch.standard_mode === "metaplex_hybrid")
+    .slice(0, 6);
   const moreLaunches = launches.slice(6);
 
   const statCells: Array<{ label: string; value: string; accent: string; icon: typeof Coins }> = [
@@ -194,10 +199,10 @@ export default async function CpegPage() {
               The token is the PEG. No mint required.
             </h1>
             <p className="mt-6 max-w-2xl text-base leading-7 text-neutral-700 dark:text-white/72 md:text-lg">
-              cPEG is a Solana Token-2022 standard where every whole unit is a discrete on-chain
-              identity. Buyers do not mint anything. They swap or buy a listing, and the
-              identity follows the unit by transfer hook. Sealed supply, deterministic art, no
-              IPFS, no metadata server.
+              cPEG is a Solana PEG launch standard where a Metaplex Agent/Core Asset can be the
+              canonical root and the agent token becomes the identity capacity source. Buyers do
+              not mint a random file. They acquire the token or a listed identity, and the Agent
+              PEG is resolved through deterministic renderer rules.
             </p>
             <div className="mt-9 flex flex-wrap gap-3">
               <Link
@@ -517,10 +522,10 @@ export default async function CpegPage() {
         <div className="mt-10 grid gap-4 md:grid-cols-2 lg:grid-cols-4">
           <div className="border border-neutral-200 dark:border-white/10 bg-neutral-100/95 dark:bg-white/[0.03] p-6">
             <div className="font-mono text-xs uppercase tracking-[0.22em] text-neutral-500 dark:text-white/45">01</div>
-            <h3 className="mt-3 text-2xl font-black uppercase">Token-2022 hook</h3>
+            <h3 className="mt-3 text-2xl font-black uppercase">Agent root</h3>
             <p className="mt-3 text-sm leading-6 text-neutral-600 dark:text-white/62">
-              Every transfer routes through a custom hook program and on-chain registry. Token
-              and identity stay coupled by construction.
+              Metaplex Agent/Core Asset is the canonical identity. cPEG extends the agent,
+              instead of creating a parallel root.
             </p>
           </div>
           <div className="border border-neutral-200 dark:border-white/10 bg-neutral-100/95 dark:bg-white/[0.03] p-6">
@@ -533,10 +538,10 @@ export default async function CpegPage() {
           </div>
           <div className="border border-neutral-200 dark:border-white/10 bg-neutral-100/95 dark:bg-white/[0.03] p-6">
             <div className="font-mono text-xs uppercase tracking-[0.22em] text-neutral-500 dark:text-white/45">03</div>
-            <h3 className="mt-3 text-2xl font-black uppercase">Sealed supply</h3>
+            <h3 className="mt-3 text-2xl font-black uppercase">Hybrid route</h3>
             <p className="mt-3 text-sm leading-6 text-neutral-600 dark:text-white/62">
-              Authorities seal the Token-2022 mint after genesis. Once sealed the mint authority
-              is null on-chain. No wallet can ever print another unit.
+              The agent token is the capacity source. Capture and release maps whole token units
+              to deterministic Agent PEG identities.
             </p>
           </div>
           <div className="border border-neutral-200 dark:border-white/10 bg-neutral-100/95 dark:bg-white/[0.03] p-6">

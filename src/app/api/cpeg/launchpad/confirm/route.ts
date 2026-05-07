@@ -14,6 +14,10 @@ import { getClawPegRpcUrl } from "@/lib/env";
 import {
   normalizeCpegAgentRootLink,
 } from "@/lib/cpeg-agent-root";
+import {
+  CPEG_HYBRID_STATUS_READY,
+  CPEG_STANDARD_MODE_METAPLEX_HYBRID,
+} from "@/lib/cpeg-metaplex-hybrid";
 
 export const dynamic = "force-dynamic";
 
@@ -24,10 +28,21 @@ const ConfirmSchema = z.object({
   symbol: z.string().min(1).max(12).default("CPEG"),
   signature: z.string().min(32).optional(),
   token_mint: z.string().min(32),
-  collection_address: z.string().min(32),
-  hook_validation_address: z.string().min(32),
+  collection_address: z.string().min(32).nullable().optional(),
+  hook_validation_address: z.string().min(32).nullable().optional(),
+  authority_address: z.string().min(32).optional(),
+  creator_address: z.string().min(32).optional(),
+  fee_vault_address: z.string().min(32).optional(),
+  standard_mode: z.enum(["custom_registry", "metaplex_hybrid"]).default("custom_registry"),
   renderer_id: z.string().min(1).optional(),
   renderer_version: z.string().min(1).optional(),
+  renderer_hash: z.string().min(64).optional(),
+  collection_seed: z.string().min(32).optional(),
+  peg_unit_raw: z.string().min(1).optional(),
+  max_pegs: z.number().int().min(1).optional(),
+  royalty_bps: z.number().int().min(0).max(10000).optional(),
+  marketplace_fee_bps: z.number().int().min(0).max(10000).optional(),
+  launch_fee_lamports: z.string().min(1).optional(),
   renderer_params: z.record(z.unknown()).optional(),
   identity_mode: z.enum(["standalone", "metaplex_agent"]).default("standalone"),
   agent_asset_address: z.string().min(32).optional(),
@@ -35,6 +50,17 @@ const ConfirmSchema = z.object({
   agent_collection_address: z.string().min(32).optional(),
   agent_wallet_address: z.string().min(32).optional(),
   agent_name: z.string().max(80).optional(),
+  agent_token_mint: z.string().min(32).optional(),
+  agent_token_launch_id: z.string().optional(),
+  hybrid_program_id: z.string().min(32).nullable().optional(),
+  hybrid_escrow_address: z.string().min(32).nullable().optional(),
+  hybrid_core_collection_address: z.string().min(32).nullable().optional(),
+  hybrid_asset_collection_address: z.string().min(32).nullable().optional(),
+  hybrid_swap_amount_raw: z.string().min(1).optional(),
+  hybrid_capture_fee_lamports: z.string().min(1).optional(),
+  hybrid_reroll: z.boolean().optional(),
+  hybrid_status: z.string().optional(),
+  hybrid_plan: z.record(z.unknown()).optional(),
 });
 
 function bytesToHex(bytes: Uint8Array) {
@@ -129,7 +155,6 @@ export async function POST(request: NextRequest) {
     }
 
     const input = parsed.data;
-    const programId = getClawPegProgramId();
     const cluster = getClawPegCluster();
     const rpcUrl = process.env["CPEG_CONFIRM_RPC_URL"] || getClawPegRpcUrl();
     const connection = new Connection(rpcUrl, "confirmed");
@@ -143,6 +168,178 @@ export async function POST(request: NextRequest) {
           { status: 400 }
         );
       }
+    }
+
+    if (input.standard_mode === CPEG_STANDARD_MODE_METAPLEX_HYBRID) {
+      const tokenMint = new PublicKey(input.agent_token_mint || input.token_mint);
+      const rendererId = input.renderer_id || CLAWPEG_DEFAULT_RENDERER_ID;
+      const rendererVersion = input.renderer_version || CLAWPEG_DEFAULT_RENDERER_VERSION;
+      const rendererParamsObject = (input.renderer_params || {}) as Record<string, unknown>;
+      const agentRoot = normalizeCpegAgentRootLink({
+        identityMode: input.identity_mode,
+        agentAssetAddress: input.agent_asset_address || (rendererParamsObject.agentAsset as string | undefined),
+        agentIdentityPda: input.agent_identity_pda || (rendererParamsObject.agentIdentity as string | undefined),
+        agentCollectionAddress: input.agent_collection_address || (rendererParamsObject.agentCollection as string | undefined),
+        agentWalletAddress: input.agent_wallet_address || (rendererParamsObject.agentWallet as string | undefined),
+        agentName: input.agent_name,
+      });
+      if (agentRoot.identityMode !== "metaplex_agent" || !agentRoot.agentAssetAddress || !agentRoot.agentIdentityPda) {
+        return NextResponse.json(
+          { success: false, error: "Metaplex Agent/Core root is required for this cPEG launch" },
+          { status: 400 }
+        );
+      }
+      const rendererHash = input.renderer_hash || "";
+      const rendererVerification = verifyClawPegRendererHash({
+        hash: rendererHash,
+        id: rendererId,
+        version: rendererVersion,
+        params: rendererParamsObject,
+      });
+      if (!rendererVerification.ok) {
+        return NextResponse.json(
+          {
+            success: false,
+            error:
+              rendererVerification.reason ||
+              "Renderer hash does not match the published renderer manifest",
+            expected_hash: rendererVerification.expectedHash,
+            renderer_hash: rendererHash,
+          },
+          { status: 400 }
+        );
+      }
+
+      const authorityAddress = input.authority_address || agentRoot.agentWalletAddress;
+      if (!authorityAddress) {
+        return NextResponse.json(
+          { success: false, error: "authority_address is required for Metaplex-native cPEG launches" },
+          { status: 400 }
+        );
+      }
+      const rendererParams = rendererParamsObject as Prisma.InputJsonObject;
+      const hybridStatus = input.hybrid_status || CPEG_HYBRID_STATUS_READY;
+      const saved = await prisma.clawPegLaunch.upsert({
+        where: { tokenMint: tokenMint.toBase58() },
+        update: {
+          name: input.name,
+          symbol: input.symbol,
+          collectionAddress: null,
+          hookValidationAddress: null,
+          hookProgramId: input.hybrid_program_id || null,
+          chain: cluster === "devnet" ? "solana-devnet" : "solana",
+          cluster,
+          rendererHash,
+          collectionSeed: input.collection_seed || rendererHash.slice(0, 64),
+          pegUnitRaw: input.peg_unit_raw || input.hybrid_swap_amount_raw || "1000000",
+          maxPegs: input.max_pegs || 1000,
+          royaltyBps: input.royalty_bps ?? 200,
+          marketplaceFeeBps: input.marketplace_fee_bps ?? 200,
+          launchFeeLamports: input.launch_fee_lamports || input.hybrid_capture_fee_lamports || "0",
+          authorityAddress,
+          creatorAddress: input.creator_address || authorityAddress,
+          feeVaultAddress: input.fee_vault_address || authorityAddress,
+          deployTxHash: input.signature || null,
+          rendererParams,
+          identityMode: agentRoot.identityMode,
+          standardMode: CPEG_STANDARD_MODE_METAPLEX_HYBRID,
+          canonicalRoot: agentRoot.canonicalRoot,
+          agentAssetAddress: agentRoot.agentAssetAddress,
+          agentIdentityPda: agentRoot.agentIdentityPda,
+          agentCollectionAddress: agentRoot.agentCollectionAddress,
+          agentWalletAddress: agentRoot.agentWalletAddress,
+          agentRegistryProgramId: agentRoot.registryProgramId,
+          identityLink: agentRoot as unknown as Prisma.InputJsonValue,
+          agentTokenMint: tokenMint.toBase58(),
+          tokenLaunchId: input.agent_token_launch_id || null,
+          hybridProgramId: input.hybrid_program_id || null,
+          hybridEscrowAddress: input.hybrid_escrow_address || null,
+          hybridCoreCollectionAddress: input.hybrid_core_collection_address || agentRoot.agentCollectionAddress,
+          hybridAssetCollectionAddress: input.hybrid_asset_collection_address || null,
+          hybridSwapAmountRaw: input.hybrid_swap_amount_raw || input.peg_unit_raw || "1000000",
+          hybridCaptureFeeLamports: input.hybrid_capture_fee_lamports || input.launch_fee_lamports || "0",
+          hybridReroll: input.hybrid_reroll ?? true,
+          hybridStatus,
+          hybridPlan: (input.hybrid_plan || {}) as Prisma.InputJsonObject,
+          status: "HYBRID_READY",
+          launchedAt: new Date(),
+        },
+        create: {
+          name: input.name,
+          symbol: input.symbol,
+          tokenMint: tokenMint.toBase58(),
+          collectionAddress: null,
+          hookValidationAddress: null,
+          hookProgramId: input.hybrid_program_id || null,
+          chain: cluster === "devnet" ? "solana-devnet" : "solana",
+          cluster,
+          rendererId,
+          rendererVersion,
+          rendererHash,
+          collectionSeed: input.collection_seed || rendererHash.slice(0, 64),
+          rendererParams,
+          identityMode: agentRoot.identityMode,
+          standardMode: CPEG_STANDARD_MODE_METAPLEX_HYBRID,
+          canonicalRoot: agentRoot.canonicalRoot,
+          agentAssetAddress: agentRoot.agentAssetAddress,
+          agentIdentityPda: agentRoot.agentIdentityPda,
+          agentCollectionAddress: agentRoot.agentCollectionAddress,
+          agentWalletAddress: agentRoot.agentWalletAddress,
+          agentRegistryProgramId: agentRoot.registryProgramId,
+          identityLink: agentRoot as unknown as Prisma.InputJsonValue,
+          agentTokenMint: tokenMint.toBase58(),
+          tokenLaunchId: input.agent_token_launch_id || null,
+          hybridProgramId: input.hybrid_program_id || null,
+          hybridEscrowAddress: input.hybrid_escrow_address || null,
+          hybridCoreCollectionAddress: input.hybrid_core_collection_address || agentRoot.agentCollectionAddress,
+          hybridAssetCollectionAddress: input.hybrid_asset_collection_address || null,
+          hybridSwapAmountRaw: input.hybrid_swap_amount_raw || input.peg_unit_raw || "1000000",
+          hybridCaptureFeeLamports: input.hybrid_capture_fee_lamports || input.launch_fee_lamports || "0",
+          hybridReroll: input.hybrid_reroll ?? true,
+          hybridStatus,
+          hybridPlan: (input.hybrid_plan || {}) as Prisma.InputJsonObject,
+          pegUnitRaw: input.peg_unit_raw || input.hybrid_swap_amount_raw || "1000000",
+          maxPegs: input.max_pegs || 1000,
+          royaltyBps: input.royalty_bps ?? 200,
+          marketplaceFeeBps: input.marketplace_fee_bps ?? 200,
+          launchFeeLamports: input.launch_fee_lamports || input.hybrid_capture_fee_lamports || "0",
+          authorityAddress,
+          creatorAddress: input.creator_address || authorityAddress,
+          feeVaultAddress: input.fee_vault_address || authorityAddress,
+          deployTxHash: input.signature || null,
+          status: "HYBRID_READY",
+          launchedAt: new Date(),
+        },
+      });
+
+      return NextResponse.json({
+        success: true,
+        launch: {
+          id: saved.id,
+          name: saved.name,
+          symbol: saved.symbol,
+          token_mint: saved.tokenMint,
+          collection_address: saved.collectionAddress,
+          hook_validation_address: saved.hookValidationAddress,
+          standard_mode: saved.standardMode,
+          hybrid_status: saved.hybridStatus,
+          agent_token_mint: saved.agentTokenMint,
+          identity_mode: saved.identityMode,
+          canonical_root: saved.canonicalRoot,
+          agent_asset_address: saved.agentAssetAddress,
+          agent_identity_pda: saved.agentIdentityPda,
+          tx_hash: saved.deployTxHash,
+          status: saved.status,
+        },
+      });
+    }
+
+    const programId = getClawPegProgramId();
+    if (!input.collection_address || !input.hook_validation_address) {
+      return NextResponse.json(
+        { success: false, error: "collection_address and hook_validation_address are required for custom registry launches" },
+        { status: 400 }
+      );
     }
 
     const collectionAddress = new PublicKey(input.collection_address);

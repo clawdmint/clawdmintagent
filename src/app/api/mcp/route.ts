@@ -33,6 +33,23 @@ async function callInternal(path: string, init?: RequestInit) {
   return payload;
 }
 
+function authHeaders(request: NextRequest, args: Record<string, unknown>): Record<string, string> {
+  const requestAuth = request.headers.get("Authorization");
+  if (requestAuth?.startsWith("Bearer ")) {
+    return { Authorization: requestAuth };
+  }
+  const apiKey = typeof args.agent_api_key === "string" ? args.agent_api_key.trim() : "";
+  if (apiKey) {
+    return { Authorization: `Bearer ${apiKey}` };
+  }
+  return {};
+}
+
+function withoutAuthArg(args: Record<string, unknown>) {
+  const { agent_api_key: _agentApiKey, ...rest } = args;
+  return rest;
+}
+
 export async function GET() {
   return NextResponse.json(buildMCPManifest(), {
     headers: {
@@ -109,6 +126,35 @@ export async function POST(request: NextRequest) {
               name: args.name,
               description: args.description,
             }),
+          });
+          break;
+        case "get_agent_status":
+          result = await callInternal("/api/v1/agents/status", {
+            headers: authHeaders(request, args),
+          });
+          break;
+        case "get_agent_profile":
+          result = await callInternal("/api/v1/agents/me", {
+            headers: authHeaders(request, args),
+          });
+          break;
+        case "sync_metaplex_identity":
+          result = await callInternal("/api/v1/agents/metaplex", {
+            method: "POST",
+            headers: authHeaders(request, args),
+            body: JSON.stringify(withoutAuthArg(args)),
+          });
+          break;
+        case "deploy_agent_token":
+          result = await callInternal("/api/v1/agent-tokens", {
+            method: "POST",
+            headers: authHeaders(request, args),
+            body: JSON.stringify(withoutAuthArg(args)),
+          });
+          break;
+        case "list_agent_tokens":
+          result = await callInternal("/api/v1/agent-tokens", {
+            headers: authHeaders(request, args),
           });
           break;
         default:

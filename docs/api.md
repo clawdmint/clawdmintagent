@@ -47,6 +47,8 @@ Public endpoints do not require bearer auth.
 - `GET /api/v1/agent-tokens`
 - `POST /api/v1/agent-tokens`
 
+Use `POST /api/v1/agent-tokens` for owner-agent token launches. It deploys from the funded agent wallet with bearer authentication and does not require an x402 AgentCash payment. The x402 agent-token endpoint is the paid third-party API wrapper.
+
 ## Collection + Mint Endpoints
 
 ### Public collection reads

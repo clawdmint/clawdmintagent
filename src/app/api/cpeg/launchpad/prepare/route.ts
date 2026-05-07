@@ -25,6 +25,10 @@ import {
   cpegAgentRootToRendererParams,
   normalizeCpegAgentRootLink,
 } from "@/lib/cpeg-agent-root";
+import {
+  CPEG_STANDARD_MODE_METAPLEX_HYBRID,
+  buildCpegMetaplexHybridPlan,
+} from "@/lib/cpeg-metaplex-hybrid";
 
 export const dynamic = "force-dynamic";
 
@@ -44,6 +48,8 @@ const LaunchpadPrepareSchema = z.object({
   premium_indexing: z.boolean().default(false),
   partner_api_enabled: z.boolean().default(false),
   white_label_domain: z.string().max(120).optional(),
+  standard_mode: z.enum(["custom_registry", "metaplex_hybrid"]).default("metaplex_hybrid"),
+  agent_token_mint: z.string().min(32).optional(),
   identity_mode: z.enum(["standalone", "metaplex_agent"]).default("standalone"),
   agent_asset_address: z.string().min(32).optional(),
   agent_identity_pda: z.string().min(32).optional(),
@@ -106,6 +112,7 @@ export async function POST(request: NextRequest) {
 
     const input = parsed.data;
     assertPublicKey(input.token_mint, "token_mint");
+    if (input.agent_token_mint) assertPublicKey(input.agent_token_mint, "agent_token_mint");
     assertPublicKey(input.authority_address, "authority_address");
     if (input.creator_address) assertPublicKey(input.creator_address, "creator_address");
     if (input.fee_vault_address) assertPublicKey(input.fee_vault_address, "fee_vault_address");
@@ -128,6 +135,140 @@ export async function POST(request: NextRequest) {
     const metadataUri = getCpegMetadataUri(input.token_mint);
     const mintAccountSize = getClawPegToken2022CreateAccountSize(false);
     const connection = new Connection(getClawPegRpcUrl(), "confirmed");
+    const rendererId = input.renderer_id || CLAWPEG_DEFAULT_RENDERER_ID;
+    const rendererVersion = input.renderer_version || CLAWPEG_DEFAULT_RENDERER_VERSION;
+    const rendererManifest = getClawPegRenderer(rendererId, rendererVersion);
+    if (!rendererManifest) {
+      return NextResponse.json(
+        { success: false, error: `Unknown renderer ${rendererId}@${rendererVersion}` },
+        { status: 400 }
+      );
+    }
+    const rendererParams: Record<string, unknown> = {
+      ...rendererManifest.defaultParams,
+      ...(input.renderer_params || {}),
+      ...cpegAgentRootToRendererParams(agentRoot),
+    };
+    for (const field of rendererManifest.fields) {
+      const value = rendererParams[field.key];
+      if (typeof value !== "string") {
+        return NextResponse.json(
+          { success: false, error: `renderer_params.${field.key} is required` },
+          { status: 400 }
+        );
+      }
+      if (!field.options.some((option) => option.value === value)) {
+        return NextResponse.json(
+          { success: false, error: `renderer_params.${field.key} = ${value} is not a valid option` },
+          { status: 400 }
+        );
+      }
+    }
+    const rendererHash = computeClawPegRendererHash({
+      id: rendererId,
+      version: rendererVersion,
+      params: rendererParams,
+    });
+    const collectionSeed = createCollectionSeed();
+    const creatorAddress = input.creator_address || input.authority_address;
+    const feeVaultAddress = input.fee_vault_address || getClawPegFeeVaultAddress() || input.authority_address;
+    const marketplaceFeeBps = input.marketplace_fee_bps ?? fees.marketplaceFeeBps;
+    const pegUnitRaw = pegUnitFromDecimals(input.decimals).toString();
+
+    if (input.standard_mode === CPEG_STANDARD_MODE_METAPLEX_HYBRID) {
+      if (agentRoot.identityMode !== CPEG_IDENTITY_MODE_METAPLEX_AGENT || !agentRoot.agentAssetAddress || !agentRoot.agentIdentityPda) {
+        return NextResponse.json(
+          {
+            success: false,
+            error: "Metaplex Agent/Core root is required for Metaplex-native cPEG launches.",
+          },
+          { status: 400 }
+        );
+      }
+      const agentTokenMint = input.agent_token_mint || input.token_mint;
+      assertPublicKey(agentTokenMint, "agent_token_mint");
+      const identityAccounts = await connection.getMultipleAccountsInfo(
+        [new PublicKey(agentRoot.agentAssetAddress), new PublicKey(agentRoot.agentIdentityPda)],
+        "confirmed"
+      );
+      if (!identityAccounts[0] || !identityAccounts[1]) {
+        return NextResponse.json(
+          {
+            success: false,
+            error:
+              "Metaplex Agent/Core root is not confirmed on the configured cluster. Register the agent identity first, then launch cPEG.",
+          },
+          { status: 409 }
+        );
+      }
+
+      const hybridPlan = buildCpegMetaplexHybridPlan({
+        name: input.name,
+        symbol: input.symbol,
+        tokenMint: agentTokenMint,
+        agentAssetAddress: agentRoot.agentAssetAddress,
+        agentIdentityPda: agentRoot.agentIdentityPda,
+        agentCollectionAddress: agentRoot.agentCollectionAddress,
+        agentWalletAddress: agentRoot.agentWalletAddress,
+        rendererHash,
+        rendererId,
+        rendererVersion,
+        collectionSeed,
+        pegUnitRaw,
+        maxPegs: input.max_pegs,
+        royaltyBps,
+        marketplaceFeeBps,
+        launchFeeLamports: fees.totalLamports,
+      });
+
+      return NextResponse.json({
+        success: true,
+        requires_signature: false,
+        standard_mode: CPEG_STANDARD_MODE_METAPLEX_HYBRID,
+        launch: {
+          name: input.name,
+          symbol: input.symbol,
+          cluster: getClawPegCluster(),
+          token_mint: agentTokenMint,
+          collection_address: agentRoot.agentCollectionAddress,
+          hook_validation_address: null,
+          renderer_id: rendererId,
+          renderer_version: rendererVersion,
+          renderer_hash: rendererHash,
+          collection_seed: collectionSeed,
+          renderer_params: rendererParams,
+          peg_unit_raw: pegUnitRaw,
+          max_pegs: input.max_pegs,
+          royalty_bps: royaltyBps,
+          marketplace_fee_bps: marketplaceFeeBps,
+          launch_fee_lamports: fees.totalLamports,
+          premium_indexing: premiumIndexing,
+          metadata_uri: metadataUri,
+          standard_mode: CPEG_STANDARD_MODE_METAPLEX_HYBRID,
+          identity_mode: agentRoot.identityMode,
+          canonical_root: agentRoot.canonicalRoot,
+          agent_asset_address: agentRoot.agentAssetAddress,
+          agent_identity_pda: agentRoot.agentIdentityPda,
+          agent_collection_address: agentRoot.agentCollectionAddress,
+          agent_wallet_address: agentRoot.agentWalletAddress,
+          agent_registry_program_id: agentRoot.registryProgramId,
+          agent_token_mint: agentTokenMint,
+          hybrid_program_id: hybridPlan.hybrid_program_id,
+          hybrid_escrow_address: hybridPlan.escrow_address,
+          hybrid_core_collection_address: hybridPlan.core_collection_address,
+          hybrid_asset_collection_address: hybridPlan.core_collection_address,
+          hybrid_swap_amount_raw: pegUnitRaw,
+          hybrid_capture_fee_lamports: fees.totalLamports,
+          hybrid_reroll: true,
+          hybrid_status: hybridPlan.hybrid_status,
+          hybrid_plan: hybridPlan,
+        },
+        fees,
+        hybrid_setup: hybridPlan,
+        message:
+          "Metaplex-native cPEG launch prepared. Confirm to save the Hybrid setup plan for this Agent token.",
+      });
+    }
 
     // Pre-flight sanity check: confirm the configured cPEG program is actually deployed
     // and executable on the resolved cluster. This avoids opaque "program error" messages
@@ -186,45 +327,6 @@ export async function POST(request: NextRequest) {
 
     const mintRentLamports = await connection.getMinimumBalanceForRentExemption(mintAccountSize);
 
-    const rendererId = input.renderer_id || CLAWPEG_DEFAULT_RENDERER_ID;
-    const rendererVersion = input.renderer_version || CLAWPEG_DEFAULT_RENDERER_VERSION;
-    const rendererManifest = getClawPegRenderer(rendererId, rendererVersion);
-    if (!rendererManifest) {
-      return NextResponse.json(
-        { success: false, error: `Unknown renderer ${rendererId}@${rendererVersion}` },
-        { status: 400 }
-      );
-    }
-    const rendererParams: Record<string, unknown> = {
-      ...rendererManifest.defaultParams,
-      ...(input.renderer_params || {}),
-      ...cpegAgentRootToRendererParams(agentRoot),
-    };
-    for (const field of rendererManifest.fields) {
-      const value = rendererParams[field.key];
-      if (typeof value !== "string") {
-        return NextResponse.json(
-          { success: false, error: `renderer_params.${field.key} is required` },
-          { status: 400 }
-        );
-      }
-      if (!field.options.some((option) => option.value === value)) {
-        return NextResponse.json(
-          { success: false, error: `renderer_params.${field.key} = ${value} is not a valid option` },
-          { status: 400 }
-        );
-      }
-    }
-    const rendererHash = computeClawPegRendererHash({
-      id: rendererId,
-      version: rendererVersion,
-      params: rendererParams,
-    });
-    const collectionSeed = createCollectionSeed();
-    const creatorAddress = input.creator_address || input.authority_address;
-    const feeVaultAddress = input.fee_vault_address || getClawPegFeeVaultAddress() || input.authority_address;
-    const marketplaceFeeBps = input.marketplace_fee_bps ?? fees.marketplaceFeeBps;
-
     const token2022Setup = buildClawPegToken2022MintSetupManifest({
       payer: input.authority_address,
       mint: input.token_mint,
@@ -260,9 +362,9 @@ export async function POST(request: NextRequest) {
         renderer_id: rendererId,
         renderer_version: rendererVersion,
         renderer_hash: rendererHash,
-        collection_seed: collectionSeed,
-        renderer_params: rendererParams,
-        peg_unit_raw: pegUnitFromDecimals(input.decimals).toString(),
+      collection_seed: collectionSeed,
+      renderer_params: rendererParams,
+        peg_unit_raw: pegUnitRaw,
         max_pegs: input.max_pegs,
         royalty_bps: royaltyBps,
         marketplace_fee_bps: marketplaceFeeBps,
