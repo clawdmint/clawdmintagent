@@ -19,6 +19,7 @@ export async function GET() {
       filledAggRows,
       sellerCountRows,
       buyerCountRows,
+      modeRows,
     ] = await Promise.all([
       prisma.$queryRaw<Array<{ count: bigint }>>`
         SELECT COUNT(*)::bigint AS "count"
@@ -46,6 +47,12 @@ export async function GET() {
         FROM "ClawPegMarketListing"
         WHERE "buyerAddress" IS NOT NULL
       `,
+      prisma.$queryRaw<Array<{ identityMode: string; count: bigint }>>`
+        SELECT "identityMode", COUNT(*)::bigint AS "count"
+        FROM "ClawPegLaunch"
+        WHERE "status" IN (${"ACTIVE"}, ${"LAUNCHED"})
+        GROUP BY "identityMode"
+      `,
     ]);
 
     const totalLaunches = Number(launchRows[0]?.count ?? 0);
@@ -68,6 +75,9 @@ export async function GET() {
         floor_sol: floorLamports !== null ? formatSol(BigInt(floorLamports)) : null,
         volume_lamports: volumeLamports,
         volume_sol: formatSol(BigInt(volumeLamports || "0")),
+        identity_modes: Object.fromEntries(
+          modeRows.map((row) => [row.identityMode, Number(row.count)])
+        ),
       },
     });
   } catch (error) {
@@ -84,6 +94,7 @@ export async function GET() {
           floor_sol: null,
           volume_lamports: "0",
           volume_sol: "0",
+          identity_modes: {},
         },
         warning: error instanceof Error ? error.message : "stats unavailable",
       },

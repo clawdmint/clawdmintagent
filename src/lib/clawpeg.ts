@@ -11,6 +11,7 @@ import {
 } from "@solana/spl-token";
 import {
   createInitializeInstruction as createInitializeTokenMetadataInstruction,
+  createUpdateFieldInstruction as createUpdateTokenMetadataFieldInstruction,
   pack as packTokenMetadata,
   type TokenMetadata,
 } from "@solana/spl-token-metadata";
@@ -83,6 +84,7 @@ export interface ClawPegToken2022MintSetupParams {
   name?: string;
   symbol?: string;
   metadataUri?: string;
+  additionalMetadata?: Array<[string, string]>;
 }
 
 export interface ClawPegToken2022MintSetupManifest {
@@ -395,6 +397,7 @@ export function buildClawPegTokenMetadata(params: {
   name: string;
   symbol: string;
   uri: string;
+  additionalMetadata?: Array<[string, string]>;
 }): TokenMetadata {
   return {
     updateAuthority: new PublicKey(params.updateAuthority),
@@ -405,6 +408,7 @@ export function buildClawPegTokenMetadata(params: {
     additionalMetadata: [
       ["standard", "cPEG"],
       ["standard_version", "0.1"],
+      ...(params.additionalMetadata || []),
     ],
   };
 }
@@ -415,6 +419,7 @@ export function getClawPegToken2022MintAccountSize(params?: {
   name?: string;
   symbol?: string;
   metadataUri?: string;
+  additionalMetadata?: Array<[string, string]>;
 }): number {
   if (params?.mint && params.updateAuthority && params.name && params.symbol && params.metadataUri) {
     const metadata = buildClawPegTokenMetadata({
@@ -423,6 +428,7 @@ export function getClawPegToken2022MintAccountSize(params?: {
       name: params.name,
       symbol: params.symbol,
       uri: params.metadataUri,
+      additionalMetadata: params.additionalMetadata,
     });
     return getMintLen(
       [ExtensionType.TransferHook, ExtensionType.MetadataPointer],
@@ -455,6 +461,7 @@ export function buildClawPegToken2022MintSetupManifest(
         name: params.name as string,
         symbol: params.symbol as string,
         uri: params.metadataUri as string,
+        additionalMetadata: params.additionalMetadata,
       })
     : null;
   const mintAccountSize = getClawPegToken2022CreateAccountSize(Boolean(tokenMetadata));
@@ -495,6 +502,15 @@ export function buildClawPegToken2022MintSetupManifest(
             symbol: tokenMetadata.symbol,
             uri: tokenMetadata.uri,
           }),
+          ...tokenMetadata.additionalMetadata.map(([field, value]) =>
+            createUpdateTokenMetadataFieldInstruction({
+              programId: TOKEN_2022_PROGRAM_ID,
+              metadata: mint,
+              updateAuthority: mintAuthority,
+              field,
+              value,
+            })
+          ),
         ]
       : []),
   ];

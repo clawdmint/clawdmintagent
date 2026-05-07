@@ -13,11 +13,15 @@ import {
   getMint,
   getTokenMetadata,
 } from "@solana/spl-token";
-import { createInitializeInstruction as createInitializeTokenMetadataInstruction } from "@solana/spl-token-metadata";
+import {
+  createInitializeInstruction as createInitializeTokenMetadataInstruction,
+  createUpdateFieldInstruction as createUpdateTokenMetadataFieldInstruction,
+} from "@solana/spl-token-metadata";
 import { z } from "zod";
 import { prisma } from "@/lib/db";
 import { getClawPegRpcUrl } from "@/lib/env";
 import { getClawPegToken2022MintAccountSize } from "@/lib/clawpeg";
+import { cpegAgentRootToTokenMetadata, normalizeCpegAgentRootLink } from "@/lib/cpeg-agent-root";
 
 export const dynamic = "force-dynamic";
 
@@ -58,7 +62,17 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
 
   const launch = await prisma.clawPegLaunch.findUnique({
     where: { tokenMint: params.mint },
-    select: { name: true, symbol: true, tokenMint: true, cluster: true },
+    select: {
+      name: true,
+      symbol: true,
+      tokenMint: true,
+      cluster: true,
+      identityMode: true,
+      agentAssetAddress: true,
+      agentIdentityPda: true,
+      agentCollectionAddress: true,
+      agentWalletAddress: true,
+    },
   });
   if (!launch) {
     return NextResponse.json({ success: false, error: "cPEG launch not found" }, { status: 404 });
@@ -91,12 +105,21 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
   }
 
   const metadataUri = getCpegMetadataUri(launch.tokenMint);
+  const agentRoot = normalizeCpegAgentRootLink({
+    identityMode: launch.identityMode,
+    agentAssetAddress: launch.agentAssetAddress,
+    agentIdentityPda: launch.agentIdentityPda,
+    agentCollectionAddress: launch.agentCollectionAddress,
+    agentWalletAddress: launch.agentWalletAddress,
+  });
+  const metadataEntries = cpegAgentRootToTokenMetadata(agentRoot);
   const targetSize = getClawPegToken2022MintAccountSize({
     mint: launch.tokenMint,
     updateAuthority: mintAuthority.toBase58(),
     name: launch.name,
     symbol: launch.symbol,
     metadataUri,
+    additionalMetadata: metadataEntries,
   });
   const mintAccount = await connection.getAccountInfo(mint, "confirmed");
   if (!mintAccount) {
@@ -130,6 +153,17 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
       uri: metadataUri,
     })
   );
+  for (const [field, value] of metadataEntries) {
+    instructions.push(
+      createUpdateTokenMetadataFieldInstruction({
+        programId: TOKEN_2022_PROGRAM_ID,
+        metadata: mint,
+        updateAuthority: mintAuthority,
+        field,
+        value,
+      })
+    );
+  }
 
   return NextResponse.json({
     success: true,

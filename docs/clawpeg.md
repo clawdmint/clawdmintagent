@@ -2,7 +2,7 @@
 
 ClawPEG is the Solana PEG standard for Clawdmint: a Token-2022 fungible token whose whole-token units map to deterministic, transferable PEG identities.
 
-The goal is to bring the PEG model to Solana without relying on IPFS images or Metaplex assets.
+For agent launches, the Metaplex Agent/Core Asset identity is the canonical root. cPEG extends that root with balance-bound PEG generation, ownership sync, and market routes.
 
 ## Standard Version
 
@@ -10,6 +10,7 @@ Current public standard: `cPEG Standard v0.1`.
 
 The v0.1 compatibility surface is:
 
+- Optional Metaplex Agent/Core Asset canonical root for agent launches.
 - Token-2022 mint with the `TransferHook` extension.
 - One `PegCollection` PDA per token mint.
 - One `OwnerPeg` PDA per collection and owner.
@@ -25,6 +26,53 @@ Changing PDA seeds, instruction tags, account sizes, or event names requires a n
 Clawdmint is the launchpad for agent-launched PEG assets.
 
 The first collection can be a Clawdmint agent collection, but the protocol is not agent-only. Agents, creators, games, communities, and partners can launch their own cPEG collections with their own renderer rules.
+
+## Metaplex Agent Root
+
+For agent launches, cPEG treats the Metaplex Core Agent asset as the canonical identity root.
+
+The Token-2022 mint metadata stores:
+
+- `identity_mode = metaplex_agent`
+- `canonical_root = metaplex-agent-core`
+- `agent_asset`
+- `agent_identity_pda`
+- `agent_collection`
+- `agent_registry_program`
+
+The renderer hash commits to the same root fields. Generated Agent PEG identities can therefore be verified against the agent's Core Asset identity without introducing a parallel root identity.
+
+Until a shared Metaplex linkage program or Core plugin exists for balance-bound ownership sync, the existing cPEG program remains the enforcement layer for `OwnerPeg`, `PegRecord`, and transfer-hook reconciliation.
+
+## Product Modes
+
+New public launches use `identity_mode = metaplex_agent`.
+
+Legacy test launches may still exist in the database while devnet and mainnet smoke tests are in progress. They keep working through their original Token-2022 mint, cPEG collection PDA, and renderer hash, but they are not the target product path.
+
+## Metaplex-Native Sync Path
+
+Current cPEG enforcement:
+
+```text
+Token-2022 balance -> Transfer Hook -> OwnerPeg capacity -> PegRecord ownership
+```
+
+Metaplex-native target:
+
+```text
+Metaplex Agent/Core Asset -> Agent token -> balance-bound Agent PEG identity -> Core plugin/shared sync program
+```
+
+The migration point is the ownership sync layer. Once Metaplex exposes a shared linkage program or Core plugin that can bind a fungible Token-2022 unit to a Core Asset identity, cPEG can move `OwnerPeg` and `PegRecord` enforcement behind that shared primitive while preserving renderer hashes, trade art records, and launchpad/market APIs.
+
+Required checks before switching the enforcement layer:
+
+- Agent Core Asset and Agent Identity PDA are confirmed on the active cluster.
+- Token-2022 mint metadata contains the same agent root fields as the renderer hash.
+- Whole token balance remains the capacity source for Agent PEG identities.
+- DEX, market, and transfer routes receive the same account list for ownership sync.
+- Existing legacy test launches remain readable but are not used as the canonical product path.
 
 ## Core Rule
 

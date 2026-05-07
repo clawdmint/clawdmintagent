@@ -21,6 +21,12 @@ import {
   getClawPegRenderer,
 } from "@/lib/clawpeg-renderer-registry";
 import { getClawPegRpcUrl } from "@/lib/env";
+import {
+  CPEG_IDENTITY_MODE_METAPLEX_AGENT,
+  cpegAgentRootToRendererParams,
+  cpegAgentRootToTokenMetadata,
+  normalizeCpegAgentRootLink,
+} from "@/lib/cpeg-agent-root";
 
 export const dynamic = "force-dynamic";
 
@@ -38,6 +44,12 @@ const LaunchpadPrepareSchema = z.object({
   premium_indexing: z.boolean().default(false),
   partner_api_enabled: z.boolean().default(false),
   white_label_domain: z.string().max(120).optional(),
+  identity_mode: z.enum(["standalone", "metaplex_agent"]).default("standalone"),
+  agent_asset_address: z.string().min(32).optional(),
+  agent_identity_pda: z.string().min(32).optional(),
+  agent_collection_address: z.string().min(32).optional(),
+  agent_wallet_address: z.string().min(32).optional(),
+  agent_name: z.string().max(80).optional(),
   renderer_id: z.string().min(1).optional(),
   renderer_version: z.string().min(1).optional(),
   renderer_params: z.record(z.unknown()).optional(),
@@ -78,6 +90,15 @@ export async function POST(request: NextRequest) {
     assertPublicKey(input.authority_address, "authority_address");
     if (input.creator_address) assertPublicKey(input.creator_address, "creator_address");
     if (input.fee_vault_address) assertPublicKey(input.fee_vault_address, "fee_vault_address");
+    const agentRoot = normalizeCpegAgentRootLink({
+      identityMode: input.identity_mode,
+      agentAssetAddress: input.agent_asset_address,
+      agentIdentityPda: input.agent_identity_pda,
+      agentCollectionAddress: input.agent_collection_address,
+      agentWalletAddress: input.agent_wallet_address,
+      agentName: input.agent_name,
+    });
+    const metadataEntries = cpegAgentRootToTokenMetadata(agentRoot);
 
     const premiumIndexing = true;
     const royaltyBps = CLAWPEG_FIXED_CREATOR_ROYALTY_BPS;
@@ -93,6 +114,7 @@ export async function POST(request: NextRequest) {
       name: input.name,
       symbol: input.symbol,
       metadataUri,
+      additionalMetadata: metadataEntries,
     });
     const connection = new Connection(getClawPegRpcUrl(), "confirmed");
 
@@ -121,6 +143,25 @@ export async function POST(request: NextRequest) {
         { status: 503 }
       );
     }
+    if (agentRoot.identityMode === CPEG_IDENTITY_MODE_METAPLEX_AGENT) {
+      const identityAccounts = await connection.getMultipleAccountsInfo(
+        [
+          new PublicKey(agentRoot.agentAssetAddress as string),
+          new PublicKey(agentRoot.agentIdentityPda as string),
+        ],
+        "confirmed"
+      );
+      if (!identityAccounts[0] || !identityAccounts[1]) {
+        return NextResponse.json(
+          {
+            success: false,
+            error:
+              "Metaplex Agent/Core root is not confirmed on the configured cluster. Register the agent identity first, then launch cPEG.",
+          },
+          { status: 409 }
+        );
+      }
+    }
 
     const baseMintAccountSize = getClawPegToken2022CreateAccountSize(true);
     const baseMintRentLamports = await connection.getMinimumBalanceForRentExemption(baseMintAccountSize);
@@ -138,6 +179,7 @@ export async function POST(request: NextRequest) {
     const rendererParams: Record<string, unknown> = {
       ...rendererManifest.defaultParams,
       ...(input.renderer_params || {}),
+      ...cpegAgentRootToRendererParams(agentRoot),
     };
     for (const field of rendererManifest.fields) {
       const value = rendererParams[field.key];
@@ -175,6 +217,7 @@ export async function POST(request: NextRequest) {
       name: input.name,
       symbol: input.symbol,
       metadataUri,
+      additionalMetadata: metadataEntries,
     });
     const manifest = buildClawPegLaunchManifest({
       authority: input.authority_address,
@@ -211,6 +254,14 @@ export async function POST(request: NextRequest) {
         marketplace_fee_bps: marketplaceFeeBps,
         premium_indexing: premiumIndexing,
         metadata_uri: metadataUri,
+        identity_mode: agentRoot.identityMode,
+        canonical_root: agentRoot.canonicalRoot,
+        agent_asset_address: agentRoot.agentAssetAddress,
+        agent_identity_pda: agentRoot.agentIdentityPda,
+        agent_collection_address: agentRoot.agentCollectionAddress,
+        agent_wallet_address: agentRoot.agentWalletAddress,
+        agent_registry_program_id: agentRoot.registryProgramId,
+        metaplex_agent_native: agentRoot.identityMode === CPEG_IDENTITY_MODE_METAPLEX_AGENT,
       },
       fees,
       token2022_setup: token2022Setup,

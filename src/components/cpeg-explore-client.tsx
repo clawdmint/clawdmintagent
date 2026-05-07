@@ -14,6 +14,7 @@ interface ExploreCollection {
   token_mint: string;
   max_pegs: number;
   cluster: string;
+  identity_mode?: string;
 }
 
 interface ExplorePeg {
@@ -46,6 +47,10 @@ interface ExplorePayload {
     symbol: string;
     token_mint: string;
     collection_address: string | null;
+    identity_mode?: string;
+    canonical_root?: string | null;
+    agent_asset_address?: string | null;
+    agent_identity_pda?: string | null;
     cluster: string;
     renderer: string;
     renderer_hash: string;
@@ -214,6 +219,11 @@ export function CpegExploreClient({ initialPayload }: { initialPayload: ExploreP
                 <p className="mt-4 max-w-2xl text-sm leading-6 text-neutral-600 dark:text-white/55">
                   Browse deterministic PEG identities by score, owner, peg id, or collection.
                 </p>
+                {collection ? (
+                  <p className="mt-3 inline-flex border border-neutral-300 px-2 py-1 font-mono text-[10px] uppercase tracking-[0.18em] text-neutral-600 dark:border-white/15 dark:text-white/45">
+                    {collection.identity_mode === "metaplex_agent" ? "Metaplex Agent Root" : "Legacy Test Collection"}
+                  </p>
+                ) : null}
               </div>
               <div className="grid grid-cols-3 gap-5 font-mono text-xs uppercase tracking-[0.18em]">
                 <div>
@@ -289,7 +299,7 @@ export function CpegExploreClient({ initialPayload }: { initialPayload: ExploreP
                 >
                   {payload.collections.map((item) => (
                     <option key={item.token_mint} value={item.token_mint} className="bg-neutral-50 dark:bg-[#111]">
-                      {item.symbol}
+                      {item.symbol} / {item.identity_mode === "metaplex_agent" ? "Agent" : "Legacy"}
                     </option>
                   ))}
                 </select>
@@ -318,6 +328,18 @@ export function CpegExploreClient({ initialPayload }: { initialPayload: ExploreP
                 <span>Renderer</span>
                 <span className="truncate text-neutral-950 dark:text-white">{collection?.renderer || "--"}</span>
               </div>
+              <div className="flex items-center justify-between gap-3">
+                <span>Root</span>
+                <span className="truncate text-neutral-950 dark:text-white">
+                  {collection?.identity_mode === "metaplex_agent" ? "Metaplex Agent" : "Legacy"}
+                </span>
+              </div>
+              {collection?.agent_asset_address ? (
+                <div className="flex items-center justify-between gap-3">
+                  <span>Agent Asset</span>
+                  <span className="text-neutral-950 dark:text-white">{truncateAddress(collection.agent_asset_address, 5, 5)}</span>
+                </div>
+              ) : null}
               <div className="flex items-center justify-between gap-3">
                 <span>Mint</span>
                 <span className="text-neutral-950 dark:text-white">{collection ? truncateAddress(collection.token_mint, 5, 5) : "--"}</span>

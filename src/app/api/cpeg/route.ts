@@ -53,6 +53,10 @@ interface LaunchRow {
   status: string;
   royaltyBps: number;
   marketplaceFeeBps: number;
+  identityMode: string;
+  canonicalRoot: string | null;
+  agentAssetAddress: string | null;
+  agentIdentityPda: string | null;
   createdAt: Date;
 }
 
@@ -86,7 +90,8 @@ export async function GET(request: NextRequest) {
     launches = await prisma.$queryRaw<LaunchRow[]>`
       SELECT "id", "name", "symbol", "tokenMint", "collectionAddress", "hookValidationAddress",
         "cluster", "rendererId", "rendererVersion", "maxPegs", "status", "royaltyBps",
-        "marketplaceFeeBps", "createdAt"
+        "marketplaceFeeBps", "identityMode", "canonicalRoot", "agentAssetAddress",
+        "agentIdentityPda", "createdAt"
       FROM "ClawPegLaunch"
       WHERE "status" IN (${"ACTIVE"}, ${"LAUNCHED"})
       ${orderClause}
@@ -181,6 +186,10 @@ export async function GET(request: NextRequest) {
         status: launch.status,
         royalty_bps: launch.royaltyBps,
         marketplace_fee_bps: launch.marketplaceFeeBps,
+        identity_mode: launch.identityMode,
+        canonical_root: launch.canonicalRoot,
+        agent_asset_address: launch.agentAssetAddress,
+        agent_identity_pda: launch.agentIdentityPda,
         created_at: launch.createdAt.toISOString(),
         market: {
           active_listings: active,

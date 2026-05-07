@@ -30,6 +30,13 @@ export async function GET(request: NextRequest, { params }: RouteContext) {
       royaltyBps: true,
       marketplaceFeeBps: true,
       status: true,
+      identityMode: true,
+      canonicalRoot: true,
+      agentAssetAddress: true,
+      agentIdentityPda: true,
+      agentCollectionAddress: true,
+      agentWalletAddress: true,
+      agentRegistryProgramId: true,
     },
   });
 
@@ -57,12 +64,23 @@ export async function GET(request: NextRequest, { params }: RouteContext) {
       { trait_type: "Renderer", value: `${launch.rendererId}@${launch.rendererVersion}` },
       { trait_type: "Max PEGs", value: launch.maxPegs },
       { trait_type: "Status", value: launch.status },
+      { trait_type: "Identity Mode", value: launch.identityMode },
+      ...(launch.agentAssetAddress
+        ? [{ trait_type: "Canonical Root", value: launch.canonicalRoot || "metaplex-agent-core" }]
+        : []),
     ],
     properties: {
       category: "image",
       files: [{ uri: image, type: "image/svg+xml" }],
       token_mint: launch.tokenMint,
       collection_address: launch.collectionAddress,
+      identity_mode: launch.identityMode,
+      canonical_root: launch.canonicalRoot,
+      agent_asset_address: launch.agentAssetAddress,
+      agent_identity_pda: launch.agentIdentityPda,
+      agent_collection_address: launch.agentCollectionAddress,
+      agent_wallet_address: launch.agentWalletAddress,
+      agent_registry_program_id: launch.agentRegistryProgramId,
       royalty_bps: launch.royaltyBps,
       marketplace_fee_bps: launch.marketplaceFeeBps,
     },

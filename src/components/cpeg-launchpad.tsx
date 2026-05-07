@@ -55,6 +55,13 @@ interface LaunchPreparePayload {
     max_pegs: number;
     royalty_bps: number;
     marketplace_fee_bps: number;
+    identity_mode?: "standalone" | "metaplex_agent";
+    canonical_root?: string | null;
+    agent_asset_address?: string | null;
+    agent_identity_pda?: string | null;
+    agent_collection_address?: string | null;
+    agent_wallet_address?: string | null;
+    agent_registry_program_id?: string | null;
   };
   token2022_setup?: {
     mint_account_size: number;
@@ -71,6 +78,21 @@ interface LaunchPreparePayload {
     premium_indexing_fee_lamports?: string;
     total_lamports?: string;
   };
+}
+
+interface AgentRootPayload {
+  success: boolean;
+  agent_root?: {
+    agent_id: string;
+    agent_name: string;
+    identity_mode: "metaplex_agent";
+    canonical_root: string;
+    agent_asset_address: string;
+    agent_identity_pda: string;
+    agent_collection_address: string | null;
+    agent_wallet_address: string | null;
+    agent_registry_program_id: string;
+  } | null;
 }
 
 interface FeeQuote {
@@ -279,6 +301,8 @@ export function CpegLaunchpad() {
   const [feeQuote, setFeeQuote] = useState<FeeQuote | null>(null);
   const [readiness, setReadiness] = useState<LaunchReadiness | null>(null);
   const [readinessLoading, setReadinessLoading] = useState(false);
+  const [agentRoot, setAgentRoot] = useState<AgentRootPayload["agent_root"]>(null);
+  const [agentRootLoading, setAgentRootLoading] = useState(false);
 
   const connectedAddress = solanaAddress || "";
 
@@ -291,7 +315,7 @@ export function CpegLaunchpad() {
   const decimalsValid = Number.isFinite(decimalsNumber) && decimalsNumber >= 0 && decimalsNumber <= 9;
 
   const formValid = nameValid && symbolValid && maxPegsValid && decimalsValid;
-  const canLaunch = Boolean(connectedAddress) && formValid;
+  const canLaunch = Boolean(connectedAddress) && formValid && Boolean(agentRoot?.agent_asset_address);
 
   const previewQuery = useMemo(() => {
     const params = new URLSearchParams({
@@ -357,6 +381,31 @@ export function CpegLaunchpad() {
     await navigator.clipboard.writeText(value).catch(() => {});
   }, []);
 
+  useEffect(() => {
+    if (!connectedAddress) {
+      setAgentRoot(null);
+      return;
+    }
+    let cancelled = false;
+    setAgentRootLoading(true);
+    void (async () => {
+      try {
+        const response = await fetch(`/api/cpeg/agent-root?wallet=${encodeURIComponent(connectedAddress)}`, {
+          cache: "no-store",
+        });
+        const body = (await response.json().catch(() => null)) as AgentRootPayload | null;
+        if (!cancelled) setAgentRoot(body?.success ? body.agent_root || null : null);
+      } catch {
+        if (!cancelled) setAgentRoot(null);
+      } finally {
+        if (!cancelled) setAgentRootLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [connectedAddress]);
+
   const updateForm = useCallback(<K extends keyof typeof DEFAULT_FORM>(key: K, value: (typeof DEFAULT_FORM)[K]) => {
     setForm((current) => ({ ...current, [key]: value }));
   }, []);
@@ -371,7 +420,11 @@ export function CpegLaunchpad() {
       return;
     }
     if (!canLaunch) {
-      setError("Please complete the form before launching.");
+      setError(
+        agentRoot?.agent_asset_address
+          ? "Please complete the form before launching."
+          : "Connect a wallet with a verified Metaplex Agent root before launching."
+      );
       return;
     }
 
@@ -397,6 +450,12 @@ export function CpegLaunchpad() {
           decimals: decimalsNumber,
           royalty_bps: FIXED_CREATOR_ROYALTY_BPS,
           premium_indexing: true,
+          identity_mode: "metaplex_agent",
+          agent_asset_address: agentRoot?.agent_asset_address || undefined,
+          agent_identity_pda: agentRoot?.agent_identity_pda || undefined,
+          agent_collection_address: agentRoot?.agent_collection_address || undefined,
+          agent_wallet_address: agentRoot?.agent_wallet_address || undefined,
+          agent_name: agentRoot?.agent_name || undefined,
           renderer_params: {
             subject: form.subject,
             palette: form.palette,
@@ -485,6 +544,11 @@ export function CpegLaunchpad() {
           renderer_id: prepareBody.launch.renderer_id,
           renderer_version: prepareBody.launch.renderer_version,
           renderer_params: prepareBody.launch.renderer_params,
+          identity_mode: prepareBody.launch.identity_mode || "standalone",
+          agent_asset_address: prepareBody.launch.agent_asset_address || undefined,
+          agent_identity_pda: prepareBody.launch.agent_identity_pda || undefined,
+          agent_collection_address: prepareBody.launch.agent_collection_address || undefined,
+          agent_wallet_address: prepareBody.launch.agent_wallet_address || undefined,
         }),
       }).catch(() => null);
 
@@ -517,6 +581,7 @@ export function CpegLaunchpad() {
     login,
     maxPegsNumber,
     normalizedSymbol,
+    agentRoot,
   ]);
 
   useEffect(() => {
@@ -771,6 +836,23 @@ export function CpegLaunchpad() {
                 </button>
               ))}
             </div>
+            <div className="mt-4 border border-neutral-200 bg-neutral-50/80 p-4 dark:border-white/10 dark:bg-black/35">
+              <p className="font-mono text-[10px] uppercase tracking-[0.2em] text-[#53c7ff]">Canonical root</p>
+              {agentRootLoading ? (
+                <p className="mt-2 text-xs text-neutral-600 dark:text-white/55">Checking verified agent identity...</p>
+              ) : agentRoot ? (
+                <div className="mt-3 grid gap-2 font-mono text-[10px] uppercase tracking-[0.14em] text-neutral-600 dark:text-white/55">
+                  <Row label="Mode" value="Metaplex Agent" highlight />
+                  <Row label="Agent" value={agentRoot.agent_name} />
+                  <Row label="Core asset" value={truncateAddress(agentRoot.agent_asset_address, 6, 6)} />
+                  <Row label="Identity PDA" value={truncateAddress(agentRoot.agent_identity_pda, 6, 6)} />
+                </div>
+              ) : (
+                <p className="mt-2 text-xs leading-6 text-neutral-600 dark:text-white/55">
+                  No verified Metaplex Agent root was found for this wallet. Register or sync an agent identity before launching.
+                </p>
+              )}
+            </div>
           </div>
 
           <div className="border border-neutral-200 dark:border-white/10 bg-neutral-100 dark:bg-[#0c0c0c] p-5">
@@ -881,7 +963,11 @@ export function CpegLaunchpad() {
               </div>
             ) : null}
             {!error && !status && isConnected && !canLaunch ? (
-              <p className="mt-3 text-[11px] text-neutral-500 dark:text-white/45">Complete the form to launch.</p>
+              <p className="mt-3 text-[11px] text-neutral-500 dark:text-white/45">
+                {agentRoot?.agent_asset_address
+                  ? "Complete the form to launch."
+                  : "A verified Metaplex Agent root is required for new launches."}
+              </p>
             ) : null}
             {!isConnected ? (
               <p className="mt-3 text-[11px] text-neutral-700 dark:text-white/55">Connect Phantom on devnet or mainnet.</p>

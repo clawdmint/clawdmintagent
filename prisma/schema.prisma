@@ -483,6 +483,14 @@ model ClawPegLaunch {
   premiumIndexing      Boolean  @default(false)
   partnerApiEnabled    Boolean  @default(false)
   whiteLabelDomain     String?
+  identityMode         String   @default("standalone")
+  canonicalRoot        String?
+  agentAssetAddress    String?
+  agentIdentityPda     String?
+  agentCollectionAddress String?
+  agentWalletAddress   String?
+  agentRegistryProgramId String?
+  identityLink         Json?
 
   authorityAddress     String
   creatorAddress       String
@@ -498,6 +506,9 @@ model ClawPegLaunch {
   @@index([tokenMint])
   @@index([collectionAddress])
   @@index([status])
+  @@index([identityMode])
+  @@index([agentAssetAddress])
+  @@index([agentIdentityPda])
   @@index([createdAt])
 }
 

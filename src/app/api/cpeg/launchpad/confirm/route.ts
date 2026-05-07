@@ -11,6 +11,9 @@ import {
 } from "@/lib/clawpeg";
 import { verifyClawPegRendererHash } from "@/lib/clawpeg-renderer-registry";
 import { getClawPegRpcUrl } from "@/lib/env";
+import {
+  normalizeCpegAgentRootLink,
+} from "@/lib/cpeg-agent-root";
 
 export const dynamic = "force-dynamic";
 
@@ -26,6 +29,12 @@ const ConfirmSchema = z.object({
   renderer_id: z.string().min(1).optional(),
   renderer_version: z.string().min(1).optional(),
   renderer_params: z.record(z.unknown()).optional(),
+  identity_mode: z.enum(["standalone", "metaplex_agent"]).default("standalone"),
+  agent_asset_address: z.string().min(32).optional(),
+  agent_identity_pda: z.string().min(32).optional(),
+  agent_collection_address: z.string().min(32).optional(),
+  agent_wallet_address: z.string().min(32).optional(),
+  agent_name: z.string().max(80).optional(),
 });
 
 function bytesToHex(bytes: Uint8Array) {
@@ -166,6 +175,14 @@ export async function POST(request: NextRequest) {
     const rendererId = input.renderer_id || CLAWPEG_DEFAULT_RENDERER_ID;
     const rendererVersion = input.renderer_version || CLAWPEG_DEFAULT_RENDERER_VERSION;
     const rendererParamsObject = (input.renderer_params || {}) as Record<string, unknown>;
+    const agentRoot = normalizeCpegAgentRootLink({
+      identityMode: input.identity_mode,
+      agentAssetAddress: input.agent_asset_address || (rendererParamsObject.agentAsset as string | undefined),
+      agentIdentityPda: input.agent_identity_pda || (rendererParamsObject.agentIdentity as string | undefined),
+      agentCollectionAddress: input.agent_collection_address || (rendererParamsObject.agentCollection as string | undefined),
+      agentWalletAddress: input.agent_wallet_address || (rendererParamsObject.agentWallet as string | undefined),
+      agentName: input.agent_name,
+    });
     const rendererVerification = verifyClawPegRendererHash({
       hash: collection.rendererHash,
       id: rendererId,
@@ -208,6 +225,14 @@ export async function POST(request: NextRequest) {
         feeVaultAddress: collection.feeVault.toBase58(),
         deployTxHash: input.signature || null,
         rendererParams,
+        identityMode: agentRoot.identityMode,
+        canonicalRoot: agentRoot.canonicalRoot,
+        agentAssetAddress: agentRoot.agentAssetAddress,
+        agentIdentityPda: agentRoot.agentIdentityPda,
+        agentCollectionAddress: agentRoot.agentCollectionAddress,
+        agentWalletAddress: agentRoot.agentWalletAddress,
+        agentRegistryProgramId: agentRoot.registryProgramId,
+        identityLink: agentRoot as unknown as Prisma.InputJsonValue,
         status: "LAUNCHED",
         launchedAt: new Date(),
       },
@@ -225,6 +250,14 @@ export async function POST(request: NextRequest) {
         rendererHash: collection.rendererHash,
         collectionSeed: collection.collectionSeed,
         rendererParams,
+        identityMode: agentRoot.identityMode,
+        canonicalRoot: agentRoot.canonicalRoot,
+        agentAssetAddress: agentRoot.agentAssetAddress,
+        agentIdentityPda: agentRoot.agentIdentityPda,
+        agentCollectionAddress: agentRoot.agentCollectionAddress,
+        agentWalletAddress: agentRoot.agentWalletAddress,
+        agentRegistryProgramId: agentRoot.registryProgramId,
+        identityLink: agentRoot as unknown as Prisma.InputJsonValue,
         pegUnitRaw: collection.pegUnitRaw,
         maxPegs: collection.maxPegs,
         royaltyBps: collection.royaltyBps,
@@ -248,6 +281,10 @@ export async function POST(request: NextRequest) {
         token_mint: saved.tokenMint,
         collection_address: saved.collectionAddress,
         hook_validation_address: saved.hookValidationAddress,
+        identity_mode: saved.identityMode,
+        canonical_root: saved.canonicalRoot,
+        agent_asset_address: saved.agentAssetAddress,
+        agent_identity_pda: saved.agentIdentityPda,
         tx_hash: saved.deployTxHash,
         status: saved.status,
       },

@@ -16,6 +16,12 @@ import {
   getClawPegToken2022MintAccountSize,
   quoteClawPegLaunchFee,
 } from "@/lib/clawpeg";
+import {
+  CPEG_IDENTITY_MODE_METAPLEX_AGENT,
+  cpegAgentRootToRendererParams,
+  cpegAgentRootToTokenMetadata,
+  normalizeCpegAgentRootLink,
+} from "@/lib/cpeg-agent-root";
 
 export const dynamic = "force-dynamic";
 
@@ -37,6 +43,12 @@ const ClawPegLaunchSchema = z.object({
   premium_indexing: z.boolean().default(false),
   partner_api_enabled: z.boolean().default(false),
   white_label_domain: z.string().max(120).optional(),
+  identity_mode: z.enum(["standalone", "metaplex_agent"]).default("standalone"),
+  agent_asset_address: z.string().min(32).optional(),
+  agent_identity_pda: z.string().min(32).optional(),
+  agent_collection_address: z.string().min(32).optional(),
+  agent_wallet_address: z.string().min(32).optional(),
+  agent_name: z.string().max(80).optional(),
   include_token2022_setup: z.boolean().default(false),
   mint_authority_address: z.string().min(32).optional(),
   freeze_authority_address: z.string().min(32).nullable().optional(),
@@ -116,6 +128,19 @@ export async function POST(request: NextRequest) {
       );
     }
     const rendererParams = (input.renderer_params || {}) as Prisma.InputJsonObject;
+    const agentRoot = normalizeCpegAgentRootLink({
+      identityMode: input.identity_mode,
+      agentAssetAddress: input.agent_asset_address,
+      agentIdentityPda: input.agent_identity_pda,
+      agentCollectionAddress: input.agent_collection_address,
+      agentWalletAddress: input.agent_wallet_address,
+      agentName: input.agent_name,
+    });
+    const linkedRendererParams = {
+      ...(rendererParams as Record<string, unknown>),
+      ...cpegAgentRootToRendererParams(agentRoot),
+    } as Prisma.InputJsonObject;
+    const metadataEntries = cpegAgentRootToTokenMetadata(agentRoot);
     const premiumIndexing = true;
     const fees = quoteClawPegLaunchFee({
       premiumIndexing,
@@ -125,7 +150,7 @@ export async function POST(request: NextRequest) {
     const rendererHash = createRendererHash({
       id: input.renderer_id,
       version: input.renderer_version,
-      params: rendererParams,
+      params: linkedRendererParams,
     });
     const collectionSeed = input.collection_seed || createCollectionSeed();
     const creatorAddress = input.creator_address || agent.solanaWalletAddress || input.authority_address;
@@ -140,6 +165,7 @@ export async function POST(request: NextRequest) {
       name: input.name,
       symbol: input.symbol,
       metadataUri,
+      additionalMetadata: metadataEntries,
     });
 
     const manifest = buildClawPegLaunchManifest({
@@ -169,6 +195,7 @@ export async function POST(request: NextRequest) {
             name: input.name,
             symbol: input.symbol,
             metadataUri,
+            additionalMetadata: metadataEntries,
           })
         : null;
 
@@ -189,7 +216,15 @@ export async function POST(request: NextRequest) {
           rendererVersion: input.renderer_version,
           rendererHash,
           collectionSeed,
-          rendererParams,
+          rendererParams: linkedRendererParams,
+          identityMode: agentRoot.identityMode,
+          canonicalRoot: agentRoot.canonicalRoot,
+          agentAssetAddress: agentRoot.agentAssetAddress,
+          agentIdentityPda: agentRoot.agentIdentityPda,
+          agentCollectionAddress: agentRoot.agentCollectionAddress,
+          agentWalletAddress: agentRoot.agentWalletAddress,
+          agentRegistryProgramId: agentRoot.registryProgramId,
+          identityLink: agentRoot as unknown as Prisma.InputJsonValue,
           pegUnitRaw: pegUnitRaw.toString(),
           maxPegs: input.max_pegs,
           royaltyBps,
@@ -222,6 +257,7 @@ export async function POST(request: NextRequest) {
         renderer_version: input.renderer_version,
         renderer_hash: rendererHash,
         collection_seed: collectionSeed,
+        renderer_params: linkedRendererParams,
         peg_unit_raw: pegUnitRaw.toString(),
         max_pegs: input.max_pegs,
         royalty_bps: royaltyBps,
@@ -229,6 +265,14 @@ export async function POST(request: NextRequest) {
         premium_indexing: premiumIndexing,
         partner_api_enabled: input.partner_api_enabled,
         white_label_domain: input.white_label_domain || null,
+        identity_mode: agentRoot.identityMode,
+        canonical_root: agentRoot.canonicalRoot,
+        agent_asset_address: agentRoot.agentAssetAddress,
+        agent_identity_pda: agentRoot.agentIdentityPda,
+        agent_collection_address: agentRoot.agentCollectionAddress,
+        agent_wallet_address: agentRoot.agentWalletAddress,
+        agent_registry_program_id: agentRoot.registryProgramId,
+        metaplex_agent_native: agentRoot.identityMode === CPEG_IDENTITY_MODE_METAPLEX_AGENT,
       },
       fees,
       token2022_setup: token2022Setup,

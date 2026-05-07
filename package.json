@@ -20,6 +20,7 @@
     "db:reset": "prisma migrate reset",
     "metaplex:resync": "node scripts/resync-metaplex-agents.js",
     "cpeg:verify": "node scripts/run-cpeg-verify.js",
+    "cpeg:agent-root-smoke": "node scripts/cpeg-agent-root-smoke.js",
     "cpeg:token-audit": "npx ts-node scripts/cpeg-token-audit.ts",
     "contracts:compile": "cd contracts && forge build",
     "contracts:test": "cd contracts && forge test -vvv",

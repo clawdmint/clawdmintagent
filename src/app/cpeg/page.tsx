@@ -42,6 +42,7 @@ interface GlobalStats {
   floor_sol: string | null;
   volume_lamports: string;
   volume_sol: string;
+  identity_modes?: Record<string, number>;
 }
 
 interface LaunchRow {
@@ -53,6 +54,10 @@ interface LaunchRow {
   cluster: string;
   max_pegs: number;
   status: string;
+  identity_mode?: string;
+  canonical_root?: string | null;
+  agent_asset_address?: string | null;
+  agent_identity_pda?: string | null;
   is_sealed?: boolean;
   market: {
     active_listings: number;
@@ -290,6 +295,9 @@ export default async function CpegPage() {
                     <p className="mt-1 font-mono text-[10px] uppercase tracking-[0.2em] text-neutral-500 dark:text-white/45">
                       {launch.symbol} / {launch.cluster.toUpperCase()} / {launch.status}
                     </p>
+                    <p className="mt-2 inline-flex border border-neutral-300 px-2 py-0.5 font-mono text-[9px] uppercase tracking-[0.18em] text-neutral-600 dark:border-white/15 dark:text-white/45">
+                      {launch.identity_mode === "metaplex_agent" ? "Agent Root" : "Legacy Test"}
+                    </p>
                   </div>
                   <div className="flex flex-col items-end gap-1.5">
                     <span className="font-mono text-[10px] uppercase tracking-[0.2em] text-[#53c7ff]">
@@ -473,7 +481,7 @@ export default async function CpegPage() {
                     <div className="min-w-0">
                       <p className="truncate font-bold uppercase tracking-tight">{launch.name}</p>
                       <p className="mt-0.5 font-mono text-[10px] uppercase tracking-[0.18em] text-neutral-500 dark:text-white/45">
-                        {launch.symbol} / {launch.market.active_listings} listed
+                        {launch.symbol} / {launch.identity_mode === "metaplex_agent" ? "Agent Root" : "Legacy"} / {launch.market.active_listings} listed
                       </p>
                     </div>
                     <span className="font-mono text-xs text-[#53c7ff]">
