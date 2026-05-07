@@ -261,6 +261,8 @@ export async function setupHybridLaunch(
   if (balance.lamports < MIN_AGENT_WALLET_LAMPORTS_FOR_SETUP) {
     throw new CpegHybridEngineError(402, "Agent wallet does not have enough SOL to deploy the Core PEG collection", {
       balance_sol: balance.sol,
+      required_sol: Number(MIN_AGENT_WALLET_LAMPORTS_FOR_SETUP) / 1_000_000_000,
+      wallet_address: ctx.signer.publicKey.toBase58(),
     });
   }
 
@@ -472,6 +474,8 @@ export async function confirmCaptureMint(
   if (balance.lamports < MIN_AGENT_WALLET_LAMPORTS_FOR_CAPTURE) {
     throw new CpegHybridEngineError(402, "Agent wallet does not have enough SOL to mint a Core PEG asset", {
       balance_sol: balance.sol,
+      required_sol: Number(MIN_AGENT_WALLET_LAMPORTS_FOR_CAPTURE) / 1_000_000_000,
+      wallet_address: ctx.signer.publicKey.toBase58(),
     });
   }
   if (!launch.hybridCoreCollectionAddress) {
@@ -529,6 +533,8 @@ export async function confirmReleasePayout(
   if (balance.lamports < MIN_AGENT_WALLET_LAMPORTS_FOR_RELEASE) {
     throw new CpegHybridEngineError(402, "Agent wallet does not have enough SOL to settle a release", {
       balance_sol: balance.sol,
+      required_sol: Number(MIN_AGENT_WALLET_LAMPORTS_FOR_RELEASE) / 1_000_000_000,
+      wallet_address: ctx.signer.publicKey.toBase58(),
     });
   }
   if (!launch.hybridCoreCollectionAddress) {

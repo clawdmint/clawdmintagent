@@ -20,6 +20,8 @@ import {
   VersionedTransaction,
 } from "@solana/web3.js";
 import { getPhantomProvider, useWallet } from "@/components/wallet-context";
+import { useCpegSite } from "@/components/cpeg-site-context";
+import { cpegPublicPaths } from "@/lib/cpeg-site-paths";
 import { describeError, explorerTxUrl, truncateAddress } from "@/lib/cpeg-ui";
 
 type SolanaWeb3Transaction = InstanceType<typeof Transaction> | InstanceType<typeof VersionedTransaction>;
@@ -68,6 +70,12 @@ interface HybridStateResponse {
   launch?: HybridLaunchState;
   wallet_assets?: HybridWalletAsset[];
   error?: string;
+}
+
+interface HybridErrorDetails {
+  balance_sol?: number;
+  required_sol?: number;
+  wallet_address?: string;
 }
 
 export interface CpegHybridPanelProps {
@@ -123,7 +131,17 @@ function getClientRpcUrl(cluster: string) {
   return clusterApiUrl(cluster === "devnet" ? "devnet" : "mainnet-beta");
 }
 
+function formatHybridError(error: string, details?: HybridErrorDetails | null) {
+  if (!details?.required_sol) return error;
+  const current = typeof details.balance_sol === "number" ? details.balance_sol.toLocaleString(undefined, { maximumFractionDigits: 6 }) : "--";
+  const required = details.required_sol.toLocaleString(undefined, { maximumFractionDigits: 6 });
+  const wallet = details.wallet_address ? ` Agent wallet: ${truncateAddress(details.wallet_address, 6, 6)}.` : "";
+  return `${error}. Required: ${required} SOL. Current: ${current} SOL.${wallet}`;
+}
+
 export function CpegHybridPanel({ tokenMint, initialAuthorityAddress, compact }: CpegHybridPanelProps) {
+  const site = useCpegSite();
+  const urls = useMemo(() => cpegPublicPaths(site), [site]);
   const { solanaAddress, isConnected, login } = useWallet();
   const [state, setState] = useState<HybridLaunchState | null>(null);
   const [walletAssets, setWalletAssets] = useState<HybridWalletAsset[]>([]);
@@ -138,8 +156,7 @@ export function CpegHybridPanel({ tokenMint, initialAuthorityAddress, compact }:
 
   const connectedAddress = solanaAddress || "";
   const isAuthority = useMemo(() => {
-    if (!initialAuthorityAddress) return Boolean(connectedAddress);
-    return Boolean(connectedAddress) && connectedAddress === initialAuthorityAddress;
+    return Boolean(initialAuthorityAddress && connectedAddress && connectedAddress === initialAuthorityAddress);
   }, [connectedAddress, initialAuthorityAddress]);
 
   const refreshState = useCallback(
@@ -184,9 +201,11 @@ export function CpegHybridPanel({ tokenMint, initialAuthorityAddress, compact }:
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ authority_address: connectedAddress }),
       });
-      const body = (await response.json().catch(() => null)) as { success?: boolean; error?: string } | null;
+      const body = (await response.json().catch(() => null)) as
+        | { success?: boolean; error?: string; details?: HybridErrorDetails }
+        | null;
       if (!response.ok || !body?.success) {
-        throw new Error(body?.error || "Failed to deploy hybrid vault.");
+        throw new Error(formatHybridError(body?.error || "Failed to deploy hybrid vault.", body?.details));
       }
       await refreshState();
       setStatus("Hybrid vault deployed.");
@@ -276,9 +295,16 @@ export function CpegHybridPanel({ tokenMint, initialAuthorityAddress, compact }:
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ wallet: connectedAddress, signature, count }),
       });
-      const confirmBody = (await confirmResponse.json().catch(() => null)) as { success?: boolean; error?: string } | null;
+      const confirmBody = (await confirmResponse.json().catch(() => null)) as
+        | { success?: boolean; error?: string; details?: HybridErrorDetails }
+        | null;
       if (!confirmResponse.ok || !confirmBody?.success) {
-        throw new Error(confirmBody?.error || "Capture transfer was confirmed, but minting failed.");
+        throw new Error(
+          formatHybridError(
+            confirmBody?.error || "Capture transfer was confirmed, but minting failed.",
+            confirmBody?.details
+          )
+        );
       }
       await refreshState();
       setStatus(`Captured ${count} cPEG.`);
@@ -416,6 +442,14 @@ export function CpegHybridPanel({ tokenMint, initialAuthorityAddress, compact }:
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2 font-mono text-[10px] uppercase tracking-[0.18em] text-white/55">
+          {isAuthority ? (
+            <a
+              href={`${urls.launch}?mint=${encodeURIComponent(tokenMint)}`}
+              className="inline-flex items-center gap-1 border border-[#ec5cff]/35 bg-[#ec5cff]/10 px-2 py-1 text-[#f6c4ff] transition hover:bg-[#ec5cff]/20"
+            >
+              Manage launch <ExternalLink className="h-3 w-3" />
+            </a>
+          ) : null}
           <span className={setupComplete ? "text-[#53c7ff]" : "text-[#f7b85c]"}>
             {setupComplete ? "Configured" : "Awaiting setup"}
           </span>
@@ -579,4 +613,3 @@ function Stat({ icon: Icon, label, value }: StatProps) {
     </div>
   );
 }
-

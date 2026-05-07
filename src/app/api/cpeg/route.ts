@@ -60,6 +60,7 @@ interface LaunchRow {
   cluster: string;
   rendererId: string | null;
   rendererVersion: string | null;
+  rendererHash: string | null;
   maxPegs: number;
   status: string;
   standardMode: string;
@@ -71,6 +72,7 @@ interface LaunchRow {
   agentIdentityPda: string | null;
   agentTokenMint: string | null;
   hybridStatus: string | null;
+  authorityAddress: string | null;
   createdAt: Date;
 }
 
@@ -103,9 +105,9 @@ export async function GET(request: NextRequest) {
         : Prisma.sql`ORDER BY "createdAt" DESC`;
     launches = await prisma.$queryRaw<LaunchRow[]>`
       SELECT "id", "name", "symbol", "tokenMint", "collectionAddress", "hookValidationAddress",
-        "cluster", "rendererId", "rendererVersion", "maxPegs", "status", "standardMode",
+        "cluster", "rendererId", "rendererVersion", "rendererHash", "maxPegs", "status", "standardMode",
         "royaltyBps", "marketplaceFeeBps", "identityMode", "canonicalRoot", "agentAssetAddress",
-        "agentIdentityPda", "agentTokenMint", "hybridStatus", "createdAt"
+        "agentIdentityPda", "agentTokenMint", "hybridStatus", "authorityAddress", "createdAt"
       FROM "ClawPegLaunch"
       WHERE "status" IN (${"ACTIVE"}, ${"LAUNCHED"}, ${"HYBRID_READY"}, ${"HYBRID_CONFIGURED"})
       ${orderClause}
@@ -196,6 +198,7 @@ export async function GET(request: NextRequest) {
         cluster: launch.cluster,
         renderer_id: launch.rendererId,
         renderer_version: launch.rendererVersion,
+        renderer_hash: launch.rendererHash,
         max_pegs: launch.maxPegs,
         status: launch.status,
         standard_mode: launch.standardMode,
@@ -207,6 +210,7 @@ export async function GET(request: NextRequest) {
         agent_identity_pda: launch.agentIdentityPda,
         agent_token_mint: launch.agentTokenMint,
         hybrid_status: launch.hybridStatus,
+        authority_address: launch.authorityAddress,
         created_at: launch.createdAt.toISOString(),
         market: {
           active_listings: active,

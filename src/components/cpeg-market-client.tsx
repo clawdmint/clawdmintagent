@@ -66,6 +66,7 @@ interface CpegLaunchSummary {
   symbol: string;
   token_mint: string;
   collection_address: string | null;
+  authority_address?: string | null;
   cluster: string;
   standard_mode?: string;
   hybrid_status?: string | null;
@@ -281,6 +282,9 @@ export function CpegMarketClient() {
   const showingCollectionDetail = Boolean(selectedMint && selectedLaunch);
   const identityPrefix = selectedLaunch?.symbol || collection?.symbol || "PEG";
   const marketReady = Boolean(selectedLaunch?.collection_address);
+  const isLaunchAuthority = Boolean(
+    selectedLaunch?.authority_address && connectedAddress && selectedLaunch.authority_address === connectedAddress
+  );
 
   const toggleSelectedPeg = useCallback((id: number) => {
     setSelectedPegIds((current) =>
@@ -477,6 +481,7 @@ export function CpegMarketClient() {
             symbol: string;
             token_mint: string;
             collection_address: string | null;
+            authority_address?: string | null;
             cluster: string;
             standard_mode?: string;
             hybrid_status?: string | null;
@@ -486,6 +491,7 @@ export function CpegMarketClient() {
             symbol: launch.symbol,
             token_mint: launch.token_mint,
             collection_address: launch.collection_address,
+            authority_address: launch.authority_address || null,
             cluster: launch.cluster,
             standard_mode: launch.standard_mode,
             hybrid_status: launch.hybrid_status,
@@ -1019,6 +1025,14 @@ export function CpegMarketClient() {
               >
                 Open gallery <ArrowUpRight className="h-3 w-3" />
               </Link>
+              {isLaunchAuthority ? (
+                <Link
+                  href={`${cpegUrls.launch}?mint=${encodeURIComponent(selectedLaunch.token_mint)}`}
+                  className="inline-flex items-center gap-2 border border-[#ec5cff]/40 bg-[#ec5cff]/10 px-3 py-2 font-mono text-[10px] uppercase tracking-[0.2em] text-[#ec5cff] transition hover:bg-[#ec5cff]/20"
+                >
+                  Manage launch <ArrowUpRight className="h-3 w-3" />
+                </Link>
+              ) : null}
               <button
                 type="button"
                 onClick={() => {

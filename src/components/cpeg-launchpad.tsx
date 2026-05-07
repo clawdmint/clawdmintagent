@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import {
   ArrowRight,
   ChevronDown,
@@ -326,10 +327,34 @@ interface LaunchResult {
   agentAsset?: string | null;
   agentIdentity?: string | null;
   agentTokenMint?: string | null;
+  authorityAddress?: string | null;
 }
+
+interface LaunchLookupPayload {
+  success: boolean;
+  launches?: Array<{
+    name: string;
+    symbol: string;
+    token_mint: string;
+    collection_address: string | null;
+    hook_validation_address: string | null;
+    cluster: "devnet" | "mainnet-beta";
+    renderer_hash: string | null;
+    standard_mode?: "custom_registry" | "metaplex_hybrid";
+    hybrid_status?: string | null;
+    agent_asset_address?: string | null;
+    agent_identity_pda?: string | null;
+    agent_token_mint?: string | null;
+    authority_address?: string | null;
+  }>;
+}
+
+type OwnerLaunchShortcut = NonNullable<LaunchLookupPayload["launches"]>[number];
 
 export function CpegLaunchpad() {
   const { solanaAddress, isConnected, login } = useWallet();
+  const router = useRouter();
+  const searchParams = useSearchParams();
   const isCpegSite = useCpegSite();
   const cpegUrls = useMemo(() => cpegPublicPaths(isCpegSite), [isCpegSite]);
   const [form, setForm] = useState(DEFAULT_FORM);
@@ -343,8 +368,10 @@ export function CpegLaunchpad() {
   const [agentRoot, setAgentRoot] = useState<AgentRootPayload["agent_root"]>(null);
   const [agentRootLoading, setAgentRootLoading] = useState(false);
   const [showAdvancedResult, setShowAdvancedResult] = useState(false);
+  const [ownerLaunches, setOwnerLaunches] = useState<OwnerLaunchShortcut[]>([]);
 
   const connectedAddress = solanaAddress || "";
+  const launchMintFromUrl = searchParams?.get("mint") || "";
 
   const normalizedSymbol = useMemo(() => form.symbol.trim().toUpperCase(), [form.symbol]);
   const symbolValid = useMemo(() => /^[A-Z0-9]{1,12}$/.test(normalizedSymbol), [normalizedSymbol]);
@@ -420,6 +447,69 @@ export function CpegLaunchpad() {
       cancelled = true;
     };
   }, []);
+
+  useEffect(() => {
+    if (!launchMintFromUrl || result?.mint === launchMintFromUrl) return;
+    let cancelled = false;
+    void (async () => {
+      try {
+        const response = await fetch("/api/cpeg?limit=80", { cache: "no-store" });
+        const body = (await response.json().catch(() => null)) as LaunchLookupPayload | null;
+        if (cancelled || !response.ok || !body?.success) return;
+        const launch = (body.launches || []).find((item) => item.token_mint === launchMintFromUrl);
+        if (!launch) return;
+        setForm((current) => ({
+          ...current,
+          name: launch.name || current.name,
+          symbol: launch.symbol || current.symbol,
+        }));
+        setResult({
+          signature: null,
+          cluster: launch.cluster || "mainnet-beta",
+          mint: launch.token_mint,
+          collection: launch.collection_address,
+          validation: launch.hook_validation_address,
+          rendererHash: launch.renderer_hash || "",
+          standardMode: launch.standard_mode,
+          hybridStatus: launch.hybrid_status || null,
+          agentAsset: launch.agent_asset_address || null,
+          agentIdentity: launch.agent_identity_pda || null,
+          agentTokenMint: launch.agent_token_mint || launch.token_mint,
+          authorityAddress: launch.authority_address || null,
+        });
+      } catch {
+        // If the saved launch cannot be restored, keep the normal launch form.
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [launchMintFromUrl, result?.mint]);
+
+  useEffect(() => {
+    let cancelled = false;
+    if (!connectedAddress) {
+      setOwnerLaunches([]);
+      return () => {
+        cancelled = true;
+      };
+    }
+    void (async () => {
+      try {
+        const response = await fetch("/api/cpeg?limit=60", { cache: "no-store" });
+        const body = (await response.json().catch(() => null)) as LaunchLookupPayload | null;
+        if (cancelled || !response.ok || !body?.success) return;
+        setOwnerLaunches(
+          (body.launches || []).filter((launch) => launch.authority_address === connectedAddress).slice(0, 6)
+        );
+      } catch {
+        if (!cancelled) setOwnerLaunches([]);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [connectedAddress]);
 
   const copyValue = useCallback(async (value: string) => {
     await navigator.clipboard.writeText(value).catch(() => {});
@@ -596,7 +686,9 @@ export function CpegLaunchpad() {
           agentAsset: prepareBody.launch.agent_asset_address || null,
           agentIdentity: prepareBody.launch.agent_identity_pda || null,
           agentTokenMint: prepareBody.launch.agent_token_mint || prepareBody.launch.token_mint,
+          authorityAddress: connectedAddress,
         });
+        router.replace(`${cpegUrls.launch}?mint=${encodeURIComponent(prepareBody.launch.token_mint)}`, { scroll: false });
         setStatus("");
         return;
       }
@@ -695,7 +787,9 @@ export function CpegLaunchpad() {
         collection: prepareBody.launch.collection_address,
         validation: prepareBody.launch.hook_validation_address,
         rendererHash: prepareBody.launch.renderer_hash,
+        authorityAddress: connectedAddress,
       });
+      router.replace(`${cpegUrls.launch}?mint=${encodeURIComponent(prepareBody.launch.token_mint)}`, { scroll: false });
       setStatus("");
     } catch (launchError) {
       setError(describeError(launchError, "Failed to launch cPEG."));
@@ -718,6 +812,8 @@ export function CpegLaunchpad() {
     maxPegsNumber,
     normalizedSymbol,
     agentRoot,
+    router,
+    cpegUrls.launch,
   ]);
 
   useEffect(() => {
@@ -816,7 +912,7 @@ export function CpegLaunchpad() {
 
             {isHybridLaunch ? (
               <div className="mt-8">
-                <CpegHybridPanel tokenMint={result.mint} initialAuthorityAddress={connectedAddress} />
+                <CpegHybridPanel tokenMint={result.mint} initialAuthorityAddress={result.authorityAddress} />
               </div>
             ) : null}
 
@@ -1170,6 +1266,41 @@ export function CpegLaunchpad() {
               <p className="mt-3 text-[11px] text-neutral-700 dark:text-white/55">Connect Phantom on devnet or mainnet.</p>
             ) : null}
           </div>
+
+          {ownerLaunches.length ? (
+            <div className="border border-[#ec5cff]/25 bg-[#ec5cff]/5 p-5">
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <p className="font-mono text-[10px] uppercase tracking-[0.24em] text-[#ec5cff]">Your launches</p>
+                  <p className="mt-2 text-xs leading-5 text-neutral-600 dark:text-white/50">
+                    Continue setup or reopen the saved launch screen.
+                  </p>
+                </div>
+              </div>
+              <div className="mt-4 grid gap-2">
+                {ownerLaunches.map((launch) => (
+                  <button
+                    key={launch.token_mint}
+                    type="button"
+                    onClick={() => router.push(`${cpegUrls.launch}?mint=${encodeURIComponent(launch.token_mint)}`)}
+                    className="flex items-center justify-between gap-3 border border-neutral-200 bg-neutral-50 px-3 py-3 text-left transition hover:border-[#53c7ff] dark:border-white/10 dark:bg-black/30"
+                  >
+                    <span className="min-w-0">
+                      <span className="block truncate text-sm font-black uppercase text-neutral-950 dark:text-white">
+                        {launch.name}
+                      </span>
+                      <span className="mt-1 block truncate font-mono text-[10px] uppercase tracking-[0.16em] text-neutral-500 dark:text-white/45">
+                        {launch.symbol} / {truncateAddress(launch.token_mint, 5, 5)}
+                      </span>
+                    </span>
+                    <span className="shrink-0 font-mono text-[10px] uppercase tracking-[0.18em] text-[#53c7ff]">
+                      Manage
+                    </span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          ) : null}
         </div>
       </div>
     </section>

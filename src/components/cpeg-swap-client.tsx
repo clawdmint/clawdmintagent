@@ -14,8 +14,11 @@ interface LaunchRow {
   name: string;
   symbol: string;
   token_mint: string;
+  authority_address?: string | null;
   cluster: string;
   max_pegs: number;
+  standard_mode?: string;
+  hybrid_status?: string | null;
   preview_image: string;
   market: {
     active_listings: number;
@@ -149,9 +152,20 @@ function formatSolAmount(raw: string | undefined) {
 
 function routeLabel(probe: DexProbePayload | null, compatibility: CompatibilityPayload | null) {
   if (!compatibility?.success) return "Select a token";
+  if (probe?.reason === "Use the cPEG vault for capture and release.") return "Vault route";
   if (probe?.has_route) return "Route ready";
   if (compatibility.collection?.cluster === "devnet") return "Devnet route unavailable";
   return "No route";
+}
+
+async function readJson<T>(response: Response): Promise<T | null> {
+  const text = await response.text().catch(() => "");
+  if (!text.trim()) return null;
+  try {
+    return JSON.parse(text) as T;
+  } catch {
+    return null;
+  }
 }
 
 export function CpegSwapClient() {
@@ -180,6 +194,10 @@ export function CpegSwapClient() {
   const [lastTx, setLastTx] = useState("");
 
   const selected = useMemo(() => launches.find((row) => row.token_mint === mint) || null, [launches, mint]);
+  const isHybridRoute = selected?.standard_mode === "metaplex_hybrid";
+  const isLaunchAuthority = Boolean(
+    selected?.authority_address && solanaAddress && selected.authority_address === solanaAddress
+  );
   const symbol = compatibility?.collection?.symbol || selected?.symbol || "cPEG";
   const cluster = compatibility?.collection?.cluster || selected?.cluster || "devnet";
   const receiveAmount =
@@ -188,18 +206,19 @@ export function CpegSwapClient() {
       : formatTokenAmount(probe?.quote?.out_amount_raw, compatibility?.token?.decimals);
   const canUseOfficialRouter = Boolean(compatibility?.dex?.official_router.available);
   const tokenReady = Boolean(
-    compatibility?.token?.is_token_2022 &&
+    isHybridRoute ||
+      (compatibility?.token?.is_token_2022 &&
       compatibility?.hook?.matches_cpeg_program &&
       compatibility?.collection?.collection_exists &&
-      compatibility?.collection?.validation_exists
+      compatibility?.collection?.validation_exists)
   );
   const routePair = side === "sell" ? `${symbol} -> SOL` : `SOL -> ${symbol}`;
-  const actionDisabled = busy || !mint || !tokenReady || (side === "buy" && !canUseOfficialRouter);
+  const actionDisabled = busy || !mint || !tokenReady || isHybridRoute || (side === "buy" && !canUseOfficialRouter);
 
   const loadLaunches = useCallback(async () => {
     const response = await fetch("/api/cpeg?limit=50", { cache: "no-store" });
-    const payload = (await response.json()) as LaunchPayload;
-    const rows = payload.launches || [];
+    const payload = await readJson<LaunchPayload>(response);
+    const rows = payload?.launches || [];
     setLaunches(rows);
     if (!mint && rows[0]) setMint(rows[0].token_mint);
   }, [mint]);
@@ -207,9 +226,42 @@ export function CpegSwapClient() {
   const loadReadiness = useCallback(async (targetMint: string, amount: string, routeSide: "buy" | "sell") => {
     if (!targetMint) return;
     const previewAmount = parsePositiveNumber(amount) || (routeSide === "sell" ? 1 : 0.1);
+    const selectedLaunch = launches.find((row) => row.token_mint === targetMint);
+    if (launches.length === 0) return;
     setLoading(true);
     setError("");
     try {
+      if (selectedLaunch?.standard_mode === "metaplex_hybrid") {
+        setCompatibility({
+          success: true,
+          collection: {
+            name: selectedLaunch.name,
+            symbol: selectedLaunch.symbol,
+            mint: selectedLaunch.token_mint,
+            cluster: selectedLaunch.cluster,
+            max_pegs: selectedLaunch.max_pegs,
+            peg_unit_raw: "1000000",
+            collection_exists: false,
+            validation_exists: false,
+          },
+          token: { is_token_2022: true, supply_raw: "0", decimals: 6, metadata_address: null },
+          hook: { matches_cpeg_program: false },
+          dex: {
+            official_router: {
+              available: false,
+              reason: "This cPEG uses the Metaplex hybrid vault. Use capture and release instead of a direct swap route.",
+            },
+          },
+        });
+        setProbe({
+          success: true,
+          side: routeSide,
+          supported: true,
+          has_route: false,
+          reason: "Use the cPEG vault for capture and release.",
+        });
+        return;
+      }
       const [compatRes, dexRes] = await Promise.all([
         fetch(`/api/cpeg/${targetMint}/dex/compatibility`, { cache: "no-store" }),
         fetch(
@@ -219,14 +271,19 @@ export function CpegSwapClient() {
           { cache: "no-store" }
         ),
       ]);
-      setCompatibility((await compatRes.json()) as CompatibilityPayload);
-      setProbe((await dexRes.json()) as DexProbePayload);
+      const nextCompatibility = await readJson<CompatibilityPayload>(compatRes);
+      const nextProbe = await readJson<DexProbePayload>(dexRes);
+      if (!compatRes.ok || !nextCompatibility?.success) {
+        throw new Error(nextCompatibility?.error || "Token route data is unavailable.");
+      }
+      setCompatibility(nextCompatibility);
+      setProbe(nextProbe || { success: true, side: routeSide, supported: true, has_route: false, reason: "No route data." });
     } catch (cause) {
       setError(describeError(cause));
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [launches]);
 
   useEffect(() => {
     void loadLaunches();
@@ -592,6 +649,24 @@ export function CpegSwapClient() {
             {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Wallet className="h-4 w-4" />}
             {isConnected ? (side === "sell" ? "List identity to sell" : "Swap") : "Connect wallet"}
           </button>
+          {isHybridRoute && mint ? (
+            <div className="mt-2 grid gap-2">
+              <a
+                href={`${urls.home.replace(/\/$/, "")}/${encodeURIComponent(mint)}`}
+                className="flex w-full items-center justify-center gap-2 rounded-lg border border-cyan-400/30 bg-cyan-400/10 px-4 py-3 text-xs font-black uppercase tracking-wide text-cyan-300 transition hover:bg-cyan-400/20"
+              >
+                Open cPEG vault <ExternalLink className="h-3 w-3" />
+              </a>
+              {isLaunchAuthority ? (
+                <a
+                  href={`${urls.launch}?mint=${encodeURIComponent(mint)}`}
+                  className="flex w-full items-center justify-center gap-2 rounded-lg border border-fuchsia-400/30 bg-fuchsia-400/10 px-4 py-3 text-xs font-black uppercase tracking-wide text-fuchsia-300 transition hover:bg-fuchsia-400/20"
+                >
+                  Manage launch <ExternalLink className="h-3 w-3" />
+                </a>
+              ) : null}
+            </div>
+          ) : null}
         </div>
 
         <div className="mt-4 w-full rounded-xl border border-neutral-200 bg-white/60 p-4 font-mono text-[11px] text-neutral-500 dark:border-white/10 dark:bg-white/[0.03] dark:text-white/45">
@@ -614,6 +689,11 @@ export function CpegSwapClient() {
         {!canUseOfficialRouter && compatibility?.dex?.official_router.reason && side === "buy" && (
           <p className="mt-4 max-w-[420px] text-center text-xs leading-6 text-neutral-500 dark:text-white/45">
             {compatibility.dex.official_router.reason}
+          </p>
+        )}
+        {isHybridRoute && (
+          <p className="mt-4 max-w-[420px] text-center text-xs leading-6 text-neutral-500 dark:text-white/45">
+            This cPEG uses a Metaplex vault. Capture whole tokens to receive PEG identities, or release a PEG to reclaim the token.
           </p>
         )}
         {side === "sell" && (
