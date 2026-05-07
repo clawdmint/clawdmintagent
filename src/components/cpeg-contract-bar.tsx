@@ -53,14 +53,14 @@ export function CpegContractBar({ tokenMint, cluster, symbol }: CpegContractBarP
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0 flex-1">
           <p className="font-mono text-[10px] uppercase tracking-[0.28em] text-[#53c7ff]">
-            Token-2022 mint / {symbol}
+            Token address / {symbol}
           </p>
           <p className="mt-2 break-all font-mono text-base font-bold tracking-tight text-neutral-950 dark:text-[#f7f2df] md:text-lg">
             {tokenMint}
           </p>
           <p className="mt-2 text-xs leading-5 text-neutral-700 dark:text-white/55">
-            This mint is the token side of the collection. One whole unit is paired with one
-            PegRecord identity, and official cPEG routes move both together.
+            This is the token address for this cPEG collection. Share it with traders, holders,
+            and agents that need the official collection asset.
           </p>
         </div>
         <button

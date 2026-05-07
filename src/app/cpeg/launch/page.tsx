@@ -24,16 +24,15 @@ export default function CpegLaunchPage() {
             ClawPEG / Launch
           </p>
           <h1 className="mt-3 max-w-4xl text-4xl font-black uppercase leading-[0.94] text-neutral-950 dark:text-[#f7f2df] md:text-6xl">
-            Prepare Agent PEGs.
+            Launch Agent PEGs.
           </h1>
           <p className="mt-5 max-w-2xl text-sm leading-7 text-neutral-600 dark:text-white/65 md:text-base">
-            Pick a subject and palette, then bind cPEG to your verified Metaplex Agent root and
-            existing agent token.
+            Pick a subject and palette, connect your verified agent token, and publish a cPEG
+            collection with deterministic on-chain identity rules.
           </p>
           <p className="mt-3 max-w-2xl text-xs leading-6 text-neutral-500 dark:text-white/45">
-            The first step saves the Hybrid setup plan. The next steps create and fund the Core
-            PEG collection so capture and release can map whole agent token units to Agent PEG
-            identities.
+            cPEG keeps the agent token as the root asset while each whole token unit can resolve
+            into a matching Agent PEG identity.
           </p>
         </div>
       </section>

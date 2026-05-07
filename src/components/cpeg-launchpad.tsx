@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ArrowRight,
+  ChevronDown,
   CheckCircle2,
   Copy,
   ExternalLink,
@@ -332,6 +333,7 @@ export function CpegLaunchpad() {
   const [readinessLoading, setReadinessLoading] = useState(false);
   const [agentRoot, setAgentRoot] = useState<AgentRootPayload["agent_root"]>(null);
   const [agentRootLoading, setAgentRootLoading] = useState(false);
+  const [showAdvancedResult, setShowAdvancedResult] = useState(false);
 
   const connectedAddress = solanaAddress || "";
 
@@ -458,7 +460,7 @@ export function CpegLaunchpad() {
           ? "Launch an agent token first, then return to cPEG."
           : agentRoot?.agent_asset_address
             ? "Please complete the form before launching."
-          : "Connect a wallet with a verified Metaplex Agent root before launching."
+            : "Connect the wallet that owns your verified Clawdmint agent before launching."
       );
       return;
     }
@@ -466,7 +468,7 @@ export function CpegLaunchpad() {
     setLaunching(true);
     try {
       const agentTokenMint = agentRoot?.agent_token_mint || "";
-      setStatus("Preparing Metaplex-native cPEG launch...");
+      setStatus("Preparing your cPEG collection...");
       const prepareResponse = await fetch("/api/cpeg/launchpad/prepare", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -503,7 +505,7 @@ export function CpegLaunchpad() {
       }
 
       if (prepareBody.requires_signature === false || prepareBody.standard_mode === "metaplex_hybrid") {
-        setStatus("Saving Metaplex Hybrid setup plan...");
+        setStatus("Publishing your cPEG collection...");
         const confirmResponse = await fetch("/api/cpeg/launchpad/confirm", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -549,7 +551,7 @@ export function CpegLaunchpad() {
           | { success?: boolean; error?: string }
           | null;
         if (!confirmResponse.ok || !confirmBody?.success) {
-          throw new Error(confirmBody?.error || "Failed to save Metaplex Hybrid setup.");
+          throw new Error(confirmBody?.error || "Failed to publish cPEG collection.");
         }
         setResult({
           signature: null,
@@ -756,15 +758,15 @@ export function CpegLaunchpad() {
       <section className="border-y border-neutral-200 dark:border-white/10 bg-neutral-50 dark:bg-[#101010]">
         <div className="mx-auto grid max-w-7xl gap-8 px-5 py-14 md:grid-cols-[1fr_420px] md:px-10 md:py-20">
           <div>
-            <p className="font-mono text-xs uppercase tracking-[0.28em] text-[#53c7ff]">Launch confirmed</p>
+            <p className="font-mono text-xs uppercase tracking-[0.28em] text-[#53c7ff]">Launch complete</p>
             <h2 className="mt-4 flex items-center gap-3 text-4xl font-black uppercase leading-none md:text-5xl">
               <PartyPopper className="h-10 w-10 text-[#53c7ff]" />
-              {isHybridLaunch ? `${form.name || "cPEG"} is ready.` : `${form.name || "cPEG"} is live.`}
+              {`${form.name || "cPEG"} is ready.`}
             </h2>
             <p className="mt-5 max-w-xl text-sm leading-7 text-neutral-700 dark:text-white/70">
               {isHybridLaunch
-                ? "Metaplex Agent root and Hybrid setup plan are ready. The agent token below is the asset that will back capture and release once the Core PEG escrow is funded."
-                : "Token-2022 mint, transfer hook, and PEG registry are all on-chain. The contract address below is your asset. Share it like any token CA."}
+                ? "Your agent token is now linked to a cPEG collection. The artwork rule, creator royalty, and market profile are saved for this token."
+                : "Your cPEG collection is live on-chain. The contract address below is your official asset. Share it with holders and agents."}
             </p>
 
             <div className="mt-7">
@@ -775,21 +777,10 @@ export function CpegLaunchpad() {
               />
             </div>
 
-            <div className="mt-6 grid gap-2 font-mono text-xs text-neutral-700 dark:text-white/72">
-              {resultRows.map(([label, value]) => (
-                <button
-                  key={label}
-                  type="button"
-                  onClick={() => copyValue(value)}
-                  className="group flex items-center justify-between gap-3 border border-neutral-200 dark:border-white/10 bg-neutral-100/90 dark:bg-black/40 px-3 py-2 text-left transition hover:border-[#53c7ff]/40"
-                >
-                  <span className="text-neutral-500 dark:text-white/40">{label}</span>
-                  <span className="flex items-center gap-2">
-                    <span className="truncate">{truncateAddress(value, 8, 8)}</span>
-                    <Copy className="h-3 w-3 text-neutral-500 dark:text-white/35 transition group-hover:text-[#53c7ff]" />
-                  </span>
-                </button>
-              ))}
+            <div className="mt-6 grid gap-3 md:grid-cols-3">
+              <SuccessCell title="Agent token" text="Linked" />
+              <SuccessCell title="Art rule" text="Saved" />
+              <SuccessCell title="Market profile" text="Ready" />
             </div>
 
             <div className="mt-8 flex flex-wrap gap-3">
@@ -798,6 +789,12 @@ export function CpegLaunchpad() {
                 className="inline-flex items-center gap-2 border border-[#f7f2df] bg-[#f7f2df] px-5 py-3 text-sm font-black uppercase tracking-wide text-black transition hover:bg-[#53c7ff]"
               >
                 Open market <ArrowRight className="h-4 w-4" />
+              </a>
+              <a
+                href={`${cpegUrls.explore}?mint=${encodeURIComponent(result.mint)}`}
+                className="inline-flex items-center gap-2 border border-neutral-400 dark:border-white/20 px-5 py-3 text-sm font-bold uppercase tracking-wide text-neutral-950 dark:text-white transition hover:border-[#53c7ff] hover:text-[#53c7ff]"
+              >
+                View gallery <ArrowRight className="h-4 w-4" />
               </a>
               <a
                 href={`${cpegUrls.swap}?mint=${encodeURIComponent(result.mint)}`}
@@ -816,10 +813,39 @@ export function CpegLaunchpad() {
                 </a>
               ) : null}
             </div>
+
+            <div className="mt-6">
+              <button
+                type="button"
+                onClick={() => setShowAdvancedResult((value) => !value)}
+                className="inline-flex items-center gap-2 border border-neutral-300 px-4 py-2 font-mono text-[10px] uppercase tracking-[0.18em] text-neutral-600 transition hover:border-[#53c7ff] hover:text-[#53c7ff] dark:border-white/15 dark:text-white/55"
+              >
+                Advanced details
+                <ChevronDown className={`h-3 w-3 transition ${showAdvancedResult ? "rotate-180" : ""}`} />
+              </button>
+              {showAdvancedResult ? (
+                <div className="mt-3 grid gap-2 font-mono text-xs text-neutral-700 dark:text-white/72">
+                  {resultRows.map(([label, value]) => (
+                    <button
+                      key={label}
+                      type="button"
+                      onClick={() => copyValue(value)}
+                      className="group flex items-center justify-between gap-3 border border-neutral-200 bg-neutral-100/90 px-3 py-2 text-left transition hover:border-[#53c7ff]/40 dark:border-white/10 dark:bg-black/40"
+                    >
+                      <span className="text-neutral-500 dark:text-white/40">{label}</span>
+                      <span className="flex items-center gap-2">
+                        <span className="truncate">{truncateAddress(value, 8, 8)}</span>
+                        <Copy className="h-3 w-3 text-neutral-500 transition group-hover:text-[#53c7ff] dark:text-white/35" />
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              ) : null}
+            </div>
           </div>
 
           <div className="border border-[#53c7ff]/35 bg-[#53c7ff]/10 p-5">
-            <p className="font-mono text-[10px] uppercase tracking-[0.22em] text-[#9fe2ff]">Genesis preview</p>
+            <p className="font-mono text-[10px] uppercase tracking-[0.22em] text-[#9fe2ff]">Collection preview</p>
             <div className="mt-4 grid grid-cols-2 gap-3">
               {[1, 2, 3, 4].map((pegId) => (
                 <div key={pegId} className="aspect-square overflow-hidden border border-neutral-200 dark:border-white/10 bg-neutral-200 dark:bg-black">
@@ -833,69 +859,47 @@ export function CpegLaunchpad() {
               ))}
             </div>
             <div className="mt-5 grid gap-2 border border-neutral-200 bg-neutral-50/80 p-4 font-mono text-[10px] uppercase tracking-[0.16em] text-neutral-600 dark:border-white/10 dark:bg-black/35 dark:text-white/55">
-              <Row label={isHybridLaunch ? "Agent root" : "Token-2022"} value="Ready" highlight />
-              <Row label={isHybridLaunch ? "Agent token" : "Transfer hook"} value="Ready" highlight />
-              <Row label={isHybridLaunch ? "Hybrid plan" : "Metadata"} value={isHybridLaunch ? "Saved" : "Ready"} highlight />
+              <Row label="Token link" value="Ready" highlight />
+              <Row label="Renderer" value="Saved" highlight />
+              <Row label="Gallery" value="Ready" highlight />
               <Row label="Creator royalty" value="2.00%" />
               <Row label="Indexing" value="Included" />
             </div>
 
-            <div className="mt-5 border border-neutral-200 bg-neutral-50/90 p-4 dark:border-white/10 dark:bg-black/40">
-              <p className="font-mono text-[10px] uppercase tracking-[0.2em] text-[#53c7ff]">Liquidity setup</p>
-              {isHybridLaunch ? (
-                <div className="mt-3 grid gap-2 font-mono text-[10px] uppercase tracking-[0.16em]">
-                  <Row label="Metaplex Agent root" value="OK" highlight />
-                  <Row label="Agent token" value="OK" highlight />
-                  <Row label="Core PEG collection" value="Next" muted />
-                  <Row label="Hybrid escrow" value="Next" muted />
-                  <Row label="Capture and release" value="Next" muted />
-                  <Row label="Market" value="After funding" muted />
-                </div>
-              ) : readinessLoading ? (
+            {!isHybridLaunch ? (
+              <div className="mt-5 border border-neutral-200 bg-neutral-50/90 p-4 dark:border-white/10 dark:bg-black/40">
+                <p className="font-mono text-[10px] uppercase tracking-[0.2em] text-[#53c7ff]">Readiness</p>
+                {readinessLoading ? (
                 <p className="mt-3 font-mono text-[10px] uppercase tracking-[0.18em] text-neutral-500 dark:text-white/45">
                   Checking on-chain readiness...
                 </p>
-              ) : readiness ? (
-                <div className="mt-3 grid gap-2 font-mono text-[10px] uppercase tracking-[0.16em]">
-                  <Row label="Token-2022" value={readiness.token2022 ? "OK" : "Pending"} highlight={readiness.token2022} />
-                  <Row label="Transfer hook" value={readiness.transferHook ? "OK" : "Pending"} highlight={readiness.transferHook} />
-                  <Row label="Metadata" value={readiness.metadata ? "OK" : "Pending"} highlight={readiness.metadata} />
-                  <Row label="Supply minted" value={readiness.supplyMinted ? "Yes" : "No"} highlight={readiness.supplyMinted} />
-                  <Row label="PEGs assigned" value={readiness.initialPegsAssigned ? "Yes" : "No"} highlight={readiness.initialPegsAssigned} />
-                  <Row label="Market open" value={readiness.marketOpen ? "Yes" : "No"} highlight={readiness.marketOpen} />
-                  <Row label="Router quote" value={readiness.routeAvailable ? "Available" : "Unavailable"} highlight={readiness.routeAvailable} />
-                  <Row label="Orca readiness" value={readiness.orcaCandidate ? "Candidate" : "Review"} highlight={readiness.orcaCandidate} />
-                  <Row label="Meteora readiness" value={readiness.meteoraCandidate ? "Candidate" : "Review"} highlight={readiness.meteoraCandidate} />
-                  <Row label="Mint authority sealed" value={readiness.sealed ? "Yes" : "No"} highlight={readiness.sealed} muted={!readiness.sealed} />
-                </div>
-              ) : (
+                ) : readiness ? (
+                  <div className="mt-3 grid gap-2 font-mono text-[10px] uppercase tracking-[0.16em]">
+                    <Row label="Token-2022" value={readiness.token2022 ? "OK" : "Pending"} highlight={readiness.token2022} />
+                    <Row label="Transfer hook" value={readiness.transferHook ? "OK" : "Pending"} highlight={readiness.transferHook} />
+                    <Row label="Metadata" value={readiness.metadata ? "OK" : "Pending"} highlight={readiness.metadata} />
+                    <Row label="Market open" value={readiness.marketOpen ? "Yes" : "No"} highlight={readiness.marketOpen} />
+                    <Row label="Mint authority sealed" value={readiness.sealed ? "Yes" : "No"} highlight={readiness.sealed} muted={!readiness.sealed} />
+                  </div>
+                ) : (
                 <p className="mt-3 font-mono text-[10px] uppercase tracking-[0.18em] text-neutral-500 dark:text-white/45">
                   Readiness data unavailable.
                 </p>
-              )}
-            </div>
+                )}
+              </div>
+            ) : null}
 
             <div className="mt-5 border border-neutral-200 bg-neutral-50/90 p-4 dark:border-white/10 dark:bg-black/40">
-              <p className="font-mono text-[10px] uppercase tracking-[0.2em] text-[#53c7ff]">Post-launch steps</p>
-              <ol className="mt-3 space-y-2 text-xs text-neutral-700 dark:text-white/70">
-                {isHybridLaunch ? (
-                  <>
-                    <li>1. Create or select the Core PEG collection for this agent.</li>
-                    <li>2. Create the MPL-Hybrid capture and release escrow.</li>
-                    <li>3. Fund the escrow with deterministic Agent PEG Core assets.</li>
-                    <li>4. Open token to PEG capture and PEG to token release.</li>
-                    <li>5. Open the market after the escrow is funded.</li>
-                  </>
-                ) : (
-                  <>
-                    <li>1. Mint initial supply to the creator wallet.</li>
-                    <li>2. Assign initial PEG identities with syncPeg and mintPeg.</li>
-                    <li>3. Add liquidity to your chosen DEX pool.</li>
-                    <li>4. Open the market and list the first identities.</li>
-                    <li>5. Seal mint authority when distribution is final.</li>
-                  </>
-                )}
-              </ol>
+              <p className="font-mono text-[10px] uppercase tracking-[0.2em] text-[#53c7ff]">Next</p>
+              <div className="mt-3 space-y-3 text-xs leading-6 text-neutral-700 dark:text-white/70">
+                <p>
+                  Open the market to list or buy exact PEG identities. Open the gallery to browse the
+                  generated collection art.
+                </p>
+                <p className="text-neutral-500 dark:text-white/45">
+                  Your public cPEG links stay the same as the collection grows.
+                </p>
+              </div>
             </div>
           </div>
         </div>
@@ -978,12 +982,11 @@ export function CpegLaunchpad() {
               ))}
             </div>
             <div className="mt-4 border border-neutral-200 bg-neutral-50/80 p-4 dark:border-white/10 dark:bg-black/35">
-              <p className="font-mono text-[10px] uppercase tracking-[0.2em] text-[#53c7ff]">Canonical root</p>
+              <p className="font-mono text-[10px] uppercase tracking-[0.2em] text-[#53c7ff]">Agent link</p>
               {agentRootLoading ? (
-                <p className="mt-2 text-xs text-neutral-600 dark:text-white/55">Checking verified agent identity...</p>
+                <p className="mt-2 text-xs text-neutral-600 dark:text-white/55">Checking your agent...</p>
               ) : agentRoot ? (
                 <div className="mt-3 grid gap-2 font-mono text-[10px] uppercase tracking-[0.14em] text-neutral-600 dark:text-white/55">
-                  <Row label="Mode" value="Metaplex Agent" highlight />
                   <Row label="Agent" value={agentRoot.agent_name} />
                   <Row
                     label="Agent token"
@@ -991,12 +994,11 @@ export function CpegLaunchpad() {
                     highlight={Boolean(agentRoot.agent_token_mint)}
                     muted={!agentRoot.agent_token_mint}
                   />
-                  <Row label="Core asset" value={truncateAddress(agentRoot.agent_asset_address, 6, 6)} />
-                  <Row label="Identity PDA" value={truncateAddress(agentRoot.agent_identity_pda, 6, 6)} />
+                  <Row label="Identity" value="Verified" highlight />
                 </div>
               ) : (
                 <p className="mt-2 text-xs leading-6 text-neutral-600 dark:text-white/55">
-                  No verified Metaplex Agent root was found for this wallet. Register or sync an agent identity before launching.
+                  No verified agent was found for this wallet. Create or sync your Clawdmint agent first.
                 </p>
               )}
             </div>
@@ -1096,7 +1098,7 @@ export function CpegLaunchpad() {
                 className="inline-flex items-center gap-2 border border-[#f7f2df] bg-[#f7f2df] px-5 py-3 text-xs font-black uppercase tracking-wide text-black transition hover:bg-[#53c7ff] disabled:cursor-not-allowed disabled:opacity-50"
               >
                 {launching ? <Loader2 className="h-4 w-4 animate-spin" /> : <Rocket className="h-4 w-4" />}
-                {isConnected ? "Prepare cPEG" : "Connect Phantom"}
+                {isConnected ? "Launch cPEG" : "Connect Phantom"}
               </button>
             </div>
             {status ? (
@@ -1115,7 +1117,7 @@ export function CpegLaunchpad() {
                   ? agentRoot?.agent_token_mint
                     ? "Complete the form to launch."
                     : "Launch an agent token first, then return to cPEG."
-                  : "A verified Metaplex Agent root is required for new launches."}
+                  : "A verified Clawdmint agent is required for new launches."}
               </p>
             ) : null}
             {!isConnected ? (
@@ -1146,6 +1148,20 @@ function InfoCell({ label, value }: { label: string; value: string }) {
       </p>
       <p className="mt-2 text-lg font-black uppercase tracking-tight text-neutral-950 dark:text-[#f7f2df]">
         {value}
+      </p>
+    </div>
+  );
+}
+
+function SuccessCell({ title, text }: { title: string; text: string }) {
+  return (
+    <div className="border border-neutral-200 bg-neutral-100/90 p-4 dark:border-white/10 dark:bg-black/35">
+      <div className="flex items-center gap-2 text-[#53c7ff]">
+        <CheckCircle2 className="h-4 w-4" />
+        <span className="font-mono text-[10px] uppercase tracking-[0.18em]">{text}</span>
+      </div>
+      <p className="mt-2 text-sm font-black uppercase tracking-tight text-neutral-950 dark:text-[#f7f2df]">
+        {title}
       </p>
     </div>
   );
