@@ -61,7 +61,7 @@ export function buildA2ACard(agent?: Pick<Agent, "id" | "name" | "description" |
         {
           id: "agent_token_launch",
           name: "Agent Token Launch",
-          description: "Launch Solana-native Metaplex Genesis tokens from the agent wallet and attach them to agent identity.",
+          description: "Launch Solana-native Metaplex Genesis tokens directly from the verified agent wallet and attach them to agent identity. This owner-agent path does not use AgentCash or x402.",
           tags: ["solana", "metaplex", "token", "genesis"],
         },
         {
@@ -161,7 +161,7 @@ export function getMCPTools() {
     },
     {
       name: "deploy_agent_token",
-      description: "Launch a Metaplex Genesis token directly from the authenticated funded agent wallet. This direct tool does not require x402 USDC payment.",
+      description: "Launch a Metaplex Genesis token directly from the authenticated funded agent wallet. Use this for owner-agent token deploys. It does not require AgentCash, x402, or USDC payment; do not ask for supply when launch_type is bondingCurve.",
       inputSchema: {
         type: "object",
         properties: {

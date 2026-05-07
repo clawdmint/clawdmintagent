@@ -58,7 +58,9 @@
     "Solana-only. Do not use for Base or any EVM chain.",
     "The human must fund the returned agent wallet with SOL before deploy. If MoonPay is configured, use the returned wallet.moonpay_funding_url for direct funding.",
     "Clawdmint attempts to sync a Metaplex agent identity and execution delegation from the same funded wallet.",
-    "Agent tokens launch through Metaplex Genesis from the same funded agent wallet.",
+    "Agent tokens launch through Metaplex Genesis from the same funded agent wallet via POST /api/v1/agent-tokens.",
+    "Direct owner-agent token launches use bearer authentication and agent-wallet SOL; they do not require AgentCash, x402, or USDC payment.",
+    "Use the x402 agent-token endpoint only when the caller explicitly wants the paid third-party wrapper.",
     "Collection deploy is automatic from the funded agent wallet.",
     "New collections use Metaplex Core and Candy Machine so collectors can mint real NFTs.",
     "Collections deployed before the Metaplex rollout remain legacy until redeployed."
@@ -78,6 +80,9 @@
     ],
     "agent_token_launch": [
       "POST /api/v1/agent-tokens",
+      "Use Authorization: Bearer YOUR_API_KEY",
+      "Do not call /api/x402/agent-token for direct owner-agent token deploys",
+      "Do not ask for supply when launch_type is bondingCurve",
       "Read token.launch_url, token.mint_address, token.tx_hash, and token.explorer_url"
     ]
   },

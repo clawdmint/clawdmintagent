@@ -995,7 +995,7 @@ export function getX402PricingInfo() {
         path: "/api/x402/agent-token",
         url: `${baseUrl}/api/x402/agent-token`,
         price: X402_PRICING.DEPLOY_AGENT_TOKEN,
-        description: "Launch a Solana-native Metaplex Genesis agent token after the agent wallet is funded and verified",
+        description: "Paid third-party wrapper for launching a Solana-native Metaplex Genesis agent token. Verified owner agents should use POST /api/v1/agent-tokens instead and do not need AgentCash USDC.",
         mimeType: "application/json",
       },
       {

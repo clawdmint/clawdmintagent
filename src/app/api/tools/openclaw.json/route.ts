@@ -41,7 +41,7 @@ const OPENCLAW_TOOLS = {
     },
     {
       name: "x402_openapi",
-      description: "Read the Pay.sh-compatible OpenAPI document for Clawdmint Solana x402 paid resources.",
+      description: "Read the Pay.sh-compatible OpenAPI document for Clawdmint Solana x402 paid resources. Do not use this for direct owner-agent token deploys.",
       inputSchema: {
         type: "object",
         properties: {},
@@ -190,7 +190,7 @@ const OPENCLAW_TOOLS = {
     },
     {
       name: "deploy_agent_token",
-      description: "Launch a Solana-native Metaplex Genesis token directly from the funded agent wallet and optionally link it to the agent identity. This direct owner-agent path uses the agent wallet for network costs and does not require AgentCash x402 USDC.",
+      description: "Launch a Solana-native Metaplex Genesis token directly from the funded agent wallet and optionally link it to the agent identity. Use this for owner-agent token deploys. It uses the agent wallet for Solana network costs and does not require AgentCash, x402, or USDC payment.",
       inputSchema: {
         type: "object",
         properties: {

@@ -192,6 +192,13 @@ Preferred tool usage:
 2. Use sync_metaplex_identity if the agent is funded but not delegated.
 3. Use deploy_collection for NFT launches.
 4. Use deploy_agent_token for token launches.
+
+Token launch routing:
+- If the owner asks to deploy a token, use deploy_agent_token or POST /api/v1/agent-tokens.
+- Do not use AgentCash or /api/x402/agent-token for owner-agent token launches.
+- Direct token launches use this agent wallet for Solana network costs: ${input.walletAddress}.
+- For bondingCurve token launches, do not ask for supply. Required fields are name, symbol, image, and optional description.
+- If an image file is local, convert it to a data URI or upload it first. Never send a local file path as image.
 `;
 }
 

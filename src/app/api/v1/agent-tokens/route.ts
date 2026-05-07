@@ -11,6 +11,7 @@ import {
 } from "@/lib/metaplex-agent-registry";
 import { AgentTokenLaunchError, launchMetaplexAgentToken } from "@/lib/metaplex-agent-tokens";
 import { isSolanaAddress } from "@/lib/network-config";
+import { getUploadErrorMessage, ipfsToHttp, uploadImage } from "@/lib/ipfs";
 
 export const dynamic = "force-dynamic";
 
@@ -22,7 +23,7 @@ const AgentTokenLaunchSchema = z.object({
   launch_type: z.enum(["bondingCurve", "launchpool"]).default("bondingCurve"),
   name: z.string().min(1).max(32),
   symbol: z.string().min(1).max(10).regex(/^[A-Z0-9]+$/),
-  image: z.string().url(),
+  image: z.string().min(1),
   description: z.string().max(250).optional(),
   website_url: z.string().url().optional(),
   twitter: z.string().max(200).optional(),
@@ -52,6 +53,39 @@ function buildExternalLinks(input: z.infer<typeof AgentTokenLaunchSchema>) {
 
 function getGenesisNetwork(): "solana-mainnet" | "solana-devnet" {
   return process.env["NEXT_PUBLIC_SOLANA_CLUSTER"] === "devnet" ? "solana-devnet" : "solana-mainnet";
+}
+
+async function prepareAgentTokenImage(input: z.infer<typeof AgentTokenLaunchSchema>): Promise<string> {
+  const source = input.image.trim();
+
+  if (source.startsWith("data:image/")) {
+    const uploaded = await uploadImage(source, `${input.symbol.toLowerCase()}-agent-token`);
+    if (!uploaded.success || !uploaded.url) {
+      throw new AgentTokenLaunchError(400, "Token image upload failed", {
+        image: getUploadErrorMessage(uploaded.error, "Could not upload token image"),
+      });
+    }
+    return uploaded.url.startsWith("ipfs://") ? ipfsToHttp(uploaded.url) : uploaded.url;
+  }
+
+  if (source.startsWith("ipfs://")) {
+    return ipfsToHttp(source);
+  }
+
+  try {
+    const url = new URL(source);
+    if (url.protocol !== "https:") {
+      throw new Error("Token image must be HTTPS, IPFS, or a data:image base64 payload");
+    }
+    return url.toString();
+  } catch (error) {
+    if (error instanceof AgentTokenLaunchError) {
+      throw error;
+    }
+    throw new AgentTokenLaunchError(400, "Invalid token image", {
+      image: "Use a direct HTTPS image URL, ipfs:// URI, or data:image base64 payload. Do not send a local file path.",
+    });
+  }
 }
 
 function buildLaunchInput(
@@ -165,46 +199,52 @@ export async function POST(request: NextRequest) {
     }
 
     const agentWallet = getAgentOperationalWalletAddress(agent);
+    const tokenImageUrl = await prepareAgentTokenImage(parsed.data);
+    const launchData = {
+      ...parsed.data,
+      image: tokenImageUrl,
+    };
+
     let metaplex = await getAgentMetaplexSummary(agent.id);
 
-    if (parsed.data.set_token_on_agent && !metaplex?.registered) {
+    if (launchData.set_token_on_agent && !metaplex?.registered) {
       metaplex = await ensureMetaplexAgentRegistration(agent.id);
     }
 
-    const launchInput = buildLaunchInput(parsed.data, agentWallet, metaplex?.asset_address || null);
+    const launchInput = buildLaunchInput(launchData, agentWallet, metaplex?.asset_address || null);
     const launched = await launchMetaplexAgentToken(agent, launchInput);
 
     const feeRecipient =
-      parsed.data.launch_type === "launchpool"
-        ? parsed.data.launchpool?.funds_recipient || agentWallet
-        : parsed.data.creator_fee_wallet || agentWallet;
+      launchData.launch_type === "launchpool"
+        ? launchData.launchpool?.funds_recipient || agentWallet
+        : launchData.creator_fee_wallet || agentWallet;
 
     const saved = await prisma.tokenLaunch.create({
       data: {
         agentId: agent.id,
-        tokenName: parsed.data.name,
-        tokenSymbol: parsed.data.symbol,
+        tokenName: launchData.name,
+        tokenSymbol: launchData.symbol,
         tokenAddress: launched.mintAddress,
         txHash: launched.signature,
-        launchType: parsed.data.launch_type,
+        launchType: launchData.launch_type,
         network: launched.network,
         genesisAccount: launched.genesisAccount,
         launchId: launched.launchId,
         launchUrl: launched.launchUrl,
-        description: parsed.data.description,
-        imageUrl: parsed.data.image,
-        websiteUrl: parsed.data.website_url,
-        tweetUrl: parsed.data.twitter,
+        description: launchData.description,
+        imageUrl: launchData.image,
+        websiteUrl: launchData.website_url,
+        tweetUrl: launchData.twitter,
         chain: launched.chain,
         launcherAddress: launched.launcherAddress,
         feeRecipient,
         feeDistribution: JSON.stringify({
-          quoteMint: parsed.data.quote_mint,
+          quoteMint: launchData.quote_mint,
           signatures: launched.signatures,
           dexscreenerUrl: launched.dexscreenerUrl,
           explorerUrl: launched.explorerUrl,
         }),
-        setOnAgent: Boolean(parsed.data.set_token_on_agent && metaplex?.asset_address),
+        setOnAgent: Boolean(launchData.set_token_on_agent && metaplex?.asset_address),
         simulated: false,
       },
     });

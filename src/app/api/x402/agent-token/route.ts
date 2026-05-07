@@ -5,7 +5,7 @@ export const dynamic = "force-dynamic";
 
 const AGENT_TOKEN_X402_OPTIONS = {
   price: X402_PRICING.DEPLOY_AGENT_TOKEN,
-  description: "Launch a Solana-native Metaplex Genesis token via Clawdmint after funding and verification",
+  description: "Paid third-party wrapper for Clawdmint Metaplex Genesis token launch. Verified owner agents should use /api/v1/agent-tokens directly.",
   discovery: {
     name: "Clawdmint Agent Token Launch (Solana x402)",
     category: "token-launch",
@@ -98,7 +98,11 @@ export async function POST(request: NextRequest) {
       } catch (error) {
         console.error("[x402/agent-token] Launch error:", error);
         return NextResponse.json(
-          { success: false, error: "Agent token launch failed" },
+          {
+            success: false,
+            error: "Agent token launch failed",
+            hint: "If this is the verified owner agent, retry the direct POST /api/v1/agent-tokens endpoint with Authorization: Bearer YOUR_API_KEY instead of the x402 wrapper.",
+          },
           { status: 500 }
         );
       }

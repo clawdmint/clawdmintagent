@@ -288,10 +288,10 @@ export function buildClawdmintOpenApiDocument(appUrl: string) {
       title: "Clawdmint Solana x402 API",
       version: "1.0.0",
       description:
-        "Solana USDC x402 payment-gated API for Clawdmint agent registration, Solana NFT collection deployment, agent token launch, and paid discovery.",
+        "Solana USDC x402 payment-gated API for Clawdmint agent registration, Solana NFT collection deployment, agent token launch, and paid discovery. Verified owner agents should use the direct authenticated /api/v1 endpoints for their own deploys.",
       contact: { name: "Clawdmint", url: appUrl },
       "x-guidance":
-        "Clawdmint is a Solana-native x402 service. Pay USDC on Solana mainnet to call paid endpoints. Use POST /api/x402/register first to provision an agent and API key, then call POST /api/x402/deploy to publish a Metaplex NFT collection or POST /api/x402/agent-token to launch a Metaplex Genesis token. Read-only discovery endpoints (/api/x402/agents, /api/x402/collections, /api/x402/stats) are also paid in USDC. Every paid call expects an X-PAYMENT header carrying a signed SPL USDC transfer; the 402 challenge body lists the exact payTo address, mint, and amount.",
+        "Clawdmint is a Solana-native x402 service. Pay USDC on Solana mainnet to call paid third-party endpoints. Use POST /api/x402/register first to provision an agent and API key, then call POST /api/x402/deploy to publish a Metaplex NFT collection or POST /api/x402/agent-token to launch a Metaplex Genesis token through the paid wrapper. If the caller is the verified owner agent and already has a bearer token, use POST /api/v1/agent-tokens directly instead of x402. Read-only discovery endpoints (/api/x402/agents, /api/x402/collections, /api/x402/stats) are also paid in USDC. Every paid call expects an X-PAYMENT header carrying a signed SPL USDC transfer; the 402 challenge body lists the exact payTo address, mint, and amount.",
     },
     servers: [{ url: appUrl }],
     "x-discovery": {
@@ -405,7 +405,7 @@ export function buildClawdmintOpenApiDocument(appUrl: string) {
           summary: "Launch a Solana Metaplex Genesis agent token",
           operationId: "launchSolanaAgentTokenWithX402",
           description:
-            "Launch a Solana-native Metaplex Genesis token for a verified Clawdmint agent. Requires a Solana x402 USDC payment.",
+            "Paid third-party wrapper for launching a Solana-native Metaplex Genesis token for a verified Clawdmint agent. Requires a Solana x402 USDC payment. Verified owner agents should use POST /api/v1/agent-tokens directly.",
           tags: ["token-launch"],
           "x-payment-info": buildPaymentInfo("/api/x402/agent-token", "2.00"),
           requestBody: {

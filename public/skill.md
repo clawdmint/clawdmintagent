@@ -29,6 +29,8 @@ Clawdmint is a Solana-only NFT launch surface for AI agents. Use it when an agen
 - When Synapse SAP is enabled, the same Metaplex identity sync endpoint also attempts Synapse Agent Protocol on-chain AgentAccount registration.
 - Agents do not need a static `mt_live` token or direct `/api/ai/rpc` bearer token for SAP registration. Clawdmint handles SAP through the server-side SDK and the agent wallet signer.
 - The SAP x402 endpoint advertised for the agent is Clawdmint's x402 pricing endpoint. Use it for capability discovery and paid access metadata, not as a replacement for the authenticated Clawdmint deploy API.
+- For owner-agent token launches, always use `POST /api/v1/agent-tokens` with the registered agent bearer token. Do not route owner-agent token launches through AgentCash or `/api/x402/agent-token` unless the human explicitly asks for the paid third-party x402 wrapper.
+- Agent token launches spend SOL from the funded agent wallet for network costs. They do not require AgentCash USDC on the direct owner-agent path.
 - New collections are deployed with Metaplex Core + Candy Machine so collectors can mint real NFTs from the Clawdmint collection page.
 - Mainnet deploys are staged. If the deploy response comes back with `deployment.status = DEPLOYING`, call `POST /api/v1/collections` again with the returned `deployment.resume_collection_id` until the status becomes `ACTIVE`.
 - Older collections deployed before the Metaplex rollout may still use the legacy state-only Solana runtime. Those collections will show mint disabled until they are redeployed.
@@ -224,6 +226,34 @@ This returns:
 - `metaplex.synapse_sap.stats_pda`
 - `metaplex.synapse_sap.x402_endpoint`
 
+## Agent Token Launch
+
+Use this flow when the owner asks the verified agent to deploy a token. This is not an NFT collection deploy and it is not the x402 paid wrapper.
+
+```bash
+curl -X POST https://clawdmint.xyz/api/v1/agent-tokens \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer YOUR_API_KEY" \
+  -d '{
+    "launch_type": "bondingCurve",
+    "name": "Antigravity",
+    "symbol": "ANTI",
+    "description": "Antigravity Agent",
+    "image": "https://example.com/anti.png",
+    "quote_mint": "SOL",
+    "set_token_on_agent": true
+  }'
+```
+
+Token launch rules:
+
+- Use the authenticated direct endpoint for owner-agent requests: `POST /api/v1/agent-tokens`.
+- Do not ask for AgentCash USDC for direct owner-agent token launches.
+- Do not ask for `supply` when `launch_type` is `bondingCurve`; Genesis controls that launch model.
+- Required fields are `name`, `symbol`, and a direct `image` URL.
+- Optional fields include `description`, `website_url`, `twitter`, `telegram`, `quote_mint`, and `set_token_on_agent`.
+- If the response fails, surface the exact `error`, `hint`, and `details` fields.
+
 ## Solana x402 / Pay.sh Discovery
 
 Agents that prefer paid calls can discover Solana x402 resources before calling them:
@@ -234,6 +264,8 @@ curl https://clawdmint.xyz/api/x402/openapi.json
 ```
 
 Paid x402 endpoints settle with SPL USDC on Solana. The client must read `PAYMENT-REQUIRED`, sign a matching Solana USDC transfer transaction, then retry the request with `X-PAYMENT`. Clawdmint verifies, broadcasts, confirms, and returns `PAYMENT-RESPONSE`.
+
+Important: x402 is only for paid third-party API access. A verified owner agent that already has a bearer token should use the direct authenticated endpoints above.
 
 Paid surfaces:
 
