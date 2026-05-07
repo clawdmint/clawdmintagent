@@ -80,6 +80,29 @@ function base64ToBytes(value: string): Uint8Array {
   return Uint8Array.from(window.atob(value), (char) => char.charCodeAt(0));
 }
 
+function formatSimulationError(err: unknown, logs: string[]): string {
+  let message: string;
+  if (typeof err === "string") {
+    message = err;
+  } else if (err && typeof err === "object") {
+    try {
+      message = JSON.stringify(err);
+    } catch {
+      message = String(err);
+    }
+  } else {
+    message = String(err);
+  }
+  const interestingLog = logs.find(
+    (line) =>
+      /insufficient funds|insufficient lamports|invalid mint|invalid account|0x1$|0x0$|Program log: Error|custom program error/i.test(
+        line
+      )
+  );
+  const detail = interestingLog ? ` (${interestingLog.replace("Program log: ", "")})` : "";
+  return `[capture-sim]Capture would be rejected on-chain: ${message}${detail}`;
+}
+
 function manifestToInstruction(instruction: ManifestInstruction) {
   return new TransactionInstruction({
     programId: new PublicKey(instruction.programId),
@@ -215,6 +238,26 @@ export function CpegHybridPanel({ tokenMint, initialAuthorityAddress, compact }:
       const raw = signed instanceof VersionedTransaction
         ? signed.serialize()
         : signed.serialize({ requireAllSignatures: true, verifySignatures: false });
+
+      // Run a server-side simulation first so we can surface the exact program
+      // error / instruction logs back to the user instead of the generic
+      // "On-chain rejected" message that comes from sendRawTransaction failures.
+      setStatus("Simulating capture transfer...");
+      try {
+        const sim = signed instanceof VersionedTransaction
+          ? await connection.simulateTransaction(signed, { sigVerify: false, commitment: "confirmed" })
+          : await connection.simulateTransaction(signed as InstanceType<typeof Transaction>, undefined, true);
+        if (sim.value.err) {
+          throw new Error(formatSimulationError(sim.value.err, sim.value.logs || []));
+        }
+      } catch (simError) {
+        if (simError instanceof Error && simError.message.startsWith("[capture-sim]")) {
+          throw simError;
+        }
+        // Network-level simulation failure should not block; keep going and let
+        // sendRawTransaction surface its own error.
+      }
+
       setStatus("Broadcasting capture transfer...");
       const signature = await connection.sendRawTransaction(raw, {
         skipPreflight: false,
@@ -240,7 +283,17 @@ export function CpegHybridPanel({ tokenMint, initialAuthorityAddress, compact }:
       await refreshState();
       setStatus(`Captured ${count} cPEG.`);
     } catch (captureError) {
-      setError(describeError(captureError, "Failed to capture cPEG."));
+      const message = captureError instanceof Error ? captureError.message : "";
+      // Already-detailed messages (from our backend or from simulation) should
+      // pass through unchanged; only fall back to the friendly mapper when we
+      // do not already have a useful sentence to show.
+      if (message.startsWith("[capture-sim]")) {
+        setError(message.replace("[capture-sim]", "").trim());
+      } else if (message && message.length > 0 && !/program error/i.test(message)) {
+        setError(message.length > 220 ? `${message.slice(0, 220)}...` : message);
+      } else {
+        setError(describeError(captureError, "Failed to capture cPEG."));
+      }
     } finally {
       setActionBusy(null);
     }

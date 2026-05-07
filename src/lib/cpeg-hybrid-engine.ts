@@ -346,6 +346,9 @@ export async function buildCaptureTransferInstructions(
   userAta: string;
   vaultOwner: string;
   amountRaw: string;
+  amountWhole: number;
+  userBalanceRaw: string;
+  userBalanceWhole: number;
   tokenProgramId: string;
   decimals: number;
 }> {
@@ -367,8 +370,36 @@ export async function buildCaptureTransferInstructions(
     ctx.tokenProgramId,
     ASSOCIATED_TOKEN_PROGRAM_ID
   );
-  const ixs: InstanceType<typeof TransactionInstruction>[] = [];
+  // Resolve user balance + ATA presence so we can return a friendly error long
+  // before the user is asked to sign a transaction the network would reject.
+  let userBalanceRaw = BigInt(0);
   const userAtaInfo = await ctx.connection.getAccountInfo(userAta, "confirmed");
+  if (userAtaInfo) {
+    try {
+      const balance = await ctx.connection.getTokenAccountBalance(userAta, "confirmed");
+      userBalanceRaw = BigInt(balance.value.amount || "0");
+    } catch {
+      userBalanceRaw = BigInt(0);
+    }
+  }
+  if (userBalanceRaw < totalRaw) {
+    const denom = ctx.pegUnitRaw === BigInt(0) ? BigInt(1) : ctx.pegUnitRaw;
+    throw new CpegHybridEngineError(
+      402,
+      `Wallet has only ${Number(userBalanceRaw / denom)} whole tokens of ${truncateMintForError(ctx.tokenMint.toBase58())} but ${capCount} are required for this capture.`,
+      {
+        token_mint: ctx.tokenMint.toBase58(),
+        token_program_id: ctx.tokenProgramId.toBase58(),
+        decimals: ctx.decimals,
+        peg_unit_raw: ctx.pegUnitRaw.toString(),
+        balance_raw: userBalanceRaw.toString(),
+        required_raw: totalRaw.toString(),
+        user_token_account: userAta.toBase58(),
+        user_token_account_initialized: Boolean(userAtaInfo),
+      }
+    );
+  }
+  const ixs: InstanceType<typeof TransactionInstruction>[] = [];
   if (!userAtaInfo) {
     ixs.push(
       createAssociatedTokenAccountInstruction(
@@ -406,15 +437,24 @@ export async function buildCaptureTransferInstructions(
       ctx.tokenProgramId
     )
   );
+  const denom = ctx.pegUnitRaw === BigInt(0) ? BigInt(1) : ctx.pegUnitRaw;
   return {
     instructions: ixs.map((ix) => serializeInstruction(ix)),
     vaultAta: vaultAta.toBase58(),
     userAta: userAta.toBase58(),
     vaultOwner: ctx.signer.publicKey.toBase58(),
     amountRaw: totalRaw.toString(),
+    amountWhole: Number(totalRaw / denom),
+    userBalanceRaw: userBalanceRaw.toString(),
+    userBalanceWhole: Number(userBalanceRaw / denom),
     tokenProgramId: ctx.tokenProgramId.toBase58(),
     decimals: ctx.decimals,
   };
+}
+
+function truncateMintForError(value: string) {
+  if (value.length <= 12) return value;
+  return `${value.slice(0, 4)}...${value.slice(-4)}`;
 }
 
 /**
