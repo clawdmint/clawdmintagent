@@ -24,7 +24,6 @@ import { getClawPegRpcUrl } from "@/lib/env";
 import {
   CPEG_IDENTITY_MODE_METAPLEX_AGENT,
   cpegAgentRootToRendererParams,
-  cpegAgentRootToTokenMetadata,
   normalizeCpegAgentRootLink,
 } from "@/lib/cpeg-agent-root";
 
@@ -98,7 +97,7 @@ export async function POST(request: NextRequest) {
       agentWalletAddress: input.agent_wallet_address,
       agentName: input.agent_name,
     });
-    const metadataEntries = cpegAgentRootToTokenMetadata(agentRoot);
+    const metadataEntries: Array<[string, string]> = [];
 
     const premiumIndexing = true;
     const royaltyBps = CLAWPEG_FIXED_CREATOR_ROYALTY_BPS;
