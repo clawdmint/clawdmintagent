@@ -13,7 +13,6 @@ import {
   getClawPegFeeVaultAddress,
   getClawPegProgramId,
   getClawPegToken2022CreateAccountSize,
-  getClawPegToken2022MintAccountSize,
   quoteClawPegLaunchFee,
 } from "@/lib/clawpeg";
 import {
@@ -97,7 +96,6 @@ export async function POST(request: NextRequest) {
       agentWalletAddress: input.agent_wallet_address,
       agentName: input.agent_name,
     });
-    const metadataEntries: Array<[string, string]> = [];
 
     const premiumIndexing = true;
     const royaltyBps = CLAWPEG_FIXED_CREATOR_ROYALTY_BPS;
@@ -107,14 +105,7 @@ export async function POST(request: NextRequest) {
       whiteLabelDomain: input.white_label_domain,
     });
     const metadataUri = getCpegMetadataUri(input.token_mint);
-    const mintAccountSize = getClawPegToken2022MintAccountSize({
-      mint: input.token_mint,
-      updateAuthority: input.authority_address,
-      name: input.name,
-      symbol: input.symbol,
-      metadataUri,
-      additionalMetadata: metadataEntries,
-    });
+    const mintAccountSize = getClawPegToken2022CreateAccountSize(false);
     const connection = new Connection(getClawPegRpcUrl(), "confirmed");
 
     // Pre-flight sanity check: confirm the configured cPEG program is actually deployed
@@ -162,8 +153,6 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    const baseMintAccountSize = getClawPegToken2022CreateAccountSize(true);
-    const baseMintRentLamports = await connection.getMinimumBalanceForRentExemption(baseMintAccountSize);
     const mintRentLamports = await connection.getMinimumBalanceForRentExemption(mintAccountSize);
 
     const rendererId = input.renderer_id || CLAWPEG_DEFAULT_RENDERER_ID;
@@ -212,11 +201,6 @@ export async function POST(request: NextRequest) {
       freezeAuthority: input.authority_address,
       decimals: input.decimals,
       rentLamports: mintRentLamports,
-      baseRentLamports: baseMintRentLamports,
-      name: input.name,
-      symbol: input.symbol,
-      metadataUri,
-      additionalMetadata: metadataEntries,
     });
     const manifest = buildClawPegLaunchManifest({
       authority: input.authority_address,
