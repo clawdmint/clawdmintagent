@@ -502,6 +502,9 @@ model ClawPegLaunch {
   hybridReroll         Boolean  @default(true)
   hybridStatus         String   @default("NOT_CONFIGURED")
   hybridPlan           Json?
+  hybridSetupTxHash    String?
+  hybridConfiguredAt   DateTime?
+  hybridAssets         ClawPegHybridAsset[]
 
   authorityAddress     String
   creatorAddress       String
@@ -562,6 +565,36 @@ model ClawPegMarketListing {
   @@index([launchId, status, createdAt])
   @@index([sellerAddress, status])
   @@index([buyerAddress])
+}
+
+// cPEG Metaplex Hybrid asset inventory. Tracks deterministic Metaplex Core PEG
+// assets minted by the agent wallet for a hybrid cPEG launch. One row per Core
+// asset; the row moves between OWNER (held by capturer) and POOL (held back in
+// agent vault, available to capture again) as users capture and release.
+model ClawPegHybridAsset {
+  id                   String   @id @default(cuid())
+  launchId             String
+  launch               ClawPegLaunch @relation(fields: [launchId], references: [id], onDelete: Cascade)
+
+  tokenMint            String
+  collectionAddress    String
+  assetAddress         String   @unique
+  pegId                Int
+  ownerAddress         String
+  status               String   @default("OWNED")
+
+  captureTxHash        String?
+  releaseTxHash        String?
+  capturedAt           DateTime?
+  releasedAt           DateTime?
+
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  @@unique([launchId, pegId])
+  @@index([launchId, status])
+  @@index([ownerAddress])
+  @@index([tokenMint])
 }
 
 model AgentSkillInstall {

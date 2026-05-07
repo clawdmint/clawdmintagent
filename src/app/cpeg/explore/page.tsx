@@ -31,9 +31,17 @@ const EMPTY_EXPLORE_PAYLOAD = {
   pegs: [],
 };
 
-async function getInitialPayload(baseUrl: string) {
+function appendQuery(params: Record<string, string | undefined>) {
+  const query = new URLSearchParams({ limit: "36" });
+  for (const [key, value] of Object.entries(params)) {
+    if (value) query.set(key, value);
+  }
+  return query.toString();
+}
+
+async function getInitialPayload(baseUrl: string, params: Record<string, string | undefined>) {
   try {
-    const response = await fetch(`${baseUrl}/api/cpeg/explore?limit=36`, {
+    const response = await fetch(`${baseUrl}/api/cpeg/explore?${appendQuery(params)}`, {
       cache: "no-store",
       headers: headers().get(CPEG_SITE_HEADER) === "1" ? { [CPEG_SITE_HEADER]: "1" } : undefined,
     });
@@ -44,7 +52,15 @@ async function getInitialPayload(baseUrl: string) {
   }
 }
 
-export default async function CpegExplorePage() {
-  const initialPayload = await getInitialPayload(requestBaseUrl());
+export default async function CpegExplorePage({
+  searchParams,
+}: {
+  searchParams?: { mint?: string; q?: string; sort?: string };
+}) {
+  const initialPayload = await getInitialPayload(requestBaseUrl(), {
+    mint: searchParams?.mint,
+    q: searchParams?.q,
+    sort: searchParams?.sort,
+  });
   return <CpegExploreClient initialPayload={initialPayload || EMPTY_EXPLORE_PAYLOAD} />;
 }

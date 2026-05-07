@@ -88,7 +88,7 @@ export async function GET(request: NextRequest) {
 
   const launches = await prisma.clawPegLaunch
     .findMany({
-      where: { status: { in: ["ACTIVE", "LAUNCHED"] }, collectionAddress: { not: null } },
+      where: { status: { in: ["ACTIVE", "LAUNCHED", "HYBRID_READY", "HYBRID_CONFIGURED"] } },
       orderBy: { createdAt: "desc" },
       take: 30,
       select: {
@@ -108,6 +108,9 @@ export async function GET(request: NextRequest) {
         canonicalRoot: true,
         agentAssetAddress: true,
         agentIdentityPda: true,
+        standardMode: true,
+        hybridStatus: true,
+        hybridCoreCollectionAddress: true,
         createdAt: true,
         launchedAt: true,
       },
@@ -131,11 +134,34 @@ export async function GET(request: NextRequest) {
     launches[0];
 
   const candidateIds = buildCandidateIds(selected.maxPegs, search, sort, offset, limit);
-  const pegAddresses = candidateIds.map((pegId) => findPegRecordAddress(selected.collectionAddress || "", pegId));
-  const connection = new Connection(getClawPegRpcUrl(), "confirmed");
-  const accounts = pegAddresses.length
+  const isHybrid = selected.standardMode === "metaplex_hybrid";
+  // For the legacy custom_registry path we read the on-chain peg PDAs to learn
+  // who owns each cPEG. For the metaplex_hybrid path the PEG identity lives as
+  // a Metaplex Core asset whose ownership we already track in
+  // ClawPegHybridAsset, so we can render the gallery without an RPC roundtrip.
+  const pegAddresses = !isHybrid && selected.collectionAddress
+    ? candidateIds.map((pegId) => findPegRecordAddress(selected.collectionAddress || "", pegId))
+    : [];
+  const connection = pegAddresses.length ? new Connection(getClawPegRpcUrl(), "confirmed") : null;
+  const accounts = pegAddresses.length && connection
     ? await connection.getMultipleAccountsInfo(pegAddresses, "confirmed").catch(() => [])
     : [];
+  const hybridAssets = isHybrid
+    ? await prisma.clawPegHybridAsset
+        .findMany({
+          where: { launchId: selected.id, pegId: { in: candidateIds } },
+          select: {
+            pegId: true,
+            ownerAddress: true,
+            assetAddress: true,
+            status: true,
+            capturedAt: true,
+            releasedAt: true,
+          },
+        })
+        .catch(() => [])
+    : [];
+  const hybridByPegId = new Map(hybridAssets.map((entry) => [entry.pegId, entry]));
 
   const ownerFilter = isBase58ish(search) && search !== selected.tokenMint ? search : "";
   const sortedPegs = candidateIds
@@ -149,21 +175,27 @@ export async function GET(request: NextRequest) {
         params: (selected.rendererParams as Record<string, unknown> | null) || {},
       });
       const record = accounts[index]?.data ? parsePegRecord(Buffer.from(accounts[index]?.data || [])) : null;
+      const hybridEntry = hybridByPegId.get(pegId) || null;
       const rank = Number(traits.rank || 0);
       const score = visualScore(rank);
+      const ownerAddress = isHybrid
+        ? hybridEntry?.status === "OWNED"
+          ? hybridEntry.ownerAddress
+          : null
+        : record?.owner || null;
       return {
         id: pegId,
         name: `${selected.symbol} cPEG #${pegId}`,
         collection_name: selected.name,
         collection_symbol: selected.symbol,
         token_mint: selected.tokenMint,
-        peg_record: pegAddresses[index]?.toBase58() || null,
+        peg_record: isHybrid ? hybridEntry?.assetAddress || null : pegAddresses[index]?.toBase58() || null,
         image: `/api/cpeg/${selected.tokenMint}/pegs/${pegId}/svg`,
         detail_url: `/api/cpeg/${selected.tokenMint}/pegs/${pegId}`,
-        minted: Boolean(record),
-        owner: record?.owner || null,
-        owner_short: shortAddress(record?.owner),
-        status: record?.statusLabel || null,
+        minted: isHybrid ? Boolean(hybridEntry) : Boolean(record),
+        owner: ownerAddress,
+        owner_short: shortAddress(ownerAddress),
+        status: isHybrid ? hybridEntry?.status || null : record?.statusLabel || null,
         on_chain_seed: record?.seed || null,
         minted_slot: record?.mintedSlot || null,
         transferred_slot: record?.transferredSlot || null,
@@ -211,6 +243,9 @@ export async function GET(request: NextRequest) {
       renderer: `${selected.rendererId}@${selected.rendererVersion}`,
       renderer_hash: selected.rendererHash,
       max_pegs: selected.maxPegs,
+      standard_mode: selected.standardMode,
+      hybrid_status: selected.hybridStatus,
+      hybrid_core_collection_address: selected.hybridCoreCollectionAddress,
       created_at: selected.createdAt.toISOString(),
       launched_at: selected.launchedAt?.toISOString() || null,
     },

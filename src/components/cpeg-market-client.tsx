@@ -65,8 +65,10 @@ interface CpegLaunchSummary {
   name: string;
   symbol: string;
   token_mint: string;
-  collection_address: string;
+  collection_address: string | null;
   cluster: string;
+  standard_mode?: string;
+  hybrid_status?: string | null;
   market: {
     active_listings: number;
     floor_sol: string | null;
@@ -95,7 +97,7 @@ interface CpegCollectionSummary {
   name: string;
   symbol: string;
   token_mint: string;
-  collection_address: string;
+  collection_address: string | null;
   royalty_bps: number;
   marketplace_fee_bps: number;
   max_pegs: number;
@@ -278,6 +280,7 @@ export function CpegMarketClient() {
   );
   const showingCollectionDetail = Boolean(selectedMint && selectedLaunch);
   const identityPrefix = selectedLaunch?.symbol || collection?.symbol || "PEG";
+  const marketReady = Boolean(selectedLaunch?.collection_address);
 
   const toggleSelectedPeg = useCallback((id: number) => {
     setSelectedPegIds((current) =>
@@ -469,13 +472,14 @@ export function CpegMarketClient() {
       const body = await response.json().catch(() => null);
       if (response.ok && body?.success) {
         const items = (body.launches || [])
-          .filter((launch: { collection_address?: string | null }) => launch.collection_address)
           .map((launch: {
             name: string;
             symbol: string;
             token_mint: string;
-            collection_address: string;
+            collection_address: string | null;
             cluster: string;
+            standard_mode?: string;
+            hybrid_status?: string | null;
             market?: { active_listings?: number; floor_sol?: string | null; volume_sol?: string };
           }) => ({
             name: launch.name,
@@ -483,6 +487,8 @@ export function CpegMarketClient() {
             token_mint: launch.token_mint,
             collection_address: launch.collection_address,
             cluster: launch.cluster,
+            standard_mode: launch.standard_mode,
+            hybrid_status: launch.hybrid_status,
             market: {
               active_listings: launch.market?.active_listings ?? 0,
               floor_sol: launch.market?.floor_sol ?? null,
@@ -1016,11 +1022,13 @@ export function CpegMarketClient() {
               <button
                 type="button"
                 onClick={() => {
+                  if (!marketReady) return;
                   setShowListPanel((current) => !current);
                   setError("");
                   setStatus("");
                 }}
-                className="inline-flex items-center gap-2 border border-[#53c7ff]/40 bg-[#53c7ff]/10 px-3 py-2 font-mono text-[10px] uppercase tracking-[0.2em] text-[#53c7ff]"
+                disabled={!marketReady}
+                className="inline-flex items-center gap-2 border border-[#53c7ff]/40 bg-[#53c7ff]/10 px-3 py-2 font-mono text-[10px] uppercase tracking-[0.2em] text-[#53c7ff] disabled:cursor-not-allowed disabled:opacity-45"
               >
                 <Tag className="h-3 w-3" /> {showListPanel ? "Close list panel" : "List a PEG"}
               </button>
@@ -1504,12 +1512,36 @@ export function CpegMarketClient() {
               </div>
             ) : (
               <div className="border border-dashed border-neutral-200 dark:border-white/10 bg-neutral-50 dark:bg-white/[0.02] py-16 text-center">
-                <p className="font-mono text-xs uppercase tracking-[0.2em] text-neutral-500 dark:text-white/45">
-                  No listings match your filter
-                </p>
-                <p className="mt-2 text-xs text-neutral-400 dark:text-white/30">
-                  Try a different sort, clear the filters, or open another collection.
-                </p>
+                {selectedLaunch?.standard_mode === "metaplex_hybrid" ? (
+                  <>
+                    <p className="font-mono text-xs uppercase tracking-[0.2em] text-neutral-500 dark:text-white/45">
+                      Metaplex Hybrid · capture / release
+                    </p>
+                    <p className="mt-2 text-xs text-neutral-400 dark:text-white/30">
+                      This launch uses the Metaplex Core hybrid path. Capture whole tokens for
+                      deterministic Core PEG identities or release them back from the vault page.
+                    </p>
+                    {selectedLaunch?.token_mint ? (
+                      <a
+                        href={`/cpeg/${encodeURIComponent(selectedLaunch.token_mint)}`}
+                        className="mt-4 inline-flex items-center gap-2 border border-[#53c7ff]/40 bg-[#53c7ff]/10 px-4 py-2 text-[10px] font-black uppercase tracking-[0.2em] text-[#53c7ff] transition hover:bg-[#53c7ff]/20"
+                      >
+                        Open hybrid vault
+                      </a>
+                    ) : null}
+                  </>
+                ) : (
+                  <>
+                    <p className="font-mono text-xs uppercase tracking-[0.2em] text-neutral-500 dark:text-white/45">
+                      {marketReady ? "No listings match your filter" : "Market opens after PEG escrow is funded"}
+                    </p>
+                    <p className="mt-2 text-xs text-neutral-400 dark:text-white/30">
+                      {marketReady
+                        ? "Try a different sort, clear the filters, or open another collection."
+                        : "The gallery is live now. Escrow trading becomes available after the collection is funded."}
+                    </p>
+                  </>
+                )}
               </div>
             )}
           </div>

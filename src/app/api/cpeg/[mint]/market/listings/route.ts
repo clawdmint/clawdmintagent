@@ -56,8 +56,41 @@ export async function GET(request: NextRequest, { params }: RouteContext) {
       maxPegs: true,
     },
   });
-  if (!launch?.collectionAddress) {
+  if (!launch) {
     return NextResponse.json({ success: false, error: "cPEG collection not found" }, { status: 404 });
+  }
+  if (!launch.collectionAddress) {
+    return NextResponse.json({
+      success: true,
+      collection: {
+        name: launch.name,
+        symbol: launch.symbol,
+        token_mint: launch.tokenMint,
+        collection_address: null,
+        royalty_bps: launch.royaltyBps,
+        marketplace_fee_bps: launch.marketplaceFeeBps,
+        creator_address: launch.creatorAddress,
+        fee_vault_address: launch.feeVaultAddress,
+        max_pegs: launch.maxPegs,
+      },
+      summary: {
+        active_listings: 0,
+        filled_listings: 0,
+        floor_lamports: null,
+        floor_sol: null,
+        volume_lamports: "0",
+        volume_sol: "0",
+      },
+      filters: {
+        sort,
+        seller: seller || null,
+        min_price_lamports: minPriceParam || null,
+        max_price_lamports: maxPriceParam || null,
+        limit,
+      },
+      listings: [],
+      status: "HYBRID_READY",
+    });
   }
 
   const conditions: Prisma.Sql[] = [

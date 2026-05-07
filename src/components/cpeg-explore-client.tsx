@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { ArrowDownWideNarrow, ChevronLeft, ChevronRight, Download, ExternalLink, Search, X } from "lucide-react";
 import { useCpegSite } from "@/components/cpeg-site-context";
 import { cpegPublicPaths } from "@/lib/cpeg-site-paths";
@@ -129,12 +130,14 @@ async function downloadJpeg(peg: ExplorePeg) {
 
 export function CpegExploreClient({ initialPayload }: { initialPayload: ExplorePayload }) {
   const site = useCpegSite();
+  const searchParams = useSearchParams();
   const urls = useMemo(() => cpegPublicPaths(site), [site]);
   const normalizedInitialPayload = useMemo(() => normalizePayload(initialPayload), [initialPayload]);
+  const urlMint = searchParams?.get("mint") || "";
   const [payload, setPayload] = useState(normalizedInitialPayload);
-  const [mint, setMint] = useState(normalizedInitialPayload.selected_collection?.token_mint || "");
-  const [query, setQuery] = useState("");
-  const [sort, setSort] = useState<"visual" | "age">("visual");
+  const [mint, setMint] = useState(urlMint || normalizedInitialPayload.selected_collection?.token_mint || "");
+  const [query, setQuery] = useState(searchParams?.get("q") || "");
+  const [sort, setSort] = useState<"visual" | "age">(searchParams?.get("sort") === "age" ? "age" : "visual");
   const [offset, setOffset] = useState(0);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -175,6 +178,14 @@ export function CpegExploreClient({ initialPayload }: { initialPayload: ExploreP
   useEffect(() => {
     void load();
   }, [load]);
+
+  useEffect(() => {
+    const nextMint = searchParams?.get("mint") || "";
+    if (nextMint && nextMint !== mint) {
+      setMint(nextMint);
+      setOffset(0);
+    }
+  }, [mint, searchParams]);
 
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {

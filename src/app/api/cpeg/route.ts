@@ -19,17 +19,28 @@ async function fetchSealedMap(mints: string[]): Promise<Map<string, boolean>> {
   if (mints.length === 0) return result;
   try {
     const connection = new Connection(getClawPegRpcUrl(), "confirmed");
-    const pks = mints.map((m) => new PublicKey(m));
+    const validMints = mints.flatMap((mint) => {
+      try {
+        return [{ mint, publicKey: new PublicKey(mint) }];
+      } catch {
+        result.set(mint, false);
+        return [];
+      }
+    });
+    if (validMints.length === 0) return result;
+    const pks = validMints.map((item) => item.publicKey);
     const accounts = await connection.getMultipleAccountsInfo(pks, "confirmed");
     type AccountSlot = (typeof accounts)[number];
     accounts.forEach((account: AccountSlot, index: number) => {
+      const mint = validMints[index]?.mint;
+      if (!mint) return;
       if (!account || account.data.length < 4) {
-        result.set(mints[index], false);
+        result.set(mint, false);
         return;
       }
       const authoritySome =
         account.data[0] !== 0 || account.data[1] !== 0 || account.data[2] !== 0 || account.data[3] !== 0;
-      result.set(mints[index], !authoritySome);
+      result.set(mint, !authoritySome);
     });
   } catch {
     // Best-effort: when RPC fails, assume open. Per-collection page still reads live state.

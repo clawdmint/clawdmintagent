@@ -1,5 +1,7 @@
 import { Connection, PublicKey } from "@solana/web3.js";
 import type { Prisma } from "@prisma/client";
+import { createPublicKey, verify } from "crypto";
+import bs58 from "bs58";
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/db";
@@ -22,11 +24,14 @@ import {
 export const dynamic = "force-dynamic";
 
 const PEG_COLLECTION_SIZE = 228;
+const ED25519_SPKI_PREFIX = Buffer.from("302a300506032b6570032100", "hex");
 
 const ConfirmSchema = z.object({
   name: z.string().min(1).max(48).default("Claw Agent PEG"),
   symbol: z.string().min(1).max(12).default("CPEG"),
   signature: z.string().min(32).optional(),
+  wallet_message: z.string().min(32).optional(),
+  wallet_signature: z.string().min(32).optional(),
   token_mint: z.string().min(32),
   collection_address: z.string().min(32).nullable().optional(),
   hook_validation_address: z.string().min(32).nullable().optional(),
@@ -65,6 +70,25 @@ const ConfirmSchema = z.object({
 
 function bytesToHex(bytes: Uint8Array) {
   return Buffer.from(bytes).toString("hex");
+}
+
+function verifySolanaMessageSignature(input: {
+  walletAddress: string;
+  message: string;
+  signatureBase64: string;
+}) {
+  try {
+    const publicKeyBytes = Buffer.from(bs58.decode(input.walletAddress));
+    if (publicKeyBytes.length !== 32) return false;
+    const key = createPublicKey({
+      key: Buffer.concat([ED25519_SPKI_PREFIX, publicKeyBytes]),
+      format: "der",
+      type: "spki",
+    });
+    return verify(null, Buffer.from(input.message, "utf8"), key, Buffer.from(input.signatureBase64, "base64"));
+  } catch {
+    return false;
+  }
 }
 
 function readPubkey(data: Buffer, cursor: { value: number }) {
@@ -217,8 +241,51 @@ export async function POST(request: NextRequest) {
           { status: 400 }
         );
       }
+      if (!input.wallet_message || !input.wallet_signature) {
+        return NextResponse.json(
+          { success: false, error: "Wallet approval is required for cPEG launch" },
+          { status: 400 }
+        );
+      }
+      const messageMatchesLaunch =
+        input.wallet_message.includes("ClawPEG Launch Approval") &&
+        input.wallet_message.includes(tokenMint.toBase58()) &&
+        input.wallet_message.includes(rendererHash) &&
+        input.wallet_message.includes(authorityAddress);
+      const signatureOk =
+        messageMatchesLaunch &&
+        verifySolanaMessageSignature({
+          walletAddress: authorityAddress,
+          message: input.wallet_message,
+          signatureBase64: input.wallet_signature,
+        });
+      if (!signatureOk) {
+        return NextResponse.json(
+          { success: false, error: "Wallet approval signature could not be verified" },
+          { status: 400 }
+        );
+      }
       const rendererParams = rendererParamsObject as Prisma.InputJsonObject;
       const hybridStatus = input.hybrid_status || CPEG_HYBRID_STATUS_READY;
+      // Resolve the Clawdmint agent associated with this launch wallet so the
+      // hybrid setup/capture/release endpoints can sign with the agent operational
+      // wallet. We never read the secret key here; we just persist the agent.id
+      // foreign key. Setup endpoints load the encrypted key on demand.
+      const linkedAgent = await prisma.agent
+        .findFirst({
+          where: {
+            status: "VERIFIED",
+            deployEnabled: true,
+            metaplexAssetAddress: { not: null },
+            OR: [
+              { solanaWalletAddress: authorityAddress },
+              { ownerWalletAddress: authorityAddress },
+            ],
+          },
+          orderBy: { updatedAt: "desc" },
+          select: { id: true },
+        })
+        .catch(() => null);
       const saved = await prisma.clawPegLaunch.upsert({
         where: { tokenMint: tokenMint.toBase58() },
         update: {
@@ -263,6 +330,7 @@ export async function POST(request: NextRequest) {
           hybridPlan: (input.hybrid_plan || {}) as Prisma.InputJsonObject,
           status: "HYBRID_READY",
           launchedAt: new Date(),
+          ...(linkedAgent ? { agentId: linkedAgent.id } : {}),
         },
         create: {
           name: input.name,
@@ -309,6 +377,7 @@ export async function POST(request: NextRequest) {
           deployTxHash: input.signature || null,
           status: "HYBRID_READY",
           launchedAt: new Date(),
+          ...(linkedAgent ? { agentId: linkedAgent.id } : {}),
         },
       });
 

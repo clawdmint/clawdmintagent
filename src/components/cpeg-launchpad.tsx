@@ -22,6 +22,7 @@ import {
   VersionedTransaction,
 } from "@solana/web3.js";
 import { CpegContractBar } from "@/components/cpeg-contract-bar";
+import { CpegHybridPanel } from "@/components/cpeg-hybrid-panel";
 import { getPhantomProvider, useWallet } from "@/components/wallet-context";
 import { useCpegSite } from "@/components/cpeg-site-context";
 import { describeError, explorerTxUrl, truncateAddress } from "@/lib/cpeg-ui";
@@ -280,6 +281,14 @@ function base64ToBytes(value: string): Uint8Array {
   return bytes;
 }
 
+function bytesToBase64(bytes: Uint8Array): string {
+  let binary = "";
+  bytes.forEach((byte) => {
+    binary += String.fromCharCode(byte);
+  });
+  return window.btoa(binary);
+}
+
 function manifestToInstruction(instruction: LaunchInstruction) {
   return new TransactionInstruction({
     programId: new PublicKey(instruction.programId),
@@ -505,6 +514,26 @@ export function CpegLaunchpad() {
       }
 
       if (prepareBody.requires_signature === false || prepareBody.standard_mode === "metaplex_hybrid") {
+        const provider = getPhantomProvider();
+        if (!provider?.signMessage) {
+          setError("Phantom message signing is required for cPEG launch.");
+          setStatus("");
+          return;
+        }
+        const approvalMessage = [
+          "ClawPEG Launch Approval",
+          `Name: ${form.name.trim()}`,
+          `Symbol: ${normalizedSymbol}`,
+          `Token: ${prepareBody.launch.token_mint}`,
+          `Renderer: ${prepareBody.launch.renderer_hash}`,
+          `Authority: ${connectedAddress}`,
+          `Agent: ${prepareBody.launch.agent_asset_address || ""}`,
+        ].join("\n");
+        setStatus("Opening Phantom for launch approval...");
+        const signedApproval = await provider.signMessage(new TextEncoder().encode(approvalMessage), "utf8");
+        const approvalSignature =
+          signedApproval instanceof Uint8Array ? signedApproval : signedApproval.signature;
+
         setStatus("Publishing your cPEG collection...");
         const confirmResponse = await fetch("/api/cpeg/launchpad/confirm", {
           method: "POST",
@@ -517,6 +546,8 @@ export function CpegLaunchpad() {
             creator_address: connectedAddress,
             fee_vault_address: connectedAddress,
             standard_mode: "metaplex_hybrid",
+            wallet_message: approvalMessage,
+            wallet_signature: bytesToBase64(approvalSignature),
             collection_address: prepareBody.launch.collection_address,
             hook_validation_address: prepareBody.launch.hook_validation_address,
             renderer_id: prepareBody.launch.renderer_id,
@@ -783,13 +814,28 @@ export function CpegLaunchpad() {
               <SuccessCell title="Market profile" text="Ready" />
             </div>
 
+            {isHybridLaunch ? (
+              <div className="mt-8">
+                <CpegHybridPanel tokenMint={result.mint} initialAuthorityAddress={connectedAddress} />
+              </div>
+            ) : null}
+
             <div className="mt-8 flex flex-wrap gap-3">
-              <a
-                href={cpegUrls.market({ mint: result.mint })}
-                className="inline-flex items-center gap-2 border border-[#f7f2df] bg-[#f7f2df] px-5 py-3 text-sm font-black uppercase tracking-wide text-black transition hover:bg-[#53c7ff]"
-              >
-                Open market <ArrowRight className="h-4 w-4" />
-              </a>
+              {isHybridLaunch ? (
+                <a
+                  href={`${cpegUrls.home.replace(/\/$/, "")}/${encodeURIComponent(result.mint)}`}
+                  className="inline-flex items-center gap-2 border border-[#f7f2df] bg-[#f7f2df] px-5 py-3 text-sm font-black uppercase tracking-wide text-black transition hover:bg-[#53c7ff]"
+                >
+                  Open vault <ArrowRight className="h-4 w-4" />
+                </a>
+              ) : (
+                <a
+                  href={cpegUrls.market({ mint: result.mint })}
+                  className="inline-flex items-center gap-2 border border-[#f7f2df] bg-[#f7f2df] px-5 py-3 text-sm font-black uppercase tracking-wide text-black transition hover:bg-[#53c7ff]"
+                >
+                  Open market <ArrowRight className="h-4 w-4" />
+                </a>
+              )}
               <a
                 href={`${cpegUrls.explore}?mint=${encodeURIComponent(result.mint)}`}
                 className="inline-flex items-center gap-2 border border-neutral-400 dark:border-white/20 px-5 py-3 text-sm font-bold uppercase tracking-wide text-neutral-950 dark:text-white transition hover:border-[#53c7ff] hover:text-[#53c7ff]"
