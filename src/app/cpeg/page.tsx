@@ -310,11 +310,11 @@ export default async function CpegPage() {
                     </span>
                     {launch.is_sealed ? (
                       <span className="inline-flex items-center gap-1 border border-[#f7c948]/40 bg-[#f7c948]/10 px-2 py-0.5 font-mono text-[9px] uppercase tracking-[0.18em] text-[#f7c948]">
-                        <Lock className="h-2.5 w-2.5" /> Sealed
+                        <Lock className="h-2.5 w-2.5" /> {launch.standard_mode === "metaplex_hybrid" ? "Fixed supply" : "Sealed"}
                       </span>
                     ) : (
                       <span className="inline-flex items-center gap-1 border border-neutral-300 dark:border-white/15 px-2 py-0.5 font-mono text-[9px] uppercase tracking-[0.18em] text-neutral-700 dark:text-white/55">
-                        <Unlock className="h-2.5 w-2.5" /> Open
+                        <Unlock className="h-2.5 w-2.5" /> {launch.standard_mode === "metaplex_hybrid" ? "Supply open" : "Open"}
                       </span>
                     )}
                   </div>
@@ -540,7 +540,7 @@ export default async function CpegPage() {
             <div className="font-mono text-xs uppercase tracking-[0.22em] text-neutral-500 dark:text-white/45">03</div>
             <h3 className="mt-3 text-2xl font-black uppercase">Hybrid route</h3>
             <p className="mt-3 text-sm leading-6 text-neutral-600 dark:text-white/62">
-              The agent token is the capacity source. Capture and release maps whole token units
+              The agent token is the capacity source. Capture and release map fixed backing units
               to deterministic Agent PEG identities.
             </p>
           </div>

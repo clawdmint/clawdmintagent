@@ -52,7 +52,7 @@ export async function GET(request: NextRequest, { params }: RouteContext) {
     name: launch.name,
     symbol: launch.symbol,
     description:
-      `cPEG Token-2022 collection. One whole ${launch.symbol} token maps to one numbered PEG identity.`,
+      `cPEG collection. Each numbered PEG identity is backed by the fixed ${launch.symbol} token unit for this launch.`,
     image,
     external_url: collectionUrl,
     animation_url: collectionUrl,

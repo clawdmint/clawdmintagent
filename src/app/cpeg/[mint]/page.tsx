@@ -57,8 +57,8 @@ export default async function CpegCollectionPage({ params }: CpegCollectionPageP
           {launch.symbol} · {truncateAddress(launch.tokenMint, 6, 6)} · {launch.cluster}
         </p>
         <p className="mt-5 max-w-2xl text-sm leading-7 text-white/65">
-          This cPEG launch uses the Metaplex Hybrid path. Capture whole agent tokens to receive
-          deterministic Metaplex Core PEG identities, and release them back to reclaim the tokens.
+          Convert the agent token into deterministic Metaplex Core cPEG identities. Each cPEG is
+          backed by a fixed token amount, so token supply and collection capacity move together.
         </p>
 
         <div className="mt-10">
@@ -75,6 +75,14 @@ export default async function CpegCollectionPage({ params }: CpegCollectionPageP
           >
             View gallery
           </Link>
+          <a
+            href={`https://www.metaplex.com/token/${launch.tokenMint}`}
+            target="_blank"
+            rel="noreferrer"
+            className="inline-flex items-center gap-2 border border-[#53c7ff]/40 bg-[#53c7ff]/10 px-4 py-2 font-mono text-[10px] uppercase tracking-[0.2em] text-[#53c7ff] transition hover:bg-[#53c7ff]/20"
+          >
+            Buy token
+          </a>
           <Link
             href={urls.market({ mint: launch.tokenMint })}
             className="inline-flex items-center gap-2 border border-white/15 px-4 py-2 font-mono text-[10px] uppercase tracking-[0.2em] text-white/65 transition hover:border-[#53c7ff] hover:text-[#53c7ff]"

@@ -13,7 +13,7 @@ interface RouteContext {
 /**
  * Surface the token side of a cPEG launch.
  *
- * The reason this endpoint exists is the user-facing PEG promise: every whole token-2022
+ * The reason this endpoint exists is the user-facing PEG promise: every fixed Token-2022 backing unit
  * unit on the mint is bound to a discrete on-chain identity, and the authority cannot
  * silently print more units once the supply is sealed. To make that promise visible we
  * read three things directly from on-chain state on every request:

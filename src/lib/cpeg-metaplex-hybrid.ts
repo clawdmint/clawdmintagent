@@ -86,7 +86,7 @@ export function buildCpegMetaplexHybridPlan(input: CpegMetaplexHybridPlanInput) 
       "Create or select the Core PEG asset collection for this agent root.",
       "Create the MPL-Hybrid capture and release escrow once the compatible SDK path is enabled.",
       "Fund the escrow with deterministic Agent PEG Core assets.",
-      "Open capture and release so each whole agent token can resolve into one Agent PEG identity.",
+      "Open capture and release so each fixed agent-token backing unit can resolve into one Agent PEG identity.",
       "Open the exact-identity market after the escrow is funded.",
     ],
   };

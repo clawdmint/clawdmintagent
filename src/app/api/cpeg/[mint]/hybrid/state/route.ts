@@ -23,6 +23,14 @@ export async function GET(request: NextRequest, { params }: RouteContext) {
   }
   const counts = await loadHybridAssetCounts(data.launch.id);
   const summary = await buildHybridStateSummary(data.agent, data.launch, counts);
+  if (summary.pegUnitRaw !== data.launch.pegUnitRaw) {
+    await prisma.clawPegLaunch
+      .update({
+        where: { id: data.launch.id },
+        data: { pegUnitRaw: summary.pegUnitRaw, hybridSwapAmountRaw: summary.pegUnitRaw },
+      })
+      .catch(() => null);
+  }
   let walletAssets: Array<{
     asset_address: string;
     peg_id: number;
@@ -67,8 +75,13 @@ export async function GET(request: NextRequest, { params }: RouteContext) {
       pool_assets: summary.poolAssets,
       vault_token_balance_raw: summary.vaultTokenBalanceRaw,
       vault_token_balance_whole: summary.vaultTokenBalanceWhole,
+      token_supply_raw: summary.tokenSupplyRaw,
+      decimals: summary.decimals,
       max_pegs: data.launch.maxPegs,
-      peg_unit_raw: data.launch.pegUnitRaw,
+      effective_max_pegs: summary.effectiveMaxPegs,
+      available_capacity: summary.availableCapacity,
+      burned_capacity: summary.burnedCapacity,
+      peg_unit_raw: summary.pegUnitRaw,
     },
     wallet_assets: walletAssets,
   });

@@ -3,10 +3,12 @@ import { z } from "zod";
 import {
   CPEG_HYBRID_STATUS_CONFIGURED,
   CpegHybridEngineError,
+  buildHybridStateSummary,
   buildCaptureTransferInstructions,
 } from "@/lib/cpeg-hybrid-engine";
-import { loadHybridLaunchAndAgent } from "@/lib/cpeg-hybrid-loader";
+import { loadHybridAssetCounts, loadHybridLaunchAndAgent } from "@/lib/cpeg-hybrid-loader";
 import { CPEG_STANDARD_MODE_METAPLEX_HYBRID } from "@/lib/cpeg-metaplex-hybrid";
+import { prisma } from "@/lib/db";
 
 export const dynamic = "force-dynamic";
 
@@ -45,6 +47,32 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
         { status: 409 }
       );
     }
+    const counts = await loadHybridAssetCounts(data.launch.id);
+    const summary = await buildHybridStateSummary(data.agent, data.launch, counts);
+    if (summary.pegUnitRaw !== data.launch.pegUnitRaw) {
+      await prisma.clawPegLaunch
+        .update({
+          where: { id: data.launch.id },
+          data: { pegUnitRaw: summary.pegUnitRaw, hybridSwapAmountRaw: summary.pegUnitRaw },
+        })
+        .catch(() => null);
+    }
+    if (parsed.data.count > summary.availableCapacity) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "Not enough cPEG capacity remains for this capture.",
+          details: {
+            requested: parsed.data.count,
+            available_capacity: summary.availableCapacity,
+            effective_max_pegs: summary.effectiveMaxPegs,
+            peg_unit_raw: summary.pegUnitRaw,
+            token_supply_raw: summary.tokenSupplyRaw,
+          },
+        },
+        { status: 409 }
+      );
+    }
 
     const result = await buildCaptureTransferInstructions(
       data.agent,
@@ -78,7 +106,8 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
         amount_whole: result.amountWhole,
         user_balance_raw: result.userBalanceRaw,
         user_balance_whole: result.userBalanceWhole,
-        peg_unit_raw: data.launch.pegUnitRaw,
+        peg_unit_raw: result.pegUnitRaw,
+        token_supply_raw: result.tokenSupplyRaw,
         decimals: result.decimals,
         token_program_id: result.tokenProgramId,
         vault_token_account: result.vaultAta,

@@ -38,7 +38,7 @@ export async function GET(_request: NextRequest, { params }: RouteContext) {
       guarantees: [
         "Token-2022 ownership is enforced by the cPEG transfer hook.",
         "Every routed identity transfer syncs OwnerPeg capacity during the hook execution.",
-        "Transfers that would detach a PEG identity from its whole token unit are rejected by the hook.",
+        "Transfers that would detach a PEG identity from its fixed backing unit are rejected by the hook.",
         "Official identity-market fills invoke record_trade_art from on-chain sale data.",
       ],
       modes: {

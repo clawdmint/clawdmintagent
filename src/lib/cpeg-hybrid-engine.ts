@@ -2,9 +2,9 @@
 //
 // Implements capture/release on top of MPL-Core 1.x using umi 1.x. The agent
 // operational wallet acts as both the Core Collection update authority and the
-// SPL token vault custodian for the agent token. Capture moves one whole agent
-// token from the user into the agent vault and mints/transfers a deterministic
-// Core asset to the user. Release reverses the flow.
+// SPL token vault custodian for the agent token. Capture moves the fixed PEG
+// backing unit from the user into the agent vault and mints/transfers a
+// deterministic Core asset to the user. Release reverses the flow.
 //
 // This file intentionally avoids @metaplex-foundation/mpl-hybrid because that
 // package only supports umi <1.0 while Clawdmint's other Metaplex flows are on
@@ -91,6 +91,12 @@ export interface HybridStateSummary {
   vaultTokenAccount: string | null;
   vaultOwner: string | null;
   tokenProgramId: string | null;
+  decimals: number;
+  tokenSupplyRaw: string;
+  pegUnitRaw: string;
+  effectiveMaxPegs: number;
+  availableCapacity: number;
+  burnedCapacity: number;
   totalAssets: number;
   ownedAssets: number;
   poolAssets: number;
@@ -121,6 +127,7 @@ interface HybridContext {
   tokenMint: InstanceType<typeof PublicKey>;
   tokenProgramId: InstanceType<typeof PublicKey>;
   decimals: number;
+  tokenSupplyRaw: bigint;
   pegUnitRaw: bigint;
 }
 
@@ -131,7 +138,7 @@ function deriveTokenProgramId(ownerProgramId: string): InstanceType<typeof Publi
 
 async function loadHybridContext(
   agent: HybridAgentRecord,
-  launch: Pick<HybridLaunchSnapshot, "agentTokenMint" | "tokenMint" | "pegUnitRaw">
+  launch: Pick<HybridLaunchSnapshot, "agentTokenMint" | "tokenMint" | "pegUnitRaw" | "maxPegs">
 ): Promise<HybridContext> {
   const mintBase58 = (launch.agentTokenMint || launch.tokenMint || "").trim();
   if (!mintBase58) {
@@ -151,9 +158,11 @@ async function loadHybridContext(
   }
   const tokenProgramId = deriveTokenProgramId(mintAccount.owner.toBase58());
   let decimals = 0;
+  let tokenSupplyRaw = BigInt(0);
   try {
     const info = await getMint(connection, tokenMint, "confirmed", tokenProgramId);
     decimals = info.decimals;
+    tokenSupplyRaw = info.supply;
   } catch {
     decimals = 0;
   }
@@ -163,10 +172,27 @@ async function loadHybridContext(
   } catch {
     pegUnitRaw = BigInt(0);
   }
-  if (pegUnitRaw <= BigInt(0)) {
-    pegUnitRaw = BigInt(`1${"0".repeat(decimals)}`);
+  const baseUnitRaw = BigInt(`1${"0".repeat(decimals)}`);
+  const maxPegs = Math.max(1, Math.min(10_000, launch.maxPegs || 0));
+  const supplyDerivedPegUnit = tokenSupplyRaw > BigInt(0) ? tokenSupplyRaw / BigInt(maxPegs) : BigInt(0);
+  // Older hybrid launches used one display token as the PEG unit. For agent
+  // tokens with large supplies, the fixed backing unit must instead be derived
+  // from the launch-time supply divided by max PEGs. New launches persist that
+  // value; this fallback keeps earlier saved launches economically coherent.
+  if (supplyDerivedPegUnit > BigInt(0) && (pegUnitRaw <= BigInt(0) || pegUnitRaw <= baseUnitRaw)) {
+    pegUnitRaw = supplyDerivedPegUnit;
   }
-  return { agent, signer, connection, tokenMint, tokenProgramId, decimals, pegUnitRaw };
+  if (pegUnitRaw <= BigInt(0)) {
+    pegUnitRaw = baseUnitRaw;
+  }
+  return { agent, signer, connection, tokenMint, tokenProgramId, decimals, tokenSupplyRaw, pegUnitRaw };
+}
+
+function effectiveHybridCapacity(maxPegs: number, tokenSupplyRaw: bigint, pegUnitRaw: bigint) {
+  const launchCap = Math.max(1, Math.min(10_000, maxPegs || 1));
+  if (pegUnitRaw <= BigInt(0)) return launchCap;
+  const supplyCap = Number(tokenSupplyRaw / pegUnitRaw);
+  return Math.max(0, Math.min(launchCap, supplyCap));
 }
 
 function buildAssetMetadata(launch: HybridLaunchSnapshot, pegId: number) {
@@ -215,12 +241,18 @@ export async function buildHybridStateSummary(
   const vaultTokenAccount = launch.hybridEscrowAddress;
   const vaultOwner = agent.solanaWalletAddress;
   let tokenProgramId: string | null = null;
+  let decimals = 0;
+  let tokenSupplyRaw = BigInt(0);
+  let pegUnitRaw = BigInt(0);
   let vaultRaw = BigInt(0);
   let vaultWhole = 0;
-  if (vaultTokenAccount && launch.agentTokenMint) {
-    try {
-      const ctx = await loadHybridContext(agent, launch);
-      tokenProgramId = ctx.tokenProgramId.toBase58();
+  try {
+    const ctx = await loadHybridContext(agent, launch);
+    tokenProgramId = ctx.tokenProgramId.toBase58();
+    decimals = ctx.decimals;
+    tokenSupplyRaw = ctx.tokenSupplyRaw;
+    pegUnitRaw = ctx.pegUnitRaw;
+    if (vaultTokenAccount && launch.agentTokenMint) {
       const ata = new PublicKey(vaultTokenAccount);
       const balance = await ctx.connection.getTokenAccountBalance(ata, "confirmed").catch(() => null);
       if (balance?.value?.amount) {
@@ -228,16 +260,24 @@ export async function buildHybridStateSummary(
         const denom = ctx.pegUnitRaw === BigInt(0) ? BigInt(1) : ctx.pegUnitRaw;
         vaultWhole = Number(vaultRaw / denom);
       }
-    } catch {
-      // ignore; balance is best effort
     }
+  } catch {
+    // ignore; balance and supply are best effort
   }
+  const effectiveMax = effectiveHybridCapacity(launch.maxPegs, tokenSupplyRaw, pegUnitRaw);
+  const availableCapacity = Math.max(0, effectiveMax - assetCounts.total);
   return {
     status,
     collectionAddress,
     vaultTokenAccount,
     vaultOwner,
     tokenProgramId,
+    decimals,
+    tokenSupplyRaw: tokenSupplyRaw.toString(),
+    pegUnitRaw: pegUnitRaw.toString(),
+    effectiveMaxPegs: effectiveMax,
+    availableCapacity,
+    burnedCapacity: Math.max(0, Math.min(10_000, launch.maxPegs || 0) - effectiveMax),
     totalAssets: assetCounts.total,
     ownedAssets: assetCounts.owned,
     poolAssets: assetCounts.pool,
@@ -332,8 +372,8 @@ export async function setupHybridLaunch(
 }
 
 /**
- * Build the unsigned instructions required to capture exactly one whole agent
- * token from the user's wallet into the agent vault. The frontend signs and
+ * Build the unsigned instructions required to capture one or more fixed PEG
+ * backing units from the user's wallet into the agent vault. The frontend signs and
  * broadcasts, then calls captureConfirm() so the backend can mint the Core
  * asset and persist the row.
  */
@@ -351,6 +391,8 @@ export async function buildCaptureTransferInstructions(
   amountWhole: number;
   userBalanceRaw: string;
   userBalanceWhole: number;
+  pegUnitRaw: string;
+  tokenSupplyRaw: string;
   tokenProgramId: string;
   decimals: number;
 }> {
@@ -388,7 +430,7 @@ export async function buildCaptureTransferInstructions(
     const denom = ctx.pegUnitRaw === BigInt(0) ? BigInt(1) : ctx.pegUnitRaw;
     throw new CpegHybridEngineError(
       402,
-      `Wallet has only ${Number(userBalanceRaw / denom)} whole tokens of ${truncateMintForError(ctx.tokenMint.toBase58())} but ${capCount} are required for this capture.`,
+      `Wallet has enough tokens for ${Number(userBalanceRaw / denom)} cPEG capture(s), but ${capCount} are required.`,
       {
         token_mint: ctx.tokenMint.toBase58(),
         token_program_id: ctx.tokenProgramId.toBase58(),
@@ -449,6 +491,8 @@ export async function buildCaptureTransferInstructions(
     amountWhole: Number(totalRaw / denom),
     userBalanceRaw: userBalanceRaw.toString(),
     userBalanceWhole: Number(userBalanceRaw / denom),
+    pegUnitRaw: ctx.pegUnitRaw.toString(),
+    tokenSupplyRaw: ctx.tokenSupplyRaw.toString(),
     tokenProgramId: ctx.tokenProgramId.toBase58(),
     decimals: ctx.decimals,
   };
@@ -517,8 +561,8 @@ export async function confirmCaptureMint(
 }
 
 /**
- * Release a captured Core asset back to the agent vault and pay one whole
- * agent token from the vault to the user. The user must have already signed a
+ * Release a captured Core asset back to the agent vault and pay one fixed PEG
+ * backing unit from the vault to the user. The user must have already signed a
  * Core asset transfer to the agent wallet before calling this. The agent
  * confirms ownership of the asset, then sends the token payout.
  */

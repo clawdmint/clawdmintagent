@@ -693,7 +693,7 @@ export function CpegSwapClient() {
         )}
         {isHybridRoute && (
           <p className="mt-4 max-w-[420px] text-center text-xs leading-6 text-neutral-500 dark:text-white/45">
-            This cPEG uses a Metaplex vault. Capture whole tokens to receive PEG identities, or release a PEG to reclaim the token.
+            This cPEG uses a Metaplex vault. Convert the required token backing unit to receive a PEG identity, or release a PEG to reclaim its backing tokens.
           </p>
         )}
         {side === "sell" && (

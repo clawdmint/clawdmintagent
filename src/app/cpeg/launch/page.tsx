@@ -31,7 +31,7 @@ export default function CpegLaunchPage() {
             collection with deterministic on-chain identity rules.
           </p>
           <p className="mt-3 max-w-2xl text-xs leading-6 text-neutral-500 dark:text-white/45">
-            cPEG keeps the agent token as the root asset while each whole token unit can resolve
+            cPEG keeps the agent token as the root asset while each fixed backing unit can resolve
             into a matching Agent PEG identity.
           </p>
         </div>

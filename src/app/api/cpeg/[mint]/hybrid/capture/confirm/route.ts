@@ -6,6 +6,7 @@ import {
   CPEG_HYBRID_ASSET_STATUS_OWNED,
   CPEG_HYBRID_STATUS_CONFIGURED,
   CpegHybridEngineError,
+  buildHybridStateSummary,
   confirmCaptureMint,
 } from "@/lib/cpeg-hybrid-engine";
 import { CPEG_STANDARD_MODE_METAPLEX_HYBRID } from "@/lib/cpeg-metaplex-hybrid";
@@ -31,7 +32,8 @@ interface RouteContext {
 async function verifyTransferSignature(
   connection: InstanceType<typeof Connection>,
   signature: string,
-  vault: InstanceType<typeof PublicKey>
+  vault: InstanceType<typeof PublicKey>,
+  expectedRaw: bigint
 ) {
   const status = await connection.getSignatureStatus(signature, { searchTransactionHistory: true });
   if (!status.value || status.value.err) {
@@ -47,6 +49,17 @@ async function verifyTransferSignature(
     : [];
   if (accountKeys.length && !accountKeys.some((key: InstanceType<typeof PublicKey>) => key.equals(vault))) {
     throw new CpegHybridEngineError(400, "Capture transaction does not reference the agent vault");
+  }
+  const vaultIndex = accountKeys.findIndex((key: InstanceType<typeof PublicKey>) => key.equals(vault));
+  if (vaultIndex >= 0 && tx.meta?.preTokenBalances && tx.meta?.postTokenBalances) {
+    type TokenBalanceEntry = { accountIndex: number; uiTokenAmount: { amount: string } };
+    const preBalances = tx.meta.preTokenBalances as TokenBalanceEntry[];
+    const postBalances = tx.meta.postTokenBalances as TokenBalanceEntry[];
+    const pre = preBalances.find((entry: TokenBalanceEntry) => entry.accountIndex === vaultIndex)?.uiTokenAmount.amount || "0";
+    const post = postBalances.find((entry: TokenBalanceEntry) => entry.accountIndex === vaultIndex)?.uiTokenAmount.amount || "0";
+    if (BigInt(post) - BigInt(pre) < expectedRaw) {
+      throw new CpegHybridEngineError(400, "Capture transaction did not lock the required token backing unit");
+    }
   }
 }
 
@@ -83,8 +96,16 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
       );
     }
 
+    const capacityCounts = await loadHybridAssetCounts(data.launch.id);
+    const capacitySummary = await buildHybridStateSummary(data.agent, data.launch, capacityCounts);
+    const expectedRaw = BigInt(capacitySummary.pegUnitRaw) * BigInt(parsed.data.count);
     const connection = new Connection(getClawPegRpcUrl(), "confirmed");
-    await verifyTransferSignature(connection, parsed.data.signature, new PublicKey(data.launch.hybridEscrowAddress));
+    await verifyTransferSignature(
+      connection,
+      parsed.data.signature,
+      new PublicKey(data.launch.hybridEscrowAddress),
+      expectedRaw
+    );
 
     // Idempotency: if this signature was already consumed for this launch, return existing assets.
     const alreadyClaimed = await prisma.clawPegHybridAsset.findMany({
@@ -107,6 +128,15 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
     }
 
     const taken = await listHybridAssetPegIds(data.launch.id);
+    if (parsed.data.count > capacitySummary.availableCapacity) {
+      throw new CpegHybridEngineError(409, "Not enough cPEG capacity remains for this capture", {
+        requested: parsed.data.count,
+        available_capacity: capacitySummary.availableCapacity,
+        effective_max_pegs: capacitySummary.effectiveMaxPegs,
+        peg_unit_raw: capacitySummary.pegUnitRaw,
+        token_supply_raw: capacitySummary.tokenSupplyRaw,
+      });
+    }
     const minted: Array<{ asset_address: string; peg_id: number; mint_tx: string | null }> = [];
     for (let captureIndex = 0; captureIndex < parsed.data.count; captureIndex += 1) {
       const result = await confirmCaptureMint(
@@ -121,7 +151,7 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
           hybridEscrowAddress: data.launch.hybridEscrowAddress,
           hybridStatus: data.launch.hybridStatus,
           pegUnitRaw: data.launch.pegUnitRaw,
-          maxPegs: data.launch.maxPegs,
+          maxPegs: capacitySummary.effectiveMaxPegs,
           rendererId: data.launch.rendererId,
           rendererVersion: data.launch.rendererVersion,
           collectionSeed: data.launch.collectionSeed,

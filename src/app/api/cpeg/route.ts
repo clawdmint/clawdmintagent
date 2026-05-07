@@ -147,7 +147,8 @@ export async function GET(request: NextRequest) {
       "Solana PEG launch standard for deterministic collectible identities around agent tokens.",
     invariants: [
       "Agent launches use the Metaplex Agent/Core Asset as the canonical root.",
-      "One whole agent token is the capacity source for one Agent PEG identity.",
+      "Each Agent PEG identity is backed by a fixed token unit derived from launch supply and max PEG capacity.",
+      "Token burns reduce future PEG capacity before they affect already captured identities.",
       "Hybrid launches use capture and release instead of a separate root identity.",
       "Renderer output is deterministic from on-chain seeds and versioned renderer rules.",
     ],

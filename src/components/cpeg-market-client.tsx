@@ -1532,8 +1532,8 @@ export function CpegMarketClient() {
                       Metaplex Hybrid · capture / release
                     </p>
                     <p className="mt-2 text-xs text-neutral-400 dark:text-white/30">
-                      This launch uses the Metaplex Core hybrid path. Capture whole tokens for
-                      deterministic Core PEG identities or release them back from the vault page.
+                      Convert the required token backing unit into deterministic Core PEG
+                      identities, or release them back from the vault page.
                     </p>
                     {selectedLaunch?.token_mint ? (
                       <a

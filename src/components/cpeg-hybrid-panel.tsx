@@ -54,7 +54,12 @@ interface HybridLaunchState {
   pool_assets: number;
   vault_token_balance_raw: string;
   vault_token_balance_whole: number;
+  token_supply_raw: string;
+  decimals: number;
   max_pegs: number;
+  effective_max_pegs: number;
+  available_capacity: number;
+  burned_capacity: number;
   peg_unit_raw: string;
 }
 
@@ -137,6 +142,21 @@ function formatHybridError(error: string, details?: HybridErrorDetails | null) {
   const required = details.required_sol.toLocaleString(undefined, { maximumFractionDigits: 6 });
   const wallet = details.wallet_address ? ` Agent wallet: ${truncateAddress(details.wallet_address, 6, 6)}.` : "";
   return `${error}. Required: ${required} SOL. Current: ${current} SOL.${wallet}`;
+}
+
+function formatRawTokenAmount(raw: string | bigint, decimals: number, symbol: string) {
+  let value: bigint;
+  try {
+    value = typeof raw === "bigint" ? raw : BigInt(raw || "0");
+  } catch {
+    value = BigInt(0);
+  }
+  const scale = BigInt(`1${"0".repeat(Math.max(0, decimals || 0))}`);
+  const whole = value / scale;
+  const fraction = value % scale;
+  const fractionText = decimals > 0 ? fraction.toString().padStart(decimals, "0").replace(/0+$/, "") : "";
+  const compactWhole = whole.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+  return `${compactWhole}${fractionText ? `.${fractionText.slice(0, 6)}` : ""} ${symbol}`;
 }
 
 export function CpegHybridPanel({ tokenMint, initialAuthorityAddress, compact }: CpegHybridPanelProps) {
@@ -425,6 +445,17 @@ export function CpegHybridPanel({ tokenMint, initialAuthorityAddress, compact }:
   }
 
   const setupComplete = state.hybrid_status === "HYBRID_CONFIGURED";
+  const captureCountNumber = Math.max(1, Math.min(8, Number.parseInt(captureCount, 10) || 1));
+  const requiredRaw = (() => {
+    try {
+      return BigInt(state.peg_unit_raw || "0") * BigInt(captureCountNumber);
+    } catch {
+      return BigInt(0);
+    }
+  })();
+  const backingUnitLabel = formatRawTokenAmount(state.peg_unit_raw, state.decimals, state.symbol);
+  const requiredLabel = formatRawTokenAmount(requiredRaw, state.decimals, state.symbol);
+  const supplyLabel = formatRawTokenAmount(state.token_supply_raw, state.decimals, state.symbol);
 
   return (
     <section
@@ -435,10 +466,13 @@ export function CpegHybridPanel({ tokenMint, initialAuthorityAddress, compact }:
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <p className="font-mono text-[10px] uppercase tracking-[0.22em] text-[#9fe2ff]">
-            Metaplex Hybrid Vault
+            Convert token to cPEG
           </p>
           <p className="mt-2 text-lg font-black uppercase tracking-tight text-white">
-            {state.symbol} cPEG vault
+            Get {state.symbol} PEG identities
+          </p>
+          <p className="mt-2 max-w-2xl text-sm leading-6 text-white/60">
+            Lock the fixed backing amount and receive one deterministic Metaplex Core cPEG.
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2 font-mono text-[10px] uppercase tracking-[0.18em] text-white/55">
@@ -456,7 +490,7 @@ export function CpegHybridPanel({ tokenMint, initialAuthorityAddress, compact }:
           <span>·</span>
           <span>{state.owned_assets} captured</span>
           <span>·</span>
-          <span>{state.vault_token_balance_whole} tokens in vault</span>
+          <span>{state.available_capacity} available</span>
         </div>
       </div>
 
@@ -490,38 +524,45 @@ export function CpegHybridPanel({ tokenMint, initialAuthorityAddress, compact }:
       ) : (
         <>
           <div className="mt-5 grid gap-px border border-white/10 bg-white/10 sm:grid-cols-3">
-            <Stat icon={Vault} label="Vault token account" value={truncateAddress(state.vault_token_account || "", 6, 6)} />
-            <Stat icon={Layers} label="Core collection" value={truncateAddress(state.collection_address || "", 6, 6)} />
-            <Stat icon={PackageOpen} label="Captured / pool" value={`${state.owned_assets} / ${state.pool_assets}`} />
+            <Stat icon={Vault} label="Backing per cPEG" value={backingUnitLabel} />
+            <Stat icon={Layers} label="Available cPEGs" value={`${state.available_capacity} / ${state.effective_max_pegs}`} />
+            <Stat icon={PackageOpen} label="Token supply" value={supplyLabel} />
           </div>
 
           <div className="mt-5 grid gap-5 lg:grid-cols-[1fr_1fr]">
-            <div className="border border-white/10 bg-black/40 p-4">
+            <div className="border border-[#53c7ff]/30 bg-[#53c7ff]/10 p-4">
               <div className="flex items-center gap-2">
                 <ArrowDownUp className="h-3 w-3 text-[#53c7ff]" />
-                <p className="font-mono text-[10px] uppercase tracking-[0.22em] text-[#9fe2ff]">Capture</p>
+                <p className="font-mono text-[10px] uppercase tracking-[0.22em] text-[#9fe2ff]">Get cPEG</p>
               </div>
               <p className="mt-2 text-sm text-white/70">
-                Send whole agent tokens to the vault and receive deterministic Metaplex Core
-                cPEG identities in return. 1 token per cPEG.
+                Convert your {state.symbol} tokens into cPEG identities. Each cPEG is backed by{" "}
+                <span className="font-bold text-white">{backingUnitLabel}</span>.
               </p>
+              <div className="mt-3 border border-white/10 bg-black/30 px-3 py-2 font-mono text-[10px] uppercase tracking-[0.18em] text-white/60">
+                Required now <span className="float-right text-[#53c7ff]">{requiredLabel}</span>
+              </div>
               <div className="mt-3 flex flex-wrap items-center gap-3">
                 <input
                   value={captureCount}
                   inputMode="numeric"
+                  aria-label="cPEG amount"
                   onChange={(event) => setCaptureCount(event.target.value)}
                   className="w-24 border border-white/15 bg-white/5 px-3 py-2 font-mono text-xs text-white outline-none transition focus:border-[#53c7ff]"
                 />
                 <button
                   type="button"
                   onClick={isConnected ? handleCapture : login}
-                  disabled={Boolean(actionBusy)}
+                  disabled={Boolean(actionBusy) || state.available_capacity < captureCountNumber}
                   className="inline-flex items-center gap-2 border border-[#f7f2df] bg-[#f7f2df] px-4 py-2 text-xs font-black uppercase tracking-wide text-black transition hover:bg-[#53c7ff] disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   {actionBusy === "capture" ? <Loader2 className="h-3 w-3 animate-spin" /> : <PackageOpen className="h-3 w-3" />}
-                  {isConnected ? "Capture cPEG" : "Connect Phantom"}
+                  {isConnected ? `Get ${captureCountNumber} cPEG` : "Connect Phantom"}
                 </button>
               </div>
+              {state.available_capacity < captureCountNumber ? (
+                <p className="mt-3 text-xs text-[#f7b85c]">Not enough cPEG capacity remains.</p>
+              ) : null}
             </div>
 
             <div className="border border-white/10 bg-black/40 p-4">
@@ -530,9 +571,12 @@ export function CpegHybridPanel({ tokenMint, initialAuthorityAddress, compact }:
                 <p className="font-mono text-[10px] uppercase tracking-[0.22em] text-[#f6c4ff]">Release</p>
               </div>
               <p className="mt-2 text-sm text-white/70">
-                Return a captured cPEG identity to the vault and reclaim the underlying agent
-                token. Released identities go back to the pool.
+                Return a cPEG identity and reclaim its backing unit. Released identities go back
+                to the pool and can be captured again.
               </p>
+              <div className="mt-3 border border-white/10 bg-black/30 px-3 py-2 font-mono text-[10px] uppercase tracking-[0.18em] text-white/60">
+                Redeem value <span className="float-right text-[#ec5cff]">{backingUnitLabel}</span>
+              </div>
               {connectedAddress ? (
                 walletAssets.length ? (
                   <div className="mt-3 grid gap-2">
