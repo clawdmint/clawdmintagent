@@ -28,6 +28,8 @@ import {
 
 export const dynamic = "force-dynamic";
 
+const MIN_CPEG_PROGRAMDATA_LEN = 200_000;
+
 const LaunchpadPrepareSchema = z.object({
   name: z.string().min(1).max(48),
   symbol: z.string().min(1).max(12).regex(/^[A-Z0-9]+$/),
@@ -70,6 +72,25 @@ function getCpegMetadataUri(tokenMint: string) {
     process.env["NEXT_PUBLIC_CPEG_APP_URL"] ||
     "https://cpeg.clawdmint.xyz";
   return `${base.replace(/\/$/, "")}/api/cpeg/${tokenMint}/metadata`;
+}
+
+async function getUpgradeableProgramDataLength(
+  connection: InstanceType<typeof Connection>,
+  programId: InstanceType<typeof PublicKey>
+) {
+  const programAccount = await connection.getAccountInfo(programId, "confirmed");
+  if (!programAccount || !programAccount.executable) {
+    return { executable: false, dataLength: 0 };
+  }
+  if (
+    programAccount.owner.toBase58() !== "BPFLoaderUpgradeab1e11111111111111111111111" ||
+    programAccount.data.length < 36
+  ) {
+    return { executable: true, dataLength: programAccount.data.length };
+  }
+  const programDataAddress = new PublicKey(Buffer.from(programAccount.data.subarray(4, 36)));
+  const programData = await connection.getAccountInfo(programDataAddress, "confirmed");
+  return { executable: true, dataLength: programData?.data.length || 0 };
 }
 
 export async function POST(request: NextRequest) {
@@ -122,13 +143,23 @@ export async function POST(request: NextRequest) {
         { status: 503 }
       );
     }
-    const programAccount = await connection.getAccountInfo(resolvedProgramId, "confirmed");
-    if (!programAccount || !programAccount.executable) {
+    const programDeployment = await getUpgradeableProgramDataLength(connection, resolvedProgramId);
+    if (!programDeployment.executable) {
       const cluster = getClawPegCluster();
       return NextResponse.json(
         {
           success: false,
           error: `cPEG program is not deployed on ${cluster}. Deploy the clawpeg program to this cluster or update the configured cluster.`,
+        },
+        { status: 503 }
+      );
+    }
+    if (programDeployment.dataLength > 0 && programDeployment.dataLength < MIN_CPEG_PROGRAMDATA_LEN) {
+      return NextResponse.json(
+        {
+          success: false,
+          error:
+            "The configured cPEG program on this cluster has not been upgraded to the current cPEG build. Upgrade the program before launching.",
         },
         { status: 503 }
       );
