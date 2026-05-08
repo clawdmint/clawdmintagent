@@ -80,6 +80,34 @@ export async function GET(request: NextRequest, { params }: RouteContext) {
     return NextResponse.json(metadata);
   }
 
+  if (launch.standardMode === "metaplex_hybrid") {
+    const asset = await prisma.clawPegHybridAsset
+      .findFirst({
+        where: { launchId: launch.id, pegId },
+      })
+      .catch(() => null);
+    return NextResponse.json({
+      success: true,
+      peg: {
+        id: pegId,
+        name,
+        token_mint: launch.tokenMint,
+        collection_address: launch.hybridCoreCollectionAddress || launch.collectionAddress,
+        peg_record: asset?.assetAddress || null,
+        asset_address: asset?.assetAddress || null,
+        minted: Boolean(asset),
+        owner: asset?.ownerAddress || null,
+        status: asset?.status || null,
+        on_chain_seed: String(traits.seed || ""),
+        minted_slot: asset?.capturedAt?.toISOString() || "Metaplex Core",
+        transferred_slot: asset?.releasedAt?.toISOString() || null,
+        burned_slot: "Not applicable",
+        image: relativeImage,
+        traits,
+      },
+    });
+  }
+
   return NextResponse.json({
     success: true,
     peg: {

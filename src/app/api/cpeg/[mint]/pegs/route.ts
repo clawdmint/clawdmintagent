@@ -46,10 +46,7 @@ export async function GET(request: NextRequest, { params }: RouteContext) {
       where: { tokenMint: params.mint },
     })
     .catch(() => null);
-  if (!launch?.collectionAddress) {
-    if (launch?.standardMode !== "metaplex_hybrid") {
-      return NextResponse.json({ success: false, error: "cPEG collection not found" }, { status: 404 });
-    }
+  if (launch?.standardMode === "metaplex_hybrid") {
     const rows = await prisma.clawPegHybridAsset.findMany({
       where: {
         launchId: launch.id,
@@ -95,13 +92,17 @@ export async function GET(request: NextRequest, { params }: RouteContext) {
           status: row.status,
           status_label: row.status,
           on_chain_seed: null,
-          minted_slot: null,
-          transferred_slot: null,
-          burned_slot: null,
+          minted_slot: row.capturedAt?.toISOString() || "Metaplex Core",
+          transferred_slot: row.releasedAt?.toISOString() || null,
+          burned_slot: "Not applicable",
           traits,
         };
       }),
     });
+  }
+
+  if (!launch?.collectionAddress) {
+    return NextResponse.json({ success: false, error: "cPEG collection not found" }, { status: 404 });
   }
 
   const endExclusive = Math.min(launch.maxPegs, start + limit);

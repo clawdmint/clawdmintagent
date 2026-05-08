@@ -55,6 +55,7 @@ export async function GET(request: NextRequest, { params }: RouteContext) {
       feeVaultAddress: true,
       maxPegs: true,
       standardMode: true,
+      hybridCoreCollectionAddress: true,
     },
   });
   if (!launch) {
@@ -112,6 +113,30 @@ export async function GET(request: NextRequest, { params }: RouteContext) {
   const whereSql = Prisma.sql`WHERE ${Prisma.join(conditions, " AND ")}`;
   const limitSql = Prisma.sql`LIMIT ${limit}`;
 
+  const isHybrid = launch.standardMode === "metaplex_hybrid";
+  if (isHybrid) {
+    // A previous reconciliation path treated hybrid Core listings like legacy
+    // PDA listings and marked them FILLED when there was no legacy market PDA.
+    // Hybrid sales always have a buyer/buyTxHash; if both are absent and the
+    // Core asset is still LISTED in the agent vault, this is an active escrow.
+    await prisma.$executeRaw`
+      UPDATE "ClawPegMarketListing" AS l
+      SET "status" = 'ACTIVE',
+        "soldAt" = NULL,
+        "buyerAddress" = NULL,
+        "buyTxHash" = NULL,
+        "updatedAt" = NOW()
+      FROM "ClawPegHybridAsset" AS a
+      WHERE l."launchId" = ${launch.id}
+        AND l."status" = 'FILLED'
+        AND l."buyerAddress" IS NULL
+        AND l."buyTxHash" IS NULL
+        AND a."launchId" = l."launchId"
+        AND a."assetAddress" = l."listingAddress"
+        AND a."status" = 'LISTED'
+    `.catch(() => 0);
+  }
+
   const rawListings = await prisma.$queryRaw<Array<{
     id: string;
     listingAddress: string;
@@ -140,7 +165,7 @@ export async function GET(request: NextRequest, { params }: RouteContext) {
   // failed list/confirm round trip, or pre-upgrade rows where the PDA is FILLED but the DB
   // never updated). We also auto-heal the DB so the row vanishes from the next request.
   const listings: typeof rawListings = [];
-  if (rawListings.length > 0 && launch.collectionAddress) {
+  if (rawListings.length > 0 && launch.collectionAddress && !isHybrid) {
     try {
       const collectionAddress = findClawPegCollectionAddress(launch.tokenMint);
       const pdas = rawListings.map((row) =>
@@ -247,7 +272,7 @@ export async function GET(request: NextRequest, { params }: RouteContext) {
       max_price_lamports: maxPriceParam || null,
       limit,
     },
-    listings: (launch.collectionAddress ? listings : rawListings).map((listing) => {
+    listings: (launch.collectionAddress && !isHybrid ? listings : rawListings).map((listing) => {
       const breakdown = splitClawPegMarketPayment(
         BigInt(listing.priceLamports),
         listing.royaltyBps,

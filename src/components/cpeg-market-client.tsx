@@ -226,6 +226,26 @@ function getSignedTransactionSignature(transaction: SolanaWeb3Transaction) {
   return base58Encode(signature);
 }
 
+function formatProvenanceValue(label: string, value: string | null | undefined) {
+  if (value) {
+    if (/^\d{4}-\d{2}-\d{2}T/.test(value)) {
+      return new Date(value).toLocaleString("en-US", {
+        year: "numeric",
+        month: "short",
+        day: "2-digit",
+        hour: "2-digit",
+        minute: "2-digit",
+      });
+    }
+    if (label.toLowerCase().includes("burned") && value === "Not applicable") {
+      return value;
+    }
+    return truncateAddress(value, 10, 10);
+  }
+  if (label.toLowerCase().includes("slot")) return "Not applicable";
+  return "--";
+}
+
 export function CpegMarketClient() {
   const { solanaAddress, isConnected, login } = useWallet();
   const router = useRouter();
@@ -676,11 +696,15 @@ export function CpegMarketClient() {
 
       setStatus("Opening Phantom to escrow the PEG...");
       const signature = await sendPreparedTransaction(body.instructions, selectedLaunch.cluster, setup);
-      await fetch(`/api/cpeg/${selectedLaunch.token_mint}/market/listings/confirm`, {
+      const confirmResponse = await fetch(`/api/cpeg/${selectedLaunch.token_mint}/market/listings/confirm`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ ...body.listing, signature }),
       }).catch(() => null);
+      const confirmBody = await confirmResponse?.json().catch(() => null);
+      if (!confirmResponse?.ok || !confirmBody?.success) {
+        throw new Error(confirmBody?.error || "Listing transfer confirmed, but market indexing failed. Refresh and try again.");
+      }
       setLastTx(signature);
       setStatus(`Listed ${selectedLaunch.symbol} #${numericPegId} for ${priceSol} SOL.`);
       setShowListPanel(false);
@@ -1750,7 +1774,7 @@ export function CpegMarketClient() {
                         >
                           <span className="text-white/35">{label}</span>
                           <span className="max-w-[62%] truncate text-right font-black text-white" title={value}>
-                            {value ? truncateAddress(value, 10, 10) : "--"}
+                            {formatProvenanceValue(label, value)}
                           </span>
                         </div>
                       ))}

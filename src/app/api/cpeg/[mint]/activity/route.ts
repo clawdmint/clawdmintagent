@@ -29,7 +29,7 @@ function lamportsToSol(value: bigint) {
 }
 
 function eventTimestamp(row: ActivityRow): { kind: "FILLED" | "CANCELLED" | "ACTIVE"; at: Date; tx: string | null } {
-  if (row.status === "FILLED") {
+  if (row.status === "FILLED" && (row.buyerAddress || row.buyTxHash)) {
     return { kind: "FILLED", at: row.soldAt || row.updatedAt, tx: row.buyTxHash };
   }
   if (row.status === "CANCELLED") {

@@ -102,6 +102,24 @@ function rarityRows(peg: ExplorePeg) {
   return traitRows(peg.traits).filter((row) => row.label !== "rank");
 }
 
+function formatProvenanceValue(label: string, value: string | null) {
+  if (value) {
+    if (/^\d{4}-\d{2}-\d{2}T/.test(value)) {
+      return new Date(value).toLocaleString("en-US", {
+        year: "numeric",
+        month: "short",
+        day: "2-digit",
+        hour: "2-digit",
+        minute: "2-digit",
+      });
+    }
+    if (value === "Not applicable" || value === "Metaplex Core") return value;
+    return truncateAddress(value, 10, 10);
+  }
+  if (label.toLowerCase().includes("slot")) return "Not applicable";
+  return "--";
+}
+
 async function downloadJpeg(peg: ExplorePeg) {
   const image = new Image();
   image.crossOrigin = "anonymous";
@@ -510,7 +528,7 @@ export function CpegExploreClient({ initialPayload }: { initialPayload: ExploreP
 
                 {tab === "provenance" ? (
                   <div className="mt-6 grid gap-0">
-                    {[
+                    {([
                       ["Peg record", selected.peg_record],
                       ["Owner", selected.owner],
                       ["Status", selected.status],
@@ -519,11 +537,11 @@ export function CpegExploreClient({ initialPayload }: { initialPayload: ExploreP
                       ["Burned slot", selected.burned_slot],
                       ["Seed", selected.on_chain_seed || String(selected.traits.seed || "")],
                       ["Token mint", selected.token_mint],
-                    ].map(([label, value]) => (
+                    ] as Array<[string, string | null]>).map(([label, value]) => (
                       <div key={label} className="flex items-center justify-between gap-4 border-b border-white/10 py-3 font-mono text-[11px] uppercase tracking-[0.16em]">
                         <span className="text-white/35">{label}</span>
                         <span className="max-w-[68%] truncate text-right font-black text-white" title={value || ""}>
-                          {value ? truncateAddress(value, 10, 10) : "Pending"}
+                          {formatProvenanceValue(label, value)}
                         </span>
                       </div>
                     ))}
