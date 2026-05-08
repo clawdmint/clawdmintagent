@@ -42,6 +42,7 @@ import {
   generateSigner,
   keypairIdentity,
   publicKey,
+  signerIdentity,
 } from "@metaplex-foundation/umi";
 import { createUmi } from "@metaplex-foundation/umi-bundle-defaults";
 import { fromWeb3JsKeypair, toWeb3JsPublicKey } from "@metaplex-foundation/umi-web3js-adapters";
@@ -53,6 +54,7 @@ export const CPEG_HYBRID_STATUS_READY = "READY_FOR_HYBRID_SETUP";
 export const CPEG_HYBRID_STATUS_CONFIGURED = "HYBRID_CONFIGURED";
 export const CPEG_HYBRID_ASSET_STATUS_OWNED = "OWNED";
 export const CPEG_HYBRID_ASSET_STATUS_POOL = "POOL";
+export const CPEG_HYBRID_ASSET_STATUS_LISTED = "LISTED";
 
 const MIN_AGENT_WALLET_LAMPORTS_FOR_SETUP = BigInt(20_000_000);
 const MIN_AGENT_WALLET_LAMPORTS_FOR_CAPTURE = BigInt(8_000_000);
@@ -667,7 +669,7 @@ export async function buildReleaseTransferInstructions(
   // Use the user as a noop signer for instruction building; their actual signature
   // is provided client-side via Phantom when the transaction is broadcast.
   const userSigner = createNoopSigner(publicKey(userWallet));
-  umi.use(keypairIdentity(fromWeb3JsKeypair(ctx.signer)));
+  umi.use(signerIdentity(userSigner));
   const targetOwner = ctx.signer.publicKey.toBase58();
   const builder = transferCoreAsset(umi, {
     asset: publicKey(assetAddress),
@@ -706,6 +708,35 @@ export async function buildReleaseTransferInstructions(
     collectionAddress: launch.hybridCoreCollectionAddress,
     pegId,
   };
+}
+
+export async function transferCoreAssetFromAgent(
+  agent: HybridAgentRecord,
+  launch: HybridLaunchSnapshot,
+  assetAddress: string,
+  newOwner: string
+): Promise<string | null> {
+  if (!launch.hybridCoreCollectionAddress) {
+    throw new CpegHybridEngineError(409, "Hybrid setup is incomplete: Core PEG collection is missing");
+  }
+  const ctx = await loadHybridContext(agent, launch);
+  const umi = createUmi(getMetaplexCoreConnection());
+  umi.use(mplCore());
+  umi.use(keypairIdentity(fromWeb3JsKeypair(ctx.signer)));
+  const collectionAccount = await safeFetchCollectionV1(umi, publicKey(launch.hybridCoreCollectionAddress));
+  if (!collectionAccount) {
+    throw new CpegHybridEngineError(409, "Core PEG collection account is not present on chain");
+  }
+  const asset = await fetchAssetV1(umi, publicKey(assetAddress));
+  if (toWeb3JsPublicKey(asset.owner).toBase58() !== ctx.signer.publicKey.toBase58()) {
+    throw new CpegHybridEngineError(409, "Core PEG asset is not escrowed by the agent vault");
+  }
+  const builder = await transferCoreAsset(umi, {
+    asset: asset.publicKey,
+    collection: collectionAccount.publicKey,
+    newOwner: publicKey(newOwner),
+  }).sendAndConfirm(umi, { confirm: { commitment: "confirmed" } });
+  return builder?.signature ? bytesToBase58Signature(builder.signature) : null;
 }
 
 /**

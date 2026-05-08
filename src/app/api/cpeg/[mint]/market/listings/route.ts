@@ -54,12 +54,13 @@ export async function GET(request: NextRequest, { params }: RouteContext) {
       creatorAddress: true,
       feeVaultAddress: true,
       maxPegs: true,
+      standardMode: true,
     },
   });
   if (!launch) {
     return NextResponse.json({ success: false, error: "cPEG collection not found" }, { status: 404 });
   }
-  if (!launch.collectionAddress) {
+  if (!launch.collectionAddress && launch.standardMode !== "metaplex_hybrid") {
     return NextResponse.json({
       success: true,
       collection: {
@@ -139,7 +140,7 @@ export async function GET(request: NextRequest, { params }: RouteContext) {
   // failed list/confirm round trip, or pre-upgrade rows where the PDA is FILLED but the DB
   // never updated). We also auto-heal the DB so the row vanishes from the next request.
   const listings: typeof rawListings = [];
-  if (rawListings.length > 0) {
+  if (rawListings.length > 0 && launch.collectionAddress) {
     try {
       const collectionAddress = findClawPegCollectionAddress(launch.tokenMint);
       const pdas = rawListings.map((row) =>
@@ -246,7 +247,7 @@ export async function GET(request: NextRequest, { params }: RouteContext) {
       max_price_lamports: maxPriceParam || null,
       limit,
     },
-    listings: listings.map((listing) => {
+    listings: (launch.collectionAddress ? listings : rawListings).map((listing) => {
       const breakdown = splitClawPegMarketPayment(
         BigInt(listing.priceLamports),
         listing.royaltyBps,

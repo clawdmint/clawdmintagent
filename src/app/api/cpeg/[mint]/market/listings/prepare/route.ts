@@ -13,6 +13,12 @@ import {
 } from "@/lib/clawpeg";
 import { prisma } from "@/lib/db";
 import { getClawPegRpcUrl } from "@/lib/env";
+import { CPEG_STANDARD_MODE_METAPLEX_HYBRID } from "@/lib/cpeg-metaplex-hybrid";
+import {
+  CPEG_HYBRID_ASSET_STATUS_OWNED,
+  buildReleaseTransferInstructions,
+} from "@/lib/cpeg-hybrid-engine";
+import { loadHybridLaunchAndAgent } from "@/lib/cpeg-hybrid-loader";
 
 export const dynamic = "force-dynamic";
 
@@ -30,8 +36,51 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
   try {
     const launch = await prisma.clawPegLaunch.findUnique({
       where: { tokenMint: params.mint },
-      select: { tokenMint: true, collectionAddress: true, maxPegs: true },
+      select: { id: true, tokenMint: true, collectionAddress: true, maxPegs: true, standardMode: true },
     });
+    if (launch?.standardMode === CPEG_STANDARD_MODE_METAPLEX_HYBRID) {
+      const parsed = PrepareSchema.safeParse(await request.json());
+      if (!parsed.success) {
+        return NextResponse.json({ success: false, error: "Invalid request", details: parsed.error.flatten() }, { status: 400 });
+      }
+      const input = parsed.data;
+      const data = await loadHybridLaunchAndAgent(params.mint);
+      if (!data?.launch.hybridCoreCollectionAddress) {
+        return NextResponse.json({ success: false, error: "Hybrid cPEG vault is not configured" }, { status: 409 });
+      }
+      const asset = await prisma.clawPegHybridAsset.findFirst({
+        where: {
+          launchId: data.launch.id,
+          pegId: input.peg_id,
+          ownerAddress: input.seller,
+          status: CPEG_HYBRID_ASSET_STATUS_OWNED,
+        },
+      });
+      if (!asset) {
+        return NextResponse.json({ success: false, error: "This Core cPEG is not owned by the seller wallet" }, { status: 403 });
+      }
+      const priceLamports = BigInt(input.price_lamports);
+      if (priceLamports <= BigInt(0)) {
+        return NextResponse.json({ success: false, error: "Price must be greater than zero" }, { status: 400 });
+      }
+      const transfer = await buildReleaseTransferInstructions(data.agent, data.launch, input.seller, asset.assetAddress);
+      return NextResponse.json({
+        success: true,
+        listing: {
+          kind: "hybrid_core",
+          token_mint: data.launch.tokenMint,
+          collection_address: data.launch.hybridCoreCollectionAddress,
+          listing_address: asset.assetAddress,
+          escrow_owner_peg_address: asset.assetAddress,
+          escrow_token_account: asset.assetAddress,
+          peg_record_address: asset.assetAddress,
+          seller: input.seller,
+          peg_id: input.peg_id,
+          price_lamports: priceLamports.toString(),
+        },
+        instructions: transfer.instructions,
+      });
+    }
     if (!launch?.collectionAddress) {
       return NextResponse.json({ success: false, error: "cPEG collection not found" }, { status: 404 });
     }

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAssociatedTokenAddressSync, TOKEN_2022_PROGRAM_ID } from "@solana/spl-token";
-import { Connection, PublicKey } from "@solana/web3.js";
+import { Connection, PublicKey, SystemProgram, TransactionInstruction } from "@solana/web3.js";
 import { z } from "zod";
 import {
   buildClawPegBuyPegEscrowManifest,
@@ -17,6 +17,7 @@ import {
 } from "@/lib/clawpeg";
 import { prisma } from "@/lib/db";
 import { getClawPegRpcUrl } from "@/lib/env";
+import { CPEG_STANDARD_MODE_METAPLEX_HYBRID } from "@/lib/cpeg-metaplex-hybrid";
 
 export const dynamic = "force-dynamic";
 
@@ -29,6 +30,18 @@ interface RouteContext {
   params: { mint: string };
 }
 
+function serializeInstruction(ix: InstanceType<typeof TransactionInstruction>) {
+  return {
+    programId: ix.programId.toBase58(),
+    accounts: ix.keys.map((key: { pubkey: InstanceType<typeof PublicKey>; isSigner: boolean; isWritable: boolean }) => ({
+      pubkey: key.pubkey.toBase58(),
+      isSigner: key.isSigner,
+      isWritable: key.isWritable,
+    })),
+    dataBase64: Buffer.from(ix.data).toString("base64"),
+  };
+}
+
 export async function POST(request: NextRequest, { params }: RouteContext) {
   try {
     const parsed = PrepareSchema.safeParse(await request.json());
@@ -36,6 +49,52 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
       return NextResponse.json({ success: false, error: "Invalid request", details: parsed.error.flatten() }, { status: 400 });
     }
     const launch = await prisma.clawPegLaunch.findUnique({ where: { tokenMint: params.mint } });
+    if (launch?.standardMode === CPEG_STANDARD_MODE_METAPLEX_HYBRID) {
+      const listing = await prisma.clawPegMarketListing.findFirst({
+        where: { tokenMint: launch.tokenMint, pegId: parsed.data.peg_id, status: "ACTIVE" },
+        orderBy: { createdAt: "desc" },
+      });
+      if (!listing) {
+        return NextResponse.json({ success: false, error: "Listing not active" }, { status: 404 });
+      }
+      const buyer = new PublicKey(parsed.data.buyer);
+      const seller = new PublicKey(listing.sellerAddress);
+      const creator = new PublicKey(launch.creatorAddress);
+      const feeVault = new PublicKey(launch.feeVaultAddress);
+      const breakdown = splitClawPegMarketPayment(
+        BigInt(listing.priceLamports),
+        listing.royaltyBps,
+        listing.marketplaceFeeBps
+      );
+      const sellerLamports = BigInt(breakdown.sellerProceedsLamports);
+      const royaltyLamports = BigInt(breakdown.creatorRoyaltyLamports);
+      const protocolLamports = BigInt(breakdown.protocolFeeLamports);
+      const ixs: Array<InstanceType<typeof TransactionInstruction>> = [];
+      if (sellerLamports > BigInt(0)) {
+        ixs.push(SystemProgram.transfer({ fromPubkey: buyer, toPubkey: seller, lamports: sellerLamports }));
+      }
+      if (royaltyLamports > BigInt(0)) {
+        ixs.push(SystemProgram.transfer({ fromPubkey: buyer, toPubkey: creator, lamports: royaltyLamports }));
+      }
+      if (protocolLamports > BigInt(0)) {
+        ixs.push(SystemProgram.transfer({ fromPubkey: buyer, toPubkey: feeVault, lamports: protocolLamports }));
+      }
+      return NextResponse.json({
+        success: true,
+        listing: {
+          id: listing.id,
+          kind: "hybrid_core",
+          peg_id: listing.pegId,
+          seller: listing.sellerAddress,
+          price_lamports: listing.priceLamports,
+          seller_proceeds_lamports: breakdown.sellerProceedsLamports,
+          creator_royalty_lamports: breakdown.creatorRoyaltyLamports,
+          protocol_fee_lamports: breakdown.protocolFeeLamports,
+          asset_address: listing.listingAddress,
+        },
+        instructions: ixs.map((ix) => serializeInstruction(ix)),
+      });
+    }
     if (!launch?.collectionAddress) {
       return NextResponse.json({ success: false, error: "cPEG collection not found" }, { status: 404 });
     }

@@ -529,6 +529,12 @@ export function CpegMarketClient() {
   }, [refreshActivity, refreshListings, selectedMint]);
 
   useEffect(() => {
+    if (typeof window !== "undefined" && window.location.hash === "#list") {
+      setShowListPanel(true);
+    }
+  }, [selectedMint]);
+
+  useEffect(() => {
     if (!collection || !connectedAddress) {
       setOwnedPegs([]);
       return;
@@ -544,7 +550,7 @@ export function CpegMarketClient() {
     setDetailTab("info");
     let cancelled = false;
     void (async () => {
-      const response = await fetch(`/api/cpeg/${selectedLaunch.token_mint}/pegs/${detailListing.peg_id}`);
+      const response = await fetch(`/api/cpeg/${selectedLaunch.token_mint}/pegs/${detailListing.peg_id}?format=cpeg`);
       const body = await response.json().catch(() => null);
       if (!cancelled && response.ok && body?.success) {
         setDetailPeg(body.peg || null);
@@ -650,20 +656,23 @@ export function CpegMarketClient() {
       const body = await response.json().catch(() => null);
       if (!response.ok || !body?.success) throw new Error(body?.error || "Failed to prepare listing.");
 
-      const connection = new Connection(getClientRpcUrl(selectedLaunch.cluster), "confirmed");
-      const escrowAta = new PublicKey(body.listing.escrow_token_account);
-      const escrowAtaInfo = await connection.getAccountInfo(escrowAta, "confirmed");
-      const setup = escrowAtaInfo
-        ? []
-        : [
-            createAssociatedTokenAccountInstruction(
-              new PublicKey(connectedAddress),
-              escrowAta,
-              new PublicKey(body.listing.listing_address),
-              new PublicKey(selectedLaunch.token_mint),
-              TOKEN_2022_PROGRAM_ID
-            ),
-          ];
+      let setup: Array<InstanceType<typeof TransactionInstruction>> = [];
+      if (body.listing?.kind !== "hybrid_core") {
+        const connection = new Connection(getClientRpcUrl(selectedLaunch.cluster), "confirmed");
+        const escrowAta = new PublicKey(body.listing.escrow_token_account);
+        const escrowAtaInfo = await connection.getAccountInfo(escrowAta, "confirmed");
+        setup = escrowAtaInfo
+          ? []
+          : [
+              createAssociatedTokenAccountInstruction(
+                new PublicKey(connectedAddress),
+                escrowAta,
+                new PublicKey(body.listing.listing_address),
+                new PublicKey(selectedLaunch.token_mint),
+                TOKEN_2022_PROGRAM_ID
+              ),
+            ];
+      }
 
       setStatus("Opening Phantom to escrow the PEG...");
       const signature = await sendPreparedTransaction(body.instructions, selectedLaunch.cluster, setup);
@@ -717,20 +726,23 @@ export function CpegMarketClient() {
         const body = await response.json().catch(() => null);
         if (!response.ok || !body?.success) throw new Error(body?.error || "Failed to prepare purchase.");
 
-        const connection = new Connection(getClientRpcUrl(selectedLaunch.cluster), "confirmed");
-        const buyerAta = new PublicKey(body.listing.buyer_token_account);
-        const buyerAtaInfo = await connection.getAccountInfo(buyerAta, "confirmed");
-        const setup = buyerAtaInfo
-          ? []
-          : [
-              createAssociatedTokenAccountInstruction(
-                new PublicKey(connectedAddress),
-                buyerAta,
-                new PublicKey(connectedAddress),
-                new PublicKey(selectedLaunch.token_mint),
-                TOKEN_2022_PROGRAM_ID
-              ),
-            ];
+        let setup: Array<InstanceType<typeof TransactionInstruction>> = [];
+        if (body.listing?.buyer_token_account) {
+          const connection = new Connection(getClientRpcUrl(selectedLaunch.cluster), "confirmed");
+          const buyerAta = new PublicKey(body.listing.buyer_token_account);
+          const buyerAtaInfo = await connection.getAccountInfo(buyerAta, "confirmed");
+          setup = buyerAtaInfo
+            ? []
+            : [
+                createAssociatedTokenAccountInstruction(
+                  new PublicKey(connectedAddress),
+                  buyerAta,
+                  new PublicKey(connectedAddress),
+                  new PublicKey(selectedLaunch.token_mint),
+                  TOKEN_2022_PROGRAM_ID
+                ),
+              ];
+        }
 
         setStatus("Opening Phantom for purchase...");
         const signature = await sendPreparedTransaction(body.instructions, selectedLaunch.cluster, setup);

@@ -215,7 +215,7 @@ export function CpegSiteHeader() {
               {ready && authenticated && (
                 <>
                   <Link
-                    href={`${MAIN_APP_URL}/profile`}
+                    href={site ? "/profile" : `${MAIN_APP_URL}/profile`}
                     className={clsx(
                       "hidden items-center gap-1.5 rounded-lg border px-3 py-1.5 font-mono text-[12px] font-medium transition-all sm:flex",
                       pathname === "/profile"
@@ -330,16 +330,16 @@ export function CpegSiteHeader() {
               </a>
 
               <Link
-                href={`${MAIN_APP_URL}/profile`}
-                target="_blank"
-                rel="noreferrer"
+                href={site ? "/profile" : `${MAIN_APP_URL}/profile`}
+                target={site ? undefined : "_blank"}
+                rel={site ? undefined : "noreferrer"}
                 onClick={() => setMobileMenuOpen(false)}
                 className={clsx(
                   "flex items-center gap-2 rounded-lg px-3 py-2 font-mono text-xs",
                   theme === "dark" ? "text-white/50 hover:text-cyan-300" : "text-gray-500 hover:text-cyan-600"
                 )}
               >
-                profile on clawdmint
+                {site ? "cPEG profile" : "profile on clawdmint"}
               </Link>
 
               {ready && !authenticated && (

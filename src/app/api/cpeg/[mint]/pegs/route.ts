@@ -47,7 +47,61 @@ export async function GET(request: NextRequest, { params }: RouteContext) {
     })
     .catch(() => null);
   if (!launch?.collectionAddress) {
-    return NextResponse.json({ success: false, error: "cPEG collection not found" }, { status: 404 });
+    if (launch?.standardMode !== "metaplex_hybrid") {
+      return NextResponse.json({ success: false, error: "cPEG collection not found" }, { status: 404 });
+    }
+    const rows = await prisma.clawPegHybridAsset.findMany({
+      where: {
+        launchId: launch.id,
+        ...(ownerFilter ? { ownerAddress: ownerFilter, status: "OWNED" } : {}),
+      },
+      orderBy: { pegId: "asc" },
+      skip: start,
+      take: limit,
+    });
+    return NextResponse.json({
+      success: true,
+      collection: {
+        name: launch.name,
+        symbol: launch.symbol,
+        token_mint: launch.tokenMint,
+        collection_address: launch.hybridCoreCollectionAddress,
+        max_pegs: launch.maxPegs,
+      },
+      page: {
+        start,
+        limit,
+        next_start: start + limit < launch.maxPegs ? start + limit : null,
+        previous_start: start > 0 ? Math.max(0, start - limit) : null,
+      },
+      pegs: rows.map((row) => {
+        const traits = getClawPegTraits({
+          rendererId: launch.rendererId,
+          rendererVersion: launch.rendererVersion,
+          collectionSeed: launch.collectionSeed,
+          tokenMint: launch.tokenMint,
+          pegId: row.pegId,
+          params: (launch.rendererParams as Record<string, unknown> | null) || {},
+        });
+        return {
+          id: row.pegId,
+          name: `${launch.symbol} cPEG #${row.pegId}`,
+          token_mint: launch.tokenMint,
+          peg_record: row.assetAddress,
+          asset_address: row.assetAddress,
+          image: `/api/cpeg/${launch.tokenMint}/pegs/${row.pegId}/svg`,
+          minted: true,
+          owner: row.ownerAddress,
+          status: row.status,
+          status_label: row.status,
+          on_chain_seed: null,
+          minted_slot: null,
+          transferred_slot: null,
+          burned_slot: null,
+          traits,
+        };
+      }),
+    });
   }
 
   const endExclusive = Math.min(launch.maxPegs, start + limit);

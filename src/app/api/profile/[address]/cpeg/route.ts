@@ -24,7 +24,7 @@ export async function GET(_request: Request, { params }: RouteContext) {
     return NextResponse.json({ success: false, error: "Invalid address" }, { status: 400 });
   }
 
-  const [listed, sold, bought, launches] = await Promise.all([
+  const [listed, sold, bought, launches, owned] = await Promise.all([
     prisma.$queryRaw<Array<{
       id: string;
       tokenMint: string;
@@ -92,6 +92,21 @@ export async function GET(_request: Request, { params }: RouteContext) {
       orderBy: { createdAt: "desc" },
       take: 12,
     }),
+    prisma.clawPegHybridAsset.findMany({
+      where: { ownerAddress: address, status: "OWNED" },
+      include: {
+        launch: {
+          select: {
+            tokenMint: true,
+            name: true,
+            symbol: true,
+            cluster: true,
+          },
+        },
+      },
+      orderBy: { updatedAt: "desc" },
+      take: 48,
+    }),
   ]);
 
   const decorate = (
@@ -122,6 +137,19 @@ export async function GET(_request: Request, { params }: RouteContext) {
     listed: decorate(listed),
     sold: decorate(sold),
     bought: decorate(bought),
+    owned: owned.map((row) => ({
+      id: row.id,
+      asset_address: row.assetAddress,
+      token_mint: row.tokenMint,
+      peg_id: row.pegId,
+      symbol: row.launch.symbol,
+      name: row.launch.name,
+      cluster: row.launch.cluster,
+      image: `/api/cpeg/${row.tokenMint}/pegs/${row.pegId}/svg`,
+      collection_url: cpegCollectionPublicUrl(row.tokenMint),
+      market_url: `${cpegCollectionPublicUrl(row.tokenMint).replace(/\/[^/]+$/, "")}/market?mint=${row.tokenMint}`,
+      captured_at: row.capturedAt?.toISOString() || row.createdAt.toISOString(),
+    })),
     launches: launches.map((launch) => ({
       id: launch.id,
       token_mint: launch.tokenMint,

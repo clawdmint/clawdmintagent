@@ -2,6 +2,7 @@ import { prisma } from "@/lib/db";
 import {
   CPEG_HYBRID_ASSET_STATUS_OWNED,
   CPEG_HYBRID_ASSET_STATUS_POOL,
+  CPEG_HYBRID_ASSET_STATUS_LISTED,
   type HybridAgentRecord,
   type HybridLaunchSnapshot,
 } from "@/lib/cpeg-hybrid-engine";
@@ -90,7 +91,7 @@ export async function loadHybridAssetCounts(launchId: string) {
     const count = row._count._all;
     total += count;
     if (row.status === CPEG_HYBRID_ASSET_STATUS_OWNED) owned += count;
-    else if (row.status === CPEG_HYBRID_ASSET_STATUS_POOL) pool += count;
+    else if (row.status === CPEG_HYBRID_ASSET_STATUS_POOL || row.status === CPEG_HYBRID_ASSET_STATUS_LISTED) pool += count;
   }
   return { total, owned, pool };
 }

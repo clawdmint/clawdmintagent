@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAssociatedTokenAddressSync, TOKEN_2022_PROGRAM_ID } from "@solana/spl-token";
-import { PublicKey } from "@solana/web3.js";
+import { PublicKey, SystemProgram, TransactionInstruction } from "@solana/web3.js";
 import { z } from "zod";
 import { buildClawPegCancelPegEscrowManifest } from "@/lib/clawpeg";
 import { prisma } from "@/lib/db";
+import { CPEG_STANDARD_MODE_METAPLEX_HYBRID } from "@/lib/cpeg-metaplex-hybrid";
 
 export const dynamic = "force-dynamic";
 
@@ -14,6 +15,18 @@ const PrepareSchema = z.object({
 
 interface RouteContext {
   params: { mint: string };
+}
+
+function serializeInstruction(ix: InstanceType<typeof TransactionInstruction>) {
+  return {
+    programId: ix.programId.toBase58(),
+    accounts: ix.keys.map((key: { pubkey: InstanceType<typeof PublicKey>; isSigner: boolean; isWritable: boolean }) => ({
+      pubkey: key.pubkey.toBase58(),
+      isSigner: key.isSigner,
+      isWritable: key.isWritable,
+    })),
+    dataBase64: Buffer.from(ix.data).toString("base64"),
+  };
 }
 
 export async function POST(request: NextRequest, { params }: RouteContext) {
@@ -41,6 +54,20 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
     const listing = listings[0];
     if (!listing || listing.status !== "ACTIVE" || listing.sellerAddress !== parsed.data.seller) {
       return NextResponse.json({ success: false, error: "Listing not cancellable" }, { status: 404 });
+    }
+    if (launch.standardMode === CPEG_STANDARD_MODE_METAPLEX_HYBRID) {
+      const seller = new PublicKey(parsed.data.seller);
+      const noop = SystemProgram.transfer({ fromPubkey: seller, toPubkey: seller, lamports: 0 });
+      return NextResponse.json({
+        success: true,
+        listing: {
+          id: listing.id,
+          kind: "hybrid_core",
+          peg_id: listing.pegId,
+          asset_address: listing.escrowTokenAccount,
+        },
+        instructions: [serializeInstruction(noop)],
+      });
     }
 
     const seller = new PublicKey(parsed.data.seller);
