@@ -54,11 +54,11 @@ export default async function CpegCollectionPage({ params }: CpegCollectionPageP
           {launch.name}
         </h1>
         <p className="mt-4 max-w-2xl font-mono text-[10px] uppercase tracking-[0.2em] text-white/45">
-          {launch.symbol} · {truncateAddress(launch.tokenMint, 6, 6)} · {launch.cluster}
+          {launch.symbol} | {truncateAddress(launch.tokenMint, 6, 6)} | {launch.cluster}
         </p>
         <p className="mt-5 max-w-2xl text-sm leading-7 text-white/65">
-          Convert the agent token into deterministic Metaplex Core cPEG identities. Each cPEG is
-          backed by a fixed token amount, so token supply and collection capacity move together.
+          Buy the agent token, get cPEG with the fixed backing amount, release cPEG back to tokens,
+          or trade exact cPEG identities on the market.
         </p>
 
         <div className="mt-10">

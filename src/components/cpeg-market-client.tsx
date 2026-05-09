@@ -282,7 +282,7 @@ export function CpegMarketClient() {
   // response. Each fill atomically writes one TradeArtRecord on-chain via CPI from
   // cpeg-market::buy -> clawpeg::record_trade_art.
   const [lastTradeArt, setLastTradeArt] = useState<
-    Array<{ peg_id: number; trade_index: number; address: string; image_url: string }>
+    Array<{ peg_id: number; trade_index: number; address: string; image_url: string; kind?: string }>
   >([]);
 
   const [selectMode, setSelectMode] = useState(false);
@@ -1425,12 +1425,16 @@ export function CpegMarketClient() {
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div>
                   <p className="font-mono text-[10px] uppercase tracking-[0.22em] text-[#9fe2ff]">
-                    Trade art recorded on-chain
+                    {selectedLaunch.standard_mode === "metaplex_hybrid"
+                      ? "PEG transfer confirmed"
+                      : "Trade art recorded on-chain"}
                   </p>
                   <p className="mt-1 text-sm leading-5 text-neutral-700 dark:text-white/75">
-                    Your fill atomically minted {lastTradeArt.length === 1 ? "one" : lastTradeArt.length} deterministic
-                    {lastTradeArt.length === 1 ? " piece" : " pieces"} of trade art via the cpeg-market &rarr; clawpeg
-                    CPI. The art is permanent.
+                    {selectedLaunch.standard_mode === "metaplex_hybrid"
+                      ? `Your purchase moved ${lastTradeArt.length === 1 ? "one exact Core cPEG identity" : `${lastTradeArt.length} exact Core cPEG identities`} from escrow to your wallet.`
+                      : `Your fill atomically minted ${lastTradeArt.length === 1 ? "one" : lastTradeArt.length} deterministic${
+                          lastTradeArt.length === 1 ? " piece" : " pieces"
+                        } of trade art via the cpeg-market -> clawpeg CPI. The art is permanent.`}
                   </p>
                 </div>
               </div>
@@ -1438,7 +1442,7 @@ export function CpegMarketClient() {
                 {lastTradeArt.map((art) => (
                   <a
                     key={art.peg_id}
-                    href={`/api/cpeg/${selectedLaunch.token_mint}/trade-art/${art.trade_index}/svg`}
+                    href={art.image_url || `/api/cpeg/${selectedLaunch.token_mint}/trade-art/${art.trade_index}/svg`}
                     target="_blank"
                     rel="noreferrer"
                     className="group block border border-neutral-200 dark:border-white/10 bg-neutral-100/90 dark:bg-black/40 p-1 transition hover:border-[#53c7ff]"
@@ -1455,7 +1459,7 @@ export function CpegMarketClient() {
                       />
                     </div>
                     <p className="mt-1 truncate font-mono text-[9px] uppercase tracking-[0.2em] text-neutral-700 dark:text-white/55 group-hover:text-[#53c7ff]">
-                      T#{art.trade_index}
+                      {selectedLaunch.standard_mode === "metaplex_hybrid" ? `#${art.peg_id}` : `T#${art.trade_index}`}
                     </p>
                   </a>
                 ))}
@@ -1565,18 +1569,18 @@ export function CpegMarketClient() {
                 {selectedLaunch?.standard_mode === "metaplex_hybrid" ? (
                   <>
                     <p className="font-mono text-xs uppercase tracking-[0.2em] text-neutral-500 dark:text-white/45">
-                      Metaplex Hybrid · capture / release
+                      Metaplex Hybrid | Get cPEG / Release
                     </p>
                     <p className="mt-2 text-xs text-neutral-400 dark:text-white/30">
                       Convert the required token backing unit into deterministic Core PEG
-                      identities, or release them back from the vault page.
+                      identities, or release them back from the cPEG route.
                     </p>
                     {selectedLaunch?.token_mint ? (
                       <a
                         href={`/cpeg/${encodeURIComponent(selectedLaunch.token_mint)}`}
                         className="mt-4 inline-flex items-center gap-2 border border-[#53c7ff]/40 bg-[#53c7ff]/10 px-4 py-2 text-[10px] font-black uppercase tracking-[0.2em] text-[#53c7ff] transition hover:bg-[#53c7ff]/20"
                       >
-                        Open hybrid vault
+                        Open cPEG route
                       </a>
                     ) : null}
                   </>

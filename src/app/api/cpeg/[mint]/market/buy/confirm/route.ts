@@ -77,7 +77,8 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
       trade_art: {
         trade_index: parsed.data.peg_id,
         address: listing.listingAddress,
-        image_url: `/api/cpeg/${launch.tokenMint}/trade-art/${parsed.data.peg_id}/svg`,
+        image_url: `/api/cpeg/${launch.tokenMint}/pegs/${parsed.data.peg_id}/svg`,
+        kind: "hybrid_core_transfer",
       },
     });
   }

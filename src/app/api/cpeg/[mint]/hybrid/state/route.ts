@@ -8,6 +8,8 @@ import {
   loadHybridLaunchAndAgent,
   loadHybridAssetCounts,
 } from "@/lib/cpeg-hybrid-loader";
+import { deriveMplHybridEscrowAddress } from "@/lib/cpeg-metaplex-hybrid";
+import { deriveMplHybridEscrowTokenAccount } from "@/lib/mpl-hybrid-native";
 
 export const dynamic = "force-dynamic";
 
@@ -23,6 +25,19 @@ export async function GET(request: NextRequest, { params }: RouteContext) {
   }
   const counts = await loadHybridAssetCounts(data.launch.id);
   const summary = await buildHybridStateSummary(data.agent, data.launch, counts);
+  const mplHybridEscrowAddress = deriveMplHybridEscrowAddress(summary.collectionAddress);
+  let mplHybridEscrowTokenAccount: string | null = null;
+  if (mplHybridEscrowAddress && summary.tokenProgramId) {
+    try {
+      mplHybridEscrowTokenAccount = deriveMplHybridEscrowTokenAccount(
+        data.launch.agentTokenMint || data.launch.tokenMint,
+        mplHybridEscrowAddress,
+        summary.tokenProgramId
+      ).toBase58();
+    } catch {
+      mplHybridEscrowTokenAccount = null;
+    }
+  }
   if (summary.pegUnitRaw !== data.launch.pegUnitRaw) {
     await prisma.clawPegLaunch
       .update({
@@ -65,8 +80,12 @@ export async function GET(request: NextRequest, { params }: RouteContext) {
       name: data.launch.name,
       cluster: data.launch.cluster,
       standard_mode: data.launch.standardMode,
+      custody_model: "metaplex_hybrid_escrow_pda",
       hybrid_status: summary.status,
       collection_address: summary.collectionAddress,
+      mpl_hybrid_escrow_address: mplHybridEscrowAddress,
+      mpl_hybrid_escrow_token_account: mplHybridEscrowTokenAccount,
+      mpl_hybrid_native_ready: Boolean(mplHybridEscrowAddress && mplHybridEscrowTokenAccount),
       vault_token_account: summary.vaultTokenAccount,
       vault_owner: summary.vaultOwner,
       token_program_id: summary.tokenProgramId,

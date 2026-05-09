@@ -1,15 +1,13 @@
 // Metaplex-native cPEG hybrid engine.
 //
-// Implements capture/release on top of MPL-Core 1.x using umi 1.x. The agent
-// operational wallet acts as both the Core Collection update authority and the
-// SPL token vault custodian for the agent token. Capture moves the fixed PEG
-// backing unit from the user into the agent vault and mints/transfers a
-// deterministic Core asset to the user. Release reverses the flow.
+// Implements the current capture/release compatibility path on top of
+// MPL-Core 1.x using umi 1.x. The product model is MPL-Hybrid native: fixed
+// fungible backing units swap into Core cPEG identities and back through a
+// Hybrid escrow. This file keeps existing launches operational until the
+// @metaplex-foundation/mpl-hybrid SDK path is wired into the same Umi major.
 //
-// This file intentionally avoids @metaplex-foundation/mpl-hybrid because that
-// package only supports umi <1.0 while Clawdmint's other Metaplex flows are on
-// umi 1.5. Doing the same primitives directly with mpl-core keeps everything
-// inside one supported umi major.
+// Do not expose this compatibility detail in public UI copy; users should see
+// Buy token, Get cPEG, Release, and List/Buy cPEG.
 
 import {
   Connection,

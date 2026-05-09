@@ -540,7 +540,7 @@ export default async function CpegPage() {
             <div className="font-mono text-xs uppercase tracking-[0.22em] text-neutral-500 dark:text-white/45">03</div>
             <h3 className="mt-3 text-2xl font-black uppercase">Hybrid route</h3>
             <p className="mt-3 text-sm leading-6 text-neutral-600 dark:text-white/62">
-              The agent token is the capacity source. Capture and release map fixed backing units
+              The agent token is the capacity source. Get cPEG and Release map fixed backing units
               to deterministic Agent PEG identities.
             </p>
           </div>
@@ -548,7 +548,7 @@ export default async function CpegPage() {
             <div className="font-mono text-xs uppercase tracking-[0.22em] text-neutral-500 dark:text-white/45">04</div>
             <h3 className="mt-3 text-2xl font-black uppercase">Real P2P escrow</h3>
             <p className="mt-3 text-sm leading-6 text-neutral-600 dark:text-white/62">
-              Listings move PEGs into a program-controlled escrow. Buys split SOL between
+              Listings move PEGs into escrow. Buys split SOL between
               seller, creator, and protocol in one atomic transaction.
             </p>
           </div>

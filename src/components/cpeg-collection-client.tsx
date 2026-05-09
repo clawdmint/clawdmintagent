@@ -887,7 +887,7 @@ export function CpegCollectionClient({ launch }: CpegCollectionClientProps) {
               Hold token. Own cPEG.
             </p>
             <h2 className="mt-3 max-w-4xl text-4xl font-black uppercase leading-none text-neutral-950 dark:text-[#f7f2df] md:text-6xl">
-              Every whole token maps to one numbered identity.
+              Each cPEG is backed by the collection's fixed token amount.
             </h2>
           </div>
           <div className="flex flex-wrap gap-3 md:justify-end">

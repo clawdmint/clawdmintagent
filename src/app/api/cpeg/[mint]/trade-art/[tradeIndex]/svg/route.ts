@@ -2,7 +2,7 @@ import { Connection, PublicKey } from "@solana/web3.js";
 import { NextRequest, NextResponse } from "next/server";
 import { findTradeArtRecordAddress } from "@/lib/clawpeg";
 import { prisma } from "@/lib/db";
-import { renderClawPegTradeArtSvg } from "@/lib/clawpeg-renderer";
+import { renderClawPegSvg, renderClawPegTradeArtSvg } from "@/lib/clawpeg-renderer";
 import { getClawPegRpcUrl } from "@/lib/env";
 
 export const dynamic = "force-dynamic";
@@ -64,8 +64,30 @@ export async function GET(_request: NextRequest, { params }: RouteContext) {
       rendererVersion: true,
       rendererParams: true,
       cluster: true,
+      standardMode: true,
     },
   });
+  if (launch?.standardMode === "metaplex_hybrid") {
+    const pegId = Number(tradeIndex);
+    if (!Number.isSafeInteger(pegId) || pegId < 1) {
+      return NextResponse.json({ success: false, error: "Invalid hybrid cPEG id" }, { status: 400 });
+    }
+    const svg = renderClawPegSvg({
+      rendererId: launch.rendererId,
+      rendererVersion: launch.rendererVersion,
+      collectionSeed: launch.collectionSeed,
+      tokenMint: launch.tokenMint,
+      pegId,
+      params: (launch.rendererParams as Record<string, unknown> | null) || {},
+    });
+    return new NextResponse(svg, {
+      status: 200,
+      headers: {
+        "Content-Type": "image/svg+xml; charset=utf-8",
+        "Cache-Control": "public, max-age=31536000, immutable",
+      },
+    });
+  }
   if (!launch?.collectionAddress) {
     return NextResponse.json({ success: false, error: "cPEG collection not found" }, { status: 404 });
   }

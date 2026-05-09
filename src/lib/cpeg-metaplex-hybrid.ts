@@ -1,4 +1,5 @@
 import { PublicKey } from "@solana/web3.js";
+import { MPL_HYBRID_PROGRAM_ID, deriveMplHybridEscrowPda } from "@/lib/mpl-hybrid-native";
 
 export const CPEG_STANDARD_MODE_CUSTOM_REGISTRY = "custom_registry";
 export const CPEG_STANDARD_MODE_METAPLEX_HYBRID = "metaplex_hybrid";
@@ -40,9 +41,18 @@ function parsePublicKey(value: string | null | undefined, label: string) {
 
 export function getConfiguredMplHybridProgramId() {
   return parsePublicKey(
-    process.env["MPL_HYBRID_PROGRAM_ID"] || process.env["NEXT_PUBLIC_MPL_HYBRID_PROGRAM_ID"],
+    process.env["MPL_HYBRID_PROGRAM_ID"] ||
+      process.env["NEXT_PUBLIC_MPL_HYBRID_PROGRAM_ID"] ||
+      MPL_HYBRID_PROGRAM_ID.toBase58(),
     "MPL_HYBRID_PROGRAM_ID"
   );
+}
+
+export function deriveMplHybridEscrowAddress(collectionAddress: string | null | undefined) {
+  const programId = getConfiguredMplHybridProgramId();
+  const collection = parsePublicKey(collectionAddress, "core_collection_address");
+  if (!programId || !collection) return null;
+  return deriveMplHybridEscrowPda(collection, programId).toBase58();
 }
 
 export function buildCpegMetaplexHybridPlan(input: CpegMetaplexHybridPlanInput) {
@@ -52,10 +62,12 @@ export function buildCpegMetaplexHybridPlan(input: CpegMetaplexHybridPlanInput) 
   const agentCollectionAddress = parsePublicKey(input.agentCollectionAddress, "agent_collection_address");
   const agentWalletAddress = parsePublicKey(input.agentWalletAddress, "agent_wallet_address");
   const hybridProgramId = getConfiguredMplHybridProgramId();
+  const escrowAddress = deriveMplHybridEscrowAddress(agentCollectionAddress);
 
   return {
     standard_mode: CPEG_STANDARD_MODE_METAPLEX_HYBRID,
     hybrid_status: CPEG_HYBRID_STATUS_READY,
+    custody_model: "metaplex_hybrid_escrow_pda",
     hybrid_program_id: hybridProgramId,
     token_mint: tokenMint,
     agent_token_mint: tokenMint,
@@ -64,7 +76,12 @@ export function buildCpegMetaplexHybridPlan(input: CpegMetaplexHybridPlanInput) 
     agent_collection_address: agentCollectionAddress,
     agent_wallet_address: agentWalletAddress,
     core_collection_address: agentCollectionAddress,
-    escrow_address: null,
+    escrow_address: escrowAddress,
+    escrow_derivation: {
+      program_id: hybridProgramId,
+      seeds: ["escrow", "core_collection_address"],
+      owner: "mpl_hybrid",
+    },
     capture_release: {
       token_amount_raw: input.pegUnitRaw,
       reroll_on_release: true,
@@ -83,11 +100,11 @@ export function buildCpegMetaplexHybridPlan(input: CpegMetaplexHybridPlanInput) 
       whole_unit_raw: input.pegUnitRaw,
     },
     next_steps: [
-      "Create or select the Core PEG asset collection for this agent root.",
-      "Create the MPL-Hybrid capture and release escrow once the compatible SDK path is enabled.",
-      "Fund the escrow with deterministic Agent PEG Core assets.",
-      "Open capture and release so each fixed agent-token backing unit can resolve into one Agent PEG identity.",
-      "Open the exact-identity market after the escrow is funded.",
+      "Create or select the Core PEG collection for this agent root.",
+      "Create the Metaplex Hybrid escrow PDA for the Core collection and agent token.",
+      "Fund the escrow with deterministic Agent PEG Core assets or the fixed token backing pool.",
+      "Open Get cPEG and Release so each fixed agent-token backing unit can resolve into one Agent PEG identity.",
+      "Open the exact-identity market after the escrow is ready.",
     ],
   };
 }

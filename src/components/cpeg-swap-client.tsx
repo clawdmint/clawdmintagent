@@ -152,7 +152,12 @@ function formatSolAmount(raw: string | undefined) {
 
 function routeLabel(probe: DexProbePayload | null, compatibility: CompatibilityPayload | null) {
   if (!compatibility?.success) return "Select a token";
-  if (probe?.reason === "Use the cPEG vault for capture and release.") return "Vault route";
+  if (
+    probe?.reason === "Use the cPEG route for Get cPEG and Release." ||
+    probe?.reason === "Use Get cPEG and Release for this collection."
+  ) {
+    return "cPEG route";
+  }
   if (probe?.has_route) return "Route ready";
   if (compatibility.collection?.cluster === "devnet") return "Devnet route unavailable";
   return "No route";
@@ -249,7 +254,7 @@ export function CpegSwapClient() {
           dex: {
             official_router: {
               available: false,
-              reason: "This cPEG uses the Metaplex hybrid vault. Use capture and release instead of a direct swap route.",
+              reason: "This cPEG uses the Metaplex Hybrid route. Use Get cPEG and Release instead of a direct swap route.",
             },
           },
         });
@@ -258,7 +263,7 @@ export function CpegSwapClient() {
           side: routeSide,
           supported: true,
           has_route: false,
-          reason: "Use the cPEG vault for capture and release.",
+          reason: "Use Get cPEG and Release for this collection.",
         });
         return;
       }
@@ -655,7 +660,7 @@ export function CpegSwapClient() {
                 href={`${urls.home.replace(/\/$/, "")}/${encodeURIComponent(mint)}`}
                 className="flex w-full items-center justify-center gap-2 rounded-lg border border-cyan-400/30 bg-cyan-400/10 px-4 py-3 text-xs font-black uppercase tracking-wide text-cyan-300 transition hover:bg-cyan-400/20"
               >
-                Open cPEG vault <ExternalLink className="h-3 w-3" />
+                Open cPEG route <ExternalLink className="h-3 w-3" />
               </a>
               {isLaunchAuthority ? (
                 <a
@@ -693,7 +698,7 @@ export function CpegSwapClient() {
         )}
         {isHybridRoute && (
           <p className="mt-4 max-w-[420px] text-center text-xs leading-6 text-neutral-500 dark:text-white/45">
-            This cPEG uses a Metaplex vault. Convert the required token backing unit to receive a PEG identity, or release a PEG to reclaim its backing tokens.
+            This cPEG uses the Metaplex Hybrid route. Convert the required token backing unit to receive a PEG identity, or release a PEG to reclaim its backing tokens.
           </p>
         )}
         {side === "sell" && (

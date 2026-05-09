@@ -6,10 +6,13 @@ import {
   CheckCircle2,
   ExternalLink,
   Layers,
+  type LucideIcon,
   Loader2,
   PackageOpen,
   Rocket,
-  Vault,
+  ShieldCheck,
+  ShoppingCart,
+  Tag,
 } from "lucide-react";
 import {
   clusterApiUrl,
@@ -46,8 +49,10 @@ interface HybridLaunchState {
   cluster: string;
   hybrid_status: string;
   collection_address: string | null;
+  mpl_hybrid_escrow_address?: string | null;
   vault_token_account: string | null;
   vault_owner: string | null;
+  custody_model?: string | null;
   token_program_id: string | null;
   total_assets: number;
   owned_assets: number;
@@ -225,12 +230,12 @@ export function CpegHybridPanel({ tokenMint, initialAuthorityAddress, compact }:
         | { success?: boolean; error?: string; details?: HybridErrorDetails }
         | null;
       if (!response.ok || !body?.success) {
-        throw new Error(formatHybridError(body?.error || "Failed to deploy hybrid vault.", body?.details));
+        throw new Error(formatHybridError(body?.error || "Failed to enable cPEG.", body?.details));
       }
       await refreshState();
-      setStatus("Hybrid vault deployed.");
+      setStatus("cPEG is enabled.");
     } catch (cause) {
-      setSetupError(describeError(cause, "Failed to deploy hybrid vault."));
+      setSetupError(describeError(cause, "Failed to enable cPEG."));
     } finally {
       setSetupBusy(false);
     }
@@ -355,7 +360,7 @@ export function CpegHybridPanel({ tokenMint, initialAuthorityAddress, compact }:
         return;
       }
       if (!state || !state.collection_address) {
-        setError("Hybrid vault is not configured for this launch yet.");
+        setError("cPEG is not enabled for this launch yet.");
         return;
       }
       const provider = getPhantomProvider();
@@ -435,7 +440,7 @@ export function CpegHybridPanel({ tokenMint, initialAuthorityAddress, compact }:
   if (stateLoading && !state) {
     return (
       <div className="border border-neutral-200 bg-neutral-100 p-5 text-sm text-neutral-600 dark:border-white/10 dark:bg-[#0c0c0c] dark:text-white/55">
-        <Loader2 className="mr-2 inline-block h-4 w-4 animate-spin" /> Loading hybrid vault state...
+        <Loader2 className="mr-2 inline-block h-4 w-4 animate-spin" /> Loading cPEG state...
       </div>
     );
   }
@@ -456,6 +461,9 @@ export function CpegHybridPanel({ tokenMint, initialAuthorityAddress, compact }:
   const backingUnitLabel = formatRawTokenAmount(state.peg_unit_raw, state.decimals, state.symbol);
   const requiredLabel = formatRawTokenAmount(requiredRaw, state.decimals, state.symbol);
   const supplyLabel = formatRawTokenAmount(state.token_supply_raw, state.decimals, state.symbol);
+  const collectionHref = urls.collection(tokenMint);
+  const swapHref = `${urls.swap}?mint=${encodeURIComponent(tokenMint)}&side=buy`;
+  const marketHref = urls.market({ mint: tokenMint });
 
   return (
     <section
@@ -466,13 +474,14 @@ export function CpegHybridPanel({ tokenMint, initialAuthorityAddress, compact }:
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <p className="font-mono text-[10px] uppercase tracking-[0.22em] text-[#9fe2ff]">
-            Convert token to cPEG
+            Token backed cPEG
           </p>
           <p className="mt-2 text-lg font-black uppercase tracking-tight text-white">
-            Get {state.symbol} PEG identities
+            {state.symbol} cPEG route
           </p>
           <p className="mt-2 max-w-2xl text-sm leading-6 text-white/60">
-            Lock the fixed backing amount and receive one deterministic Metaplex Core cPEG.
+            Buy the agent token, convert the fixed backing amount into a deterministic Core cPEG,
+            release it back to tokens, or trade exact cPEG identities on the market.
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2 font-mono text-[10px] uppercase tracking-[0.18em] text-white/55">
@@ -487,18 +496,25 @@ export function CpegHybridPanel({ tokenMint, initialAuthorityAddress, compact }:
           <span className={setupComplete ? "text-[#53c7ff]" : "text-[#f7b85c]"}>
             {setupComplete ? "Configured" : "Awaiting setup"}
           </span>
-          <span>·</span>
+          <span>|</span>
           <span>{state.owned_assets} captured</span>
-          <span>·</span>
+          <span>|</span>
           <span>{state.available_capacity} available</span>
         </div>
+      </div>
+
+      <div className="mt-5 grid gap-2 sm:grid-cols-4">
+        <ActionLink href={swapHref} icon={ShoppingCart} label="Buy token" />
+        <ActionLink href={collectionHref} icon={PackageOpen} label="Get cPEG" />
+        <ActionLink href="#release" icon={ArrowDownUp} label="Release" />
+        <ActionLink href={marketHref} icon={Tag} label="List / Buy cPEG" />
       </div>
 
       {!setupComplete ? (
         <div className="mt-5 grid gap-3 border border-white/10 bg-black/40 p-4">
           <p className="text-sm text-white/75">
-            Deploy the on-chain Metaplex Core collection and agent token vault for this launch.
-            One-time, runs from the agent wallet.
+            Enable the Metaplex Hybrid escrow route for this token and Core PEG collection.
+            This is a one-time creator action.
           </p>
           <div className="flex flex-wrap items-center gap-3">
             <button
@@ -506,14 +522,14 @@ export function CpegHybridPanel({ tokenMint, initialAuthorityAddress, compact }:
               onClick={isConnected ? handleSetup : login}
               disabled={setupBusy || !isAuthority}
               className="inline-flex items-center gap-2 border border-[#f7f2df] bg-[#f7f2df] px-4 py-2 text-xs font-black uppercase tracking-wide text-black transition hover:bg-[#53c7ff] disabled:cursor-not-allowed disabled:opacity-50"
-              title={isAuthority ? "Deploy Metaplex hybrid vault" : "Only the launch authority wallet can deploy"}
+              title={isAuthority ? "Enable Metaplex Hybrid route" : "Only the launch authority wallet can enable cPEG"}
             >
               {setupBusy ? <Loader2 className="h-3 w-3 animate-spin" /> : <Rocket className="h-3 w-3" />}
-              Deploy hybrid vault
+              Enable cPEG
             </button>
             {!isAuthority ? (
               <span className="font-mono text-[10px] uppercase tracking-[0.18em] text-white/45">
-                Connect the launch authority wallet to enable deploy.
+                Connect the launch authority wallet to enable cPEG.
               </span>
             ) : null}
           </div>
@@ -524,7 +540,7 @@ export function CpegHybridPanel({ tokenMint, initialAuthorityAddress, compact }:
       ) : (
         <>
           <div className="mt-5 grid gap-px border border-white/10 bg-white/10 sm:grid-cols-3">
-            <Stat icon={Vault} label="Backing per cPEG" value={backingUnitLabel} />
+            <Stat icon={ShieldCheck} label="Backing per cPEG" value={backingUnitLabel} />
             <Stat icon={Layers} label="Available cPEGs" value={`${state.available_capacity} / ${state.effective_max_pegs}`} />
             <Stat icon={PackageOpen} label="Token supply" value={supplyLabel} />
           </div>
@@ -565,7 +581,7 @@ export function CpegHybridPanel({ tokenMint, initialAuthorityAddress, compact }:
               ) : null}
             </div>
 
-            <div className="border border-white/10 bg-black/40 p-4">
+            <div id="release" className="border border-white/10 bg-black/40 p-4">
               <div className="flex items-center gap-2">
                 <ArrowDownUp className="h-3 w-3 text-[#ec5cff]" />
                 <p className="font-mono text-[10px] uppercase tracking-[0.22em] text-[#f6c4ff]">Release</p>
@@ -641,7 +657,7 @@ export function CpegHybridPanel({ tokenMint, initialAuthorityAddress, compact }:
 }
 
 interface StatProps {
-  icon: typeof Vault;
+  icon: LucideIcon;
   label: string;
   value: string;
 }
@@ -655,5 +671,23 @@ function Stat({ icon: Icon, label, value }: StatProps) {
       </div>
       <p className="mt-1 text-sm font-black tracking-tight text-white">{value || "--"}</p>
     </div>
+  );
+}
+
+interface ActionLinkProps {
+  href: string;
+  icon: LucideIcon;
+  label: string;
+}
+
+function ActionLink({ href, icon: Icon, label }: ActionLinkProps) {
+  return (
+    <a
+      href={href}
+      className="flex items-center justify-center gap-2 border border-white/10 bg-black/30 px-3 py-3 text-center text-[10px] font-black uppercase tracking-[0.16em] text-white/70 transition hover:border-[#53c7ff]/60 hover:bg-[#53c7ff]/10 hover:text-[#53c7ff]"
+    >
+      <Icon className="h-3.5 w-3.5" />
+      {label}
+    </a>
   );
 }

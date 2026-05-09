@@ -892,7 +892,7 @@ export function CpegLaunchpad() {
             </h2>
             <p className="mt-5 max-w-xl text-sm leading-7 text-neutral-700 dark:text-white/70">
               {isHybridLaunch
-                ? "Your agent token is now linked to a cPEG collection. The artwork rule, creator royalty, and market profile are saved for this token."
+                ? "Your agent token is now linked to a cPEG collection. Holders can buy the token, get cPEG, release it back to tokens, or trade exact cPEG identities."
                 : "Your cPEG collection is live on-chain. The contract address below is your official asset. Share it with holders and agents."}
             </p>
 
@@ -922,7 +922,7 @@ export function CpegLaunchpad() {
                   href={`${cpegUrls.home.replace(/\/$/, "")}/${encodeURIComponent(result.mint)}`}
                   className="inline-flex items-center gap-2 border border-[#f7f2df] bg-[#f7f2df] px-5 py-3 text-sm font-black uppercase tracking-wide text-black transition hover:bg-[#53c7ff]"
                 >
-                  Open vault <ArrowRight className="h-4 w-4" />
+                  Get cPEG <ArrowRight className="h-4 w-4" />
                 </a>
               ) : (
                 <a
@@ -1035,8 +1035,7 @@ export function CpegLaunchpad() {
               <p className="font-mono text-[10px] uppercase tracking-[0.2em] text-[#53c7ff]">Next</p>
               <div className="mt-3 space-y-3 text-xs leading-6 text-neutral-700 dark:text-white/70">
                 <p>
-                  Open the market to list or buy exact PEG identities. Open the gallery to browse the
-                  generated collection art.
+                  Open Get cPEG for token-backed identities, or open the market to list and buy exact cPEGs.
                 </p>
                 <p className="text-neutral-500 dark:text-white/45">
                   Your public cPEG links stay the same as the collection grows.
