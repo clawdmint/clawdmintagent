@@ -45,6 +45,8 @@ import {
 import { createUmi } from "@metaplex-foundation/umi-bundle-defaults";
 import { fromWeb3JsKeypair, toWeb3JsPublicKey } from "@metaplex-foundation/umi-web3js-adapters";
 import { getAgentOperationalKeypair, getAgentWalletBalance } from "@/lib/agent-wallets";
+import { deriveMplHybridEscrowAddress } from "@/lib/cpeg-metaplex-hybrid";
+import { deriveMplHybridEscrowTokenAccount } from "@/lib/mpl-hybrid-native";
 import { getMetaplexCoreConnection } from "@/lib/synapse-sap";
 
 export const CPEG_HYBRID_STATUS_NOT_CONFIGURED = "NOT_CONFIGURED";
@@ -108,6 +110,7 @@ interface HybridLaunchSnapshot {
   id: string;
   name: string;
   symbol: string;
+  cluster?: string | null;
   tokenMint: string;
   agentTokenMint: string | null;
   hybridCoreCollectionAddress: string | null;
@@ -118,6 +121,73 @@ interface HybridLaunchSnapshot {
   rendererId: string;
   rendererVersion: string;
   collectionSeed: string;
+}
+
+export interface MplHybridCustodyTarget {
+  escrowAddress: string | null;
+  escrowTokenAccount: string | null;
+  configuredVaultTokenAccount: string | null;
+  isNativeReady: boolean;
+}
+
+function isMainnetCluster(cluster: string | null | undefined) {
+  return (cluster || "").toLowerCase() === "mainnet-beta";
+}
+
+export function getMplHybridCustodyTarget(
+  launch: Pick<
+    HybridLaunchSnapshot,
+    "agentTokenMint" | "tokenMint" | "hybridCoreCollectionAddress" | "hybridEscrowAddress"
+  >,
+  tokenProgramId?: string | null
+): MplHybridCustodyTarget {
+  const escrowAddress = deriveMplHybridEscrowAddress(launch.hybridCoreCollectionAddress);
+  let escrowTokenAccount: string | null = null;
+  if (escrowAddress && tokenProgramId) {
+    try {
+      escrowTokenAccount = deriveMplHybridEscrowTokenAccount(
+        launch.agentTokenMint || launch.tokenMint,
+        escrowAddress,
+        tokenProgramId
+      ).toBase58();
+    } catch {
+      escrowTokenAccount = null;
+    }
+  }
+  const configuredVaultTokenAccount = launch.hybridEscrowAddress || null;
+  return {
+    escrowAddress,
+    escrowTokenAccount,
+    configuredVaultTokenAccount,
+    isNativeReady: Boolean(
+      escrowTokenAccount &&
+        configuredVaultTokenAccount &&
+        escrowTokenAccount === configuredVaultTokenAccount
+    ),
+  };
+}
+
+function assertMainnetUsesNativeHybridCustody(
+  launch: HybridLaunchSnapshot,
+  tokenProgramId?: string | null,
+  action = "cPEG operation"
+) {
+  if (!isMainnetCluster(launch.cluster)) return;
+  const custody = getMplHybridCustodyTarget(launch, tokenProgramId);
+  const reason = custody.isNativeReady
+    ? "The Metaplex Hybrid escrow is configured, but this legacy compatibility instruction path is disabled on mainnet. Use the native Metaplex Hybrid route for this action."
+    : "This collection is still using the legacy agent-wallet vault path. Migrate it to a Metaplex Hybrid escrow before accepting mainnet user funds.";
+  throw new CpegHybridEngineError(
+    409,
+    `${action} is disabled on mainnet. ${reason}`,
+    {
+      custody_model: "metaplex_hybrid_escrow_pda",
+      expected_mpl_hybrid_escrow: custody.escrowAddress,
+      expected_mpl_hybrid_escrow_token_account: custody.escrowTokenAccount,
+      configured_vault_token_account: custody.configuredVaultTokenAccount,
+      mainnet_safe: custody.isNativeReady,
+    }
+  );
 }
 
 interface HybridContext {
@@ -297,6 +367,7 @@ export async function setupHybridLaunch(
   launch: HybridLaunchSnapshot
 ): Promise<HybridSetupResult> {
   const ctx = await loadHybridContext(agent, launch);
+  assertMainnetUsesNativeHybridCustody(launch, ctx.tokenProgramId.toBase58(), "cPEG setup");
   const balance = await getAgentWalletBalance(ctx.signer.publicKey.toBase58());
   if (balance.lamports < MIN_AGENT_WALLET_LAMPORTS_FOR_SETUP) {
     throw new CpegHybridEngineError(402, "Agent wallet does not have enough SOL to deploy the Core PEG collection", {
@@ -397,6 +468,7 @@ export async function buildCaptureTransferInstructions(
   decimals: number;
 }> {
   const ctx = await loadHybridContext(agent, launch);
+  assertMainnetUsesNativeHybridCustody(launch, ctx.tokenProgramId.toBase58(), "Get cPEG");
   const userPubkey = new PublicKey(userWallet);
   const capCount = Math.max(1, Math.floor(capturesToCommit || 1));
   const totalRaw = ctx.pegUnitRaw * BigInt(capCount);
@@ -498,11 +570,6 @@ export async function buildCaptureTransferInstructions(
   };
 }
 
-function truncateMintForError(value: string) {
-  if (value.length <= 12) return value;
-  return `${value.slice(0, 4)}...${value.slice(-4)}`;
-}
-
 /**
  * Confirm a capture by minting one Metaplex Core asset (deterministic peg id)
  * to the user with the agent wallet as update authority. Idempotent per peg id.
@@ -514,6 +581,7 @@ export async function confirmCaptureMint(
   takenPegIds: Set<number>
 ): Promise<{ assetAddress: string; pegId: number; mintTxSignature: string | null }> {
   const ctx = await loadHybridContext(agent, launch);
+  assertMainnetUsesNativeHybridCustody(launch, ctx.tokenProgramId.toBase58(), "Get cPEG settlement");
   const balance = await getAgentWalletBalance(ctx.signer.publicKey.toBase58());
   if (balance.lamports < MIN_AGENT_WALLET_LAMPORTS_FOR_CAPTURE) {
     throw new CpegHybridEngineError(402, "Agent wallet does not have enough SOL to mint a Core PEG asset", {
@@ -573,6 +641,7 @@ export async function confirmReleasePayout(
   assetAddress: string
 ): Promise<{ payoutTxSignature: string }> {
   const ctx = await loadHybridContext(agent, launch);
+  assertMainnetUsesNativeHybridCustody(launch, ctx.tokenProgramId.toBase58(), "Release payout");
   const balance = await getAgentWalletBalance(ctx.signer.publicKey.toBase58());
   if (balance.lamports < MIN_AGENT_WALLET_LAMPORTS_FOR_RELEASE) {
     throw new CpegHybridEngineError(402, "Agent wallet does not have enough SOL to settle a release", {
@@ -662,6 +731,7 @@ export async function buildReleaseTransferInstructions(
     throw new CpegHybridEngineError(409, "Agent vault wallet is not configured");
   }
   const ctx = await loadHybridContext(agent, launch);
+  assertMainnetUsesNativeHybridCustody(launch, ctx.tokenProgramId.toBase58(), "Release");
   const umi = createUmi(getMetaplexCoreConnection());
   umi.use(mplCore());
   // Use the user as a noop signer for instruction building; their actual signature
@@ -718,6 +788,7 @@ export async function transferCoreAssetFromAgent(
     throw new CpegHybridEngineError(409, "Hybrid setup is incomplete: Core PEG collection is missing");
   }
   const ctx = await loadHybridContext(agent, launch);
+  assertMainnetUsesNativeHybridCustody(launch, ctx.tokenProgramId.toBase58(), "cPEG market settlement");
   const umi = createUmi(getMetaplexCoreConnection());
   umi.use(mplCore());
   umi.use(keypairIdentity(fromWeb3JsKeypair(ctx.signer)));

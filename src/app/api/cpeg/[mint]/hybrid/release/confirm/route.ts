@@ -87,6 +87,7 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
         id: data.launch.id,
         name: data.launch.name,
         symbol: data.launch.symbol,
+        cluster: data.launch.cluster,
         tokenMint: data.launch.tokenMint,
         agentTokenMint: data.launch.agentTokenMint,
         hybridCoreCollectionAddress: data.launch.hybridCoreCollectionAddress,

@@ -16,6 +16,7 @@ import { getClawPegRpcUrl } from "@/lib/env";
 import { CPEG_STANDARD_MODE_METAPLEX_HYBRID } from "@/lib/cpeg-metaplex-hybrid";
 import {
   CPEG_HYBRID_ASSET_STATUS_OWNED,
+  CpegHybridEngineError,
   buildReleaseTransferInstructions,
 } from "@/lib/cpeg-hybrid-engine";
 import { loadHybridLaunchAndAgent } from "@/lib/cpeg-hybrid-loader";
@@ -164,6 +165,9 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
       instructions: [manifest],
     });
   } catch (error) {
+    if (error instanceof CpegHybridEngineError) {
+      return NextResponse.json({ success: false, error: error.message, details: error.details }, { status: error.status });
+    }
     const message = error instanceof Error ? error.message : "Failed to prepare cPEG listing";
     return NextResponse.json({ success: false, error: message }, { status: 500 });
   }

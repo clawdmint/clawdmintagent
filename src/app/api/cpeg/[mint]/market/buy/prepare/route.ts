@@ -18,6 +18,7 @@ import {
 import { prisma } from "@/lib/db";
 import { getClawPegRpcUrl } from "@/lib/env";
 import { CPEG_STANDARD_MODE_METAPLEX_HYBRID } from "@/lib/cpeg-metaplex-hybrid";
+import { loadHybridLaunchAndAgent } from "@/lib/cpeg-hybrid-loader";
 
 export const dynamic = "force-dynamic";
 
@@ -50,6 +51,20 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
     }
     const launch = await prisma.clawPegLaunch.findUnique({ where: { tokenMint: params.mint } });
     if (launch?.standardMode === CPEG_STANDARD_MODE_METAPLEX_HYBRID) {
+      const data = await loadHybridLaunchAndAgent(params.mint);
+      if (!data) {
+        return NextResponse.json({ success: false, error: "Hybrid cPEG launch not found" }, { status: 404 });
+      }
+      if (data.launch.cluster === "mainnet-beta") {
+        return NextResponse.json(
+          {
+            success: false,
+            error:
+              "Mainnet cPEG market purchases require Metaplex Hybrid escrow settlement before payment can be prepared.",
+          },
+          { status: 409 }
+        );
+      }
       const listing = await prisma.clawPegMarketListing.findFirst({
         where: { tokenMint: launch.tokenMint, pegId: parsed.data.peg_id, status: "ACTIVE" },
         orderBy: { createdAt: "desc" },

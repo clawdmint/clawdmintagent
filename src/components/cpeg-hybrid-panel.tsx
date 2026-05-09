@@ -50,9 +50,13 @@ interface HybridLaunchState {
   hybrid_status: string;
   collection_address: string | null;
   mpl_hybrid_escrow_address?: string | null;
+  mpl_hybrid_escrow_token_account?: string | null;
+  mpl_hybrid_native_ready?: boolean;
   vault_token_account: string | null;
   vault_owner: string | null;
   custody_model?: string | null;
+  target_custody_model?: string | null;
+  custody_warning?: string | null;
   token_program_id: string | null;
   total_assets: number;
   owned_assets: number;
@@ -450,6 +454,7 @@ export function CpegHybridPanel({ tokenMint, initialAuthorityAddress, compact }:
   }
 
   const setupComplete = state.hybrid_status === "HYBRID_CONFIGURED";
+  const mainnetEscrowBlocked = state.cluster === "mainnet-beta" && state.mpl_hybrid_native_ready !== true;
   const captureCountNumber = Math.max(1, Math.min(8, Number.parseInt(captureCount, 10) || 1));
   const requiredRaw = (() => {
     try {
@@ -516,11 +521,16 @@ export function CpegHybridPanel({ tokenMint, initialAuthorityAddress, compact }:
             Enable the Metaplex Hybrid escrow route for this token and Core PEG collection.
             This is a one-time creator action.
           </p>
+          {mainnetEscrowBlocked ? (
+            <div className="border border-[#f7b85c]/40 bg-[#f7b85c]/10 p-3 text-xs leading-5 text-[#ffe2a8]">
+              Mainnet cPEG is locked until the Metaplex Hybrid escrow is initialized. This protects user funds from the legacy agent-wallet vault path.
+            </div>
+          ) : null}
           <div className="flex flex-wrap items-center gap-3">
             <button
               type="button"
               onClick={isConnected ? handleSetup : login}
-              disabled={setupBusy || !isAuthority}
+              disabled={setupBusy || !isAuthority || mainnetEscrowBlocked}
               className="inline-flex items-center gap-2 border border-[#f7f2df] bg-[#f7f2df] px-4 py-2 text-xs font-black uppercase tracking-wide text-black transition hover:bg-[#53c7ff] disabled:cursor-not-allowed disabled:opacity-50"
               title={isAuthority ? "Enable Metaplex Hybrid route" : "Only the launch authority wallet can enable cPEG"}
             >
@@ -539,6 +549,12 @@ export function CpegHybridPanel({ tokenMint, initialAuthorityAddress, compact }:
         </div>
       ) : (
         <>
+          {mainnetEscrowBlocked ? (
+            <div className="mt-5 border border-[#f7b85c]/40 bg-[#f7b85c]/10 p-4 text-sm leading-6 text-[#ffe2a8]">
+              {state.custody_warning ||
+                "Mainnet capture, release, and market settlement require Metaplex Hybrid escrow custody before user funds can move."}
+            </div>
+          ) : null}
           <div className="mt-5 grid gap-px border border-white/10 bg-white/10 sm:grid-cols-3">
             <Stat icon={ShieldCheck} label="Backing per cPEG" value={backingUnitLabel} />
             <Stat icon={Layers} label="Available cPEGs" value={`${state.available_capacity} / ${state.effective_max_pegs}`} />
@@ -569,7 +585,7 @@ export function CpegHybridPanel({ tokenMint, initialAuthorityAddress, compact }:
                 <button
                   type="button"
                   onClick={isConnected ? handleCapture : login}
-                  disabled={Boolean(actionBusy) || state.available_capacity < captureCountNumber}
+                  disabled={Boolean(actionBusy) || state.available_capacity < captureCountNumber || mainnetEscrowBlocked}
                   className="inline-flex items-center gap-2 border border-[#f7f2df] bg-[#f7f2df] px-4 py-2 text-xs font-black uppercase tracking-wide text-black transition hover:bg-[#53c7ff] disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   {actionBusy === "capture" ? <Loader2 className="h-3 w-3 animate-spin" /> : <PackageOpen className="h-3 w-3" />}
@@ -606,7 +622,7 @@ export function CpegHybridPanel({ tokenMint, initialAuthorityAddress, compact }:
                         <button
                           type="button"
                           onClick={() => handleRelease(asset)}
-                          disabled={Boolean(actionBusy)}
+                          disabled={Boolean(actionBusy) || mainnetEscrowBlocked}
                           className="inline-flex items-center gap-1 border border-[#ec5cff]/50 bg-[#ec5cff]/10 px-3 py-1.5 text-[10px] font-black uppercase tracking-wide text-[#ec5cff] transition hover:bg-[#ec5cff]/20 disabled:cursor-not-allowed disabled:opacity-50"
                         >
                           {actionBusy === `release-${asset.asset_address}` ? (
