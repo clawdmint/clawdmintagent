@@ -50,6 +50,8 @@ interface HybridLaunchState {
   hybrid_status: string;
   collection_address: string | null;
   mpl_hybrid_escrow_address?: string | null;
+  mpl_hybrid_escrow_account_initialized?: boolean;
+  mpl_hybrid_escrow_account_owner?: string | null;
   mpl_hybrid_escrow_token_account?: string | null;
   mpl_hybrid_escrow_token_account_initialized?: boolean;
   mpl_hybrid_native_ready?: boolean;
@@ -502,7 +504,8 @@ export function CpegHybridPanel({ tokenMint, initialAuthorityAddress, compact }:
     setupComplete &&
     state.cluster === "mainnet-beta" &&
     state.mpl_hybrid_escrow_address &&
-    state.mpl_hybrid_escrow_token_account_initialized === false;
+    (state.mpl_hybrid_escrow_account_initialized === false ||
+      state.mpl_hybrid_escrow_token_account_initialized === false);
   const captureCountNumber = Math.max(1, Math.min(8, Number.parseInt(captureCount, 10) || 1));
   const requiredRaw = (() => {
     try {

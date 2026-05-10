@@ -79,6 +79,20 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
     }
 
     const custody = getMplHybridCustodyTarget(data.launch, summary.tokenProgramId);
+    if (data.launch.cluster === "mainnet-beta" && custody.isNativeReady && !summary.hybridEscrowAccountInitialized) {
+      return NextResponse.json(
+        {
+          success: false,
+          error:
+            "Metaplex Hybrid escrow PDA is not initialized yet. The launch authority must run Enable cPEG once more before users can capture.",
+          details: {
+            expected_mpl_hybrid_escrow: custody.escrowAddress,
+            current_mpl_hybrid_escrow_owner: summary.hybridEscrowAccountOwner,
+          },
+        },
+        { status: 409 }
+      );
+    }
     if (data.launch.cluster === "mainnet-beta" && custody.isNativeReady && !summary.vaultTokenAccountInitialized) {
       return NextResponse.json(
         {

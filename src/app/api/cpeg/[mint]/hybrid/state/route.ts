@@ -25,7 +25,10 @@ export async function GET(request: NextRequest, { params }: RouteContext) {
   const counts = await loadHybridAssetCounts(data.launch.id);
   const summary = await buildHybridStateSummary(data.agent, data.launch, counts);
   const custody = getMplHybridCustodyTarget(data.launch, summary.tokenProgramId);
-  const nativeEscrowReady = custody.isNativeReady && summary.vaultTokenAccountInitialized;
+  const nativeEscrowReady =
+    custody.isNativeReady &&
+    summary.hybridEscrowAccountInitialized &&
+    summary.vaultTokenAccountInitialized;
   const custodyWarning =
     data.launch.cluster === "mainnet-beta" && !nativeEscrowReady
       ? "Mainnet capture, release, and market settlement require Metaplex Hybrid escrow custody before user funds can move."
@@ -77,6 +80,8 @@ export async function GET(request: NextRequest, { params }: RouteContext) {
       hybrid_status: summary.status,
       collection_address: summary.collectionAddress,
       mpl_hybrid_escrow_address: custody.escrowAddress,
+      mpl_hybrid_escrow_account_initialized: summary.hybridEscrowAccountInitialized,
+      mpl_hybrid_escrow_account_owner: summary.hybridEscrowAccountOwner,
       mpl_hybrid_escrow_token_account: custody.escrowTokenAccount,
       mpl_hybrid_escrow_token_account_initialized: summary.vaultTokenAccountInitialized,
       mpl_hybrid_native_ready: nativeEscrowReady,

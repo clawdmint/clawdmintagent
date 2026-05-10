@@ -47,6 +47,7 @@ import { fromWeb3JsKeypair, toWeb3JsPublicKey } from "@metaplex-foundation/umi-w
 import { getAgentOperationalKeypair, getAgentWalletBalance } from "@/lib/agent-wallets";
 import { deriveMplHybridEscrowAddress } from "@/lib/cpeg-metaplex-hybrid";
 import {
+  MPL_HYBRID_PROGRAM_ID,
   MPL_HYBRID_DEFAULT_SOL_FEE_ACCOUNT,
   createCaptureV1Instruction,
   createInitEscrowV1Instruction,
@@ -91,6 +92,8 @@ export interface HybridSetupResult {
   collectionAddress: string;
   escrowAddress: string;
   escrowTokenAccount: string;
+  escrowAccountInitialized: boolean;
+  escrowTokenAccountInitialized: boolean;
   vaultTokenAccount: string;
   vaultOwner: string;
   tokenProgramId: string;
@@ -100,6 +103,8 @@ export interface HybridSetupResult {
 export interface HybridStateSummary {
   status: string;
   collectionAddress: string | null;
+  hybridEscrowAccountInitialized: boolean;
+  hybridEscrowAccountOwner: string | null;
   vaultTokenAccount: string | null;
   vaultTokenAccountInitialized: boolean;
   vaultOwner: string | null;
@@ -336,6 +341,8 @@ export async function buildHybridStateSummary(
 ): Promise<HybridStateSummary> {
   const status = launch.hybridStatus;
   const collectionAddress = launch.hybridCoreCollectionAddress;
+  let hybridEscrowAccountInitialized = false;
+  let hybridEscrowAccountOwner: string | null = null;
   let vaultTokenAccount = launch.hybridEscrowAddress;
   let vaultTokenAccountInitialized = false;
   let vaultOwner = agent.solanaWalletAddress;
@@ -353,6 +360,10 @@ export async function buildHybridStateSummary(
     pegUnitRaw = ctx.pegUnitRaw;
     const custody = getMplHybridCustodyTarget(launch, tokenProgramId);
     if (custody.isNativeReady && custody.escrowAddress && custody.escrowTokenAccount) {
+      const escrowInfo = await ctx.connection.getAccountInfo(new PublicKey(custody.escrowAddress), "confirmed").catch(() => null);
+      const expectedProgramId = new PublicKey(launch.hybridProgramId || MPL_HYBRID_PROGRAM_ID.toBase58());
+      hybridEscrowAccountOwner = escrowInfo?.owner?.toBase58() || null;
+      hybridEscrowAccountInitialized = Boolean(escrowInfo?.owner?.equals(expectedProgramId));
       vaultTokenAccount = custody.escrowTokenAccount;
       vaultOwner = custody.escrowAddress;
     }
@@ -378,6 +389,8 @@ export async function buildHybridStateSummary(
   return {
     status,
     collectionAddress,
+    hybridEscrowAccountInitialized,
+    hybridEscrowAccountOwner,
     vaultTokenAccount,
     vaultTokenAccountInitialized,
     vaultOwner,
@@ -451,6 +464,7 @@ export async function setupHybridLaunch(
   }
 
   const escrow = new PublicKey(deriveMplHybridEscrowAddress(collectionAddress));
+  const expectedHybridProgramId = new PublicKey(launch.hybridProgramId || MPL_HYBRID_PROGRAM_ID.toBase58());
   const escrowTokenAccount = deriveMplHybridEscrowTokenAccount(
     ctx.tokenMint,
     escrow,
@@ -510,6 +524,16 @@ export async function setupHybridLaunch(
         programId: launch.hybridProgramId || undefined,
       })
     );
+  } else if (!escrowInfo.owner.equals(expectedHybridProgramId)) {
+    throw new CpegHybridEngineError(
+      409,
+      "Configured Metaplex Hybrid escrow PDA is owned by an unexpected program.",
+      {
+        expected_mpl_hybrid_program: expectedHybridProgramId.toBase58(),
+        escrow_address: escrow.toBase58(),
+        current_owner: escrowInfo.owner.toBase58(),
+      }
+    );
   }
   const escrowTokenAccountInfo = await ctx.connection.getAccountInfo(escrowTokenAccount, "confirmed");
   if (!escrowTokenAccountInfo) {
@@ -529,10 +553,31 @@ export async function setupHybridLaunch(
     setupTxSignature = nativeSetupSig || setupTxSignature;
   }
 
+  const verifiedEscrowInfo = await ctx.connection.getAccountInfo(escrow, "confirmed");
+  const verifiedEscrowTokenAccountInfo = await ctx.connection.getAccountInfo(escrowTokenAccount, "confirmed");
+  const escrowAccountInitialized = Boolean(verifiedEscrowInfo?.owner.equals(expectedHybridProgramId));
+  const escrowTokenAccountInitialized = Boolean(verifiedEscrowTokenAccountInfo?.owner.equals(ctx.tokenProgramId));
+  if (!escrowAccountInitialized || !escrowTokenAccountInitialized) {
+    throw new CpegHybridEngineError(
+      409,
+      "Metaplex Hybrid escrow setup did not initialize on-chain. Try Enable cPEG again after confirming the agent wallet has enough SOL.",
+      {
+        expected_mpl_hybrid_program: expectedHybridProgramId.toBase58(),
+        escrow_address: escrow.toBase58(),
+        escrow_owner: verifiedEscrowInfo?.owner?.toBase58() || null,
+        escrow_token_account: escrowTokenAccount.toBase58(),
+        escrow_token_account_owner: verifiedEscrowTokenAccountInfo?.owner?.toBase58() || null,
+        setup_tx_signature: setupTxSignature,
+      }
+    );
+  }
+
   return {
     collectionAddress,
     escrowAddress: escrow.toBase58(),
     escrowTokenAccount: escrowTokenAccount.toBase58(),
+    escrowAccountInitialized,
+    escrowTokenAccountInitialized,
     vaultTokenAccount: escrowTokenAccount.toBase58(),
     vaultOwner: escrow.toBase58(),
     tokenProgramId: ctx.tokenProgramId.toBase58(),
