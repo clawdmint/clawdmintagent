@@ -50,6 +50,8 @@ import {
   MPL_HYBRID_PROGRAM_ID,
   MPL_HYBRID_DEFAULT_SOL_FEE_ACCOUNT,
   MPL_HYBRID_PATH_NO_REROLL_METADATA,
+  MPL_HYBRID_PROTOCOL_SOL_FEE_LAMPORTS,
+  MPL_HYBRID_TX_OVERHEAD_LAMPORTS,
   createCaptureV1Instruction,
   createInitEscrowV1Instruction,
   createInitNftDataV1Instruction,
@@ -824,20 +826,50 @@ export async function buildCaptureTransferInstructions(
   }
   if (userBalanceRaw < totalRaw) {
     const denom = ctx.pegUnitRaw === BigInt(0) ? BigInt(1) : ctx.pegUnitRaw;
+    let decimalsDenom = BigInt(1);
+    for (let i = 0; i < ctx.decimals; i += 1) decimalsDenom *= BigInt(10);
+    const haveWhole = Number(userBalanceRaw / decimalsDenom);
+    const needWhole = Number(totalRaw / decimalsDenom);
     throw new CpegHybridEngineError(
       402,
-      `Wallet has enough tokens for ${Number(userBalanceRaw / denom)} cPEG capture(s), but ${capCount} are required.`,
+      `Insufficient ${launch.symbol || "token"} balance: you have ${haveWhole} but need ${needWhole} for ${capCount} cPEG capture(s).`,
       {
         token_mint: ctx.tokenMint.toBase58(),
         token_program_id: ctx.tokenProgramId.toBase58(),
         decimals: ctx.decimals,
         peg_unit_raw: ctx.pegUnitRaw.toString(),
         balance_raw: userBalanceRaw.toString(),
+        balance_whole: haveWhole,
         required_raw: totalRaw.toString(),
+        required_whole: needWhole,
+        captures: Number(userBalanceRaw / denom),
         user_token_account: userAta.toBase58(),
         user_token_account_initialized: Boolean(userAtaInfo),
       }
     );
+  }
+  // MPL Hybrid debits a fixed protocol SOL fee from the user wallet on every
+  // capture_v1. If the user does not have enough SOL the transaction will be
+  // rejected with a System Program "insufficient lamports" error. Surface this
+  // up front with a clear message instead of letting it reach the network.
+  const requiredLamports =
+    MPL_HYBRID_PROTOCOL_SOL_FEE_LAMPORTS * BigInt(capCount) + MPL_HYBRID_TX_OVERHEAD_LAMPORTS;
+  if (nativeEscrowReady) {
+    const userLamports = BigInt(await ctx.connection.getBalance(userPubkey, "confirmed"));
+    if (userLamports < requiredLamports) {
+      throw new CpegHybridEngineError(
+        402,
+        `Insufficient SOL for the Metaplex Hybrid protocol fee: you have ${(Number(userLamports) / 1e9).toFixed(6)} SOL but need at least ${(Number(requiredLamports) / 1e9).toFixed(6)} SOL.`,
+        {
+          wallet: userPubkey.toBase58(),
+          balance_lamports: userLamports.toString(),
+          required_lamports: requiredLamports.toString(),
+          protocol_fee_per_capture_lamports: MPL_HYBRID_PROTOCOL_SOL_FEE_LAMPORTS.toString(),
+          tx_overhead_lamports: MPL_HYBRID_TX_OVERHEAD_LAMPORTS.toString(),
+          captures: capCount,
+        }
+      );
+    }
   }
   const ixs: InstanceType<typeof TransactionInstruction>[] = [];
   const vaultAtaInfo = await ctx.connection.getAccountInfo(vaultAta, "confirmed");
@@ -1197,6 +1229,23 @@ export async function buildReleaseTransferInstructions(
   }
   if (nativeEscrowReady) {
     const userPubkey = new PublicKey(userWallet);
+    // MPL Hybrid charges a fixed protocol SOL fee on every release_v1.
+    // Verify the user can cover the fee before we ask them to sign anything.
+    const requiredLamports = MPL_HYBRID_PROTOCOL_SOL_FEE_LAMPORTS + MPL_HYBRID_TX_OVERHEAD_LAMPORTS;
+    const userLamports = BigInt(await ctx.connection.getBalance(userPubkey, "confirmed"));
+    if (userLamports < requiredLamports) {
+      throw new CpegHybridEngineError(
+        402,
+        `Insufficient SOL to release this cPEG. The Metaplex Hybrid protocol fee is ${(Number(MPL_HYBRID_PROTOCOL_SOL_FEE_LAMPORTS) / 1e9).toFixed(6)} SOL per release; your wallet has ${(Number(userLamports) / 1e9).toFixed(6)} SOL.`,
+        {
+          wallet: userPubkey.toBase58(),
+          balance_lamports: userLamports.toString(),
+          required_lamports: requiredLamports.toString(),
+          protocol_fee_lamports: MPL_HYBRID_PROTOCOL_SOL_FEE_LAMPORTS.toString(),
+          tx_overhead_lamports: MPL_HYBRID_TX_OVERHEAD_LAMPORTS.toString(),
+        }
+      );
+    }
     const userAta = getAssociatedTokenAddressSync(
       ctx.tokenMint,
       userPubkey,

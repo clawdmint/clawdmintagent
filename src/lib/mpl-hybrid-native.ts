@@ -23,6 +23,16 @@ const UPDATE_ESCROW_V1_DISCRIMINATOR = Buffer.from([72, 45, 208, 14, 174, 238, 2
 // Path bit indices used by mpl-hybrid: NoRerollMetadata = bit 0.
 export const MPL_HYBRID_PATH_NO_REROLL_METADATA = 1 << 0;
 
+// MPL Hybrid charges a fixed protocol fee (in lamports) on each capture_v1 and
+// release_v1 invocation. The fee is debited from the user's wallet and forwarded
+// to MPL_HYBRID_DEFAULT_SOL_FEE_ACCOUNT. The value is hard-coded inside the
+// program; surfacing it here lets the API perform a pre-flight balance check so
+// users see a clear error instead of a generic "On-chain rejected" rejection.
+export const MPL_HYBRID_PROTOCOL_SOL_FEE_LAMPORTS = BigInt(5_000_000);
+// Small safety buffer to cover the transaction signature fee plus any ATA rent
+// the user might need to fund as part of the same instruction.
+export const MPL_HYBRID_TX_OVERHEAD_LAMPORTS = BigInt(500_000);
+
 type Web3PublicKey = InstanceType<typeof PublicKey>;
 type PublicKeyInput = string | Web3PublicKey;
 
