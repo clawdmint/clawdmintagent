@@ -234,13 +234,6 @@ export default async function CpegPage() {
               </Link>
             </div>
 
-            <div className="mt-10 flex flex-wrap items-center gap-x-6 gap-y-2 border-l-2 border-[#53c7ff]/60 pl-4 font-mono text-[10px] uppercase tracking-[0.24em] text-neutral-500 dark:text-white/45">
-              <span>Metaplex Core</span>
-              <span className="opacity-40">/</span>
-              <span>MPL Hybrid</span>
-              <span className="opacity-40">/</span>
-              <span>Genesis</span>
-            </div>
           </div>
 
           {/* cinematic PEG showcase */}

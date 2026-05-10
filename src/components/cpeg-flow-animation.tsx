@@ -2,103 +2,64 @@
 
 import { Coins, Lock, Sparkles, ShoppingBag } from "lucide-react";
 
-const captureParticles = Array.from({ length: 10 }, (_, i) => i);
-const releaseParticles = Array.from({ length: 7 }, (_, i) => i);
-const orbitParticles = Array.from({ length: 8 }, (_, i) => i);
+const forwardParticles = Array.from({ length: 14 }, (_, i) => i);
+const reverseParticles = Array.from({ length: 9 }, (_, i) => i);
 
 type Tone = "ivory" | "blue" | "magenta" | "amber";
 
-interface FlowNode {
-  index: string;
+interface NodeDef {
   label: string;
-  caption: string;
   icon: typeof Coins;
   tone: Tone;
 }
 
-const nodes: FlowNode[] = [
-  {
-    index: "01",
-    label: "Token",
-    caption: "Hold the agent token.",
-    icon: Coins,
-    tone: "ivory",
-  },
-  {
-    index: "02",
-    label: "Escrow",
-    caption: "Lock backing via MPL Hybrid.",
-    icon: Lock,
-    tone: "blue",
-  },
-  {
-    index: "03",
-    label: "cPEG",
-    caption: "Receive a Core identity.",
-    icon: Sparkles,
-    tone: "magenta",
-  },
-  {
-    index: "04",
-    label: "Trade",
-    caption: "Sell or release back.",
-    icon: ShoppingBag,
-    tone: "amber",
-  },
+const nodes: NodeDef[] = [
+  { label: "Token", icon: Coins, tone: "ivory" },
+  { label: "Escrow", icon: Lock, tone: "blue" },
+  { label: "cPEG", icon: Sparkles, tone: "magenta" },
+  { label: "Trade", icon: ShoppingBag, tone: "amber" },
 ];
 
 const toneTokens: Record<
   Tone,
-  {
-    text: string;
-    ring: string;
-    glow: string;
-    fill: string;
-    halo: string;
-    accent: string;
-    bgRgb: string;
-  }
+  { hex: string; rgb: string; text: string; ring: string; glow: string; fill: string }
 > = {
   ivory: {
+    hex: "#f7f2df",
+    rgb: "247,242,223",
     text: "text-[#f7f2df]",
-    ring: "border-[#f7f2df]/60",
-    glow: "shadow-[0_0_46px_-8px_rgba(247,242,223,0.55)]",
-    fill: "bg-[#f7f2df]/10",
-    halo: "from-[#f7f2df]/30 to-transparent",
-    accent: "#f7f2df",
-    bgRgb: "247,242,223",
+    ring: "border-[#f7f2df]/55",
+    glow: "shadow-[0_0_50px_-6px_rgba(247,242,223,0.5)]",
+    fill: "bg-[#f7f2df]/8",
   },
   blue: {
+    hex: "#53c7ff",
+    rgb: "83,199,255",
     text: "text-[#53c7ff]",
-    ring: "border-[#53c7ff]/65",
-    glow: "shadow-[0_0_46px_-8px_rgba(83,199,255,0.75)]",
-    fill: "bg-[#53c7ff]/12",
-    halo: "from-[#53c7ff]/40 to-transparent",
-    accent: "#53c7ff",
-    bgRgb: "83,199,255",
+    ring: "border-[#53c7ff]/70",
+    glow: "shadow-[0_0_50px_-6px_rgba(83,199,255,0.75)]",
+    fill: "bg-[#53c7ff]/10",
   },
   magenta: {
+    hex: "#ec5cff",
+    rgb: "236,92,255",
     text: "text-[#ec5cff]",
-    ring: "border-[#ec5cff]/60",
-    glow: "shadow-[0_0_50px_-8px_rgba(236,92,255,0.75)]",
-    fill: "bg-[#ec5cff]/12",
-    halo: "from-[#ec5cff]/40 to-transparent",
-    accent: "#ec5cff",
-    bgRgb: "236,92,255",
+    ring: "border-[#ec5cff]/65",
+    glow: "shadow-[0_0_55px_-6px_rgba(236,92,255,0.8)]",
+    fill: "bg-[#ec5cff]/10",
   },
   amber: {
+    hex: "#f7c948",
+    rgb: "247,201,72",
     text: "text-[#f7c948]",
-    ring: "border-[#f7c948]/65",
-    glow: "shadow-[0_0_46px_-8px_rgba(247,201,72,0.65)]",
-    fill: "bg-[#f7c948]/12",
-    halo: "from-[#f7c948]/35 to-transparent",
-    accent: "#f7c948",
-    bgRgb: "247,201,72",
+    ring: "border-[#f7c948]/70",
+    glow: "shadow-[0_0_50px_-6px_rgba(247,201,72,0.7)]",
+    fill: "bg-[#f7c948]/10",
   },
 };
 
 interface PipelineNodeProps {
-  node: FlowNode;
+  node: NodeDef;
   delay: number;
 }
 
@@ -106,320 +67,233 @@ function PipelineNode({ node, delay }: PipelineNodeProps) {
   const tone = toneTokens[node.tone];
   const Icon = node.icon;
   return (
-    <div className="relative z-10 flex flex-col items-center text-center">
-      <div className="relative">
+    <div className="relative z-20 flex flex-col items-center text-center">
+      {/* outer concentric ring */}
+      <span
+        aria-hidden
+        className="cpeg-ring-2 pointer-events-none absolute inset-x-0 top-0 mx-auto h-16 w-16 rounded-full border sm:h-20 sm:w-20 md:h-28 md:w-28"
+        style={{
+          borderColor: `rgba(${tone.rgb}, 0.18)`,
+          animationDelay: `${delay * 0.4 + 0.6}s`,
+        }}
+      />
+      <span
+        aria-hidden
+        className="cpeg-ring-1 pointer-events-none absolute inset-x-0 top-0 mx-auto h-16 w-16 rounded-full border sm:h-20 sm:w-20 md:h-28 md:w-28"
+        style={{
+          borderColor: `rgba(${tone.rgb}, 0.35)`,
+          animationDelay: `${delay * 0.4}s`,
+        }}
+      />
+
+      <div
+        className={`relative grid h-16 w-16 place-items-center rounded-full border-2 bg-[#0a0a0e] sm:h-20 sm:w-20 md:h-28 md:w-28 ${tone.ring} ${tone.glow} cpeg-node-float`}
+        style={{ animationDelay: `${delay * 0.25}s` }}
+      >
+        <span aria-hidden className={`absolute inset-0 rounded-full ${tone.fill}`} />
         <span
           aria-hidden
-          className="cpeg-ring-1 pointer-events-none absolute inset-0 -m-3 rounded-full border"
+          className="absolute inset-0 rounded-full"
           style={{
-            borderColor: `rgba(${tone.bgRgb}, 0.35)`,
-            animationDelay: `${delay * 0.4}s`,
+            backgroundImage: `radial-gradient(circle at 50% 35%, rgba(${tone.rgb}, 0.45), transparent 70%)`,
+            mixBlendMode: "screen",
           }}
         />
-        <span
-          aria-hidden
-          className="cpeg-ring-2 pointer-events-none absolute inset-0 -m-6 rounded-full border"
-          style={{
-            borderColor: `rgba(${tone.bgRgb}, 0.18)`,
-            animationDelay: `${delay * 0.4 + 0.6}s`,
-          }}
-        />
-        <div
-          className={`relative grid h-24 w-24 place-items-center border-2 bg-neutral-50 transition duration-300 dark:bg-[#0a0a0a] md:h-28 md:w-28 ${tone.ring} ${tone.glow} cpeg-node-float hover:-translate-y-1`}
-          style={{ animationDelay: `${delay * 0.25}s` }}
-        >
+        <Icon className={`relative h-6 w-6 sm:h-8 sm:w-8 md:h-10 md:w-10 ${tone.text}`} strokeWidth={1.75} />
+
+        {/* live dot */}
+        <span aria-hidden className="absolute -top-1.5 -right-1.5 inline-flex h-3 w-3 items-center justify-center">
           <span
-            aria-hidden
-            className={`pointer-events-none absolute inset-0 ${tone.fill}`}
+            className="cpeg-pulse-dot absolute inline-block h-3 w-3 rounded-full"
+            style={{ backgroundColor: `rgba(${tone.rgb}, 0.45)` }}
           />
           <span
-            aria-hidden
-            className={`pointer-events-none absolute -inset-px bg-gradient-radial ${tone.halo} opacity-40 mix-blend-screen`}
+            className="relative inline-block h-2 w-2 rounded-full"
+            style={{ backgroundColor: tone.hex }}
           />
-          <Icon className={`relative h-10 w-10 ${tone.text}`} />
-          <span
-            aria-hidden
-            className="absolute -top-1.5 -right-1.5 inline-flex h-3 w-3 items-center justify-center"
-          >
-            <span
-              className="cpeg-pulse-dot absolute inline-block h-3 w-3 rounded-full"
-              style={{ backgroundColor: `rgba(${tone.bgRgb}, 0.45)` }}
-            />
-            <span
-              className="relative inline-block h-2 w-2 rounded-full"
-              style={{ backgroundColor: tone.accent }}
-            />
-          </span>
-        </div>
+        </span>
       </div>
 
-      <div className="mt-5">
-        <p className={`font-mono text-[10px] uppercase tracking-[0.28em] ${tone.text}`}>
-          <span className="opacity-70">{node.index}</span>{" "}
-          <span className="font-black">{node.label}</span>
-        </p>
-        <p className="mt-2 max-w-[170px] text-[12px] leading-5 text-neutral-600 dark:text-white/55">
-          {node.caption}
-        </p>
-      </div>
+      <p className={`mt-4 font-mono text-[11px] font-black uppercase tracking-[0.28em] ${tone.text}`}>
+        {node.label}
+      </p>
     </div>
   );
 }
 
 export function CpegFlowAnimation() {
   return (
-    <div className="relative w-full overflow-hidden border border-neutral-200 bg-neutral-100/90 px-6 py-14 dark:border-white/10 dark:bg-[#0a0a0a] md:px-10 md:py-20">
+    <div className="relative w-full overflow-hidden border border-white/10 bg-[#08080c] py-14 md:py-20">
       <style>{`
         @keyframes cpegFlowLtr {
-          0% { transform: translateX(-10%); opacity: 0; }
-          10% { opacity: 1; }
-          90% { opacity: 1; }
-          100% { transform: translateX(110%); opacity: 0; }
+          0% { transform: translateX(0); opacity: 0; }
+          8% { opacity: 1; }
+          92% { opacity: 1; }
+          100% { transform: translateX(100%); opacity: 0; }
         }
         @keyframes cpegFlowRtl {
-          0% { transform: translateX(110%); opacity: 0; }
-          10% { opacity: 1; }
-          90% { opacity: 1; }
-          100% { transform: translateX(-10%); opacity: 0; }
-        }
-        @keyframes cpegOrbit {
-          0% { transform: rotate(0deg) translateX(46px) rotate(0deg); opacity: 0; }
-          15% { opacity: 1; }
-          85% { opacity: 1; }
-          100% { transform: rotate(360deg) translateX(46px) rotate(-360deg); opacity: 0; }
+          0% { transform: translateX(100%); opacity: 0; }
+          8% { opacity: 1; }
+          92% { opacity: 1; }
+          100% { transform: translateX(0); opacity: 0; }
         }
         @keyframes cpegRingPulse {
           0%, 100% { transform: scale(0.95); opacity: 0.35; }
-          50% { transform: scale(1.15); opacity: 0.85; }
+          50% { transform: scale(1.18); opacity: 0.85; }
         }
         @keyframes cpegRingPulseSm {
           0%, 100% { transform: scale(0.92); opacity: 0.55; }
-          50% { transform: scale(1.08); opacity: 1; }
+          50% { transform: scale(1.1); opacity: 1; }
         }
         @keyframes cpegNodeFloat {
           0%, 100% { transform: translateY(0); }
           50% { transform: translateY(-4px); }
         }
         @keyframes cpegDotPulse {
-          0%, 100% { transform: scale(0.9); opacity: 0.45; }
-          50% { transform: scale(2.1); opacity: 0; }
+          0%, 100% { transform: scale(0.9); opacity: 0.55; }
+          50% { transform: scale(2.2); opacity: 0; }
         }
-        @keyframes cpegLineShimmer {
-          0% { background-position: -200% 0; }
-          100% { background-position: 200% 0; }
+        @keyframes cpegPipeGlow {
+          0%, 100% { opacity: 0.55; }
+          50% { opacity: 0.95; }
         }
-        @keyframes cpegSpin {
+        @keyframes cpegSpinSlow {
           to { transform: rotate(360deg); }
         }
-        .cpeg-particle-ltr { animation: cpegFlowLtr 5.5s linear infinite; }
-        .cpeg-particle-rtl { animation: cpegFlowRtl 6.5s linear infinite; }
-        .cpeg-orbit-particle { animation: cpegOrbit 8s linear infinite; }
+        .cpeg-particle-ltr { animation: cpegFlowLtr 4.5s linear infinite; }
+        .cpeg-particle-rtl { animation: cpegFlowRtl 5.5s linear infinite; }
         .cpeg-ring-1 { animation: cpegRingPulseSm 3s ease-in-out infinite; }
         .cpeg-ring-2 { animation: cpegRingPulse 4.5s ease-in-out infinite; }
         .cpeg-node-float { animation: cpegNodeFloat 5s ease-in-out infinite; }
         .cpeg-pulse-dot { animation: cpegDotPulse 2.2s ease-out infinite; }
-        .cpeg-line-shimmer {
-          background-image: linear-gradient(90deg,
-            transparent 0%,
-            rgba(83,199,255,0) 30%,
-            rgba(83,199,255,0.95) 50%,
-            rgba(236,92,255,0) 70%,
-            transparent 100%);
-          background-size: 200% 100%;
-          animation: cpegLineShimmer 4.5s linear infinite;
-        }
-        .cpeg-spin-slow { animation: cpegSpin 22s linear infinite; }
-        .bg-gradient-radial { background-image: radial-gradient(circle at center, var(--tw-gradient-stops)); }
+        .cpeg-pipe-glow { animation: cpegPipeGlow 3.5s ease-in-out infinite; }
+        .cpeg-spin-slow { animation: cpegSpinSlow 28s linear infinite; }
         @media (prefers-reduced-motion: reduce) {
-          .cpeg-particle-ltr, .cpeg-particle-rtl, .cpeg-orbit-particle, .cpeg-ring-1, .cpeg-ring-2,
-          .cpeg-node-float, .cpeg-pulse-dot, .cpeg-line-shimmer, .cpeg-spin-slow {
+          .cpeg-particle-ltr, .cpeg-particle-rtl, .cpeg-ring-1, .cpeg-ring-2,
+          .cpeg-node-float, .cpeg-pulse-dot, .cpeg-pipe-glow, .cpeg-spin-slow {
             animation: none !important;
           }
         }
       `}</style>
 
-      {/* radial backdrop */}
+      {/* backdrop glow */}
       <div
         aria-hidden
-        className="pointer-events-none absolute inset-0 opacity-55"
+        className="pointer-events-none absolute inset-0 opacity-70"
         style={{
           backgroundImage:
-            "radial-gradient(circle at 12% 25%, rgba(83,199,255,0.20), transparent 42%), radial-gradient(circle at 88% 75%, rgba(236,92,255,0.16), transparent 42%), radial-gradient(circle at 50% 50%, rgba(247,201,72,0.06), transparent 60%)",
+            "radial-gradient(circle at 15% 50%, rgba(83,199,255,0.18), transparent 45%), radial-gradient(circle at 85% 50%, rgba(236,92,255,0.16), transparent 45%), radial-gradient(circle at 50% 100%, rgba(247,201,72,0.06), transparent 60%)",
         }}
       />
-      {/* grid backdrop */}
+
+      {/* faint grid */}
       <div
         aria-hidden
-        className="pointer-events-none absolute inset-0 opacity-[0.07]"
+        className="pointer-events-none absolute inset-0 opacity-[0.06]"
         style={{
           backgroundImage:
-            "linear-gradient(rgba(255,255,255,0.4) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.4) 1px, transparent 1px)",
+            "linear-gradient(rgba(255,255,255,0.5) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.5) 1px, transparent 1px)",
           backgroundSize: "44px 44px",
-          maskImage:
-            "radial-gradient(circle at 50% 50%, black 30%, transparent 75%)",
-          WebkitMaskImage:
-            "radial-gradient(circle at 50% 50%, black 30%, transparent 75%)",
+          maskImage: "radial-gradient(circle at 50% 50%, black 30%, transparent 80%)",
+          WebkitMaskImage: "radial-gradient(circle at 50% 50%, black 30%, transparent 80%)",
         }}
       />
-      {/* slowly rotating accent ring */}
+
+      {/* rotating accent ring */}
       <div
         aria-hidden
-        className="pointer-events-none absolute -right-32 top-1/2 hidden h-[420px] w-[420px] -translate-y-1/2 opacity-30 md:block"
+        className="pointer-events-none absolute -right-40 top-1/2 hidden h-[460px] w-[460px] -translate-y-1/2 opacity-30 md:block"
       >
         <div
           className="cpeg-spin-slow h-full w-full rounded-full border border-dashed"
-          style={{ borderColor: "rgba(83,199,255,0.35)" }}
+          style={{ borderColor: "rgba(83,199,255,0.3)" }}
+        />
+      </div>
+      <div
+        aria-hidden
+        className="pointer-events-none absolute -left-40 top-1/2 hidden h-[460px] w-[460px] -translate-y-1/2 opacity-25 md:block"
+      >
+        <div
+          className="cpeg-spin-slow h-full w-full rounded-full border border-dashed"
+          style={{ borderColor: "rgba(236,92,255,0.3)", animationDirection: "reverse" }}
         />
       </div>
 
-      <div className="relative grid grid-cols-1 items-stretch gap-10 md:grid-cols-[1.05fr_2.6fr_1fr]">
-        {/* Left: explainer */}
-        <div className="relative flex flex-col justify-center text-left md:pr-2">
-          <p className="font-mono text-[10px] uppercase tracking-[0.3em] text-[#53c7ff]">
-            cPEG pipeline
-          </p>
-          <h3 className="mt-3 text-2xl font-black uppercase leading-[1.05] text-neutral-950 dark:text-[#f7f2df] md:text-3xl">
-            One round-trip,
-            <br />
-            <span className="text-[#53c7ff]">four moves.</span>
-          </h3>
-          <p className="mt-3 text-[13px] leading-6 text-neutral-600 dark:text-white/55">
-            Tokens flow into escrow, identities flow back out. Trade them on the market or
-            redeem them back to tokens any time.
-          </p>
-
-          <div className="mt-5 grid gap-2 font-mono text-[10px] uppercase tracking-[0.2em]">
-            <div className="flex items-center gap-2 text-neutral-600 dark:text-white/55">
-              <span className="cpeg-pulse-dot relative inline-flex h-2 w-2 items-center justify-center">
-                <span className="absolute inline-block h-2 w-2 rounded-full bg-[#53c7ff]/60" />
-                <span className="relative inline-block h-1.5 w-1.5 rounded-full bg-[#53c7ff]" />
-              </span>
-              Capture: token to cPEG
-            </div>
-            <div className="flex items-center gap-2 text-neutral-600 dark:text-white/55">
-              <span className="cpeg-pulse-dot relative inline-flex h-2 w-2 items-center justify-center" style={{ animationDelay: "1.2s" }}>
-                <span className="absolute inline-block h-2 w-2 rounded-full bg-[#ec5cff]/60" />
-                <span className="relative inline-block h-1.5 w-1.5 rounded-full bg-[#ec5cff]" />
-              </span>
-              Release: cPEG to token
-            </div>
-            <div className="flex items-center gap-2 text-neutral-600 dark:text-white/55">
-              <span className="cpeg-pulse-dot relative inline-flex h-2 w-2 items-center justify-center" style={{ animationDelay: "2.1s" }}>
-                <span className="absolute inline-block h-2 w-2 rounded-full bg-[#f7c948]/60" />
-                <span className="relative inline-block h-1.5 w-1.5 rounded-full bg-[#f7c948]" />
-              </span>
-              Trade: cPEG for SOL
-            </div>
-          </div>
-        </div>
-
-        {/* Center: animated pipeline */}
-        <div className="relative">
-          {/* shimmering connecting line */}
+      <div className="relative mx-auto max-w-5xl px-4 md:px-8">
+        {/* PIPE + NODES */}
+        <div className="relative grid grid-cols-4 items-center gap-1 md:gap-4">
+          {/* the pipe (tube) sitting horizontally behind nodes */}
           <div
             aria-hidden
-            className="absolute left-[8%] right-[8%] top-[3.25rem] hidden h-[2px] md:block md:top-14"
+            className="pointer-events-none absolute left-[12.5%] right-[12.5%] top-1/2 block h-2 -translate-y-1/2 overflow-hidden rounded-full md:h-3"
           >
-            <div className="absolute inset-0 bg-gradient-to-r from-[#53c7ff]/0 via-[#53c7ff]/55 to-[#ec5cff]/0" />
-            <div className="cpeg-line-shimmer absolute inset-0 opacity-95" />
-          </div>
-          {/* second line below, magenta direction */}
-          <div
-            aria-hidden
-            className="absolute left-[8%] right-[8%] top-[3.55rem] hidden h-[2px] md:block md:top-[3.85rem]"
-          >
-            <div className="absolute inset-0 bg-gradient-to-r from-[#ec5cff]/0 via-[#ec5cff]/30 to-[#53c7ff]/0 blur-[2px]" />
-          </div>
+            {/* tube body */}
+            <div
+              className="absolute inset-0"
+              style={{
+                backgroundImage:
+                  "linear-gradient(180deg, rgba(255,255,255,0.18) 0%, rgba(255,255,255,0.04) 40%, rgba(0,0,0,0.5) 100%)",
+                boxShadow: "inset 0 0 14px rgba(0,0,0,0.7)",
+              }}
+            />
+            {/* tube neon inner glow */}
+            <div
+              className="cpeg-pipe-glow absolute inset-x-0 top-1/2 h-[2px] -translate-y-1/2"
+              style={{
+                backgroundImage:
+                  "linear-gradient(90deg, rgba(83,199,255,0.0), rgba(83,199,255,0.85) 30%, rgba(236,92,255,0.85) 70%, rgba(247,201,72,0.0))",
+                boxShadow:
+                  "0 0 12px rgba(83,199,255,0.7), 0 0 20px rgba(236,92,255,0.4)",
+              }}
+            />
 
-          {/* capture particles - LTR */}
-          <div
-            aria-hidden
-            className="pointer-events-none absolute left-[8%] right-[8%] top-14 hidden h-1 md:block"
-          >
-            {captureParticles.map((i) => (
+            {/* forward particles (blue) */}
+            {forwardParticles.map((i) => (
               <span
                 key={`ltr-${i}`}
-                className="cpeg-particle-ltr absolute top-0 h-1 w-1.5 rounded-full bg-[#53c7ff] shadow-[0_0_10px_3px_rgba(83,199,255,0.85)]"
-                style={{ animationDelay: `${i * 0.55}s` }}
+                className="cpeg-particle-ltr absolute top-1/2 -translate-y-1/2 h-2 w-3 rounded-full bg-[#53c7ff]"
+                style={{
+                  animationDelay: `${i * 0.42}s`,
+                  boxShadow:
+                    "0 0 8px rgba(83,199,255,0.95), 0 0 16px rgba(83,199,255,0.55)",
+                }}
               />
             ))}
-          </div>
 
-          {/* release particles - RTL */}
-          <div
-            aria-hidden
-            className="pointer-events-none absolute left-[8%] right-[8%] top-[3.85rem] hidden h-1 md:block"
-          >
-            {releaseParticles.map((i) => (
+            {/* reverse particles (magenta) */}
+            {reverseParticles.map((i) => (
               <span
                 key={`rtl-${i}`}
-                className="cpeg-particle-rtl absolute top-0 h-[3px] w-[3px] rounded-full bg-[#ec5cff] shadow-[0_0_8px_2px_rgba(236,92,255,0.75)]"
-                style={{ animationDelay: `${i * 0.9 + 0.4}s` }}
+                className="cpeg-particle-rtl absolute top-1/2 -translate-y-1/2 h-[5px] w-2 rounded-full bg-[#ec5cff]"
+                style={{
+                  animationDelay: `${i * 0.6 + 0.3}s`,
+                  boxShadow:
+                    "0 0 8px rgba(236,92,255,0.95), 0 0 14px rgba(236,92,255,0.55)",
+                }}
               />
             ))}
           </div>
 
           {/* nodes */}
-          <div className="relative grid grid-cols-2 items-start gap-y-12 gap-x-6 md:grid-cols-4 md:gap-x-2">
-            {nodes.map((node, i) => (
-              <PipelineNode key={node.label} node={node} delay={i} />
-            ))}
-          </div>
-
-          {/* orbit beads around the cPEG node (3rd) - hidden on mobile, visible md+ */}
-          <div
-            aria-hidden
-            className="pointer-events-none absolute hidden md:block"
-            style={{ left: "calc(50% + 12%)", top: "0.5rem", width: 0, height: 0 }}
-          >
-            <div className="relative">
-              {orbitParticles.map((i) => (
-                <span
-                  key={`orbit-${i}`}
-                  className="cpeg-orbit-particle absolute -left-[3px] -top-[3px] h-1.5 w-1.5 rounded-full bg-[#ec5cff] shadow-[0_0_8px_2px_rgba(236,92,255,0.75)]"
-                  style={{ animationDelay: `${i * 1}s` }}
-                />
-              ))}
-            </div>
-          </div>
+          {nodes.map((node, i) => (
+            <PipelineNode key={node.label} node={node} delay={i} />
+          ))}
         </div>
 
-        {/* Right: live result card */}
-        <div className="relative flex flex-col justify-center md:pl-2">
-          <div className="relative border border-neutral-200 bg-white p-5 dark:border-white/10 dark:bg-[#0c0c0c]">
-            <span
-              aria-hidden
-              className="pointer-events-none absolute inset-0 opacity-50"
-              style={{
-                backgroundImage:
-                  "radial-gradient(circle at 80% 0%, rgba(83,199,255,0.10), transparent 50%)",
-              }}
-            />
-            <div className="relative">
-              <div className="flex items-center justify-between gap-3">
-                <p className="font-mono text-[10px] uppercase tracking-[0.24em] text-[#53c7ff]">
-                  Net result
-                </p>
-                <span className="inline-flex items-center gap-1 font-mono text-[9px] uppercase tracking-[0.2em] text-neutral-500 dark:text-white/45">
-                  <span className="cpeg-pulse-dot relative inline-flex h-2 w-2 items-center justify-center">
-                    <span className="absolute inline-block h-2 w-2 rounded-full bg-emerald-400/60" />
-                    <span className="relative inline-block h-1.5 w-1.5 rounded-full bg-emerald-400" />
-                  </span>
-                  Live
-                </span>
-              </div>
-              <p className="mt-3 text-sm leading-6 text-neutral-700 dark:text-white/70">
-                The token <span className="font-black text-neutral-950 dark:text-[#f7f2df]">is</span> the
-                PEG. Capture is reversible. Identities are on-chain art.
-              </p>
-              <div className="mt-4 flex items-center gap-2 border-t border-neutral-200 pt-3 font-mono text-[10px] uppercase tracking-[0.22em] text-neutral-500 dark:border-white/10 dark:text-white/40">
-                <span>Built on</span>
-                <span className="text-neutral-900 dark:text-[#f7f2df]">Metaplex</span>
-                <span className="opacity-50">/</span>
-                <span className="text-neutral-900 dark:text-[#f7f2df]">Solana</span>
-              </div>
-            </div>
-          </div>
+        {/* minimal legend */}
+        <div className="mt-12 flex flex-wrap items-center justify-center gap-x-10 gap-y-3 font-mono text-[10px] uppercase tracking-[0.28em] text-white/55">
+          <span className="inline-flex items-center gap-2">
+            <span className="inline-block h-1 w-6 rounded-full bg-[#53c7ff] shadow-[0_0_8px_2px_rgba(83,199,255,0.6)]" />
+            Capture
+          </span>
+          <span className="inline-flex items-center gap-2 text-white/50">
+            <span className="inline-block h-1 w-6 rounded-full bg-[#ec5cff] shadow-[0_0_8px_2px_rgba(236,92,255,0.6)]" />
+            Release
+          </span>
+          <span className="inline-flex items-center gap-2 text-white/40">
+            <span className="inline-block h-1.5 w-1.5 rounded-full bg-[#f7c948] shadow-[0_0_6px_2px_rgba(247,201,72,0.6)]" />
+            Trade on Solana
+          </span>
         </div>
       </div>
     </div>
