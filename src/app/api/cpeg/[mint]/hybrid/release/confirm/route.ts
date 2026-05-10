@@ -92,7 +92,9 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
         agentTokenMint: data.launch.agentTokenMint,
         hybridCoreCollectionAddress: data.launch.hybridCoreCollectionAddress,
         hybridEscrowAddress: data.launch.hybridEscrowAddress,
+        hybridProgramId: data.launch.hybridProgramId,
         hybridStatus: data.launch.hybridStatus,
+        feeVaultAddress: data.launch.feeVaultAddress,
         pegUnitRaw: data.launch.pegUnitRaw,
         maxPegs: data.launch.maxPegs,
         rendererId: data.launch.rendererId,
@@ -106,7 +108,7 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
     await prisma.clawPegHybridAsset.update({
       where: { assetAddress: parsed.data.asset_address },
       data: {
-        ownerAddress: data.agent.solanaWalletAddress || asset.ownerAddress,
+        ownerAddress: data.launch.hybridEscrowAddress || data.agent.solanaWalletAddress || asset.ownerAddress,
         status: CPEG_HYBRID_ASSET_STATUS_POOL,
         releaseTxHash: parsed.data.release_signature,
         releasedAt: new Date(),

@@ -264,7 +264,12 @@ export function CpegHybridPanel({ tokenMint, initialAuthorityAddress, compact }:
         body: JSON.stringify({ wallet: connectedAddress, count }),
       });
       const prepareBody = (await prepareResponse.json().catch(() => null)) as
-        | { success?: boolean; error?: string; instructions?: ManifestInstruction[]; capture?: { cluster: string } }
+        | {
+            success?: boolean;
+            error?: string;
+            instructions?: ManifestInstruction[];
+            capture?: { cluster: string; assets?: Array<{ asset_address: string; peg_id: number }> };
+          }
         | null;
       if (!prepareResponse.ok || !prepareBody?.success || !prepareBody.instructions) {
         throw new Error(prepareBody?.error || "Failed to prepare capture transfer.");
@@ -322,7 +327,12 @@ export function CpegHybridPanel({ tokenMint, initialAuthorityAddress, compact }:
       const confirmResponse = await fetch(`/api/cpeg/${tokenMint}/hybrid/capture/confirm`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ wallet: connectedAddress, signature, count }),
+        body: JSON.stringify({
+          wallet: connectedAddress,
+          signature,
+          count,
+          asset_addresses: prepareBody.capture?.assets?.map((asset) => asset.asset_address) || undefined,
+        }),
       });
       const confirmBody = (await confirmResponse.json().catch(() => null)) as
         | { success?: boolean; error?: string; details?: HybridErrorDetails }
@@ -551,8 +561,23 @@ export function CpegHybridPanel({ tokenMint, initialAuthorityAddress, compact }:
         <>
           {mainnetEscrowBlocked ? (
             <div className="mt-5 border border-[#f7b85c]/40 bg-[#f7b85c]/10 p-4 text-sm leading-6 text-[#ffe2a8]">
-              {state.custody_warning ||
-                "Mainnet capture, release, and market settlement require Metaplex Hybrid escrow custody before user funds can move."}
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <span>
+                  {state.custody_warning ||
+                    "Mainnet capture, release, and market settlement require Metaplex Hybrid escrow custody before user funds can move."}
+                </span>
+                {isAuthority ? (
+                  <button
+                    type="button"
+                    onClick={isConnected ? handleSetup : login}
+                    disabled={setupBusy}
+                    className="inline-flex items-center gap-2 border border-[#f7f2df] bg-[#f7f2df] px-3 py-2 text-[10px] font-black uppercase tracking-wide text-black transition hover:bg-[#53c7ff] disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    {setupBusy ? <Loader2 className="h-3 w-3 animate-spin" /> : <Rocket className="h-3 w-3" />}
+                    Migrate escrow
+                  </button>
+                ) : null}
+              </div>
             </div>
           ) : null}
           <div className="mt-5 grid gap-px border border-white/10 bg-white/10 sm:grid-cols-3">

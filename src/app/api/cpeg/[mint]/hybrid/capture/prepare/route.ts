@@ -1,12 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import {
+  CPEG_HYBRID_ASSET_STATUS_POOL,
   CPEG_HYBRID_STATUS_CONFIGURED,
   CpegHybridEngineError,
   buildHybridStateSummary,
   buildCaptureTransferInstructions,
+  getMplHybridCustodyTarget,
+  mintHybridPoolAsset,
 } from "@/lib/cpeg-hybrid-engine";
-import { loadHybridAssetCounts, loadHybridLaunchAndAgent } from "@/lib/cpeg-hybrid-loader";
+import { loadHybridAssetCounts, loadHybridLaunchAndAgent, listHybridAssetPegIds } from "@/lib/cpeg-hybrid-loader";
 import { CPEG_STANDARD_MODE_METAPLEX_HYBRID } from "@/lib/cpeg-metaplex-hybrid";
 import { prisma } from "@/lib/db";
 
@@ -74,6 +77,60 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
       );
     }
 
+    const custody = getMplHybridCustodyTarget(data.launch, summary.tokenProgramId);
+    let captureAssets: Array<{ asset_address: string; peg_id: number }> = [];
+    if (custody.isNativeReady && custody.escrowAddress) {
+      const poolRows = await prisma.clawPegHybridAsset.findMany({
+        where: { launchId: data.launch.id, status: CPEG_HYBRID_ASSET_STATUS_POOL },
+        orderBy: { createdAt: "asc" },
+        take: parsed.data.count,
+        select: { assetAddress: true, pegId: true },
+      });
+      captureAssets = poolRows.map((row) => ({ asset_address: row.assetAddress, peg_id: row.pegId }));
+      if (captureAssets.length < parsed.data.count) {
+        const taken = await listHybridAssetPegIds(data.launch.id);
+        for (const row of captureAssets) taken.add(row.peg_id);
+        const missing = parsed.data.count - captureAssets.length;
+        for (let index = 0; index < missing; index += 1) {
+          const seeded = await mintHybridPoolAsset(
+            data.agent,
+            {
+              id: data.launch.id,
+              name: data.launch.name,
+              symbol: data.launch.symbol,
+              cluster: data.launch.cluster,
+              tokenMint: data.launch.tokenMint,
+              agentTokenMint: data.launch.agentTokenMint,
+              hybridCoreCollectionAddress: data.launch.hybridCoreCollectionAddress,
+              hybridEscrowAddress: data.launch.hybridEscrowAddress,
+              hybridProgramId: data.launch.hybridProgramId,
+              hybridStatus: data.launch.hybridStatus,
+              feeVaultAddress: data.launch.feeVaultAddress,
+              pegUnitRaw: summary.pegUnitRaw,
+              maxPegs: summary.effectiveMaxPegs,
+              rendererId: data.launch.rendererId,
+              rendererVersion: data.launch.rendererVersion,
+              collectionSeed: data.launch.collectionSeed,
+            },
+            taken
+          );
+          taken.add(seeded.pegId);
+          await prisma.clawPegHybridAsset.create({
+            data: {
+              launchId: data.launch.id,
+              tokenMint: data.launch.tokenMint,
+              collectionAddress: data.launch.hybridCoreCollectionAddress || "",
+              assetAddress: seeded.assetAddress,
+              pegId: seeded.pegId,
+              ownerAddress: seeded.poolOwner,
+              status: CPEG_HYBRID_ASSET_STATUS_POOL,
+            },
+          });
+          captureAssets.push({ asset_address: seeded.assetAddress, peg_id: seeded.pegId });
+        }
+      }
+    }
+
     const result = await buildCaptureTransferInstructions(
       data.agent,
       {
@@ -85,7 +142,9 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
         agentTokenMint: data.launch.agentTokenMint,
         hybridCoreCollectionAddress: data.launch.hybridCoreCollectionAddress,
         hybridEscrowAddress: data.launch.hybridEscrowAddress,
+        hybridProgramId: data.launch.hybridProgramId,
         hybridStatus: data.launch.hybridStatus,
+        feeVaultAddress: data.launch.feeVaultAddress,
         pegUnitRaw: data.launch.pegUnitRaw,
         maxPegs: data.launch.maxPegs,
         rendererId: data.launch.rendererId,
@@ -93,7 +152,8 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
         collectionSeed: data.launch.collectionSeed,
       },
       parsed.data.wallet,
-      parsed.data.count
+      parsed.data.count,
+      captureAssets.map((asset) => asset.asset_address)
     );
 
     return NextResponse.json({
@@ -114,6 +174,7 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
         vault_token_account: result.vaultAta,
         vault_owner: result.vaultOwner,
         user_token_account: result.userAta,
+        assets: captureAssets,
       },
       instructions: result.instructions,
     });

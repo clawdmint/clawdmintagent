@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAssociatedTokenAddressSync, TOKEN_2022_PROGRAM_ID } from "@solana/spl-token";
-import { Connection, PublicKey, SystemProgram, TransactionInstruction } from "@solana/web3.js";
+import { Connection, PublicKey } from "@solana/web3.js";
 import { z } from "zod";
 import {
   buildClawPegBuyPegEscrowManifest,
@@ -19,6 +19,7 @@ import { prisma } from "@/lib/db";
 import { getClawPegRpcUrl } from "@/lib/env";
 import { CPEG_STANDARD_MODE_METAPLEX_HYBRID } from "@/lib/cpeg-metaplex-hybrid";
 import { loadHybridLaunchAndAgent } from "@/lib/cpeg-hybrid-loader";
+import { buildMarketplaceFillTransaction } from "@/lib/marketplace-transactions";
 
 export const dynamic = "force-dynamic";
 
@@ -29,18 +30,6 @@ const PrepareSchema = z.object({
 
 interface RouteContext {
   params: { mint: string };
-}
-
-function serializeInstruction(ix: InstanceType<typeof TransactionInstruction>) {
-  return {
-    programId: ix.programId.toBase58(),
-    accounts: ix.keys.map((key: { pubkey: InstanceType<typeof PublicKey>; isSigner: boolean; isWritable: boolean }) => ({
-      pubkey: key.pubkey.toBase58(),
-      isSigner: key.isSigner,
-      isWritable: key.isWritable,
-    })),
-    dataBase64: Buffer.from(ix.data).toString("base64"),
-  };
 }
 
 export async function POST(request: NextRequest, { params }: RouteContext) {
@@ -54,16 +43,6 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
       const data = await loadHybridLaunchAndAgent(params.mint);
       if (!data) {
         return NextResponse.json({ success: false, error: "Hybrid cPEG launch not found" }, { status: 404 });
-      }
-      if (data.launch.cluster === "mainnet-beta") {
-        return NextResponse.json(
-          {
-            success: false,
-            error:
-              "Mainnet cPEG market purchases require Metaplex Hybrid escrow settlement before payment can be prepared.",
-          },
-          { status: 409 }
-        );
       }
       const listing = await prisma.clawPegMarketListing.findFirst({
         where: { tokenMint: launch.tokenMint, pegId: parsed.data.peg_id, status: "ACTIVE" },
@@ -81,19 +60,31 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
         listing.royaltyBps,
         listing.marketplaceFeeBps
       );
-      const sellerLamports = BigInt(breakdown.sellerProceedsLamports);
-      const royaltyLamports = BigInt(breakdown.creatorRoyaltyLamports);
-      const protocolLamports = BigInt(breakdown.protocolFeeLamports);
-      const ixs: Array<InstanceType<typeof TransactionInstruction>> = [];
-      if (sellerLamports > BigInt(0)) {
-        ixs.push(SystemProgram.transfer({ fromPubkey: buyer, toPubkey: seller, lamports: sellerLamports }));
+      const asset = await prisma.clawPegHybridAsset.findUnique({
+        where: { assetAddress: listing.listingAddress },
+      });
+      if (!asset || asset.ownerAddress !== listing.sellerAddress) {
+        await prisma.clawPegMarketListing.updateMany({
+          where: { id: listing.id, status: "ACTIVE" },
+          data: { status: "CANCELLED", cancelledAt: new Date() },
+        });
+        return NextResponse.json(
+          { success: false, error: "Listing owner no longer matches cPEG state. Refresh the market." },
+          { status: 409 }
+        );
       }
-      if (royaltyLamports > BigInt(0)) {
-        ixs.push(SystemProgram.transfer({ fromPubkey: buyer, toPubkey: creator, lamports: royaltyLamports }));
-      }
-      if (protocolLamports > BigInt(0)) {
-        ixs.push(SystemProgram.transfer({ fromPubkey: buyer, toPubkey: feeVault, lamports: protocolLamports }));
-      }
+      const prepared = await buildMarketplaceFillTransaction({
+        buyerAddress: buyer.toBase58(),
+        sellerAddress: seller.toBase58(),
+        assetAddress: listing.listingAddress,
+        collectionAddress: data.launch.hybridCoreCollectionAddress || listing.collectionAddress,
+        priceLamports: listing.priceLamports,
+        creatorAddress: creator.toBase58(),
+        protocolFeeAddress: feeVault.toBase58(),
+        sellerProceedsLamports: breakdown.sellerProceedsLamports,
+        creatorRoyaltyLamports: breakdown.creatorRoyaltyLamports,
+        protocolFeeLamports: breakdown.protocolFeeLamports,
+      });
       return NextResponse.json({
         success: true,
         listing: {
@@ -106,8 +97,10 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
           creator_royalty_lamports: breakdown.creatorRoyaltyLamports,
           protocol_fee_lamports: breakdown.protocolFeeLamports,
           asset_address: listing.listingAddress,
+          serialized_transaction_base64: prepared.serializedTransactionBase64,
+          delegate_address: prepared.delegateAddress,
         },
-        instructions: ixs.map((ix) => serializeInstruction(ix)),
+        instructions: [],
       });
     }
     if (!launch?.collectionAddress) {

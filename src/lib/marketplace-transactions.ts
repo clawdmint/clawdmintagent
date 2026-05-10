@@ -66,6 +66,13 @@ function createClientSigningUmi(walletAddress: string) {
   return umi;
 }
 
+export async function fetchMarketplaceCoreAssetOwner(assetAddress: string) {
+  const umi = createUmi(getSolanaRpcUrl());
+  umi.use(mplCore());
+  const asset = await fetchAsset(umi, publicKey(assetAddress));
+  return asset.owner.toString();
+}
+
 async function serializeBuilder(
   umi: ReturnType<typeof createClientSigningUmi>,
   builder: ReturnType<typeof transactionBuilder>
@@ -207,6 +214,11 @@ export async function buildMarketplaceFillTransaction(input: {
   assetAddress: string;
   collectionAddress: string;
   priceLamports: string;
+  creatorAddress?: string;
+  protocolFeeAddress?: string;
+  sellerProceedsLamports?: string;
+  creatorRoyaltyLamports?: string;
+  protocolFeeLamports?: string;
 }) {
   const umi = createClientSigningUmi(input.buyerAddress);
   const buyerSigner = createNoopSigner(publicKey(input.buyerAddress));
@@ -224,17 +236,34 @@ export async function buildMarketplaceFillTransaction(input: {
   }
 
   let builder = transactionBuilder().useLegacyVersion();
-  builder = builder.add({
-    instruction: fromWeb3JsInstruction(
-      SystemProgram.transfer({
-        fromPubkey: new Web3PublicKey(input.buyerAddress),
-        toPubkey: new Web3PublicKey(input.sellerAddress),
-        lamports: Number(BigInt(input.priceLamports)),
-      })
-    ),
-    signers: [],
-    bytesCreatedOnChain: 0,
-  });
+  const paymentSplits = [
+    {
+      address: input.sellerAddress,
+      lamports: BigInt(input.sellerProceedsLamports ?? input.priceLamports),
+    },
+    {
+      address: input.creatorAddress,
+      lamports: BigInt(input.creatorRoyaltyLamports ?? "0"),
+    },
+    {
+      address: input.protocolFeeAddress,
+      lamports: BigInt(input.protocolFeeLamports ?? "0"),
+    },
+  ].filter((split): split is { address: string; lamports: bigint } => Boolean(split.address) && split.lamports > BigInt(0));
+
+  for (const split of paymentSplits) {
+    builder = builder.add({
+      instruction: fromWeb3JsInstruction(
+        SystemProgram.transfer({
+          fromPubkey: new Web3PublicKey(input.buyerAddress),
+          toPubkey: new Web3PublicKey(split.address),
+          lamports: Number(split.lamports),
+        })
+      ),
+      signers: [],
+      bytesCreatedOnChain: 0,
+    });
+  }
 
   builder = builder.add(
     transfer(umi, {

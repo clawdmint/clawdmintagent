@@ -1,10 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAssociatedTokenAddressSync, TOKEN_2022_PROGRAM_ID } from "@solana/spl-token";
-import { PublicKey, SystemProgram, TransactionInstruction } from "@solana/web3.js";
+import { PublicKey } from "@solana/web3.js";
 import { z } from "zod";
 import { buildClawPegCancelPegEscrowManifest } from "@/lib/clawpeg";
 import { prisma } from "@/lib/db";
 import { CPEG_STANDARD_MODE_METAPLEX_HYBRID } from "@/lib/cpeg-metaplex-hybrid";
+import { loadHybridLaunchAndAgent } from "@/lib/cpeg-hybrid-loader";
+import { buildMarketplaceCancelListingTransaction } from "@/lib/marketplace-transactions";
 
 export const dynamic = "force-dynamic";
 
@@ -15,18 +17,6 @@ const PrepareSchema = z.object({
 
 interface RouteContext {
   params: { mint: string };
-}
-
-function serializeInstruction(ix: InstanceType<typeof TransactionInstruction>) {
-  return {
-    programId: ix.programId.toBase58(),
-    accounts: ix.keys.map((key: { pubkey: InstanceType<typeof PublicKey>; isSigner: boolean; isWritable: boolean }) => ({
-      pubkey: key.pubkey.toBase58(),
-      isSigner: key.isSigner,
-      isWritable: key.isWritable,
-    })),
-    dataBase64: Buffer.from(ix.data).toString("base64"),
-  };
 }
 
 export async function POST(request: NextRequest, { params }: RouteContext) {
@@ -56,8 +46,15 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
       return NextResponse.json({ success: false, error: "Listing not cancellable" }, { status: 404 });
     }
     if (launch.standardMode === CPEG_STANDARD_MODE_METAPLEX_HYBRID) {
-      const seller = new PublicKey(parsed.data.seller);
-      const noop = SystemProgram.transfer({ fromPubkey: seller, toPubkey: seller, lamports: 0 });
+      const data = await loadHybridLaunchAndAgent(params.mint);
+      if (!data?.launch.hybridCoreCollectionAddress) {
+        return NextResponse.json({ success: false, error: "Hybrid cPEG vault is not configured" }, { status: 409 });
+      }
+      const prepared = await buildMarketplaceCancelListingTransaction({
+        walletAddress: parsed.data.seller,
+        assetAddress: listing.escrowTokenAccount,
+        collectionAddress: data.launch.hybridCoreCollectionAddress,
+      });
       return NextResponse.json({
         success: true,
         listing: {
@@ -65,8 +62,9 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
           kind: "hybrid_core",
           peg_id: listing.pegId,
           asset_address: listing.escrowTokenAccount,
+          serialized_transaction_base64: prepared.serializedTransactionBase64,
         },
-        instructions: [serializeInstruction(noop)],
+        instructions: [],
       });
     }
 

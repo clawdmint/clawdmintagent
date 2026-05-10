@@ -17,9 +17,9 @@ import { CPEG_STANDARD_MODE_METAPLEX_HYBRID } from "@/lib/cpeg-metaplex-hybrid";
 import {
   CPEG_HYBRID_ASSET_STATUS_OWNED,
   CpegHybridEngineError,
-  buildReleaseTransferInstructions,
 } from "@/lib/cpeg-hybrid-engine";
 import { loadHybridLaunchAndAgent } from "@/lib/cpeg-hybrid-loader";
+import { buildMarketplaceListingDelegateTransaction } from "@/lib/marketplace-transactions";
 
 export const dynamic = "force-dynamic";
 
@@ -64,7 +64,11 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
       if (priceLamports <= BigInt(0)) {
         return NextResponse.json({ success: false, error: "Price must be greater than zero" }, { status: 400 });
       }
-      const transfer = await buildReleaseTransferInstructions(data.agent, data.launch, input.seller, asset.assetAddress);
+      const prepared = await buildMarketplaceListingDelegateTransaction({
+        walletAddress: input.seller,
+        assetAddress: asset.assetAddress,
+        collectionAddress: data.launch.hybridCoreCollectionAddress,
+      });
       return NextResponse.json({
         success: true,
         listing: {
@@ -78,8 +82,11 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
           seller: input.seller,
           peg_id: input.peg_id,
           price_lamports: priceLamports.toString(),
+          serialized_transaction_base64: prepared.serializedTransactionBase64,
+          delegate_address: prepared.delegateAddress,
+          expires_at: prepared.expiresAt.toISOString(),
         },
-        instructions: transfer.instructions,
+        instructions: [],
       });
     }
     if (!launch?.collectionAddress) {

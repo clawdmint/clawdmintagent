@@ -5,6 +5,7 @@ import { prisma } from "@/lib/db";
 import { CPEG_STANDARD_MODE_METAPLEX_HYBRID } from "@/lib/cpeg-metaplex-hybrid";
 import { CPEG_HYBRID_ASSET_STATUS_LISTED } from "@/lib/cpeg-hybrid-engine";
 import { loadHybridLaunchAndAgent } from "@/lib/cpeg-hybrid-loader";
+import { fetchMarketplaceCoreAssetOwner } from "@/lib/marketplace-transactions";
 
 export const dynamic = "force-dynamic";
 
@@ -32,7 +33,7 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
   const launch = await prisma.clawPegLaunch.findUnique({ where: { tokenMint: params.mint } });
   if (launch?.standardMode === CPEG_STANDARD_MODE_METAPLEX_HYBRID) {
     const data = await loadHybridLaunchAndAgent(params.mint);
-    if (!data?.launch.hybridCoreCollectionAddress || !data.agent.solanaWalletAddress) {
+    if (!data?.launch.hybridCoreCollectionAddress) {
       return NextResponse.json({ success: false, error: "Hybrid cPEG vault is not configured" }, { status: 409 });
     }
     const input = parsed.data;
@@ -42,11 +43,18 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
     if (!asset) {
       return NextResponse.json({ success: false, error: "Core cPEG asset not found" }, { status: 404 });
     }
+    const ownerAddress = await fetchMarketplaceCoreAssetOwner(input.listing_address);
+    if (ownerAddress !== input.seller) {
+      return NextResponse.json(
+        { success: false, error: "Listing approval did not leave the cPEG asset in the seller wallet" },
+        { status: 409 }
+      );
+    }
     const rows = await prisma.$transaction(async (tx) => {
       await tx.clawPegHybridAsset.update({
         where: { assetAddress: input.listing_address },
         data: {
-          ownerAddress: data.agent.solanaWalletAddress || asset.ownerAddress,
+          ownerAddress: input.seller,
           status: CPEG_HYBRID_ASSET_STATUS_LISTED,
           releaseTxHash: input.signature,
           releasedAt: new Date(),

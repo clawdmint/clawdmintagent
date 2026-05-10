@@ -305,6 +305,7 @@ export function CpegMarketClient() {
   const isLaunchAuthority = Boolean(
     selectedLaunch?.authority_address && connectedAddress && selectedLaunch.authority_address === connectedAddress
   );
+  const isHybridMarket = selectedLaunch?.standard_mode === "metaplex_hybrid";
 
   const toggleSelectedPeg = useCallback((id: number) => {
     setSelectedPegIds((current) =>
@@ -643,6 +644,39 @@ export function CpegMarketClient() {
     [connectedAddress]
   );
 
+  const sendSerializedTransaction = useCallback(
+    async (serializedTransactionBase64: string, cluster: string) => {
+      if (!connectedAddress) throw new Error("Wallet not connected.");
+      const provider = getPhantomProvider();
+      if (!provider?.signTransaction) throw new Error("Phantom transaction signing is unavailable.");
+
+      const connection = new Connection(getClientRpcUrl(cluster), "confirmed");
+      const transaction = Transaction.from(base64ToBytes(serializedTransactionBase64));
+      const signed = (await provider.signTransaction(transaction as SolanaWeb3Transaction)) as SolanaWeb3Transaction;
+      const signedSignature = getSignedTransactionSignature(signed);
+      const raw =
+        signed instanceof VersionedTransaction
+          ? signed.serialize()
+          : signed.serialize({ requireAllSignatures: true, verifySignatures: false });
+      let signature = signedSignature;
+      try {
+        signature = await connection.sendRawTransaction(raw, {
+          skipPreflight: false,
+          maxRetries: 5,
+          preflightCommitment: "confirmed",
+        });
+      } catch (sendError) {
+        const message = sendError instanceof Error ? sendError.message : String(sendError);
+        if (!message.toLowerCase().includes("already been processed")) {
+          throw sendError;
+        }
+      }
+      await connection.confirmTransaction(signature, "confirmed");
+      return signature;
+    },
+    [connectedAddress]
+  );
+
   const handleList = useCallback(async () => {
     setError("");
     setStatus("");
@@ -694,8 +728,14 @@ export function CpegMarketClient() {
             ];
       }
 
-      setStatus("Opening Phantom to escrow the PEG...");
-      const signature = await sendPreparedTransaction(body.instructions, selectedLaunch.cluster, setup);
+      setStatus(
+        body.listing?.kind === "hybrid_core"
+          ? "Opening Phantom to approve the cPEG listing..."
+          : "Opening Phantom to escrow the PEG..."
+      );
+      const signature = body.listing?.serialized_transaction_base64
+        ? await sendSerializedTransaction(body.listing.serialized_transaction_base64, selectedLaunch.cluster)
+        : await sendPreparedTransaction(body.instructions, selectedLaunch.cluster, setup);
       const confirmResponse = await fetch(`/api/cpeg/${selectedLaunch.token_mint}/market/listings/confirm`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -724,6 +764,7 @@ export function CpegMarketClient() {
     refreshActivity,
     refreshListings,
     selectedLaunch,
+    sendSerializedTransaction,
     sendPreparedTransaction,
   ]);
 
@@ -769,7 +810,9 @@ export function CpegMarketClient() {
         }
 
         setStatus("Opening Phantom for purchase...");
-        const signature = await sendPreparedTransaction(body.instructions, selectedLaunch.cluster, setup);
+        const signature = body.listing?.serialized_transaction_base64
+          ? await sendSerializedTransaction(body.listing.serialized_transaction_base64, selectedLaunch.cluster)
+          : await sendPreparedTransaction(body.instructions, selectedLaunch.cluster, setup);
         const confirmRes = await fetch(`/api/cpeg/${selectedLaunch.token_mint}/market/buy/confirm`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -791,7 +834,7 @@ export function CpegMarketClient() {
         setBusy("");
       }
     },
-    [connectedAddress, isConnected, login, refreshActivity, refreshListings, selectedLaunch, sendPreparedTransaction]
+    [connectedAddress, isConnected, login, refreshActivity, refreshListings, selectedLaunch, sendPreparedTransaction, sendSerializedTransaction]
   );
 
   const handleBatchBuy = useCallback(async () => {
@@ -891,7 +934,9 @@ export function CpegMarketClient() {
         });
         const body = await response.json().catch(() => null);
         if (!response.ok || !body?.success) throw new Error(body?.error || "Failed to prepare cancel.");
-        const signature = await sendPreparedTransaction(body.instructions, selectedLaunch.cluster);
+        const signature = body.listing?.serialized_transaction_base64
+          ? await sendSerializedTransaction(body.listing.serialized_transaction_base64, selectedLaunch.cluster)
+          : await sendPreparedTransaction(body.instructions, selectedLaunch.cluster);
         await fetch(`/api/cpeg/${selectedLaunch.token_mint}/market/cancel/confirm`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -907,7 +952,7 @@ export function CpegMarketClient() {
         setBusy("");
       }
     },
-    [connectedAddress, isConnected, login, refreshActivity, refreshListings, selectedLaunch, sendPreparedTransaction]
+    [connectedAddress, isConnected, login, refreshActivity, refreshListings, selectedLaunch, sendPreparedTransaction, sendSerializedTransaction]
   );
 
   const headerStats: Array<{ label: string; value: string; accent: string; icon: typeof Tag }> = [
@@ -1378,8 +1423,13 @@ export function CpegMarketClient() {
               ) : (
                 <button
                   type="button"
-                  onClick={() => setSelectMode(true)}
-                  className="inline-flex items-center gap-2 border border-neutral-300 dark:border-white/15 px-3 py-2 font-mono text-[10px] uppercase tracking-[0.2em] text-neutral-700 dark:text-white/70"
+                  onClick={() => {
+                    if (isHybridMarket) return;
+                    setSelectMode(true);
+                  }}
+                  disabled={isHybridMarket}
+                  title={isHybridMarket ? "Hybrid Core cPEGs are bought one at a time." : "Select multiple PEGs"}
+                  className="inline-flex items-center gap-2 border border-neutral-300 dark:border-white/15 px-3 py-2 font-mono text-[10px] uppercase tracking-[0.2em] text-neutral-700 dark:text-white/70 disabled:cursor-not-allowed disabled:opacity-40"
                 >
                   <CheckSquare className="h-3 w-3" /> Multi-select
                 </button>

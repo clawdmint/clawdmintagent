@@ -2,11 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/db";
 import { CPEG_STANDARD_MODE_METAPLEX_HYBRID } from "@/lib/cpeg-metaplex-hybrid";
-import {
-  CPEG_HYBRID_ASSET_STATUS_OWNED,
-  transferCoreAssetFromAgent,
-} from "@/lib/cpeg-hybrid-engine";
+import { CPEG_HYBRID_ASSET_STATUS_OWNED } from "@/lib/cpeg-hybrid-engine";
 import { loadHybridLaunchAndAgent } from "@/lib/cpeg-hybrid-loader";
+import { fetchMarketplaceCoreAssetOwner } from "@/lib/marketplace-transactions";
 
 export const dynamic = "force-dynamic";
 
@@ -43,19 +41,20 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
     if (!data || !listing) {
       return NextResponse.json({ success: false, error: "Listing not cancellable" }, { status: 404 });
     }
-    const transferSignature = await transferCoreAssetFromAgent(
-      data.agent,
-      data.launch,
-      listing.listingAddress,
-      parsed.data.seller
-    );
+    const ownerAddress = await fetchMarketplaceCoreAssetOwner(listing.listingAddress);
+    if (ownerAddress !== parsed.data.seller) {
+      return NextResponse.json(
+        { success: false, error: "Cancel transaction did not leave the Core cPEG in the seller wallet" },
+        { status: 409 }
+      );
+    }
     const rows = await prisma.$transaction(async (tx) => {
       await tx.clawPegHybridAsset.update({
         where: { assetAddress: listing.listingAddress },
         data: {
           ownerAddress: parsed.data.seller,
           status: CPEG_HYBRID_ASSET_STATUS_OWNED,
-          captureTxHash: transferSignature || parsed.data.signature,
+          captureTxHash: parsed.data.signature,
           capturedAt: new Date(),
         },
       });
@@ -70,7 +69,7 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
         RETURNING "id"
       `;
     });
-    return NextResponse.json({ success: true, listing: rows[0] || null, core_transfer_signature: transferSignature });
+    return NextResponse.json({ success: true, listing: rows[0] || null, core_transfer_signature: parsed.data.signature });
   }
   const rows = await prisma.$queryRaw<Array<{ id: string }>>`
     UPDATE "ClawPegMarketListing"

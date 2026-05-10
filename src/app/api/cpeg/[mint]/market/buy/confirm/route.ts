@@ -3,11 +3,9 @@ import { z } from "zod";
 import { findClawPegCollectionAddress, findTradeArtRecordAddress } from "@/lib/clawpeg";
 import { prisma } from "@/lib/db";
 import { CPEG_STANDARD_MODE_METAPLEX_HYBRID } from "@/lib/cpeg-metaplex-hybrid";
-import {
-  CPEG_HYBRID_ASSET_STATUS_OWNED,
-  transferCoreAssetFromAgent,
-} from "@/lib/cpeg-hybrid-engine";
+import { CPEG_HYBRID_ASSET_STATUS_OWNED } from "@/lib/cpeg-hybrid-engine";
 import { loadHybridLaunchAndAgent } from "@/lib/cpeg-hybrid-loader";
+import { fetchMarketplaceCoreAssetOwner } from "@/lib/marketplace-transactions";
 
 export const dynamic = "force-dynamic";
 
@@ -42,19 +40,20 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
     if (!listing) {
       return NextResponse.json({ success: false, error: "Listing not active" }, { status: 404 });
     }
-    const transferSignature = await transferCoreAssetFromAgent(
-      data.agent,
-      data.launch,
-      listing.listingAddress,
-      parsed.data.buyer
-    );
+    const ownerAddress = await fetchMarketplaceCoreAssetOwner(listing.listingAddress);
+    if (ownerAddress !== parsed.data.buyer) {
+      return NextResponse.json(
+        { success: false, error: "Purchase transaction has not transferred the Core cPEG to the buyer yet" },
+        { status: 409 }
+      );
+    }
     const rows = await prisma.$transaction(async (tx) => {
       await tx.clawPegHybridAsset.update({
         where: { assetAddress: listing.listingAddress },
         data: {
           ownerAddress: parsed.data.buyer,
           status: CPEG_HYBRID_ASSET_STATUS_OWNED,
-          captureTxHash: transferSignature || parsed.data.signature,
+          captureTxHash: parsed.data.signature,
           capturedAt: new Date(),
         },
       });
@@ -73,7 +72,7 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
     return NextResponse.json({
       success: true,
       listing: rows[0] || null,
-      core_transfer_signature: transferSignature,
+      core_transfer_signature: parsed.data.signature,
       trade_art: {
         trade_index: parsed.data.peg_id,
         address: listing.listingAddress,

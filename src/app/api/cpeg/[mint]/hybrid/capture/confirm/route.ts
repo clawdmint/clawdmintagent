@@ -4,10 +4,12 @@ import { z } from "zod";
 import { prisma } from "@/lib/db";
 import {
   CPEG_HYBRID_ASSET_STATUS_OWNED,
+  CPEG_HYBRID_ASSET_STATUS_POOL,
   CPEG_HYBRID_STATUS_CONFIGURED,
   CpegHybridEngineError,
   buildHybridStateSummary,
   confirmCaptureMint,
+  getMplHybridCustodyTarget,
 } from "@/lib/cpeg-hybrid-engine";
 import { CPEG_STANDARD_MODE_METAPLEX_HYBRID } from "@/lib/cpeg-metaplex-hybrid";
 import {
@@ -23,6 +25,7 @@ const ConfirmSchema = z.object({
   wallet: z.string().min(32),
   signature: z.string().min(32),
   count: z.number().int().min(1).max(8).default(1),
+  asset_addresses: z.array(z.string().min(32)).max(8).optional(),
 });
 
 interface RouteContext {
@@ -100,10 +103,15 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
     const capacitySummary = await buildHybridStateSummary(data.agent, data.launch, capacityCounts);
     const expectedRaw = BigInt(capacitySummary.pegUnitRaw) * BigInt(parsed.data.count);
     const connection = new Connection(getClawPegRpcUrl(), "confirmed");
+    const custody = getMplHybridCustodyTarget(data.launch, capacitySummary.tokenProgramId);
+    const vaultForVerification =
+      custody.isNativeReady && custody.escrowTokenAccount
+        ? custody.escrowTokenAccount
+        : data.launch.hybridEscrowAddress;
     await verifyTransferSignature(
       connection,
       parsed.data.signature,
-      new PublicKey(data.launch.hybridEscrowAddress),
+      new PublicKey(vaultForVerification || data.launch.hybridEscrowAddress),
       expectedRaw
     );
 
@@ -123,6 +131,52 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
           status: row.status,
           captured_at: row.capturedAt?.toISOString() || null,
         })),
+        counts,
+      });
+    }
+
+    if (parsed.data.asset_addresses?.length) {
+      const requestedAssets = parsed.data.asset_addresses.slice(0, parsed.data.count);
+      if (requestedAssets.length !== parsed.data.count) {
+        throw new CpegHybridEngineError(400, "Capture confirmation is missing prepared cPEG assets");
+      }
+      const rows = await prisma.clawPegHybridAsset.findMany({
+        where: {
+          launchId: data.launch.id,
+          assetAddress: { in: requestedAssets },
+        },
+      });
+      if (rows.length !== requestedAssets.length) {
+        throw new CpegHybridEngineError(404, "One or more prepared cPEG assets were not found");
+      }
+      const now = new Date();
+      const updated = [];
+      for (const row of rows) {
+        if (row.status !== CPEG_HYBRID_ASSET_STATUS_POOL && row.ownerAddress !== parsed.data.wallet) {
+          throw new CpegHybridEngineError(409, `cPEG #${row.pegId} is no longer available for capture`);
+        }
+        await prisma.clawPegHybridAsset.update({
+          where: { assetAddress: row.assetAddress },
+          data: {
+            ownerAddress: parsed.data.wallet,
+            status: CPEG_HYBRID_ASSET_STATUS_OWNED,
+            captureTxHash: parsed.data.signature,
+            capturedAt: now,
+          },
+        });
+        updated.push({
+          asset_address: row.assetAddress,
+          peg_id: row.pegId,
+          status: CPEG_HYBRID_ASSET_STATUS_OWNED,
+          mint_tx: null,
+        });
+      }
+      const counts = await loadHybridAssetCounts(data.launch.id);
+      return NextResponse.json({
+        success: true,
+        already_processed: false,
+        capture_signature: parsed.data.signature,
+        assets: updated,
         counts,
       });
     }
@@ -150,7 +204,9 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
           agentTokenMint: data.launch.agentTokenMint,
           hybridCoreCollectionAddress: data.launch.hybridCoreCollectionAddress,
           hybridEscrowAddress: data.launch.hybridEscrowAddress,
+          hybridProgramId: data.launch.hybridProgramId,
           hybridStatus: data.launch.hybridStatus,
+          feeVaultAddress: data.launch.feeVaultAddress,
           pegUnitRaw: data.launch.pegUnitRaw,
           maxPegs: capacitySummary.effectiveMaxPegs,
           rendererId: data.launch.rendererId,

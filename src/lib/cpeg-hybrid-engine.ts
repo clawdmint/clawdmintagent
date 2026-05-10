@@ -46,7 +46,13 @@ import { createUmi } from "@metaplex-foundation/umi-bundle-defaults";
 import { fromWeb3JsKeypair, toWeb3JsPublicKey } from "@metaplex-foundation/umi-web3js-adapters";
 import { getAgentOperationalKeypair, getAgentWalletBalance } from "@/lib/agent-wallets";
 import { deriveMplHybridEscrowAddress } from "@/lib/cpeg-metaplex-hybrid";
-import { deriveMplHybridEscrowTokenAccount } from "@/lib/mpl-hybrid-native";
+import {
+  MPL_HYBRID_DEFAULT_SOL_FEE_ACCOUNT,
+  createCaptureV1Instruction,
+  createInitEscrowV1Instruction,
+  createReleaseV1Instruction,
+  deriveMplHybridEscrowTokenAccount,
+} from "@/lib/mpl-hybrid-native";
 import { getMetaplexCoreConnection } from "@/lib/synapse-sap";
 
 export const CPEG_HYBRID_STATUS_NOT_CONFIGURED = "NOT_CONFIGURED";
@@ -81,6 +87,8 @@ export interface HybridAgentRecord {
 
 export interface HybridSetupResult {
   collectionAddress: string;
+  escrowAddress: string;
+  escrowTokenAccount: string;
   vaultTokenAccount: string;
   vaultOwner: string;
   tokenProgramId: string;
@@ -121,11 +129,14 @@ interface HybridLaunchSnapshot {
   rendererId: string;
   rendererVersion: string;
   collectionSeed: string;
+  feeVaultAddress?: string | null;
+  hybridProgramId?: string | null;
 }
 
 export interface MplHybridCustodyTarget {
   escrowAddress: string | null;
   escrowTokenAccount: string | null;
+  configuredEscrowAddress: string | null;
   configuredVaultTokenAccount: string | null;
   isNativeReady: boolean;
 }
@@ -154,15 +165,20 @@ export function getMplHybridCustodyTarget(
       escrowTokenAccount = null;
     }
   }
-  const configuredVaultTokenAccount = launch.hybridEscrowAddress || null;
+  const configuredEscrowAddress = launch.hybridEscrowAddress || null;
+  const configuredVaultTokenAccount =
+    configuredEscrowAddress && escrowTokenAccount && configuredEscrowAddress === escrowTokenAccount
+      ? configuredEscrowAddress
+      : null;
   return {
     escrowAddress,
     escrowTokenAccount,
+    configuredEscrowAddress,
     configuredVaultTokenAccount,
     isNativeReady: Boolean(
-      escrowTokenAccount &&
-        configuredVaultTokenAccount &&
-        escrowTokenAccount === configuredVaultTokenAccount
+      escrowAddress &&
+        configuredEscrowAddress &&
+        escrowAddress === configuredEscrowAddress
     ),
   };
 }
@@ -184,6 +200,7 @@ function assertMainnetUsesNativeHybridCustody(
       custody_model: "metaplex_hybrid_escrow_pda",
       expected_mpl_hybrid_escrow: custody.escrowAddress,
       expected_mpl_hybrid_escrow_token_account: custody.escrowTokenAccount,
+      configured_mpl_hybrid_escrow: custody.configuredEscrowAddress,
       configured_vault_token_account: custody.configuredVaultTokenAccount,
       mainnet_safe: custody.isNativeReady,
     }
@@ -301,6 +318,14 @@ function findNextPegId(
   throw new CpegHybridEngineError(409, "Hybrid pool is fully captured for this launch");
 }
 
+function resolveFeeLocation(launch: Pick<HybridLaunchSnapshot, "feeVaultAddress">, fallback: InstanceType<typeof PublicKey>) {
+  try {
+    return launch.feeVaultAddress ? new PublicKey(launch.feeVaultAddress) : fallback;
+  } catch {
+    return fallback;
+  }
+}
+
 export async function buildHybridStateSummary(
   agent: HybridAgentRecord,
   launch: HybridLaunchSnapshot,
@@ -308,8 +333,8 @@ export async function buildHybridStateSummary(
 ): Promise<HybridStateSummary> {
   const status = launch.hybridStatus;
   const collectionAddress = launch.hybridCoreCollectionAddress;
-  const vaultTokenAccount = launch.hybridEscrowAddress;
-  const vaultOwner = agent.solanaWalletAddress;
+  let vaultTokenAccount = launch.hybridEscrowAddress;
+  let vaultOwner = agent.solanaWalletAddress;
   let tokenProgramId: string | null = null;
   let decimals = 0;
   let tokenSupplyRaw = BigInt(0);
@@ -322,6 +347,11 @@ export async function buildHybridStateSummary(
     decimals = ctx.decimals;
     tokenSupplyRaw = ctx.tokenSupplyRaw;
     pegUnitRaw = ctx.pegUnitRaw;
+    const custody = getMplHybridCustodyTarget(launch, tokenProgramId);
+    if (custody.isNativeReady && custody.escrowAddress && custody.escrowTokenAccount) {
+      vaultTokenAccount = custody.escrowTokenAccount;
+      vaultOwner = custody.escrowAddress;
+    }
     if (vaultTokenAccount && launch.agentTokenMint) {
       const ata = new PublicKey(vaultTokenAccount);
       const balance = await ctx.connection.getTokenAccountBalance(ata, "confirmed").catch(() => null);
@@ -335,7 +365,8 @@ export async function buildHybridStateSummary(
     // ignore; balance and supply are best effort
   }
   const effectiveMax = effectiveHybridCapacity(launch.maxPegs, tokenSupplyRaw, pegUnitRaw);
-  const availableCapacity = Math.max(0, effectiveMax - assetCounts.total);
+  const unmintedCapacity = Math.max(0, effectiveMax - assetCounts.total);
+  const availableCapacity = Math.max(0, assetCounts.pool + unmintedCapacity);
   return {
     status,
     collectionAddress,
@@ -357,20 +388,18 @@ export async function buildHybridStateSummary(
 }
 
 /**
- * Configure the hybrid setup for a launch by deploying a Core Collection (PEG
- * pool) under the agent wallet's update authority and ensuring the agent ATA
- * exists for the agent token. Idempotent: reuses the configured collection /
- * ATA if they already exist.
+ * Configure the hybrid setup for a launch with the native Metaplex Hybrid escrow
+ * PDA. The launch record stores hybridEscrowAddress as the escrow PDA, while
+ * the escrow token account is always derived from that PDA and the agent token.
  */
 export async function setupHybridLaunch(
   agent: HybridAgentRecord,
   launch: HybridLaunchSnapshot
 ): Promise<HybridSetupResult> {
   const ctx = await loadHybridContext(agent, launch);
-  assertMainnetUsesNativeHybridCustody(launch, ctx.tokenProgramId.toBase58(), "cPEG setup");
   const balance = await getAgentWalletBalance(ctx.signer.publicKey.toBase58());
   if (balance.lamports < MIN_AGENT_WALLET_LAMPORTS_FOR_SETUP) {
-    throw new CpegHybridEngineError(402, "Agent wallet does not have enough SOL to deploy the Core PEG collection", {
+    throw new CpegHybridEngineError(402, "Agent wallet does not have enough SOL to initialize the Metaplex Hybrid escrow", {
       balance_sol: balance.sol,
       required_sol: Number(MIN_AGENT_WALLET_LAMPORTS_FOR_SETUP) / 1_000_000_000,
       wallet_address: ctx.signer.publicKey.toBase58(),
@@ -412,31 +441,78 @@ export async function setupHybridLaunch(
     collectionAddress = collectionSigner.publicKey.toString();
   }
 
-  // Ensure the agent ATA for the agent token exists.
-  const vaultAta = getAssociatedTokenAddressSync(
+  const escrow = new PublicKey(deriveMplHybridEscrowAddress(collectionAddress));
+  const escrowTokenAccount = deriveMplHybridEscrowTokenAccount(
     ctx.tokenMint,
-    ctx.signer.publicKey,
+    escrow,
+    ctx.tokenProgramId
+  );
+  const feeLocation = (() => {
+    try {
+      return launch.feeVaultAddress ? new PublicKey(launch.feeVaultAddress) : ctx.signer.publicKey;
+    } catch {
+      return ctx.signer.publicKey;
+    }
+  })();
+  const feeAta = getAssociatedTokenAddressSync(
+    ctx.tokenMint,
+    feeLocation,
     false,
     ctx.tokenProgramId,
     ASSOCIATED_TOKEN_PROGRAM_ID
   );
-  const vaultInfo = await ctx.connection.getAccountInfo(vaultAta, "confirmed");
-  if (!vaultInfo) {
-    const createAtaIx = createAssociatedTokenAccountInstruction(
-      ctx.signer.publicKey,
-      vaultAta,
-      ctx.signer.publicKey,
-      ctx.tokenMint,
-      ctx.tokenProgramId,
-      ASSOCIATED_TOKEN_PROGRAM_ID
+  const setupIxs: InstanceType<typeof TransactionInstruction>[] = [];
+  const feeAtaInfo = await ctx.connection.getAccountInfo(feeAta, "confirmed");
+  if (!feeAtaInfo) {
+    setupIxs.push(
+      createAssociatedTokenAccountInstruction(
+        ctx.signer.publicKey,
+        feeAta,
+        feeLocation,
+        ctx.tokenMint,
+        ctx.tokenProgramId,
+        ASSOCIATED_TOKEN_PROGRAM_ID
+      )
     );
-    await sendInstructionsWithAgentSigner(ctx.connection, ctx.signer, [createAtaIx]);
+  }
+  const escrowInfo = await ctx.connection.getAccountInfo(escrow, "confirmed");
+  if (!escrowInfo) {
+    const baseAppUrl =
+      process.env["NEXT_PUBLIC_CPEG_APP_URL"] ||
+      process.env["NEXT_PUBLIC_APP_URL"] ||
+      "https://cpeg.clawdmint.xyz";
+    setupIxs.push(
+      createInitEscrowV1Instruction({
+        escrow,
+        authority: ctx.signer.publicKey,
+        collection: collectionAddress,
+        token: ctx.tokenMint,
+        feeLocation,
+        feeAta,
+        name: `${launch.name} cPEG`,
+        uri: `${baseAppUrl.replace(/\/$/, "")}/api/cpeg/${launch.tokenMint}/metadata`,
+        max: Math.max(1, Math.min(10_000, launch.maxPegs || 1)),
+        min: 0,
+        amount: ctx.pegUnitRaw,
+        feeAmount: 0,
+        solFeeAmount: 0,
+        path: 0,
+        tokenProgramId: ctx.tokenProgramId,
+        programId: launch.hybridProgramId || undefined,
+      })
+    );
+  }
+  if (setupIxs.length > 0) {
+    const nativeSetupSig = await sendInstructionsWithAgentSigner(ctx.connection, ctx.signer, setupIxs);
+    setupTxSignature = nativeSetupSig || setupTxSignature;
   }
 
   return {
     collectionAddress,
-    vaultTokenAccount: vaultAta.toBase58(),
-    vaultOwner: ctx.signer.publicKey.toBase58(),
+    escrowAddress: escrow.toBase58(),
+    escrowTokenAccount: escrowTokenAccount.toBase58(),
+    vaultTokenAccount: escrowTokenAccount.toBase58(),
+    vaultOwner: escrow.toBase58(),
     tokenProgramId: ctx.tokenProgramId.toBase58(),
     setupTxSignature,
   };
@@ -452,7 +528,8 @@ export async function buildCaptureTransferInstructions(
   agent: HybridAgentRecord,
   launch: HybridLaunchSnapshot,
   userWallet: string,
-  capturesToCommit: number
+  capturesToCommit: number,
+  captureAssets: string[] = []
 ): Promise<{
   instructions: Array<{ programId: string; accounts: Array<{ pubkey: string; isSigner: boolean; isWritable: boolean }>; dataBase64: string }>;
   vaultAta: string;
@@ -468,17 +545,24 @@ export async function buildCaptureTransferInstructions(
   decimals: number;
 }> {
   const ctx = await loadHybridContext(agent, launch);
-  assertMainnetUsesNativeHybridCustody(launch, ctx.tokenProgramId.toBase58(), "Get cPEG");
   const userPubkey = new PublicKey(userWallet);
   const capCount = Math.max(1, Math.floor(capturesToCommit || 1));
   const totalRaw = ctx.pegUnitRaw * BigInt(capCount);
-  const vaultAta = getAssociatedTokenAddressSync(
-    ctx.tokenMint,
-    ctx.signer.publicKey,
-    false,
-    ctx.tokenProgramId,
-    ASSOCIATED_TOKEN_PROGRAM_ID
-  );
+  const custody = getMplHybridCustodyTarget(launch, ctx.tokenProgramId.toBase58());
+  const nativeEscrowReady = custody.isNativeReady && custody.escrowAddress && custody.escrowTokenAccount;
+  if (isMainnetCluster(launch.cluster) && !nativeEscrowReady) {
+    assertMainnetUsesNativeHybridCustody(launch, ctx.tokenProgramId.toBase58(), "Get cPEG");
+  }
+  const vaultOwnerKey = nativeEscrowReady ? new PublicKey(custody.escrowAddress!) : ctx.signer.publicKey;
+  const vaultAta = nativeEscrowReady
+    ? new PublicKey(custody.escrowTokenAccount!)
+    : getAssociatedTokenAddressSync(
+        ctx.tokenMint,
+        ctx.signer.publicKey,
+        false,
+        ctx.tokenProgramId,
+        ASSOCIATED_TOKEN_PROGRAM_ID
+      );
   const userAta = getAssociatedTokenAddressSync(
     ctx.tokenMint,
     userPubkey,
@@ -516,49 +600,97 @@ export async function buildCaptureTransferInstructions(
     );
   }
   const ixs: InstanceType<typeof TransactionInstruction>[] = [];
-  if (!userAtaInfo) {
-    ixs.push(
-      createAssociatedTokenAccountInstruction(
-        userPubkey,
-        userAta,
-        userPubkey,
-        ctx.tokenMint,
-        ctx.tokenProgramId,
-        ASSOCIATED_TOKEN_PROGRAM_ID
-      )
-    );
-  }
   const vaultAtaInfo = await ctx.connection.getAccountInfo(vaultAta, "confirmed");
   if (!vaultAtaInfo) {
     ixs.push(
       createAssociatedTokenAccountInstruction(
         userPubkey,
         vaultAta,
-        ctx.signer.publicKey,
+        vaultOwnerKey,
         ctx.tokenMint,
         ctx.tokenProgramId,
         ASSOCIATED_TOKEN_PROGRAM_ID
       )
     );
   }
-  ixs.push(
-    createTransferCheckedInstruction(
-      userAta,
+  if (nativeEscrowReady) {
+    if (!launch.hybridCoreCollectionAddress) {
+      throw new CpegHybridEngineError(409, "Metaplex Hybrid collection is missing for this launch");
+    }
+    if (captureAssets.length < capCount) {
+      throw new CpegHybridEngineError(409, "Metaplex Hybrid pool does not have enough cPEG assets ready for capture");
+    }
+    const feeLocation = resolveFeeLocation(launch, ctx.signer.publicKey);
+    const feeAta = getAssociatedTokenAddressSync(
       ctx.tokenMint,
-      vaultAta,
-      userPubkey,
-      totalRaw,
-      ctx.decimals,
-      [],
-      ctx.tokenProgramId
-    )
-  );
+      feeLocation,
+      false,
+      ctx.tokenProgramId,
+      ASSOCIATED_TOKEN_PROGRAM_ID
+    );
+    const feeAtaInfo = await ctx.connection.getAccountInfo(feeAta, "confirmed");
+    if (!feeAtaInfo) {
+      ixs.push(
+        createAssociatedTokenAccountInstruction(
+          userPubkey,
+          feeAta,
+          feeLocation,
+          ctx.tokenMint,
+          ctx.tokenProgramId,
+          ASSOCIATED_TOKEN_PROGRAM_ID
+        )
+      );
+    }
+    for (const assetAddress of captureAssets.slice(0, capCount)) {
+      ixs.push(
+        createCaptureV1Instruction({
+          owner: userPubkey,
+          escrow: custody.escrowAddress!,
+          asset: assetAddress,
+          collection: launch.hybridCoreCollectionAddress,
+          userTokenAccount: userAta,
+          escrowTokenAccount: vaultAta,
+          token: ctx.tokenMint,
+          feeTokenAccount: feeAta,
+          feeSolAccount: MPL_HYBRID_DEFAULT_SOL_FEE_ACCOUNT,
+          feeProjectAccount: feeLocation,
+          tokenProgramId: ctx.tokenProgramId,
+          programId: launch.hybridProgramId || undefined,
+        })
+      );
+    }
+  } else {
+    if (!userAtaInfo) {
+      ixs.push(
+        createAssociatedTokenAccountInstruction(
+          userPubkey,
+          userAta,
+          userPubkey,
+          ctx.tokenMint,
+          ctx.tokenProgramId,
+          ASSOCIATED_TOKEN_PROGRAM_ID
+        )
+      );
+    }
+    ixs.push(
+      createTransferCheckedInstruction(
+        userAta,
+        ctx.tokenMint,
+        vaultAta,
+        userPubkey,
+        totalRaw,
+        ctx.decimals,
+        [],
+        ctx.tokenProgramId
+      )
+    );
+  }
   const denom = ctx.pegUnitRaw === BigInt(0) ? BigInt(1) : ctx.pegUnitRaw;
   return {
     instructions: ixs.map((ix) => serializeInstruction(ix)),
     vaultAta: vaultAta.toBase58(),
     userAta: userAta.toBase58(),
-    vaultOwner: ctx.signer.publicKey.toBase58(),
+    vaultOwner: vaultOwnerKey.toBase58(),
     amountRaw: totalRaw.toString(),
     amountWhole: Number(totalRaw / denom),
     userBalanceRaw: userBalanceRaw.toString(),
@@ -628,6 +760,62 @@ export async function confirmCaptureMint(
   };
 }
 
+export async function mintHybridPoolAsset(
+  agent: HybridAgentRecord,
+  launch: HybridLaunchSnapshot,
+  takenPegIds: Set<number>
+): Promise<{ assetAddress: string; pegId: number; mintTxSignature: string | null; poolOwner: string }> {
+  const ctx = await loadHybridContext(agent, launch);
+  const custody = getMplHybridCustodyTarget(launch, ctx.tokenProgramId.toBase58());
+  if (!custody.isNativeReady || !custody.escrowAddress) {
+    throw new CpegHybridEngineError(409, "Metaplex Hybrid escrow is not initialized for this launch");
+  }
+  const balance = await getAgentWalletBalance(ctx.signer.publicKey.toBase58());
+  if (balance.lamports < MIN_AGENT_WALLET_LAMPORTS_FOR_CAPTURE) {
+    throw new CpegHybridEngineError(402, "Agent wallet does not have enough SOL to seed a Core PEG asset", {
+      balance_sol: balance.sol,
+      required_sol: Number(MIN_AGENT_WALLET_LAMPORTS_FOR_CAPTURE) / 1_000_000_000,
+      wallet_address: ctx.signer.publicKey.toBase58(),
+    });
+  }
+  if (!launch.hybridCoreCollectionAddress) {
+    throw new CpegHybridEngineError(409, "Hybrid setup is incomplete: Core PEG collection is missing");
+  }
+  const umi = createUmi(getMetaplexCoreConnection());
+  umi.use(mplCore());
+  umi.use(keypairIdentity(fromWeb3JsKeypair(ctx.signer)));
+  const collectionAddress = launch.hybridCoreCollectionAddress;
+  const collectionAccount = await safeFetchCollectionV1(umi, publicKey(collectionAddress));
+  if (!collectionAccount) {
+    throw new CpegHybridEngineError(409, "Core PEG collection account is not present on chain");
+  }
+  const pegId = findNextPegId(takenPegIds, launch.maxPegs, launch.collectionSeed, custody.escrowAddress);
+  const metadata = buildAssetMetadata(launch, pegId);
+  const assetSigner = generateSigner(umi);
+  let mintTxSignature: string | null = null;
+  try {
+    const builder = await createCoreAsset(umi, {
+      asset: assetSigner,
+      collection: collectionAccount,
+      owner: publicKey(custody.escrowAddress),
+      name: metadata.name,
+      uri: metadata.uri,
+    })
+      .useLegacyVersion()
+      .sendAndConfirm(umi, { confirm: { commitment: "confirmed" } });
+    mintTxSignature = builder?.signature ? bytesToBase58Signature(builder.signature) : null;
+  } catch (mintError) {
+    const onchain = await safeFetchAssetV1(umi, publicKey(assetSigner.publicKey));
+    if (!onchain) throw mintError;
+  }
+  return {
+    assetAddress: assetSigner.publicKey.toString(),
+    pegId,
+    mintTxSignature,
+    poolOwner: custody.escrowAddress,
+  };
+}
+
 /**
  * Release a captured Core asset back to the agent vault and pay one fixed PEG
  * backing unit from the vault to the user. The user must have already signed a
@@ -641,6 +829,17 @@ export async function confirmReleasePayout(
   assetAddress: string
 ): Promise<{ payoutTxSignature: string }> {
   const ctx = await loadHybridContext(agent, launch);
+  const custody = getMplHybridCustodyTarget(launch, ctx.tokenProgramId.toBase58());
+  if (custody.isNativeReady && custody.escrowAddress) {
+    const umi = createUmi(getMetaplexCoreConnection());
+    umi.use(mplCore());
+    umi.use(keypairIdentity(fromWeb3JsKeypair(ctx.signer)));
+    const asset = await fetchAssetV1(umi, publicKey(assetAddress));
+    if (toWeb3JsPublicKey(asset.owner).toBase58() !== custody.escrowAddress) {
+      throw new CpegHybridEngineError(409, "Asset has not been returned to the Metaplex Hybrid escrow yet");
+    }
+    return { payoutTxSignature: "metaplex_hybrid_native" };
+  }
   assertMainnetUsesNativeHybridCustody(launch, ctx.tokenProgramId.toBase58(), "Release payout");
   const balance = await getAgentWalletBalance(ctx.signer.publicKey.toBase58());
   if (balance.lamports < MIN_AGENT_WALLET_LAMPORTS_FOR_RELEASE) {
@@ -727,11 +926,90 @@ export async function buildReleaseTransferInstructions(
   if (!launch.hybridCoreCollectionAddress) {
     throw new CpegHybridEngineError(409, "Hybrid setup is incomplete: Core PEG collection is missing");
   }
-  if (!agent.solanaWalletAddress) {
-    throw new CpegHybridEngineError(409, "Agent vault wallet is not configured");
-  }
   const ctx = await loadHybridContext(agent, launch);
-  assertMainnetUsesNativeHybridCustody(launch, ctx.tokenProgramId.toBase58(), "Release");
+  const custody = getMplHybridCustodyTarget(launch, ctx.tokenProgramId.toBase58());
+  const nativeEscrowReady = custody.isNativeReady && custody.escrowAddress && custody.escrowTokenAccount;
+  if (isMainnetCluster(launch.cluster) && !nativeEscrowReady) {
+    assertMainnetUsesNativeHybridCustody(launch, ctx.tokenProgramId.toBase58(), "Release");
+  }
+  if (nativeEscrowReady) {
+    const userPubkey = new PublicKey(userWallet);
+    const userAta = getAssociatedTokenAddressSync(
+      ctx.tokenMint,
+      userPubkey,
+      false,
+      ctx.tokenProgramId,
+      ASSOCIATED_TOKEN_PROGRAM_ID
+    );
+    const escrowTokenAccount = new PublicKey(custody.escrowTokenAccount!);
+    const feeLocation = resolveFeeLocation(launch, ctx.signer.publicKey);
+    const feeAta = getAssociatedTokenAddressSync(
+      ctx.tokenMint,
+      feeLocation,
+      false,
+      ctx.tokenProgramId,
+      ASSOCIATED_TOKEN_PROGRAM_ID
+    );
+    const ixs: InstanceType<typeof TransactionInstruction>[] = [];
+    const userAtaInfo = await ctx.connection.getAccountInfo(userAta, "confirmed");
+    if (!userAtaInfo) {
+      ixs.push(
+        createAssociatedTokenAccountInstruction(
+          userPubkey,
+          userAta,
+          userPubkey,
+          ctx.tokenMint,
+          ctx.tokenProgramId,
+          ASSOCIATED_TOKEN_PROGRAM_ID
+        )
+      );
+    }
+    const feeAtaInfo = await ctx.connection.getAccountInfo(feeAta, "confirmed");
+    if (!feeAtaInfo) {
+      ixs.push(
+        createAssociatedTokenAccountInstruction(
+          userPubkey,
+          feeAta,
+          feeLocation,
+          ctx.tokenMint,
+          ctx.tokenProgramId,
+          ASSOCIATED_TOKEN_PROGRAM_ID
+        )
+      );
+    }
+    ixs.push(
+      createReleaseV1Instruction({
+        owner: userPubkey,
+        escrow: custody.escrowAddress!,
+        asset: assetAddress,
+        collection: launch.hybridCoreCollectionAddress,
+        userTokenAccount: userAta,
+        escrowTokenAccount,
+        token: ctx.tokenMint,
+        feeTokenAccount: feeAta,
+        feeSolAccount: MPL_HYBRID_DEFAULT_SOL_FEE_ACCOUNT,
+        feeProjectAccount: feeLocation,
+        tokenProgramId: ctx.tokenProgramId,
+        programId: launch.hybridProgramId || undefined,
+      })
+    );
+    let pegId: number | null = null;
+    try {
+      const umi = createUmi(getMetaplexCoreConnection());
+      umi.use(mplCore());
+      const asset = await fetchAssetV1(umi, publicKey(assetAddress));
+      const match = /#(\d+)/.exec(asset.name || "");
+      if (match) pegId = Number.parseInt(match[1], 10);
+    } catch {
+      // ignore
+    }
+    return {
+      instructions: ixs.map((ix) => serializeInstruction(ix)),
+      targetOwner: custody.escrowAddress!,
+      collectionAddress: launch.hybridCoreCollectionAddress,
+      pegId,
+    };
+  }
   const umi = createUmi(getMetaplexCoreConnection());
   umi.use(mplCore());
   // Use the user as a noop signer for instruction building; their actual signature
