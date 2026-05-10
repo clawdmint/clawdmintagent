@@ -519,10 +519,10 @@ export async function setupHybridLaunch(
 }
 
 /**
- * Build the unsigned instructions required to capture one or more fixed PEG
- * backing units from the user's wallet into the agent vault. The frontend signs and
- * broadcasts, then calls captureConfirm() so the backend can mint the Core
- * asset and persist the row.
+ * Build the unsigned instructions required to convert one or more fixed PEG
+ * backing units from the user's wallet into Core cPEG assets. In MPL-Hybrid
+ * terms this is a release: the user pays the backing token amount and the
+ * escrow releases the selected Core asset to the user.
  */
 export async function buildCaptureTransferInstructions(
   agent: HybridAgentRecord,
@@ -643,7 +643,7 @@ export async function buildCaptureTransferInstructions(
     }
     for (const assetAddress of captureAssets.slice(0, capCount)) {
       ixs.push(
-        createCaptureV1Instruction({
+        createReleaseV1Instruction({
           owner: userPubkey,
           escrow: custody.escrowAddress!,
           asset: assetAddress,
@@ -908,7 +908,7 @@ export async function confirmReleasePayout(
 
 /**
  * Build the unsigned Metaplex Core transfer instruction(s) needed to move a
- * captured asset from the user back to the agent vault. Returned in the same
+ * captured asset from the user back to the hybrid escrow. Returned in the same
  * manifest shape the cPEG market client uses for prepared instructions, so the
  * frontend can sign with Phantom without bringing in any umi wallet adapter.
  */
@@ -978,7 +978,7 @@ export async function buildReleaseTransferInstructions(
       );
     }
     ixs.push(
-      createReleaseV1Instruction({
+      createCaptureV1Instruction({
         owner: userPubkey,
         escrow: custody.escrowAddress!,
         asset: assetAddress,

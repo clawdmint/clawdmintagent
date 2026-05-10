@@ -125,6 +125,21 @@ function formatSimulationError(err: unknown, logs: string[]): string {
   return `[capture-sim]Capture would be rejected on-chain: ${message}${detail}`;
 }
 
+async function formatBroadcastError(error: unknown, connection: InstanceType<typeof Connection>, fallback: string) {
+  const maybeLogs =
+    error && typeof error === "object" && "getLogs" in error && typeof (error as { getLogs?: unknown }).getLogs === "function"
+      ? await (error as { getLogs: (connection: InstanceType<typeof Connection>) => Promise<string[] | null> })
+          .getLogs(connection)
+          .catch(() => null)
+      : null;
+  const logs = maybeLogs || [];
+  const usefulLog = logs.find((line) =>
+    /Program log: Error|custom program error|Invalid|insufficient|owner|authority|mint|account/i.test(line)
+  );
+  if (usefulLog) return `${fallback} ${usefulLog.replace("Program log: ", "")}`;
+  return describeError(error, fallback);
+}
+
 function manifestToInstruction(instruction: ManifestInstruction) {
   return new TransactionInstruction({
     programId: new PublicKey(instruction.programId),
@@ -317,11 +332,16 @@ export function CpegHybridPanel({ tokenMint, initialAuthorityAddress, compact }:
       }
 
       setStatus("Broadcasting capture transfer...");
-      const signature = await connection.sendRawTransaction(raw, {
-        skipPreflight: false,
-        maxRetries: 5,
-        preflightCommitment: "confirmed",
-      });
+      let signature = "";
+      try {
+        signature = await connection.sendRawTransaction(raw, {
+          skipPreflight: false,
+          maxRetries: 5,
+          preflightCommitment: "confirmed",
+        });
+      } catch (sendError) {
+        throw new Error(await formatBroadcastError(sendError, connection, "Capture was rejected on-chain."));
+      }
       await connection.confirmTransaction(
         { signature, blockhash: latest.blockhash, lastValidBlockHeight: latest.lastValidBlockHeight },
         "confirmed"
@@ -420,11 +440,16 @@ export function CpegHybridPanel({ tokenMint, initialAuthorityAddress, compact }:
           ? signed.serialize()
           : signed.serialize({ requireAllSignatures: true, verifySignatures: false });
         setStatus("Broadcasting release transfer...");
-        const releaseSignature = await connection.sendRawTransaction(raw, {
-          skipPreflight: false,
-          maxRetries: 5,
-          preflightCommitment: "confirmed",
-        });
+        let releaseSignature = "";
+        try {
+          releaseSignature = await connection.sendRawTransaction(raw, {
+            skipPreflight: false,
+            maxRetries: 5,
+            preflightCommitment: "confirmed",
+          });
+        } catch (sendError) {
+          throw new Error(await formatBroadcastError(sendError, connection, "Release was rejected on-chain."));
+        }
         await connection.confirmTransaction(
           { signature: releaseSignature, blockhash: latest.blockhash, lastValidBlockHeight: latest.lastValidBlockHeight },
           "confirmed"
