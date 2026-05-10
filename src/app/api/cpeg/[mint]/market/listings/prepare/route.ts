@@ -17,6 +17,7 @@ import { CPEG_STANDARD_MODE_METAPLEX_HYBRID } from "@/lib/cpeg-metaplex-hybrid";
 import {
   CPEG_HYBRID_ASSET_STATUS_OWNED,
   CpegHybridEngineError,
+  fetchHybridCoreAssetOwner,
 } from "@/lib/cpeg-hybrid-engine";
 import { loadHybridLaunchAndAgent } from "@/lib/cpeg-hybrid-loader";
 import { buildMarketplaceListingDelegateTransaction } from "@/lib/marketplace-transactions";
@@ -59,6 +60,23 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
       });
       if (!asset) {
         return NextResponse.json({ success: false, error: "This Core cPEG is not owned by the seller wallet" }, { status: 403 });
+      }
+      const onChainOwner = await fetchHybridCoreAssetOwner(asset.assetAddress);
+      if (onChainOwner !== input.seller) {
+        await prisma.clawPegHybridAsset
+          .update({
+            where: { assetAddress: asset.assetAddress },
+            data: { ownerAddress: onChainOwner },
+          })
+          .catch(() => null);
+        return NextResponse.json(
+          {
+            success: false,
+            error: "This Core cPEG is no longer owned by the seller wallet. Refresh your profile and market page.",
+            details: { on_chain_owner: onChainOwner },
+          },
+          { status: 409 }
+        );
       }
       const priceLamports = BigInt(input.price_lamports);
       if (priceLamports <= BigInt(0)) {

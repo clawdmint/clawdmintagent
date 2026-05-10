@@ -782,6 +782,7 @@ export async function buildCaptureTransferInstructions(
   tokenSupplyRaw: string;
   tokenProgramId: string;
   decimals: number;
+  serializedTransactionBase64?: string;
 }> {
   const ctx = await loadHybridContext(agent, launch);
   const userPubkey = new PublicKey(userWallet);
@@ -900,6 +901,7 @@ export async function buildCaptureTransferInstructions(
       ixs.push(
         createCaptureV1Instruction({
           owner: userPubkey,
+          authority: ctx.signer.publicKey,
           escrow: custody.escrowAddress!,
           asset: assetAddress,
           collection: launch.hybridCoreCollectionAddress,
@@ -941,6 +943,9 @@ export async function buildCaptureTransferInstructions(
     );
   }
   const denom = ctx.pegUnitRaw === BigInt(0) ? BigInt(1) : ctx.pegUnitRaw;
+  const serializedTransactionBase64 = nativeEscrowReady
+    ? await buildPartiallySignedUserTransaction(ctx.connection, userPubkey, ctx.signer, ixs)
+    : undefined;
   return {
     instructions: ixs.map((ix) => serializeInstruction(ix)),
     vaultAta: vaultAta.toBase58(),
@@ -954,6 +959,7 @@ export async function buildCaptureTransferInstructions(
     tokenSupplyRaw: ctx.tokenSupplyRaw.toString(),
     tokenProgramId: ctx.tokenProgramId.toBase58(),
     decimals: ctx.decimals,
+    serializedTransactionBase64,
   };
 }
 
@@ -1178,6 +1184,7 @@ export async function buildReleaseTransferInstructions(
   targetOwner: string;
   collectionAddress: string;
   pegId: number | null;
+  serializedTransactionBase64?: string;
 }> {
   if (!launch.hybridCoreCollectionAddress) {
     throw new CpegHybridEngineError(409, "Hybrid setup is incomplete: Core PEG collection is missing");
@@ -1240,6 +1247,7 @@ export async function buildReleaseTransferInstructions(
     ixs.push(
       createReleaseV1Instruction({
         owner: userPubkey,
+        authority: ctx.signer.publicKey,
         escrow: custody.escrowAddress!,
         asset: assetAddress,
         collection: launch.hybridCoreCollectionAddress,
@@ -1268,6 +1276,12 @@ export async function buildReleaseTransferInstructions(
       targetOwner: custody.escrowAddress!,
       collectionAddress: launch.hybridCoreCollectionAddress,
       pegId,
+      serializedTransactionBase64: await buildPartiallySignedUserTransaction(
+        ctx.connection,
+        userPubkey,
+        ctx.signer,
+        ixs
+      ),
     };
   }
   const umi = createUmi(getMetaplexCoreConnection());
@@ -1381,6 +1395,13 @@ export async function recycleAssetToPool(
   }
 }
 
+export async function fetchHybridCoreAssetOwner(assetAddress: string): Promise<string> {
+  const umi = createUmi(getMetaplexCoreConnection());
+  umi.use(mplCore());
+  const asset = await fetchAssetV1(umi, publicKey(assetAddress));
+  return toWeb3JsPublicKey(asset.owner).toBase58();
+}
+
 interface AccountMetaLike {
   pubkey: InstanceType<typeof PublicKey>;
   isSigner: boolean;
@@ -1397,6 +1418,23 @@ function serializeInstruction(ix: InstanceType<typeof TransactionInstruction>) {
     })),
     dataBase64: Buffer.from(ix.data).toString("base64"),
   };
+}
+
+async function buildPartiallySignedUserTransaction(
+  connection: InstanceType<typeof Connection>,
+  feePayer: InstanceType<typeof PublicKey>,
+  agentSigner: InstanceType<typeof Keypair>,
+  instructions: InstanceType<typeof TransactionInstruction>[]
+): Promise<string> {
+  const transaction = new Transaction();
+  for (const ix of instructions) transaction.add(ix);
+  const latest = await connection.getLatestBlockhash("confirmed");
+  transaction.feePayer = feePayer;
+  transaction.recentBlockhash = latest.blockhash;
+  transaction.partialSign(agentSigner);
+  return transaction
+    .serialize({ requireAllSignatures: false, verifySignatures: false })
+    .toString("base64");
 }
 
 async function sendInstructionsWithAgentSigner(

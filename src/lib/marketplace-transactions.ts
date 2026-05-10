@@ -231,6 +231,11 @@ export async function buildMarketplaceFillTransaction(input: {
     collectionAddress: input.collectionAddress,
   });
 
+  const currentOwner = asset.owner.toString();
+  if (currentOwner !== input.sellerAddress) {
+    throw new Error("Listed cPEG is no longer owned by the seller. Refresh the market.");
+  }
+
   if (!hasMarketplaceTransferDelegate(asset, delegateAddress)) {
     throw new Error("Marketplace transfer delegate is not active for this asset");
   }

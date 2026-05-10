@@ -7,6 +7,7 @@ import {
   CPEG_HYBRID_STATUS_CONFIGURED,
   CpegHybridEngineError,
   buildReleaseTransferInstructions,
+  fetchHybridCoreAssetOwner,
 } from "@/lib/cpeg-hybrid-engine";
 import { CPEG_STANDARD_MODE_METAPLEX_HYBRID } from "@/lib/cpeg-metaplex-hybrid";
 import { loadHybridLaunchAndAgent } from "@/lib/cpeg-hybrid-loader";
@@ -60,6 +61,17 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
         { status: 403 }
       );
     }
+    const onChainOwner = await fetchHybridCoreAssetOwner(parsed.data.asset_address);
+    if (onChainOwner !== parsed.data.wallet) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "This cPEG is no longer owned by the connected wallet. Refresh the page.",
+          details: { on_chain_owner: onChainOwner },
+        },
+        { status: 409 }
+      );
+    }
     if (!data.agent.solanaWalletAddress) {
       return NextResponse.json({ success: false, error: "Agent vault wallet is not configured" }, { status: 409 });
     }
@@ -107,8 +119,10 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
         peg_id: asset.pegId,
         target_owner: transfer.targetOwner,
         collection_address: transfer.collectionAddress,
+        serialized_transaction_base64: transfer.serializedTransactionBase64,
       },
       instructions: transfer.instructions,
+      serialized_transaction_base64: transfer.serializedTransactionBase64,
     });
   } catch (error) {
     if (error instanceof CpegHybridEngineError) {

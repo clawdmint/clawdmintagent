@@ -19,6 +19,7 @@ import { prisma } from "@/lib/db";
 import { getClawPegRpcUrl } from "@/lib/env";
 import { CPEG_STANDARD_MODE_METAPLEX_HYBRID } from "@/lib/cpeg-metaplex-hybrid";
 import { loadHybridLaunchAndAgent } from "@/lib/cpeg-hybrid-loader";
+import { fetchHybridCoreAssetOwner } from "@/lib/cpeg-hybrid-engine";
 import { buildMarketplaceFillTransaction } from "@/lib/marketplace-transactions";
 
 export const dynamic = "force-dynamic";
@@ -70,6 +71,23 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
         });
         return NextResponse.json(
           { success: false, error: "Listing owner no longer matches cPEG state. Refresh the market." },
+          { status: 409 }
+        );
+      }
+      const onChainOwner = await fetchHybridCoreAssetOwner(listing.listingAddress);
+      if (onChainOwner !== listing.sellerAddress) {
+        await prisma.clawPegMarketListing.updateMany({
+          where: { id: listing.id, status: "ACTIVE" },
+          data: { status: "CANCELLED", cancelledAt: new Date() },
+        });
+        await prisma.clawPegHybridAsset
+          .update({
+            where: { assetAddress: listing.listingAddress },
+            data: { ownerAddress: onChainOwner },
+          })
+          .catch(() => null);
+        return NextResponse.json(
+          { success: false, error: "This listing is no longer owned by the seller. Refresh the market." },
           { status: 409 }
         );
       }

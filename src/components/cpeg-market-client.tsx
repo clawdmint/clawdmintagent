@@ -226,6 +226,59 @@ function getSignedTransactionSignature(transaction: SolanaWeb3Transaction) {
   return base58Encode(signature);
 }
 
+function formatMarketSimulationError(err: unknown, logs: string[]): string {
+  let message: string;
+  if (typeof err === "string") {
+    message = err;
+  } else if (err && typeof err === "object") {
+    try {
+      message = JSON.stringify(err);
+    } catch {
+      message = String(err);
+    }
+  } else {
+    message = String(err);
+  }
+  const interestingLog = logs.find((line) =>
+    /Program log: Error|custom program error|Invalid|insufficient|owner|authority|mint|account|GetAccountDataSize|Neither the asset|failed/i.test(line)
+  );
+  const detail = interestingLog ? ` (${interestingLog.replace("Program log: ", "")})` : "";
+  return `[market-sim]Market transaction would be rejected on-chain: ${message}${detail}`;
+}
+
+async function formatMarketBroadcastError(
+  error: unknown,
+  connection: InstanceType<typeof Connection>,
+  fallback: string
+) {
+  const maybeLogs =
+    error && typeof error === "object" && "getLogs" in error && typeof (error as { getLogs?: unknown }).getLogs === "function"
+      ? await (error as { getLogs: (connection: InstanceType<typeof Connection>) => Promise<string[] | null> })
+          .getLogs(connection)
+          .catch(() => null)
+      : null;
+  const directLogs = Array.isArray((error as { logs?: unknown })?.logs) ? (error as { logs: string[] }).logs : [];
+  const logs = maybeLogs || directLogs;
+  const usefulLogs = logs.filter((line) =>
+    /Program log: Error|custom program error|Invalid|insufficient|owner|authority|mint|account|GetAccountDataSize|Neither the asset|failed/i.test(line)
+  );
+  if (usefulLogs.length) {
+    return `${fallback} ${usefulLogs.slice(-3).map((line) => line.replace("Program log: ", "")).join(" | ")}`;
+  }
+  return describeError(error, fallback);
+}
+
+function formatMarketActionError(error: unknown, fallback: string) {
+  const message = error instanceof Error ? error.message : String(error || "");
+  if (message.startsWith("[market-sim]")) {
+    return message.replace("[market-sim]", "").trim();
+  }
+  if (message && !/program error/i.test(message)) {
+    return message.length > 220 ? `${message.slice(0, 220)}...` : message;
+  }
+  return describeError(error, fallback);
+}
+
 function formatProvenanceValue(label: string, value: string | null | undefined) {
   if (value) {
     if (/^\d{4}-\d{2}-\d{2}T/.test(value)) {
@@ -618,6 +671,18 @@ export function CpegMarketClient() {
         signed instanceof VersionedTransaction
           ? signed.serialize()
           : signed.serialize({ requireAllSignatures: true, verifySignatures: false });
+      try {
+        const sim = signed instanceof VersionedTransaction
+          ? await connection.simulateTransaction(signed, { sigVerify: false, commitment: "confirmed" })
+          : await connection.simulateTransaction(signed as InstanceType<typeof Transaction>, undefined, true);
+        if (sim.value.err) {
+          throw new Error(formatMarketSimulationError(sim.value.err, sim.value.logs || []));
+        }
+      } catch (simError) {
+        if (simError instanceof Error && simError.message.startsWith("[market-sim]")) {
+          throw simError;
+        }
+      }
       let signature = signedSignature;
       try {
         signature = await connection.sendRawTransaction(raw, {
@@ -628,7 +693,7 @@ export function CpegMarketClient() {
       } catch (sendError) {
         const message = sendError instanceof Error ? sendError.message : String(sendError);
         if (!message.toLowerCase().includes("already been processed")) {
-          throw sendError;
+          throw new Error(await formatMarketBroadcastError(sendError, connection, "Market transaction was rejected on-chain."));
         }
       }
       await connection.confirmTransaction(
@@ -658,6 +723,18 @@ export function CpegMarketClient() {
         signed instanceof VersionedTransaction
           ? signed.serialize()
           : signed.serialize({ requireAllSignatures: true, verifySignatures: false });
+      try {
+        const sim = signed instanceof VersionedTransaction
+          ? await connection.simulateTransaction(signed, { sigVerify: false, commitment: "confirmed" })
+          : await connection.simulateTransaction(signed as InstanceType<typeof Transaction>, undefined, true);
+        if (sim.value.err) {
+          throw new Error(formatMarketSimulationError(sim.value.err, sim.value.logs || []));
+        }
+      } catch (simError) {
+        if (simError instanceof Error && simError.message.startsWith("[market-sim]")) {
+          throw simError;
+        }
+      }
       let signature = signedSignature;
       try {
         signature = await connection.sendRawTransaction(raw, {
@@ -668,7 +745,7 @@ export function CpegMarketClient() {
       } catch (sendError) {
         const message = sendError instanceof Error ? sendError.message : String(sendError);
         if (!message.toLowerCase().includes("already been processed")) {
-          throw sendError;
+          throw new Error(await formatMarketBroadcastError(sendError, connection, "Market transaction was rejected on-chain."));
         }
       }
       await connection.confirmTransaction(signature, "confirmed");
@@ -751,7 +828,7 @@ export function CpegMarketClient() {
       await refreshListings(selectedLaunch.token_mint);
       await refreshActivity(selectedLaunch.token_mint);
     } catch (listError) {
-      setError(describeError(listError, "Failed to list PEG."));
+      setError(formatMarketActionError(listError, "Failed to list PEG."));
     } finally {
       setBusy("");
     }
@@ -829,7 +906,7 @@ export function CpegMarketClient() {
         await refreshListings(selectedLaunch.token_mint);
         await refreshActivity(selectedLaunch.token_mint);
       } catch (buyError) {
-        setError(describeError(buyError, "Failed to buy PEG."));
+        setError(formatMarketActionError(buyError, "Failed to buy PEG."));
       } finally {
         setBusy("");
       }
@@ -897,7 +974,7 @@ export function CpegMarketClient() {
       if (message.toLowerCase().includes("too large") || message.toLowerCase().includes("size limit")) {
         setError("Selection too large for one transaction. Try fewer PEGs.");
       } else {
-        setError(describeError(batchError, "Failed to batch buy."));
+        setError(formatMarketActionError(batchError, "Failed to batch buy."));
       }
     } finally {
       setBusy("");
@@ -947,7 +1024,7 @@ export function CpegMarketClient() {
         await refreshListings(selectedLaunch.token_mint);
         await refreshActivity(selectedLaunch.token_mint);
       } catch (cancelError) {
-        setError(describeError(cancelError, "Failed to cancel listing."));
+        setError(formatMarketActionError(cancelError, "Failed to cancel listing."));
       } finally {
         setBusy("");
       }

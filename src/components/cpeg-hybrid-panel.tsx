@@ -105,7 +105,7 @@ function base64ToBytes(value: string): Uint8Array {
   return Uint8Array.from(window.atob(value), (char) => char.charCodeAt(0));
 }
 
-function formatSimulationError(err: unknown, logs: string[]): string {
+function formatSimulationError(action: "capture" | "release", err: unknown, logs: string[]): string {
   let message: string;
   if (typeof err === "string") {
     message = err;
@@ -120,12 +120,12 @@ function formatSimulationError(err: unknown, logs: string[]): string {
   }
   const interestingLog = logs.find(
     (line) =>
-      /insufficient funds|insufficient lamports|invalid mint|invalid account|0x1$|0x0$|Program log: Error|custom program error/i.test(
+      /insufficient funds|insufficient lamports|invalid mint|invalid account|InvalidMintAccount|InvalidProjectFeeWallet|GetAccountDataSize|Neither the asset|0x1$|0x0$|Program log: Error|custom program error|failed/i.test(
         line
       )
   );
   const detail = interestingLog ? ` (${interestingLog.replace("Program log: ", "")})` : "";
-  return `[capture-sim]Capture would be rejected on-chain: ${message}${detail}`;
+  return `[${action}-sim]${action === "capture" ? "Capture" : "Release"} would be rejected on-chain: ${message}${detail}`;
 }
 
 async function formatBroadcastError(error: unknown, connection: InstanceType<typeof Connection>, fallback: string) {
@@ -293,7 +293,12 @@ export function CpegHybridPanel({ tokenMint, initialAuthorityAddress, compact }:
             success?: boolean;
             error?: string;
             instructions?: ManifestInstruction[];
-            capture?: { cluster: string; assets?: Array<{ asset_address: string; peg_id: number }> };
+            serialized_transaction_base64?: string;
+            capture?: {
+              cluster: string;
+              assets?: Array<{ asset_address: string; peg_id: number }>;
+              serialized_transaction_base64?: string;
+            };
           }
         | null;
       if (!prepareResponse.ok || !prepareBody?.success || !prepareBody.instructions) {
@@ -305,11 +310,17 @@ export function CpegHybridPanel({ tokenMint, initialAuthorityAddress, compact }:
 
       const cluster = prepareBody.capture?.cluster || state.cluster;
       const connection = new Connection(getClientRpcUrl(cluster), "confirmed");
-      const transaction = new Transaction();
-      for (const ix of prepareBody.instructions) transaction.add(manifestToInstruction(ix));
-      const latest = await connection.getLatestBlockhash("confirmed");
-      transaction.feePayer = new PublicKey(connectedAddress);
-      transaction.recentBlockhash = latest.blockhash;
+      const preparedTransaction =
+        prepareBody.serialized_transaction_base64 || prepareBody.capture?.serialized_transaction_base64 || "";
+      const transaction = preparedTransaction ? Transaction.from(base64ToBytes(preparedTransaction)) : new Transaction();
+      let latest: { blockhash: string; lastValidBlockHeight: number } | null = null;
+      if (!preparedTransaction) {
+        for (const ix of prepareBody.instructions) transaction.add(manifestToInstruction(ix));
+        const freshBlockhash = await connection.getLatestBlockhash("confirmed");
+        latest = freshBlockhash;
+        transaction.feePayer = new PublicKey(connectedAddress);
+        transaction.recentBlockhash = freshBlockhash.blockhash;
+      }
 
       setStatus("Opening Phantom for capture approval...");
       const signed = (await provider.signTransaction(transaction as SolanaWeb3Transaction)) as SolanaWeb3Transaction;
@@ -326,7 +337,7 @@ export function CpegHybridPanel({ tokenMint, initialAuthorityAddress, compact }:
           ? await connection.simulateTransaction(signed, { sigVerify: false, commitment: "confirmed" })
           : await connection.simulateTransaction(signed as InstanceType<typeof Transaction>, undefined, true);
         if (sim.value.err) {
-          throw new Error(formatSimulationError(sim.value.err, sim.value.logs || []));
+          throw new Error(formatSimulationError("capture", sim.value.err, sim.value.logs || []));
         }
       } catch (simError) {
         if (simError instanceof Error && simError.message.startsWith("[capture-sim]")) {
@@ -347,10 +358,14 @@ export function CpegHybridPanel({ tokenMint, initialAuthorityAddress, compact }:
       } catch (sendError) {
         throw new Error(await formatBroadcastError(sendError, connection, "Capture was rejected on-chain."));
       }
-      await connection.confirmTransaction(
-        { signature, blockhash: latest.blockhash, lastValidBlockHeight: latest.lastValidBlockHeight },
-        "confirmed"
-      );
+      if (latest) {
+        await connection.confirmTransaction(
+          { signature, blockhash: latest.blockhash, lastValidBlockHeight: latest.lastValidBlockHeight },
+          "confirmed"
+        );
+      } else {
+        await connection.confirmTransaction(signature, "confirmed");
+      }
       setLastTx(signature);
 
       setStatus("Minting your Metaplex Core PEG identities...");
@@ -424,7 +439,12 @@ export function CpegHybridPanel({ tokenMint, initialAuthorityAddress, compact }:
           | {
               success?: boolean;
               error?: string;
-              release?: { target_owner: string; collection_address: string };
+              serialized_transaction_base64?: string;
+              release?: {
+                target_owner: string;
+                collection_address: string;
+                serialized_transaction_base64?: string;
+              };
               instructions?: ManifestInstruction[];
             }
           | null;
@@ -434,16 +454,35 @@ export function CpegHybridPanel({ tokenMint, initialAuthorityAddress, compact }:
 
         const cluster = state.cluster || "mainnet-beta";
         const connection = new Connection(getClientRpcUrl(cluster), "confirmed");
-        const transaction = new Transaction();
-        for (const ix of prepareBody.instructions) transaction.add(manifestToInstruction(ix));
-        const latest = await connection.getLatestBlockhash("confirmed");
-        transaction.feePayer = new PublicKey(connectedAddress);
-        transaction.recentBlockhash = latest.blockhash;
+        const preparedTransaction =
+          prepareBody.serialized_transaction_base64 || prepareBody.release?.serialized_transaction_base64 || "";
+        const transaction = preparedTransaction ? Transaction.from(base64ToBytes(preparedTransaction)) : new Transaction();
+        let latest: { blockhash: string; lastValidBlockHeight: number } | null = null;
+        if (!preparedTransaction) {
+          for (const ix of prepareBody.instructions) transaction.add(manifestToInstruction(ix));
+          const freshBlockhash = await connection.getLatestBlockhash("confirmed");
+          latest = freshBlockhash;
+          transaction.feePayer = new PublicKey(connectedAddress);
+          transaction.recentBlockhash = freshBlockhash.blockhash;
+        }
         setStatus("Opening Phantom for release approval...");
         const signed = (await provider.signTransaction(transaction as SolanaWeb3Transaction)) as SolanaWeb3Transaction;
         const raw = signed instanceof VersionedTransaction
           ? signed.serialize()
           : signed.serialize({ requireAllSignatures: true, verifySignatures: false });
+        setStatus("Simulating release transfer...");
+        try {
+          const sim = signed instanceof VersionedTransaction
+            ? await connection.simulateTransaction(signed, { sigVerify: false, commitment: "confirmed" })
+            : await connection.simulateTransaction(signed as InstanceType<typeof Transaction>, undefined, true);
+          if (sim.value.err) {
+            throw new Error(formatSimulationError("release", sim.value.err, sim.value.logs || []));
+          }
+        } catch (simError) {
+          if (simError instanceof Error && simError.message.startsWith("[release-sim]")) {
+            throw simError;
+          }
+        }
         setStatus("Broadcasting release transfer...");
         let releaseSignature = "";
         try {
@@ -455,10 +494,14 @@ export function CpegHybridPanel({ tokenMint, initialAuthorityAddress, compact }:
         } catch (sendError) {
           throw new Error(await formatBroadcastError(sendError, connection, "Release was rejected on-chain."));
         }
-        await connection.confirmTransaction(
-          { signature: releaseSignature, blockhash: latest.blockhash, lastValidBlockHeight: latest.lastValidBlockHeight },
-          "confirmed"
-        );
+        if (latest) {
+          await connection.confirmTransaction(
+            { signature: releaseSignature, blockhash: latest.blockhash, lastValidBlockHeight: latest.lastValidBlockHeight },
+            "confirmed"
+          );
+        } else {
+          await connection.confirmTransaction(releaseSignature, "confirmed");
+        }
         setLastTx(releaseSignature);
 
         setStatus("Settling token payout...");
@@ -478,7 +521,14 @@ export function CpegHybridPanel({ tokenMint, initialAuthorityAddress, compact }:
         await refreshState();
         setStatus(`Released cPEG #${asset.peg_id}.`);
       } catch (releaseError) {
-        setError(describeError(releaseError, "Failed to release cPEG."));
+        const message = releaseError instanceof Error ? releaseError.message : "";
+        if (message.startsWith("[release-sim]")) {
+          setError(message.replace("[release-sim]", "").trim());
+        } else if (message && message.length > 0 && !/program error/i.test(message)) {
+          setError(message.length > 220 ? `${message.slice(0, 220)}...` : message);
+        } else {
+          setError(describeError(releaseError, "Failed to release cPEG."));
+        }
       } finally {
         setActionBusy(null);
       }

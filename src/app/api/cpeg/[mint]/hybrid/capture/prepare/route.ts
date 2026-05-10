@@ -193,8 +193,10 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
         vault_owner: result.vaultOwner,
         user_token_account: result.userAta,
         assets: captureAssets,
+        serialized_transaction_base64: result.serializedTransactionBase64,
       },
       instructions: result.instructions,
+      serialized_transaction_base64: result.serializedTransactionBase64,
     });
   } catch (error) {
     if (error instanceof CpegHybridEngineError) {
