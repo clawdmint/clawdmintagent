@@ -145,7 +145,7 @@ interface CpegPegDetail {
   traits: Record<string, string | number | boolean | null>;
 }
 
-type ListingDetailTab = "info" | "traits" | "provenance" | "rarity";
+type ListingDetailTab = "info" | "traits" | "details";
 
 const SORT_OPTIONS: Array<[string, string]> = [
   ["price_asc", "Price: low to high"],
@@ -1057,18 +1057,6 @@ export function CpegMarketClient() {
       accent: "text-neutral-700 dark:text-white/72",
       icon: Users,
     },
-    {
-      label: "Royalty",
-      value: collection ? bpsToPercent(collection.royalty_bps) : "--",
-      accent: "text-neutral-700 dark:text-white/55",
-      icon: Tag,
-    },
-    {
-      label: "Fee",
-      value: collection ? bpsToPercent(collection.marketplace_fee_bps) : "--",
-      accent: "text-neutral-700 dark:text-white/55",
-      icon: Tag,
-    },
   ];
 
   return (
@@ -1170,10 +1158,15 @@ export function CpegMarketClient() {
           <h1 className="mt-4 text-5xl font-black uppercase leading-[0.95] text-neutral-950 dark:text-white md:text-7xl">
             {selectedLaunch?.name || collection?.name || "cPEG market"}
           </h1>
-          <p className="mt-3 max-w-2xl text-sm leading-7 text-neutral-600 dark:text-white/55">
-            Buy listed PEG identities from program escrow. The token unit and its identity
-            settle together in one transaction.
-          </p>
+          {selectedLaunch ? (
+            <p className="mt-3 max-w-2xl text-sm leading-7 text-neutral-600 dark:text-white/55">
+              Live cPEG listings, settled atomically on Solana.
+            </p>
+          ) : (
+            <p className="mt-3 max-w-2xl text-sm leading-7 text-neutral-600 dark:text-white/55">
+              Pick a collection to browse listed cPEG identities.
+            </p>
+          )}
 
           {selectedLaunch ? (
             <div className="mt-5 flex flex-wrap items-center gap-3">
@@ -1208,18 +1201,18 @@ export function CpegMarketClient() {
           ) : null}
         </div>
 
-        <div className="grid grid-cols-3 gap-px border border-neutral-200 bg-neutral-200 sm:grid-cols-3 dark:border-white/10 dark:bg-white/10 lg:grid-cols-2">
+        <div className="grid grid-cols-2 gap-px border border-neutral-200 bg-neutral-200 dark:border-white/10 dark:bg-white/10">
           {headerStats.map((cell) => {
             const Icon = cell.icon;
             return (
-              <div key={cell.label} className="bg-neutral-50 px-4 py-4 dark:bg-[#070707]">
+              <div key={cell.label} className="bg-neutral-50 px-5 py-5 dark:bg-[#0b0b0b]">
                 <div className="flex items-center gap-2">
                   <Icon className="h-3 w-3 text-neutral-400 dark:text-white/30" />
                   <p className="font-mono text-[10px] uppercase tracking-[0.22em] text-neutral-500 dark:text-white/40">
                     {cell.label}
                   </p>
                 </div>
-                <p className={`mt-1 text-base font-black tracking-tight ${cell.accent}`}>{cell.value}</p>
+                <p className={`mt-2 text-lg font-black tracking-tight ${cell.accent}`}>{cell.value}</p>
               </div>
             );
           })}
@@ -1605,17 +1598,17 @@ export function CpegMarketClient() {
                   return (
                     <div
                       key={listing.listing_address}
-                      className={`group relative border bg-neutral-100 p-2 transition hover:-translate-y-0.5 dark:bg-[#161412] ${
+                      className={`group relative overflow-hidden border bg-neutral-100 p-2 transition-all duration-200 hover:-translate-y-1 hover:shadow-[0_18px_44px_-22px_rgba(83,199,255,0.55)] dark:bg-[#141312] ${
                         selectMode && isSelected
                           ? "border-[#53c7ff]"
-                          : "border-neutral-200 hover:border-[#ec5cff]/60 dark:border-white/10"
+                          : "border-neutral-200 hover:border-[#53c7ff]/60 dark:border-white/10"
                       }`}
                     >
                       {selectMode ? (
                         <button
                           type="button"
                           onClick={() => toggleSelectedPeg(listing.peg_id)}
-                          className="absolute right-2 top-2 z-10 inline-flex h-7 w-7 items-center justify-center border border-neutral-300 bg-neutral-50/80 text-neutral-700 transition hover:border-[#53c7ff] hover:text-[#53c7ff] dark:border-white/30 dark:bg-black/70 dark:text-white/70"
+                          className="absolute right-3 top-3 z-10 inline-flex h-7 w-7 items-center justify-center border border-neutral-300 bg-neutral-50/85 text-neutral-700 transition hover:border-[#53c7ff] hover:text-[#53c7ff] dark:border-white/30 dark:bg-black/70 dark:text-white/70"
                         >
                           {isSelected ? (
                             <CheckSquare className="h-4 w-4 text-[#53c7ff]" />
@@ -1627,36 +1620,36 @@ export function CpegMarketClient() {
                       <button
                         type="button"
                         onClick={() => setDetailListing(listing)}
-                        className="block aspect-square w-full overflow-hidden border border-neutral-200 bg-neutral-200 text-left dark:border-white/10 dark:bg-black"
+                        className="relative block aspect-square w-full overflow-hidden border border-neutral-200 bg-neutral-200 text-left dark:border-white/10 dark:bg-black"
                       >
                         <Image
                           src={listing.image}
-                        alt={`${identityPrefix} #${listing.peg_id}`}
+                          alt={`${identityPrefix} #${listing.peg_id}`}
                           width={320}
                           height={320}
                           unoptimized
-                          className="h-full w-full object-cover [image-rendering:pixelated]"
+                          className="h-full w-full object-cover transition duration-300 [image-rendering:pixelated] group-hover:scale-[1.02]"
                         />
+                        <div className="pointer-events-none absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/55 via-black/0 to-transparent p-2 opacity-0 transition group-hover:opacity-100">
+                          <span className="font-mono text-[10px] uppercase tracking-[0.18em] text-white/80">
+                            View details
+                          </span>
+                        </div>
                       </button>
-                      <div className="mt-3 flex items-center justify-between gap-2">
-                        <p className="font-mono text-[10px] uppercase tracking-[0.18em] text-neutral-500 dark:text-white/45">
+                      <div className="mt-3 flex items-baseline justify-between gap-2">
+                        <p className="font-mono text-[10px] uppercase tracking-[0.2em] text-neutral-500 dark:text-white/45">
                           {identityPrefix} <span className="text-neutral-950 dark:text-white">#{listing.peg_id}</span>
                         </p>
-                        <p className="font-mono text-sm font-black tracking-tight text-neutral-950 dark:text-white">
-                          {listing.price_sol} SOL
+                        <p className="font-mono text-base font-black tracking-tight text-neutral-950 dark:text-white">
+                          {listing.price_sol}
+                          <span className="ml-1 text-[10px] uppercase tracking-[0.2em] text-neutral-500 dark:text-white/45">SOL</span>
                         </p>
                       </div>
-                      <div className="mt-1 flex items-center justify-between font-mono text-[10px] uppercase tracking-[0.18em] text-neutral-500 dark:text-white/35">
+                      <div className="mt-1 flex items-center justify-between font-mono text-[9px] uppercase tracking-[0.18em] text-neutral-500 dark:text-white/35">
                         <span>{truncateAddress(listing.seller)}</span>
                         {listing.listed_at ? (
                           <CpegRelativeTime iso={listing.listed_at} className="text-neutral-500 dark:text-white/35" />
                         ) : null}
-                      </div>
-
-                      <div className="mt-3 grid grid-cols-3 gap-1 font-mono text-[9px] uppercase tracking-[0.14em]">
-                        <FeeCell label="Seller" value={listing.seller_proceeds_sol || "--"} accent="text-neutral-950 dark:text-[#f7f2df]" />
-                        <FeeCell label="Royal" value={listing.creator_royalty_sol || "--"} accent="text-[#53c7ff]" />
-                        <FeeCell label="Fee" value={listing.protocol_fee_sol || "--"} accent="text-neutral-700 dark:text-white/65" />
                       </div>
 
                       <div className="mt-3 grid grid-cols-2 gap-2">
@@ -1797,14 +1790,19 @@ export function CpegMarketClient() {
       </section>
       ) : null}
       {detailListing ? (
-        <div className="fixed inset-0 z-[80] overflow-y-auto bg-black/75 px-4 py-8 backdrop-blur-sm">
-          <div className="mx-auto max-w-5xl border border-white/10 bg-[#1d1a18] p-5 shadow-2xl md:p-7">
+        <div className="fixed inset-0 z-[80] overflow-y-auto bg-black/80 px-4 py-8 backdrop-blur-md">
+          <div className="mx-auto max-w-5xl border border-white/10 bg-gradient-to-br from-[#1a1816] via-[#141312] to-[#0d0c0b] p-5 shadow-[0_30px_120px_-30px_rgba(83,199,255,0.4)] md:p-7">
             <div className="flex items-start justify-between gap-4">
               <div>
-                <p className="font-mono text-[10px] uppercase tracking-[0.24em] text-[#ec5cff]">Listing detail</p>
+                <p className="font-mono text-[10px] uppercase tracking-[0.24em] text-[#53c7ff]">
+                  {selectedLaunch?.symbol || identityPrefix} listing
+                </p>
                 <h2 className="mt-3 text-3xl font-black uppercase leading-none text-white md:text-4xl">
                   {identityPrefix} #{detailListing.peg_id}
                 </h2>
+                <p className="mt-2 font-mono text-[10px] uppercase tracking-[0.18em] text-white/40">
+                  {detailListing.price_sol} SOL
+                </p>
               </div>
               <button
                 type="button"
@@ -1817,26 +1815,27 @@ export function CpegMarketClient() {
             </div>
 
             <div className="mt-8 grid gap-8 lg:grid-cols-[1fr_0.85fr]">
-              <div className="aspect-square overflow-hidden bg-black">
+              <div className="relative aspect-square overflow-hidden bg-black">
+                <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,rgba(83,199,255,0.18),transparent_55%)]" />
                 <Image
                   src={detailListing.image}
                   alt={`${identityPrefix} #${detailListing.peg_id}`}
                   width={720}
                   height={720}
                   unoptimized
-                  className="h-full w-full object-cover [image-rendering:pixelated]"
+                  className="relative h-full w-full object-cover [image-rendering:pixelated]"
                 />
               </div>
 
               <div className="flex flex-col">
                 <div className="flex border-b border-white/10 font-mono text-[10px] uppercase tracking-[0.18em] text-white/35">
-                  {(["info", "traits", "provenance", "rarity"] as ListingDetailTab[]).map((tab) => (
+                  {(["info", "traits", "details"] as ListingDetailTab[]).map((tab) => (
                     <button
                       key={tab}
                       type="button"
                       onClick={() => setDetailTab(tab)}
                       className={`flex-1 px-2 pb-3 text-center transition ${
-                        detailTab === tab ? "border-b border-[#ec5cff] text-white" : "hover:text-white/70"
+                        detailTab === tab ? "border-b border-[#53c7ff] text-white" : "hover:text-white/70"
                       }`}
                     >
                       {tab}
@@ -1847,14 +1846,31 @@ export function CpegMarketClient() {
                 <div className="min-h-[330px] pt-5">
                   {detailTab === "info" ? (
                     <div className="grid gap-0">
+                      <div className="mb-4 border border-white/10 bg-black/30 p-3 font-mono text-[10px] uppercase tracking-[0.18em]">
+                        <p className="text-white/40">Price breakdown</p>
+                        <div className="mt-3 grid gap-2 text-white/65">
+                          <div className="flex items-center justify-between">
+                            <span>Listing price</span>
+                            <span className="font-black text-white">{detailListing.price_sol} SOL</span>
+                          </div>
+                          <div className="flex items-center justify-between">
+                            <span>Seller receives</span>
+                            <span className="font-black text-white/85">{detailListing.seller_proceeds_sol || "--"} SOL</span>
+                          </div>
+                          <div className="flex items-center justify-between">
+                            <span>Creator royalty {detailListing.royalty_bps != null ? `(${bpsToPercent(detailListing.royalty_bps)})` : ""}</span>
+                            <span className="text-[#53c7ff]">{detailListing.creator_royalty_sol || "--"} SOL</span>
+                          </div>
+                          <div className="flex items-center justify-between">
+                            <span>Protocol fee {detailListing.marketplace_fee_bps != null ? `(${bpsToPercent(detailListing.marketplace_fee_bps)})` : ""}</span>
+                            <span className="text-white/55">{detailListing.protocol_fee_sol || "--"} SOL</span>
+                          </div>
+                        </div>
+                      </div>
                       {[
                         ["Status", connectedAddress === detailListing.seller ? "Your listing" : "Available"],
-                        ["Price", `${detailListing.price_sol} SOL`],
                         ["Seller", detailListing.seller],
-                        ["Trade id", detailListing.listing_address],
-                        ["Seller proceeds", `${detailListing.seller_proceeds_sol || "--"} SOL`],
-                        ["Creator royalty", `${detailListing.creator_royalty_sol || "--"} SOL`],
-                        ["Protocol fee", `${detailListing.protocol_fee_sol || "--"} SOL`],
+                        ["Listing", detailListing.listing_address],
                       ].map(([label, value]) => (
                         <div
                           key={label}
@@ -1862,7 +1878,7 @@ export function CpegMarketClient() {
                         >
                           <span className="text-white/35">{label}</span>
                           <span className="max-w-[62%] truncate text-right font-black text-white" title={value}>
-                            {label === "Price" || label === "Status" ? value : truncateAddress(value, 10, 10)}
+                            {label === "Status" ? value : truncateAddress(value, 10, 10)}
                           </span>
                         </div>
                       ))}
@@ -1889,15 +1905,13 @@ export function CpegMarketClient() {
                     )
                   ) : null}
 
-                  {detailTab === "provenance" ? (
+                  {detailTab === "details" ? (
                     <div className="grid gap-0">
                       {[
+                        ["Owner", detailPeg?.owner || detailListing.seller],
                         ["PEG record", detailPeg?.peg_record || detailListing.peg_record_address || ""],
-                        ["Owner", detailPeg?.owner || ""],
-                        ["Seed", detailPeg?.on_chain_seed || ""],
-                        ["Minted slot", detailPeg?.minted_slot || "Pending"],
-                        ["Transferred slot", detailPeg?.transferred_slot || "Pending"],
-                        ["Escrow token", detailListing.escrow_token_account],
+                        ["Minted", detailPeg?.minted_slot || "Pending"],
+                        ["Last transfer", detailPeg?.transferred_slot || "Pending"],
                       ].map(([label, value]) => (
                         <div
                           key={label}
@@ -1909,33 +1923,6 @@ export function CpegMarketClient() {
                           </span>
                         </div>
                       ))}
-                    </div>
-                  ) : null}
-
-                  {detailTab === "rarity" ? (
-                    <div>
-                      <p className="font-mono text-sm font-black text-white">
-                        {identityPrefix} #{detailListing.peg_id}
-                        <span className="ml-2 text-[#ec5cff]">
-                          {detailPeg?.traits?.rarity ? String(detailPeg.traits.rarity) : "Deterministic"}
-                        </span>
-                      </p>
-                      <div className="mt-5 grid gap-3">
-                        {detailTraitRows.slice(0, 8).map((row, index) => {
-                          const width = `${Math.max(12, Math.min(98, (detailListing.peg_id * 17 + index * 13) % 100))}%`;
-                          return (
-                            <div key={row.label}>
-                              <div className="flex items-center justify-between font-mono text-[10px] uppercase tracking-[0.14em]">
-                                <span className="text-white/35">{row.label}</span>
-                                <span className="text-[#ec5cff]">{row.value}</span>
-                              </div>
-                              <div className="mt-2 h-1 bg-white/8">
-                                <div className="h-full bg-[#ec5cff]" style={{ width }} />
-                              </div>
-                            </div>
-                          );
-                        })}
-                      </div>
                     </div>
                   ) : null}
                 </div>
@@ -2001,21 +1988,6 @@ function ListingsSkeleton() {
           </div>
         </div>
       ))}
-    </div>
-  );
-}
-
-interface FeeCellProps {
-  label: string;
-  value: string;
-  accent: string;
-}
-
-function FeeCell({ label, value, accent }: FeeCellProps) {
-  return (
-    <div className="border border-neutral-200 dark:border-white/8 bg-neutral-100/90 dark:bg-black/40 px-1 py-1 text-center">
-      <div className="text-[8px] uppercase tracking-[0.18em] text-neutral-400 dark:text-white/30">{label}</div>
-      <div className={`mt-0.5 ${accent}`}>{value}</div>
     </div>
   );
 }

@@ -21,6 +21,7 @@ import {
 } from "@/lib/cpeg-hybrid-engine";
 import { loadHybridLaunchAndAgent } from "@/lib/cpeg-hybrid-loader";
 import { buildMarketplaceListingDelegateTransaction } from "@/lib/marketplace-transactions";
+import { getCpegListFeeLamports, getCpegProtocolFeeRecipient } from "@/lib/platform-fees";
 
 export const dynamic = "force-dynamic";
 
@@ -82,10 +83,16 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
       if (priceLamports <= BigInt(0)) {
         return NextResponse.json({ success: false, error: "Price must be greater than zero" }, { status: 400 });
       }
+      const platformFeeRecipient = getCpegProtocolFeeRecipient();
+      const platformFeeLamports = platformFeeRecipient ? getCpegListFeeLamports() : BigInt(0);
       const prepared = await buildMarketplaceListingDelegateTransaction({
         walletAddress: input.seller,
         assetAddress: asset.assetAddress,
         collectionAddress: data.launch.hybridCoreCollectionAddress,
+        platformFee:
+          platformFeeRecipient && platformFeeLamports > BigInt(0)
+            ? { recipient: platformFeeRecipient, lamports: platformFeeLamports }
+            : null,
       });
       return NextResponse.json({
         success: true,
@@ -103,6 +110,8 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
           serialized_transaction_base64: prepared.serializedTransactionBase64,
           delegate_address: prepared.delegateAddress,
           expires_at: prepared.expiresAt.toISOString(),
+          platform_fee_lamports: prepared.platformFeeLamports,
+          platform_fee_recipient: prepared.platformFeeRecipient,
         },
         instructions: [],
       });

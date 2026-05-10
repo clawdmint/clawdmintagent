@@ -144,6 +144,7 @@ export async function buildMarketplaceListingDelegateTransaction(input: {
   walletAddress: string;
   assetAddress: string;
   collectionAddress: string;
+  platformFee?: { recipient: string; lamports: bigint } | null;
 }) {
   const umi = createClientSigningUmi(input.walletAddress);
   const walletSigner = createNoopSigner(publicKey(input.walletAddress));
@@ -154,7 +155,7 @@ export async function buildMarketplaceListingDelegateTransaction(input: {
   };
   const { asset, collection } = await fetchMarketChainContext(input);
 
-  const builder = hasTransferDelegatePlugin(asset)
+  let builder = hasTransferDelegatePlugin(asset)
     ? approvePluginAuthority(umi, {
         asset: asset.publicKey,
         collection: collection?.publicKey,
@@ -174,10 +175,26 @@ export async function buildMarketplaceListingDelegateTransaction(input: {
         },
       });
 
+  if (input.platformFee && input.platformFee.lamports > BigInt(0)) {
+    builder = builder.add({
+      instruction: fromWeb3JsInstruction(
+        SystemProgram.transfer({
+          fromPubkey: new Web3PublicKey(input.walletAddress),
+          toPubkey: new Web3PublicKey(input.platformFee.recipient),
+          lamports: Number(input.platformFee.lamports),
+        })
+      ),
+      signers: [],
+      bytesCreatedOnChain: 0,
+    });
+  }
+
   return {
     serializedTransactionBase64: await serializeBuilder(umi, builder),
     expiresAt: new Date(Date.now() + MARKETPLACE_LISTING_TTL_MS),
     delegateAddress,
+    platformFeeLamports: input.platformFee?.lamports.toString() ?? "0",
+    platformFeeRecipient: input.platformFee?.recipient ?? null,
   };
 }
 

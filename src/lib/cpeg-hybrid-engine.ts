@@ -62,6 +62,11 @@ import {
   deriveMplHybridNftDataPda,
 } from "@/lib/mpl-hybrid-native";
 import { getMetaplexCoreConnection } from "@/lib/synapse-sap";
+import {
+  getCpegCaptureFeeLamports,
+  getCpegProtocolFeeRecipient,
+  getCpegReleaseFeeLamports,
+} from "@/lib/platform-fees";
 
 export const CPEG_HYBRID_STATUS_NOT_CONFIGURED = "NOT_CONFIGURED";
 export const CPEG_HYBRID_STATUS_READY = "READY_FOR_HYBRID_SETUP";
@@ -849,11 +854,16 @@ export async function buildCaptureTransferInstructions(
     );
   }
   // MPL Hybrid debits a fixed protocol SOL fee from the user wallet on every
-  // capture_v1. If the user does not have enough SOL the transaction will be
-  // rejected with a System Program "insufficient lamports" error. Surface this
-  // up front with a clear message instead of letting it reach the network.
+  // capture_v1. On top of that Clawdmint debits a separate platform fee to the
+  // protocol treasury when configured. Surface insufficient SOL up front with a
+  // clear message instead of letting it reach the network.
+  const clawdmintRecipient = getCpegProtocolFeeRecipient();
+  const clawdmintFeePerCapture = getCpegCaptureFeeLamports();
+  const clawdmintFeeTotal = clawdmintRecipient ? clawdmintFeePerCapture * BigInt(capCount) : BigInt(0);
   const requiredLamports =
-    MPL_HYBRID_PROTOCOL_SOL_FEE_LAMPORTS * BigInt(capCount) + MPL_HYBRID_TX_OVERHEAD_LAMPORTS;
+    MPL_HYBRID_PROTOCOL_SOL_FEE_LAMPORTS * BigInt(capCount) +
+    MPL_HYBRID_TX_OVERHEAD_LAMPORTS +
+    clawdmintFeeTotal;
   if (nativeEscrowReady) {
     const userLamports = BigInt(await ctx.connection.getBalance(userPubkey, "confirmed"));
     if (userLamports < requiredLamports) {
@@ -865,6 +875,7 @@ export async function buildCaptureTransferInstructions(
           balance_lamports: userLamports.toString(),
           required_lamports: requiredLamports.toString(),
           protocol_fee_per_capture_lamports: MPL_HYBRID_PROTOCOL_SOL_FEE_LAMPORTS.toString(),
+          clawdmint_fee_per_capture_lamports: clawdmintFeePerCapture.toString(),
           tx_overhead_lamports: MPL_HYBRID_TX_OVERHEAD_LAMPORTS.toString(),
           captures: capCount,
         }
@@ -945,6 +956,15 @@ export async function buildCaptureTransferInstructions(
           feeProjectAccount: feeLocation,
           tokenProgramId: ctx.tokenProgramId,
           programId: launch.hybridProgramId || undefined,
+        })
+      );
+    }
+    if (clawdmintRecipient && clawdmintFeeTotal > BigInt(0)) {
+      ixs.push(
+        SystemProgram.transfer({
+          fromPubkey: userPubkey,
+          toPubkey: new PublicKey(clawdmintRecipient),
+          lamports: Number(clawdmintFeeTotal),
         })
       );
     }
@@ -1229,19 +1249,25 @@ export async function buildReleaseTransferInstructions(
   }
   if (nativeEscrowReady) {
     const userPubkey = new PublicKey(userWallet);
-    // MPL Hybrid charges a fixed protocol SOL fee on every release_v1.
-    // Verify the user can cover the fee before we ask them to sign anything.
-    const requiredLamports = MPL_HYBRID_PROTOCOL_SOL_FEE_LAMPORTS + MPL_HYBRID_TX_OVERHEAD_LAMPORTS;
+    // MPL Hybrid charges a fixed protocol SOL fee on every release_v1. On top
+    // of that Clawdmint debits its own platform fee to the protocol treasury
+    // when configured. Surface the combined cost up front so the user does not
+    // sign a transaction the network will reject.
+    const clawdmintRecipient = getCpegProtocolFeeRecipient();
+    const clawdmintFee = clawdmintRecipient ? getCpegReleaseFeeLamports() : BigInt(0);
+    const requiredLamports =
+      MPL_HYBRID_PROTOCOL_SOL_FEE_LAMPORTS + MPL_HYBRID_TX_OVERHEAD_LAMPORTS + clawdmintFee;
     const userLamports = BigInt(await ctx.connection.getBalance(userPubkey, "confirmed"));
     if (userLamports < requiredLamports) {
       throw new CpegHybridEngineError(
         402,
-        `Insufficient SOL to release this cPEG. The Metaplex Hybrid protocol fee is ${(Number(MPL_HYBRID_PROTOCOL_SOL_FEE_LAMPORTS) / 1e9).toFixed(6)} SOL per release; your wallet has ${(Number(userLamports) / 1e9).toFixed(6)} SOL.`,
+        `Insufficient SOL to release this cPEG. Required fee is ${(Number(requiredLamports) / 1e9).toFixed(6)} SOL; your wallet has ${(Number(userLamports) / 1e9).toFixed(6)} SOL.`,
         {
           wallet: userPubkey.toBase58(),
           balance_lamports: userLamports.toString(),
           required_lamports: requiredLamports.toString(),
           protocol_fee_lamports: MPL_HYBRID_PROTOCOL_SOL_FEE_LAMPORTS.toString(),
+          clawdmint_fee_lamports: clawdmintFee.toString(),
           tx_overhead_lamports: MPL_HYBRID_TX_OVERHEAD_LAMPORTS.toString(),
         }
       );
@@ -1310,6 +1336,15 @@ export async function buildReleaseTransferInstructions(
         programId: launch.hybridProgramId || undefined,
       })
     );
+    if (clawdmintRecipient && clawdmintFee > BigInt(0)) {
+      ixs.push(
+        SystemProgram.transfer({
+          fromPubkey: userPubkey,
+          toPubkey: new PublicKey(clawdmintRecipient),
+          lamports: Number(clawdmintFee),
+        })
+      );
+    }
     let pegId: number | null = null;
     try {
       const umi = createUmi(getMetaplexCoreConnection());

@@ -634,7 +634,6 @@ export function CpegLaunchpad() {
             token_mint: prepareBody.launch.token_mint,
             authority_address: connectedAddress,
             creator_address: connectedAddress,
-            fee_vault_address: connectedAddress,
             standard_mode: "metaplex_hybrid",
             wallet_message: approvalMessage,
             wallet_signature: bytesToBase64(approvalSignature),

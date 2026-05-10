@@ -141,3 +141,6 @@ temp/
 .tmp-*/
 .tmp-*.html
 .tmp-*.json
+.openclaw-agents/
+.commit-msg.tmp
+-UpgradeAuthorityKeypair

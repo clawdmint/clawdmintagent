@@ -9,6 +9,7 @@ import {
   CLAWPEG_DEFAULT_RENDERER_ID,
   CLAWPEG_DEFAULT_RENDERER_VERSION,
   getClawPegCluster,
+  getClawPegFeeVaultAddress,
   getClawPegProgramId,
 } from "@/lib/clawpeg";
 import { verifyClawPegRendererHash } from "@/lib/clawpeg-renderer-registry";
@@ -297,6 +298,8 @@ export async function POST(request: NextRequest) {
           select: { id: true },
         })
         .catch(() => null);
+      const resolvedFeeVaultAddress =
+        input.fee_vault_address || getClawPegFeeVaultAddress() || authorityAddress;
       const saved = await prisma.clawPegLaunch.upsert({
         where: { tokenMint: tokenMint.toBase58() },
         update: {
@@ -316,7 +319,7 @@ export async function POST(request: NextRequest) {
           launchFeeLamports: input.launch_fee_lamports || input.hybrid_capture_fee_lamports || "0",
           authorityAddress,
           creatorAddress: input.creator_address || authorityAddress,
-          feeVaultAddress: input.fee_vault_address || authorityAddress,
+          feeVaultAddress: resolvedFeeVaultAddress,
           deployTxHash: input.signature || null,
           rendererParams,
           identityMode: agentRoot.identityMode,
@@ -384,7 +387,7 @@ export async function POST(request: NextRequest) {
           launchFeeLamports: input.launch_fee_lamports || input.hybrid_capture_fee_lamports || "0",
           authorityAddress,
           creatorAddress: input.creator_address || authorityAddress,
-          feeVaultAddress: input.fee_vault_address || authorityAddress,
+          feeVaultAddress: resolvedFeeVaultAddress,
           deployTxHash: input.signature || null,
           status: "HYBRID_READY",
           launchedAt: new Date(),

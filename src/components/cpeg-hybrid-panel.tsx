@@ -81,9 +81,19 @@ interface HybridWalletAsset {
   captured_at: string | null;
 }
 
+interface HybridProtocolFees {
+  enabled: boolean;
+  recipient: string | null;
+  captureLamports: string;
+  releaseLamports: string;
+  listLamports: string;
+  mplHybridProtocolFeeLamports: string;
+}
+
 interface HybridStateResponse {
   success: boolean;
   launch?: HybridLaunchState;
+  protocol_fees?: HybridProtocolFees;
   wallet_assets?: HybridWalletAsset[];
   error?: string;
 }
@@ -193,6 +203,7 @@ export function CpegHybridPanel({ tokenMint, initialAuthorityAddress, compact }:
   const { solanaAddress, isConnected, login } = useWallet();
   const [state, setState] = useState<HybridLaunchState | null>(null);
   const [walletAssets, setWalletAssets] = useState<HybridWalletAsset[]>([]);
+  const [protocolFees, setProtocolFees] = useState<HybridProtocolFees | null>(null);
   const [stateLoading, setStateLoading] = useState(true);
   const [setupBusy, setSetupBusy] = useState(false);
   const [setupError, setSetupError] = useState("");
@@ -220,6 +231,7 @@ export function CpegHybridPanel({ tokenMint, initialAuthorityAddress, compact }:
         if (response.ok && body?.success && body.launch) {
           setState(body.launch);
           setWalletAssets(body.wallet_assets || []);
+          setProtocolFees(body.protocol_fees || null);
         }
       } catch {
         // ignore; UI will show last known state
@@ -569,6 +581,38 @@ export function CpegHybridPanel({ tokenMint, initialAuthorityAddress, compact }:
   const collectionHref = urls.collection(tokenMint);
   const marketHref = urls.market({ mint: tokenMint });
 
+  const formatSolFromLamports = (raw: string | undefined | null) => {
+    if (!raw) return "0";
+    try {
+      const lamports = BigInt(raw);
+      if (lamports === BigInt(0)) return "0";
+      const whole = lamports / BigInt(1_000_000_000);
+      const fraction = lamports % BigInt(1_000_000_000);
+      if (fraction === BigInt(0)) return whole.toString();
+      return `${whole}.${fraction.toString().padStart(9, "0").replace(/0+$/, "")}`;
+    } catch {
+      return "0";
+    }
+  };
+  const captureFeeTotalSol = (() => {
+    try {
+      const clawd = BigInt(protocolFees?.captureLamports || "0") * BigInt(captureCountNumber);
+      const mpl = BigInt(protocolFees?.mplHybridProtocolFeeLamports || "0") * BigInt(captureCountNumber);
+      return formatSolFromLamports((clawd + mpl).toString());
+    } catch {
+      return "0";
+    }
+  })();
+  const releaseFeeTotalSol = (() => {
+    try {
+      const clawd = BigInt(protocolFees?.releaseLamports || "0");
+      const mpl = BigInt(protocolFees?.mplHybridProtocolFeeLamports || "0");
+      return formatSolFromLamports((clawd + mpl).toString());
+    } catch {
+      return "0";
+    }
+  })();
+
   return (
     <section
       className={`border border-[#53c7ff]/30 bg-[#0c1722] p-5 ${
@@ -698,6 +742,10 @@ export function CpegHybridPanel({ tokenMint, initialAuthorityAddress, compact }:
               <div className="mt-3 border border-white/10 bg-black/30 px-3 py-2 font-mono text-[10px] uppercase tracking-[0.18em] text-white/60">
                 Required now <span className="float-right text-[#53c7ff]">{requiredLabel}</span>
               </div>
+              <div className="mt-2 border border-white/10 bg-black/30 px-3 py-2 font-mono text-[10px] uppercase tracking-[0.18em] text-white/60">
+                Network + protocol fee
+                <span className="float-right text-white/85">~{captureFeeTotalSol} SOL</span>
+              </div>
               <div className="mt-3 flex flex-wrap items-center gap-3">
                 <input
                   value={captureCount}
@@ -732,6 +780,10 @@ export function CpegHybridPanel({ tokenMint, initialAuthorityAddress, compact }:
               </p>
               <div className="mt-3 border border-white/10 bg-black/30 px-3 py-2 font-mono text-[10px] uppercase tracking-[0.18em] text-white/60">
                 Redeem value <span className="float-right text-[#ec5cff]">{backingUnitLabel}</span>
+              </div>
+              <div className="mt-2 border border-white/10 bg-black/30 px-3 py-2 font-mono text-[10px] uppercase tracking-[0.18em] text-white/60">
+                Network + protocol fee
+                <span className="float-right text-white/85">~{releaseFeeTotalSol} SOL</span>
               </div>
               {connectedAddress ? (
                 walletAssets.length ? (

@@ -9,6 +9,8 @@ import {
   loadHybridLaunchAndAgent,
   loadHybridAssetCounts,
 } from "@/lib/cpeg-hybrid-loader";
+import { describeCpegProtocolFees } from "@/lib/platform-fees";
+import { MPL_HYBRID_PROTOCOL_SOL_FEE_LAMPORTS } from "@/lib/mpl-hybrid-native";
 
 export const dynamic = "force-dynamic";
 
@@ -101,6 +103,10 @@ export async function GET(request: NextRequest, { params }: RouteContext) {
       available_capacity: summary.availableCapacity,
       burned_capacity: summary.burnedCapacity,
       peg_unit_raw: summary.pegUnitRaw,
+    },
+    protocol_fees: {
+      ...describeCpegProtocolFees(),
+      mplHybridProtocolFeeLamports: MPL_HYBRID_PROTOCOL_SOL_FEE_LAMPORTS.toString(),
     },
     wallet_assets: walletAssets,
   });
