@@ -99,6 +99,7 @@ export interface HybridStateSummary {
   status: string;
   collectionAddress: string | null;
   vaultTokenAccount: string | null;
+  vaultTokenAccountInitialized: boolean;
   vaultOwner: string | null;
   tokenProgramId: string | null;
   decimals: number;
@@ -334,6 +335,7 @@ export async function buildHybridStateSummary(
   const status = launch.hybridStatus;
   const collectionAddress = launch.hybridCoreCollectionAddress;
   let vaultTokenAccount = launch.hybridEscrowAddress;
+  let vaultTokenAccountInitialized = false;
   let vaultOwner = agent.solanaWalletAddress;
   let tokenProgramId: string | null = null;
   let decimals = 0;
@@ -354,11 +356,15 @@ export async function buildHybridStateSummary(
     }
     if (vaultTokenAccount && launch.agentTokenMint) {
       const ata = new PublicKey(vaultTokenAccount);
-      const balance = await ctx.connection.getTokenAccountBalance(ata, "confirmed").catch(() => null);
-      if (balance?.value?.amount) {
-        vaultRaw = BigInt(balance.value.amount);
-        const denom = ctx.pegUnitRaw === BigInt(0) ? BigInt(1) : ctx.pegUnitRaw;
-        vaultWhole = Number(vaultRaw / denom);
+      const ataInfo = await ctx.connection.getAccountInfo(ata, "confirmed").catch(() => null);
+      vaultTokenAccountInitialized = Boolean(ataInfo);
+      if (ataInfo) {
+        const balance = await ctx.connection.getTokenAccountBalance(ata, "confirmed").catch(() => null);
+        if (balance?.value?.amount) {
+          vaultRaw = BigInt(balance.value.amount);
+          const denom = ctx.pegUnitRaw === BigInt(0) ? BigInt(1) : ctx.pegUnitRaw;
+          vaultWhole = Number(vaultRaw / denom);
+        }
       }
     }
   } catch {
@@ -371,6 +377,7 @@ export async function buildHybridStateSummary(
     status,
     collectionAddress,
     vaultTokenAccount,
+    vaultTokenAccountInitialized,
     vaultOwner,
     tokenProgramId,
     decimals,
@@ -502,6 +509,19 @@ export async function setupHybridLaunch(
       })
     );
   }
+  const escrowTokenAccountInfo = await ctx.connection.getAccountInfo(escrowTokenAccount, "confirmed");
+  if (!escrowTokenAccountInfo) {
+    setupIxs.push(
+      createAssociatedTokenAccountInstruction(
+        ctx.signer.publicKey,
+        escrowTokenAccount,
+        escrow,
+        ctx.tokenMint,
+        ctx.tokenProgramId,
+        ASSOCIATED_TOKEN_PROGRAM_ID
+      )
+    );
+  }
   if (setupIxs.length > 0) {
     const nativeSetupSig = await sendInstructionsWithAgentSigner(ctx.connection, ctx.signer, setupIxs);
     setupTxSignature = nativeSetupSig || setupTxSignature;
@@ -602,6 +622,17 @@ export async function buildCaptureTransferInstructions(
   const ixs: InstanceType<typeof TransactionInstruction>[] = [];
   const vaultAtaInfo = await ctx.connection.getAccountInfo(vaultAta, "confirmed");
   if (!vaultAtaInfo) {
+    if (nativeEscrowReady && isMainnetCluster(launch.cluster)) {
+      throw new CpegHybridEngineError(
+        409,
+        "Metaplex Hybrid escrow token account is not initialized yet. The launch authority must run Enable cPEG once more before users can capture.",
+        {
+          custody_model: "metaplex_hybrid_escrow_pda",
+          expected_mpl_hybrid_escrow: custody.escrowAddress,
+          expected_mpl_hybrid_escrow_token_account: custody.escrowTokenAccount,
+        }
+      );
+    }
     ixs.push(
       createAssociatedTokenAccountInstruction(
         userPubkey,

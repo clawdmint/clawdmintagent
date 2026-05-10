@@ -51,6 +51,7 @@ interface HybridLaunchState {
   collection_address: string | null;
   mpl_hybrid_escrow_address?: string | null;
   mpl_hybrid_escrow_token_account?: string | null;
+  mpl_hybrid_escrow_token_account_initialized?: boolean;
   mpl_hybrid_native_ready?: boolean;
   vault_token_account: string | null;
   vault_owner: string | null;
@@ -133,10 +134,12 @@ async function formatBroadcastError(error: unknown, connection: InstanceType<typ
           .catch(() => null)
       : null;
   const logs = maybeLogs || [];
-  const usefulLog = logs.find((line) =>
-    /Program log: Error|custom program error|Invalid|insufficient|owner|authority|mint|account/i.test(line)
+  const usefulLogs = logs.filter((line) =>
+    /Program log: Error|custom program error|Invalid|insufficient|owner|authority|mint|account|GetAccountDataSize|failed/i.test(line)
   );
-  if (usefulLog) return `${fallback} ${usefulLog.replace("Program log: ", "")}`;
+  if (usefulLogs.length) {
+    return `${fallback} ${usefulLogs.slice(-3).map((line) => line.replace("Program log: ", "")).join(" | ")}`;
+  }
   return describeError(error, fallback);
 }
 
@@ -495,6 +498,11 @@ export function CpegHybridPanel({ tokenMint, initialAuthorityAddress, compact }:
 
   const setupComplete = state.hybrid_status === "HYBRID_CONFIGURED";
   const mainnetEscrowBlocked = state.cluster === "mainnet-beta" && state.mpl_hybrid_native_ready !== true;
+  const setupNeedsFinalize =
+    setupComplete &&
+    state.cluster === "mainnet-beta" &&
+    state.mpl_hybrid_escrow_address &&
+    state.mpl_hybrid_escrow_token_account_initialized === false;
   const captureCountNumber = Math.max(1, Math.min(8, Number.parseInt(captureCount, 10) || 1));
   const requiredRaw = (() => {
     try {
@@ -538,8 +546,8 @@ export function CpegHybridPanel({ tokenMint, initialAuthorityAddress, compact }:
               Manage launch <ExternalLink className="h-3 w-3" />
             </a>
           ) : null}
-          <span className={setupComplete ? "text-[#53c7ff]" : "text-[#f7b85c]"}>
-            {setupComplete ? "Configured" : "Awaiting setup"}
+          <span className={setupComplete && !mainnetEscrowBlocked ? "text-[#53c7ff]" : "text-[#f7b85c]"}>
+            {setupComplete ? (mainnetEscrowBlocked ? "Finalize setup" : "Configured") : "Awaiting setup"}
           </span>
           <span>|</span>
           <span>{state.owned_assets} captured</span>
@@ -570,7 +578,7 @@ export function CpegHybridPanel({ tokenMint, initialAuthorityAddress, compact }:
             <button
               type="button"
               onClick={isConnected ? handleSetup : login}
-              disabled={setupBusy || !isAuthority || mainnetEscrowBlocked}
+              disabled={setupBusy || !isAuthority}
               className="inline-flex items-center gap-2 border border-[#f7f2df] bg-[#f7f2df] px-4 py-2 text-xs font-black uppercase tracking-wide text-black transition hover:bg-[#53c7ff] disabled:cursor-not-allowed disabled:opacity-50"
               title={isAuthority ? "Enable Metaplex Hybrid route" : "Only the launch authority wallet can enable cPEG"}
             >
@@ -604,7 +612,7 @@ export function CpegHybridPanel({ tokenMint, initialAuthorityAddress, compact }:
                     className="inline-flex items-center gap-2 border border-[#f7f2df] bg-[#f7f2df] px-3 py-2 text-[10px] font-black uppercase tracking-wide text-black transition hover:bg-[#53c7ff] disabled:cursor-not-allowed disabled:opacity-50"
                   >
                     {setupBusy ? <Loader2 className="h-3 w-3 animate-spin" /> : <Rocket className="h-3 w-3" />}
-                    Migrate escrow
+                    {setupNeedsFinalize ? "Finalize escrow" : "Migrate escrow"}
                   </button>
                 ) : null}
               </div>

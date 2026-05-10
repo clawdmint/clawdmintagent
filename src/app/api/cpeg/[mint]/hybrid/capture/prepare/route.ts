@@ -78,6 +78,20 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
     }
 
     const custody = getMplHybridCustodyTarget(data.launch, summary.tokenProgramId);
+    if (data.launch.cluster === "mainnet-beta" && custody.isNativeReady && !summary.vaultTokenAccountInitialized) {
+      return NextResponse.json(
+        {
+          success: false,
+          error:
+            "Metaplex Hybrid escrow token account is not initialized yet. The launch authority must run Enable cPEG once more before users can capture.",
+          details: {
+            expected_mpl_hybrid_escrow: custody.escrowAddress,
+            expected_mpl_hybrid_escrow_token_account: custody.escrowTokenAccount,
+          },
+        },
+        { status: 409 }
+      );
+    }
     let captureAssets: Array<{ asset_address: string; peg_id: number }> = [];
     if (custody.isNativeReady && custody.escrowAddress) {
       const poolRows = await prisma.clawPegHybridAsset.findMany({
