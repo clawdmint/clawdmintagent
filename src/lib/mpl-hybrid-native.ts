@@ -18,6 +18,10 @@ const INIT_ESCROW_V1_DISCRIMINATOR = Buffer.from([193, 10, 167, 121, 222, 6, 21,
 const INIT_NFT_DATA_V1_DISCRIMINATOR = Buffer.from([235, 157, 80, 8, 35, 66, 54, 130]);
 const CAPTURE_V1_DISCRIMINATOR = Buffer.from([22, 23, 128, 17, 40, 133, 224, 228]);
 const RELEASE_V1_DISCRIMINATOR = Buffer.from([86, 208, 216, 30, 127, 65, 71, 80]);
+const UPDATE_ESCROW_V1_DISCRIMINATOR = Buffer.from([252, 228, 127, 1, 60, 43, 54, 28]);
+
+// Path bit indices used by mpl-hybrid: NoRerollMetadata = bit 0.
+export const MPL_HYBRID_PATH_NO_REROLL_METADATA = 1 << 0;
 
 type Web3PublicKey = InstanceType<typeof PublicKey>;
 type PublicKeyInput = string | Web3PublicKey;
@@ -231,4 +235,125 @@ export function createCaptureV1Instruction(input: CaptureOrReleaseV1InstructionI
 
 export function createReleaseV1Instruction(input: CaptureOrReleaseV1InstructionInput) {
   return createCaptureOrReleaseInstruction(RELEASE_V1_DISCRIMINATOR, input);
+}
+
+export interface UpdateEscrowV1InstructionInput {
+  escrow: PublicKeyInput;
+  authority: PublicKeyInput;
+  collection: PublicKeyInput;
+  token: PublicKeyInput;
+  feeLocation: PublicKeyInput;
+  name?: string | null;
+  uri?: string | null;
+  max?: bigint | number | string | null;
+  min?: bigint | number | string | null;
+  amount?: bigint | number | string | null;
+  feeAmount?: bigint | number | string | null;
+  solFeeAmount?: bigint | number | string | null;
+  path?: number | null;
+  programId?: PublicKeyInput;
+}
+
+function writeOptionString(value: string | null | undefined) {
+  if (value == null) return Buffer.from([0]);
+  return Buffer.concat([Buffer.from([1]), writeString(value)]);
+}
+
+function writeOptionU64(value: bigint | number | string | null | undefined) {
+  if (value == null) return Buffer.from([0]);
+  return Buffer.concat([Buffer.from([1]), writeU64(value)]);
+}
+
+function writeOptionU16(value: number | null | undefined) {
+  if (value == null) return Buffer.from([0]);
+  return Buffer.concat([Buffer.from([1]), writeU16(value)]);
+}
+
+export function createUpdateEscrowV1Instruction(input: UpdateEscrowV1InstructionInput) {
+  return new TransactionInstruction({
+    programId: toPublicKey(input.programId || MPL_HYBRID_PROGRAM_ID, "mpl_hybrid_program_id"),
+    keys: [
+      { pubkey: toPublicKey(input.escrow, "escrow"), isSigner: false, isWritable: true },
+      { pubkey: toPublicKey(input.authority, "authority"), isSigner: true, isWritable: true },
+      { pubkey: toPublicKey(input.collection, "collection"), isSigner: false, isWritable: true },
+      { pubkey: toPublicKey(input.token, "token"), isSigner: false, isWritable: false },
+      { pubkey: toPublicKey(input.feeLocation, "fee_location"), isSigner: false, isWritable: false },
+      { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
+    ],
+    data: Buffer.concat([
+      UPDATE_ESCROW_V1_DISCRIMINATOR,
+      writeOptionString(input.name ?? null),
+      writeOptionString(input.uri ?? null),
+      writeOptionU64(input.max ?? null),
+      writeOptionU64(input.min ?? null),
+      writeOptionU64(input.amount ?? null),
+      writeOptionU64(input.feeAmount ?? null),
+      writeOptionU64(input.solFeeAmount ?? null),
+      writeOptionU16(input.path ?? null),
+    ]),
+  });
+}
+
+export interface MplHybridEscrowState {
+  collection: string;
+  authority: string;
+  token: string;
+  feeLocation: string;
+  name: string;
+  uri: string;
+  max: bigint;
+  min: bigint;
+  amount: bigint;
+  feeAmount: bigint;
+  solFeeAmount: bigint;
+  count: bigint;
+  path: number;
+  bump: number;
+}
+
+// Best-effort decode of an EscrowV1 account's borsh layout. Returns null if the
+// data does not look like the expected layout, so callers can fall through to
+// re-initializing or skipping path migration without crashing.
+export function decodeMplHybridEscrowAccount(data: Buffer | Uint8Array): MplHybridEscrowState | null {
+  const buffer = Buffer.isBuffer(data) ? data : Buffer.from(data);
+  if (buffer.length < 8 + 32 * 4 + 4 + 4 + 8 * 6 + 2 + 1) return null;
+  let cursor = 8; // skip Anchor account discriminator
+  const readPubkey = () => {
+    const value = new PublicKey(buffer.subarray(cursor, cursor + 32)).toBase58();
+    cursor += 32;
+    return value;
+  };
+  const readString = () => {
+    const length = buffer.readUInt32LE(cursor);
+    cursor += 4;
+    if (cursor + length > buffer.length) return "";
+    const value = buffer.subarray(cursor, cursor + length).toString("utf8");
+    cursor += length;
+    return value;
+  };
+  const readU64 = () => {
+    const value = buffer.readBigUInt64LE(cursor);
+    cursor += 8;
+    return value;
+  };
+  try {
+    const collection = readPubkey();
+    const authority = readPubkey();
+    const token = readPubkey();
+    const feeLocation = readPubkey();
+    const name = readString();
+    const uri = readString();
+    const max = readU64();
+    const min = readU64();
+    const amount = readU64();
+    const feeAmount = readU64();
+    const solFeeAmount = readU64();
+    const count = readU64();
+    const path = buffer.readUInt16LE(cursor);
+    cursor += 2;
+    const bump = buffer.readUInt8(cursor);
+    return { collection, authority, token, feeLocation, name, uri, max, min, amount, feeAmount, solFeeAmount, count, path, bump };
+  } catch {
+    return null;
+  }
 }

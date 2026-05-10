@@ -49,10 +49,13 @@ import { deriveMplHybridEscrowAddress } from "@/lib/cpeg-metaplex-hybrid";
 import {
   MPL_HYBRID_PROGRAM_ID,
   MPL_HYBRID_DEFAULT_SOL_FEE_ACCOUNT,
+  MPL_HYBRID_PATH_NO_REROLL_METADATA,
   createCaptureV1Instruction,
   createInitEscrowV1Instruction,
   createInitNftDataV1Instruction,
   createReleaseV1Instruction,
+  createUpdateEscrowV1Instruction,
+  decodeMplHybridEscrowAccount,
   deriveMplHybridEscrowTokenAccount,
   deriveMplHybridNftDataPda,
 } from "@/lib/mpl-hybrid-native";
@@ -432,12 +435,32 @@ export async function setupHybridLaunch(
   umi.use(mplCore());
   umi.use(keypairIdentity(fromWeb3JsKeypair(ctx.signer)));
 
-  // Resolve or create the Core PEG collection.
+  // Resolve or create the Core PEG collection. Each cPEG launch needs its own
+  // mpl-hybrid escrow PDA, and the escrow PDA is derived from the collection
+  // address. If the launch was wired to a shared collection (e.g. the agent
+  // identity collection, which is the prepare-route default) and that
+  // collection already has an escrow bound to a different token mint, we must
+  // create a fresh collection for this launch — otherwise capture/release
+  // would later fail with InvalidMintAccount because the escrow's `token`
+  // field is locked to whichever token initialized it first.
   let collectionAddress = launch.hybridCoreCollectionAddress;
   let setupTxSignature: string | null = null;
   if (collectionAddress) {
     const existing = await safeFetchCollectionV1(umi, publicKey(collectionAddress));
     if (!existing) collectionAddress = null;
+  }
+  if (collectionAddress) {
+    const candidateEscrow = new PublicKey(deriveMplHybridEscrowAddress(collectionAddress));
+    const candidateEscrowInfo = await ctx.connection
+      .getAccountInfo(candidateEscrow, "confirmed")
+      .catch(() => null);
+    const expectedHybridProgram = new PublicKey(launch.hybridProgramId || MPL_HYBRID_PROGRAM_ID.toBase58());
+    if (candidateEscrowInfo && candidateEscrowInfo.owner.equals(expectedHybridProgram)) {
+      const decoded = decodeMplHybridEscrowAccount(candidateEscrowInfo.data);
+      if (decoded && decoded.token !== ctx.tokenMint.toBase58()) {
+        collectionAddress = null;
+      }
+    }
   }
   if (!collectionAddress) {
     const collectionSigner = generateSigner(umi);
@@ -499,6 +522,13 @@ export async function setupHybridLaunch(
     );
   }
   const escrowInfo = await ctx.connection.getAccountInfo(escrow, "confirmed");
+  // cPEG identities are deterministic per peg id; we explicitly disable the
+  // mpl-hybrid metadata reroll path so capture/release do not rewrite the
+  // asset's on-chain name/uri to the escrow's randomized template. With the
+  // NoRerollMetadata bit set, capture/release also skip the update authority
+  // check that would otherwise reject any user-driven swap (only the original
+  // collection authority can pass that check).
+  const desiredEscrowPath = MPL_HYBRID_PATH_NO_REROLL_METADATA;
   if (!escrowInfo) {
     const baseAppUrl =
       process.env["NEXT_PUBLIC_CPEG_APP_URL"] ||
@@ -519,7 +549,7 @@ export async function setupHybridLaunch(
         amount: ctx.pegUnitRaw,
         feeAmount: 0,
         solFeeAmount: 0,
-        path: 0,
+        path: desiredEscrowPath,
         tokenProgramId: ctx.tokenProgramId,
         programId: launch.hybridProgramId || undefined,
       })
@@ -534,6 +564,33 @@ export async function setupHybridLaunch(
         current_owner: escrowInfo.owner.toBase58(),
       }
     );
+  } else {
+    // Existing escrow that was initialized before the NoRerollMetadata
+    // requirement was hardened. If the agent wallet is still its authority and
+    // no swaps have happened yet, migrate the path so capture/release stop
+    // hitting the metadata reroll branch. The mpl-hybrid program rejects path
+    // changes once escrow.count > 1 (i.e. at least one swap has occurred), so
+    // this migration is a best-effort upgrade for fresh launches only.
+    const decoded = decodeMplHybridEscrowAccount(escrowInfo.data);
+    const needsPathMigration =
+      decoded !== null && (decoded.path & MPL_HYBRID_PATH_NO_REROLL_METADATA) === 0;
+    const migrationAllowed =
+      decoded !== null &&
+      decoded.authority === ctx.signer.publicKey.toBase58() &&
+      decoded.count <= BigInt(1);
+    if (needsPathMigration && migrationAllowed) {
+      setupIxs.push(
+        createUpdateEscrowV1Instruction({
+          escrow,
+          authority: ctx.signer.publicKey,
+          collection: collectionAddress,
+          token: ctx.tokenMint,
+          feeLocation,
+          path: desiredEscrowPath,
+          programId: launch.hybridProgramId || undefined,
+        })
+      );
+    }
   }
   const escrowTokenAccountInfo = await ctx.connection.getAccountInfo(escrowTokenAccount, "confirmed");
   if (!escrowTokenAccountInfo) {
@@ -630,7 +687,7 @@ export async function ensureHybridPoolAssetData(
       amount: ctx.pegUnitRaw,
       feeAmount: 0,
       solFeeAmount: 0,
-      path: 0,
+      path: MPL_HYBRID_PATH_NO_REROLL_METADATA,
       programId: launch.hybridProgramId || undefined,
     }),
   ]);
@@ -640,8 +697,8 @@ export async function ensureHybridPoolAssetData(
 /**
  * Build the unsigned instructions required to convert one or more fixed PEG
  * backing units from the user's wallet into Core cPEG assets. In MPL-Hybrid
- * terms this is a release: the user pays the backing token amount and the
- * escrow releases the selected Core asset to the user.
+ * terms this is a capture_v1: the user pays the backing token amount and the
+ * escrow transfers the selected Core asset to the user.
  */
 export async function buildCaptureTransferInstructions(
   agent: HybridAgentRecord,
@@ -772,8 +829,13 @@ export async function buildCaptureTransferInstructions(
       );
     }
     for (const assetAddress of captureAssets.slice(0, capCount)) {
+      // capture_v1: tokens user -> escrow, asset escrow -> user. This is the
+      // "Get cPEG" direction in product terms. Earlier revisions invoked
+      // release_v1 here, which sent the asset the wrong direction and made the
+      // program reject the transaction with InvalidUpdateAuthority because the
+      // user does not own the pool asset.
       ixs.push(
-        createReleaseV1Instruction({
+        createCaptureV1Instruction({
           owner: userPubkey,
           escrow: custody.escrowAddress!,
           asset: assetAddress,
@@ -1108,8 +1170,12 @@ export async function buildReleaseTransferInstructions(
         )
       );
     }
+    // release_v1: asset user -> escrow, tokens escrow -> user. This is the
+    // "Release cPEG" direction: hand a captured cPEG asset back to the escrow
+    // and reclaim the locked backing tokens. Earlier revisions invoked
+    // capture_v1 here, which sent the asset the wrong direction.
     ixs.push(
-      createCaptureV1Instruction({
+      createReleaseV1Instruction({
         owner: userPubkey,
         escrow: custody.escrowAddress!,
         asset: assetAddress,
