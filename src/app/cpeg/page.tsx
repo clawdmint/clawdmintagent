@@ -1,15 +1,6 @@
 import Link from "next/link";
 import { headers } from "next/headers";
-import {
-  ArrowUpRight,
-  Coins,
-  Flame,
-  ImageOff,
-  Layers,
-  Rocket,
-  ShoppingBag,
-  Sparkles,
-} from "lucide-react";
+import { ArrowUpRight, ImageOff, Rocket, ShoppingBag } from "lucide-react";
 import { renderClawPegSvg } from "@/lib/clawpeg-renderer";
 import { truncateAddress } from "@/lib/cpeg-ui";
 import { CpegRelativeTime } from "@/components/cpeg-relative-time";
@@ -41,19 +32,6 @@ const heroSamples = [11, 23, 47, 69, 88, 142].map((pegId, index) => ({
     },
   }),
 }));
-
-interface GlobalStats {
-  total_launches: number;
-  active_listings: number;
-  filled_listings: number;
-  distinct_sellers: number;
-  distinct_buyers: number;
-  floor_lamports: string | null;
-  floor_sol: string | null;
-  volume_lamports: string;
-  volume_sol: string;
-  identity_modes?: Record<string, number>;
-}
 
 interface LaunchRow {
   id: string;
@@ -127,46 +105,17 @@ async function fetchJson<T>(path: string, baseUrl: string): Promise<T | null> {
 export default async function CpegPage() {
   const ctx = requestContext();
   const urls = cpegPublicPaths(ctx.isCpegSite);
-  const [statsBody, launchesBody, activityBody] = await Promise.all([
-    fetchJson<{ success: boolean; stats: GlobalStats }>("/api/cpeg/stats", ctx.baseUrl),
+  const [launchesBody, activityBody] = await Promise.all([
     fetchJson<{ success: boolean; launches: LaunchRow[] }>("/api/cpeg?limit=9", ctx.baseUrl),
     fetchJson<{ success: boolean; events: ActivityEvent[] }>("/api/cpeg/activity?limit=14", ctx.baseUrl),
   ]);
 
-  const stats = statsBody?.stats;
   const launches = launchesBody?.launches || [];
   const events = activityBody?.events || [];
 
   const featured = launches
     .filter((launch) => launch.collection_address || launch.standard_mode === "metaplex_hybrid")
     .slice(0, 6);
-
-  const statCells: Array<{ label: string; value: string; accent: string; icon: typeof Coins }> = [
-    {
-      label: "Floor",
-      value: stats?.floor_sol ? `${stats.floor_sol} SOL` : "--",
-      accent: "text-[#53c7ff]",
-      icon: Coins,
-    },
-    {
-      label: "Volume",
-      value: stats ? `${stats.volume_sol} SOL` : "0 SOL",
-      accent: "text-neutral-900 dark:text-[#f7f2df]",
-      icon: Flame,
-    },
-    {
-      label: "Listings",
-      value: stats ? stats.active_listings.toLocaleString() : "0",
-      accent: "text-neutral-900 dark:text-[#f7f2df]",
-      icon: Layers,
-    },
-    {
-      label: "Trades",
-      value: stats ? stats.filled_listings.toLocaleString() : "0",
-      accent: "text-neutral-900 dark:text-[#f7f2df]",
-      icon: Sparkles,
-    },
-  ];
 
   return (
     <div className="flex flex-col">
@@ -234,6 +183,13 @@ export default async function CpegPage() {
               </Link>
             </div>
 
+            <div className="mt-10 flex flex-wrap items-center gap-x-6 gap-y-2 border-l-2 border-[#53c7ff]/60 pl-4 font-mono text-[10px] uppercase tracking-[0.24em] text-neutral-500 dark:text-white/45">
+              <span>Metaplex Core</span>
+              <span className="opacity-40">/</span>
+              <span>MPL Hybrid</span>
+              <span className="opacity-40">/</span>
+              <span>Genesis</span>
+            </div>
           </div>
 
           {/* cinematic PEG showcase */}
@@ -335,24 +291,6 @@ export default async function CpegPage() {
           </div>
         </div>
 
-        <div className="mx-auto -mt-2 max-w-7xl px-5 pb-14 md:px-10 md:pb-16">
-          <div className="grid grid-cols-2 gap-px overflow-hidden border border-neutral-200 dark:border-white/10 bg-neutral-200/40 dark:bg-white/5 md:grid-cols-4">
-            {statCells.map((cell) => {
-              const Icon = cell.icon;
-              return (
-                <div key={cell.label} className="bg-neutral-100 p-5 dark:bg-[#0c0c0c]">
-                  <div className="flex items-center gap-2">
-                    <Icon className="h-3.5 w-3.5 text-neutral-400 dark:text-white/30" />
-                    <p className="font-mono text-[10px] uppercase tracking-[0.22em] text-neutral-500 dark:text-white/40">
-                      {cell.label}
-                    </p>
-                  </div>
-                  <p className={`mt-3 text-2xl font-black tracking-tight ${cell.accent}`}>{cell.value}</p>
-                </div>
-              );
-            })}
-          </div>
-        </div>
       </section>
 
       {/* ─────────────── FEATURED COLLECTIONS ─────────────── */}

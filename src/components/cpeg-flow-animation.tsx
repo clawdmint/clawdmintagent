@@ -1,6 +1,8 @@
 "use client";
 
-import { Coins, Lock, Sparkles, ShoppingBag } from "lucide-react";
+import { Coins, Lock, ShoppingBag } from "lucide-react";
+
+const BRAND_LOGO = "\u{1F99E}"; // 🦞 claw
 
 const forwardParticles = Array.from({ length: 14 }, (_, i) => i);
 const reverseParticles = Array.from({ length: 9 }, (_, i) => i);
@@ -9,14 +11,15 @@ type Tone = "ivory" | "blue" | "magenta" | "amber";
 
 interface NodeDef {
   label: string;
-  icon: typeof Coins;
+  icon?: typeof Coins;
+  brand?: boolean;
   tone: Tone;
 }
 
 const nodes: NodeDef[] = [
   { label: "Token", icon: Coins, tone: "ivory" },
   { label: "Escrow", icon: Lock, tone: "blue" },
-  { label: "cPEG", icon: Sparkles, tone: "magenta" },
+  { label: "cPEG", brand: true, tone: "magenta" },
   { label: "Trade", icon: ShoppingBag, tone: "amber" },
 ];
 
@@ -66,6 +69,7 @@ interface PipelineNodeProps {
 function PipelineNode({ node, delay }: PipelineNodeProps) {
   const tone = toneTokens[node.tone];
   const Icon = node.icon;
+  const isBrand = Boolean(node.brand);
   return (
     <div className="relative z-20 flex flex-col items-center text-center">
       {/* outer concentric ring */}
@@ -87,7 +91,11 @@ function PipelineNode({ node, delay }: PipelineNodeProps) {
       />
 
       <div
-        className={`relative grid h-16 w-16 place-items-center rounded-full border-2 bg-[#0a0a0e] sm:h-20 sm:w-20 md:h-28 md:w-28 ${tone.ring} ${tone.glow} cpeg-node-float`}
+        className={`relative grid ${
+          isBrand
+            ? "h-20 w-20 sm:h-24 sm:w-24 md:h-32 md:w-32"
+            : "h-16 w-16 sm:h-20 sm:w-20 md:h-28 md:w-28"
+        } place-items-center rounded-full border-2 bg-[#0a0a0e] ${tone.ring} ${tone.glow} cpeg-node-float`}
         style={{ animationDelay: `${delay * 0.25}s` }}
       >
         <span aria-hidden className={`absolute inset-0 rounded-full ${tone.fill}`} />
@@ -99,7 +107,17 @@ function PipelineNode({ node, delay }: PipelineNodeProps) {
             mixBlendMode: "screen",
           }}
         />
-        <Icon className={`relative h-6 w-6 sm:h-8 sm:w-8 md:h-10 md:w-10 ${tone.text}`} strokeWidth={1.75} />
+        {isBrand ? (
+          <span
+            aria-label="Clawdmint logo"
+            className="cpeg-brand-wobble relative select-none text-3xl leading-none drop-shadow-[0_0_18px_rgba(236,92,255,0.65)] sm:text-4xl md:text-5xl"
+            style={{ filter: "saturate(1.15)" }}
+          >
+            {BRAND_LOGO}
+          </span>
+        ) : Icon ? (
+          <Icon className={`relative h-6 w-6 sm:h-8 sm:w-8 md:h-10 md:w-10 ${tone.text}`} strokeWidth={1.75} />
+        ) : null}
 
         {/* live dot */}
         <span aria-hidden className="absolute -top-1.5 -right-1.5 inline-flex h-3 w-3 items-center justify-center">
@@ -160,6 +178,11 @@ export function CpegFlowAnimation() {
         @keyframes cpegSpinSlow {
           to { transform: rotate(360deg); }
         }
+        @keyframes cpegBrandWobble {
+          0%, 100% { transform: rotate(-5deg) scale(1); }
+          50% { transform: rotate(5deg) scale(1.06); }
+        }
+        .cpeg-brand-wobble { animation: cpegBrandWobble 4s ease-in-out infinite; transform-origin: center; }
         .cpeg-particle-ltr { animation: cpegFlowLtr 4.5s linear infinite; }
         .cpeg-particle-rtl { animation: cpegFlowRtl 5.5s linear infinite; }
         .cpeg-ring-1 { animation: cpegRingPulseSm 3s ease-in-out infinite; }
@@ -170,7 +193,8 @@ export function CpegFlowAnimation() {
         .cpeg-spin-slow { animation: cpegSpinSlow 28s linear infinite; }
         @media (prefers-reduced-motion: reduce) {
           .cpeg-particle-ltr, .cpeg-particle-rtl, .cpeg-ring-1, .cpeg-ring-2,
-          .cpeg-node-float, .cpeg-pulse-dot, .cpeg-pipe-glow, .cpeg-spin-slow {
+          .cpeg-node-float, .cpeg-pulse-dot, .cpeg-pipe-glow, .cpeg-spin-slow,
+          .cpeg-brand-wobble {
             animation: none !important;
           }
         }
