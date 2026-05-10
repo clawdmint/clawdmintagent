@@ -22,6 +22,27 @@ import { loadHybridLaunchAndAgent } from "@/lib/cpeg-hybrid-loader";
 import { fetchHybridCoreAssetOwner } from "@/lib/cpeg-hybrid-engine";
 import { buildMarketplaceFillTransaction } from "@/lib/marketplace-transactions";
 
+async function simulatePreparedHybridBuy(
+  serializedTransactionBase64: string,
+  rpcUrl: string
+): Promise<{ ok: true } | { ok: false; message: string; logs: string[] }> {
+  try {
+    const tx = (await import("@solana/web3.js")).Transaction.from(
+      Buffer.from(serializedTransactionBase64, "base64")
+    );
+    const conn = new Connection(rpcUrl, { commitment: "confirmed" });
+    const sim = await conn.simulateTransaction(tx, undefined, true);
+    if (sim.value.err) {
+      const errStr = typeof sim.value.err === "string" ? sim.value.err : JSON.stringify(sim.value.err);
+      return { ok: false, message: errStr, logs: sim.value.logs || [] };
+    }
+    return { ok: true };
+  } catch (simError) {
+    const message = simError instanceof Error ? simError.message : String(simError);
+    return { ok: false, message, logs: [] };
+  }
+}
+
 export const dynamic = "force-dynamic";
 
 const PrepareSchema = z.object({
@@ -91,18 +112,92 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
           { status: 409 }
         );
       }
-      const prepared = await buildMarketplaceFillTransaction({
-        buyerAddress: buyer.toBase58(),
-        sellerAddress: seller.toBase58(),
-        assetAddress: listing.listingAddress,
-        collectionAddress: data.launch.hybridCoreCollectionAddress || listing.collectionAddress,
-        priceLamports: listing.priceLamports,
-        creatorAddress: creator.toBase58(),
-        protocolFeeAddress: feeVault.toBase58(),
-        sellerProceedsLamports: breakdown.sellerProceedsLamports,
-        creatorRoyaltyLamports: breakdown.creatorRoyaltyLamports,
-        protocolFeeLamports: breakdown.protocolFeeLamports,
-      });
+      let prepared: Awaited<ReturnType<typeof buildMarketplaceFillTransaction>>;
+      try {
+        prepared = await buildMarketplaceFillTransaction({
+          buyerAddress: buyer.toBase58(),
+          sellerAddress: seller.toBase58(),
+          assetAddress: listing.listingAddress,
+          collectionAddress: data.launch.hybridCoreCollectionAddress || listing.collectionAddress,
+          priceLamports: listing.priceLamports,
+          creatorAddress: creator.toBase58(),
+          protocolFeeAddress: feeVault.toBase58(),
+          sellerProceedsLamports: breakdown.sellerProceedsLamports,
+          creatorRoyaltyLamports: breakdown.creatorRoyaltyLamports,
+          protocolFeeLamports: breakdown.protocolFeeLamports,
+        });
+      } catch (buildError) {
+        const message = buildError instanceof Error ? buildError.message : String(buildError);
+        // Listings can become invalid between list and buy when the seller
+        // captured/released the underlying asset, or when an older listing
+        // never finished its delegate approval on chain. Self-heal the DB
+        // and tell the user to refresh / re-list with a clear message.
+        if (/transfer delegate/i.test(message) || /no longer owned/i.test(message)) {
+          await prisma.clawPegMarketListing.updateMany({
+            where: { id: listing.id, status: "ACTIVE" },
+            data: { status: "CANCELLED", cancelledAt: new Date() },
+          });
+          return NextResponse.json(
+            {
+              success: false,
+              error:
+                "This cPEG listing is no longer valid (transfer delegate missing or asset moved). The seller needs to re-list it. Refresh the market.",
+              details: { reason: message },
+            },
+            { status: 409 }
+          );
+        }
+        return NextResponse.json(
+          { success: false, error: `Failed to prepare cPEG buy: ${message}` },
+          { status: 500 }
+        );
+      }
+      // Preflight simulate the tx on the same RPC the client will use. This
+      // surfaces structural errors (account constraints, missing delegate,
+      // plugin authority, etc.) before the user is asked to sign, and lets us
+      // self-heal the listing DB row when the on-chain state has drifted.
+      const sim = await simulatePreparedHybridBuy(prepared.serializedTransactionBase64, getClawPegRpcUrl());
+      if (!sim.ok) {
+        const lowered = sim.message.toLowerCase();
+        const driftHints = [
+          "transferdelegate",
+          "transfer delegate",
+          "invalidauthority",
+          "missing signature",
+          "uninitialized",
+          "account not found",
+        ];
+        if (driftHints.some((hint) => lowered.includes(hint))) {
+          await prisma.clawPegMarketListing.updateMany({
+            where: { id: listing.id, status: "ACTIVE" },
+            data: { status: "CANCELLED", cancelledAt: new Date() },
+          });
+          return NextResponse.json(
+            {
+              success: false,
+              error:
+                "This cPEG listing is stale on-chain (transfer delegate revoked or asset moved). It was cancelled in our index; ask the seller to re-list.",
+              details: { reason: sim.message, logs: sim.logs.slice(-6) },
+            },
+            { status: 409 }
+          );
+        }
+        const interesting = sim.logs
+          .filter((line) =>
+            /Program log: Error|custom program error|Invalid|insufficient|owner|authority|mint|account|failed/i.test(line)
+          )
+          .slice(-3)
+          .map((line) => line.replace("Program log: ", ""))
+          .join(" | ");
+        return NextResponse.json(
+          {
+            success: false,
+            error: `Buy transaction would fail on-chain: ${sim.message}${interesting ? ` (${interesting})` : ""}`,
+            details: { logs: sim.logs.slice(-12) },
+          },
+          { status: 409 }
+        );
+      }
       return NextResponse.json({
         success: true,
         listing: {

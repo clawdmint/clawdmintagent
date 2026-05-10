@@ -736,6 +736,7 @@ export function CpegMarketClient() {
         }
       }
       let signature = signedSignature;
+      let lastSendError: unknown = null;
       try {
         signature = await connection.sendRawTransaction(raw, {
           skipPreflight: false,
@@ -743,12 +744,23 @@ export function CpegMarketClient() {
           preflightCommitment: "confirmed",
         });
       } catch (sendError) {
+        lastSendError = sendError;
         const message = sendError instanceof Error ? sendError.message : String(sendError);
         if (!message.toLowerCase().includes("already been processed")) {
           throw new Error(await formatMarketBroadcastError(sendError, connection, "Market transaction was rejected on-chain."));
         }
       }
-      await connection.confirmTransaction(signature, "confirmed");
+      try {
+        await connection.confirmTransaction(signature, "confirmed");
+      } catch (confirmError) {
+        const message = confirmError instanceof Error ? confirmError.message : String(confirmError);
+        if (lastSendError) {
+          throw new Error(
+            await formatMarketBroadcastError(lastSendError, connection, "Market transaction was rejected on-chain.")
+          );
+        }
+        throw new Error(`Transaction confirmation failed: ${message}`);
+      }
       return signature;
     },
     [connectedAddress]

@@ -13,6 +13,7 @@ import {
 import { renderClawPegSvg } from "@/lib/clawpeg-renderer";
 import { truncateAddress } from "@/lib/cpeg-ui";
 import { CpegRelativeTime } from "@/components/cpeg-relative-time";
+import { CpegFlowAnimation } from "@/components/cpeg-flow-animation";
 import { CPEG_SITE_HEADER, cpegPublicPaths } from "@/lib/cpeg-site-paths";
 
 export const dynamic = "force-dynamic";
@@ -468,6 +469,10 @@ export default async function CpegPage() {
             Genesis, your collection lives in Core, and Hybrid handles the swap between
             them.
           </p>
+        </div>
+
+        <div className="mt-10">
+          <CpegFlowAnimation />
         </div>
 
         <div className="mt-12 grid gap-4 md:grid-cols-3">
