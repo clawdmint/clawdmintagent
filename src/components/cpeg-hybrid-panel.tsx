@@ -225,6 +225,8 @@ export function CpegHybridPanel({ tokenMint, initialAuthorityAddress, compact }:
     }
     setSetupBusy(true);
     try {
+      const alreadyConfigured = state?.hybrid_status === "HYBRID_CONFIGURED";
+      setStatus(alreadyConfigured ? "Migrating to Metaplex Hybrid escrow..." : "Enabling cPEG...");
       const response = await fetch(`/api/cpeg/${tokenMint}/hybrid/setup`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -237,13 +239,16 @@ export function CpegHybridPanel({ tokenMint, initialAuthorityAddress, compact }:
         throw new Error(formatHybridError(body?.error || "Failed to enable cPEG.", body?.details));
       }
       await refreshState();
-      setStatus("cPEG is enabled.");
+      setStatus(alreadyConfigured ? "Metaplex Hybrid escrow is active." : "cPEG is enabled.");
     } catch (cause) {
-      setSetupError(describeError(cause, "Failed to enable cPEG."));
+      const alreadyConfigured = state?.hybrid_status === "HYBRID_CONFIGURED";
+      const message = describeError(cause, alreadyConfigured ? "Failed to migrate escrow." : "Failed to enable cPEG.");
+      setSetupError(message);
+      setError(message);
     } finally {
       setSetupBusy(false);
     }
-  }, [connectedAddress, isConnected, login, refreshState, tokenMint]);
+  }, [connectedAddress, isConnected, login, refreshState, state?.hybrid_status, tokenMint]);
 
   const handleCapture = useCallback(async () => {
     setError("");
@@ -578,6 +583,17 @@ export function CpegHybridPanel({ tokenMint, initialAuthorityAddress, compact }:
                   </button>
                 ) : null}
               </div>
+              {setupBusy && status ? (
+                <div className="mt-3 flex items-center gap-2 border border-[#f7b85c]/30 bg-black/25 p-3 text-xs text-[#ffe2a8]">
+                  <Loader2 className="h-3 w-3 animate-spin" />
+                  {status}
+                </div>
+              ) : null}
+              {setupError ? (
+                <div className="mt-3 border border-red-400/40 bg-red-400/10 p-3 text-xs text-red-200">
+                  {setupError}
+                </div>
+              ) : null}
             </div>
           ) : null}
           <div className="mt-5 grid gap-px border border-white/10 bg-white/10 sm:grid-cols-3">
