@@ -447,7 +447,7 @@ export async function setupHybridLaunch(
   // address. If the launch was wired to a shared collection (e.g. the agent
   // identity collection, which is the prepare-route default) and that
   // collection already has an escrow bound to a different token mint, we must
-  // create a fresh collection for this launch — otherwise capture/release
+  // create a fresh collection for this launch; otherwise capture/release
   // would later fail with InvalidMintAccount because the escrow's `token`
   // field is locked to whichever token initialized it first.
   let collectionAddress = launch.hybridCoreCollectionAddress;

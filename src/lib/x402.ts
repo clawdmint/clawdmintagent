@@ -269,7 +269,7 @@ function getPaymentHeader(request: NextRequest): string | null {
 
 /**
  * Coinbase x402 SVM scheme (and AgentCash's patched exact scheme) require paymentRequirements.extra.feePayer
- * (SOL fee payer pubkey for the assembled transaction message). The fee payer must sign the transaction —
+ * (SOL fee payer pubkey for the assembled transaction message). The fee payer must sign the transaction;
  * since the x402/svm client only signs as the token authority (`partiallySign`), Clawdmint plays facilitator:
  * we declare a fee payer pubkey we control, and complete the partial signature server-side before broadcast.
  */

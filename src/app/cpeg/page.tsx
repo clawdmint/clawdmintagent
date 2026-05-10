@@ -177,30 +177,47 @@ export default async function CpegPage() {
           className="pointer-events-none absolute inset-0 -z-10 opacity-80 dark:hidden"
           style={{
             backgroundImage:
-              "radial-gradient(circle at 18% 30%, rgba(83,199,255,0.12), transparent 55%), radial-gradient(circle at 82% 0%, rgba(38,38,38,0.06), transparent 60%)",
+              "radial-gradient(circle at 18% 30%, rgba(83,199,255,0.14), transparent 55%), radial-gradient(circle at 82% 5%, rgba(236,92,255,0.08), transparent 55%)",
           }}
         />
         <div
           aria-hidden="true"
-          className="pointer-events-none absolute inset-0 -z-10 hidden opacity-50 dark:block"
+          className="pointer-events-none absolute inset-0 -z-10 hidden opacity-65 dark:block"
           style={{
             backgroundImage:
-              "radial-gradient(circle at 18% 30%, rgba(83,199,255,0.18), transparent 55%), radial-gradient(circle at 82% 0%, rgba(247,242,223,0.06), transparent 60%)",
+              "radial-gradient(circle at 18% 30%, rgba(83,199,255,0.22), transparent 55%), radial-gradient(circle at 82% 8%, rgba(236,92,255,0.16), transparent 55%), radial-gradient(circle at 50% 100%, rgba(247,201,72,0.06), transparent 50%)",
           }}
         />
-        <div className="mx-auto grid max-w-7xl gap-12 px-5 py-16 md:grid-cols-[1fr_460px] md:gap-10 md:px-10 md:py-24">
-          <div>
-            <div className="inline-flex items-center gap-2 border border-[#53c7ff]/40 bg-[#53c7ff]/10 px-3 py-1 font-mono text-[10px] uppercase tracking-[0.24em] text-[#53c7ff]">
-              <span aria-hidden>{lobster}</span> Built on Metaplex / Solana
+        {/* faint dotted grid */}
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute inset-0 -z-10 opacity-[0.05] dark:opacity-[0.08]"
+          style={{
+            backgroundImage:
+              "radial-gradient(rgba(255,255,255,0.6) 1px, transparent 1px)",
+            backgroundSize: "26px 26px",
+            maskImage: "radial-gradient(circle at 50% 40%, black 30%, transparent 80%)",
+            WebkitMaskImage: "radial-gradient(circle at 50% 40%, black 30%, transparent 80%)",
+          }}
+        />
+
+        <div className="mx-auto grid max-w-7xl gap-12 px-5 py-16 md:grid-cols-[1.1fr_460px] md:gap-10 md:px-10 md:py-24">
+          <div className="relative">
+            <div className="inline-flex items-center gap-2 border border-[#53c7ff]/40 bg-[#53c7ff]/10 px-3 py-1 font-mono text-[10px] uppercase tracking-[0.26em] text-[#53c7ff]">
+              <span className="cpeg-hero-live relative inline-flex h-2 w-2 items-center justify-center">
+                <span className="absolute inline-block h-2 w-2 rounded-full bg-[#53c7ff]/55" />
+                <span className="relative inline-block h-1.5 w-1.5 rounded-full bg-[#53c7ff]" />
+              </span>
+              Live on Solana mainnet
             </div>
-            <h1 className="mt-6 max-w-4xl text-5xl font-black uppercase leading-[0.92] text-neutral-950 dark:text-[#f7f2df] md:text-7xl">
-              The token is the PEG.
-              <span className="block text-[#53c7ff]">No mint required.</span>
+            <h1 className="mt-7 max-w-4xl text-5xl font-black uppercase leading-[0.9] text-neutral-950 dark:text-[#f7f2df] md:text-7xl">
+              Every token
+              <span className="block text-[#53c7ff]">gets a face.</span>
             </h1>
             <p className="mt-6 max-w-2xl text-base leading-7 text-neutral-700 dark:text-white/72 md:text-lg">
-              Hold the agent token, get the identity. Every cPEG is a Metaplex Core asset
-              tied to a fixed amount of backing tokens — capture it, release it, or trade it.
-              Art is generated on-chain, not hosted.
+              Token-backed Metaplex Core identities on Solana. Hold the agent token, mint
+              its on-chain face. Capture is reversible. Identities are tradeable. Art is
+              generated on-chain, never hosted.
             </p>
             <div className="mt-9 flex flex-wrap gap-3">
               <Link
@@ -216,20 +233,112 @@ export default async function CpegPage() {
                 <ShoppingBag className="h-4 w-4" /> Explore market
               </Link>
             </div>
+
+            <div className="mt-10 flex flex-wrap items-center gap-x-6 gap-y-2 border-l-2 border-[#53c7ff]/60 pl-4 font-mono text-[10px] uppercase tracking-[0.24em] text-neutral-500 dark:text-white/45">
+              <span>Metaplex Core</span>
+              <span className="opacity-40">/</span>
+              <span>MPL Hybrid</span>
+              <span className="opacity-40">/</span>
+              <span>Genesis</span>
+            </div>
           </div>
 
-          <div className="grid grid-cols-3 gap-3">
-            {heroSamples.map((sample) => (
-              <div
-                key={sample.pegId}
-                className="border border-neutral-300 dark:border-white/15 bg-neutral-50 dark:bg-white/[0.02] p-2 transition hover:border-[#53c7ff]/60"
-              >
-                <div className="aspect-square w-full" dangerouslySetInnerHTML={{ __html: sample.svg }} />
-                <div className="mt-2 font-mono text-[10px] uppercase tracking-[0.18em] text-neutral-500 dark:text-white/45">
-                  PEG #{sample.pegId}
-                </div>
+          {/* cinematic PEG showcase */}
+          <div className="relative h-[420px] md:h-[460px]">
+            <style>{`
+              @keyframes cpegHeroFloat1 {
+                0%, 100% { transform: translate(0, 0) rotate(-3deg); }
+                50% { transform: translate(0, -10px) rotate(-3deg); }
+              }
+              @keyframes cpegHeroFloat2 {
+                0%, 100% { transform: translate(0, 0) rotate(2deg); }
+                50% { transform: translate(0, -7px) rotate(2deg); }
+              }
+              @keyframes cpegHeroFloat3 {
+                0%, 100% { transform: translate(0, 0) rotate(-1deg); }
+                50% { transform: translate(0, -12px) rotate(-1deg); }
+              }
+              @keyframes cpegHeroFloatHero {
+                0%, 100% { transform: translate(0, 0); }
+                50% { transform: translate(0, -6px); }
+              }
+              @keyframes cpegHeroPulse {
+                0%, 100% { transform: scale(0.9); opacity: 0.45; }
+                50% { transform: scale(2.2); opacity: 0; }
+              }
+              .cpeg-hero-card-1 { animation: cpegHeroFloat1 6s ease-in-out infinite; }
+              .cpeg-hero-card-2 { animation: cpegHeroFloat2 7s ease-in-out infinite; }
+              .cpeg-hero-card-3 { animation: cpegHeroFloat3 5.5s ease-in-out infinite; }
+              .cpeg-hero-card-main { animation: cpegHeroFloatHero 5s ease-in-out infinite; }
+              .cpeg-hero-live span:first-child { animation: cpegHeroPulse 2.2s ease-out infinite; }
+              @media (prefers-reduced-motion: reduce) {
+                .cpeg-hero-card-1, .cpeg-hero-card-2, .cpeg-hero-card-3, .cpeg-hero-card-main, .cpeg-hero-live span:first-child {
+                  animation: none !important;
+                }
+              }
+            `}</style>
+
+            {/* radial glow behind cards */}
+            <div
+              aria-hidden
+              className="pointer-events-none absolute inset-0 -z-10"
+              style={{
+                backgroundImage:
+                  "radial-gradient(circle at 50% 55%, rgba(83,199,255,0.22), transparent 55%)",
+              }}
+            />
+
+            {/* back-left card */}
+            <div className="cpeg-hero-card-1 absolute left-0 top-6 w-[40%] border border-neutral-300/70 bg-neutral-50/90 p-2 shadow-[0_18px_60px_-30px_rgba(83,199,255,0.5)] backdrop-blur-sm dark:border-white/15 dark:bg-white/[0.04]">
+              <div className="aspect-square w-full" dangerouslySetInnerHTML={{ __html: heroSamples[0].svg }} />
+              <div className="mt-2 flex items-center justify-between font-mono text-[9px] uppercase tracking-[0.18em] text-neutral-500 dark:text-white/45">
+                <span>#{heroSamples[0].pegId}</span>
+                <span className="text-[#53c7ff]">Pool</span>
               </div>
-            ))}
+            </div>
+
+            {/* back-right card */}
+            <div className="cpeg-hero-card-2 absolute right-0 top-2 w-[40%] border border-neutral-300/70 bg-neutral-50/90 p-2 shadow-[0_18px_60px_-30px_rgba(236,92,255,0.5)] backdrop-blur-sm dark:border-white/15 dark:bg-white/[0.04]">
+              <div className="aspect-square w-full" dangerouslySetInnerHTML={{ __html: heroSamples[1].svg }} />
+              <div className="mt-2 flex items-center justify-between font-mono text-[9px] uppercase tracking-[0.18em] text-neutral-500 dark:text-white/45">
+                <span>#{heroSamples[1].pegId}</span>
+                <span className="text-[#ec5cff]">Listed</span>
+              </div>
+            </div>
+
+            {/* main focal card */}
+            <div className="cpeg-hero-card-main absolute left-1/2 top-1/2 w-[58%] -translate-x-1/2 -translate-y-1/2 border-2 border-[#53c7ff]/55 bg-neutral-50 p-3 shadow-[0_28px_80px_-20px_rgba(83,199,255,0.7)] dark:bg-[#0c0c0c]">
+              <div className="absolute -top-3 left-3 inline-flex items-center gap-1.5 border border-[#53c7ff]/60 bg-[#0c0c0c] px-2 py-1 font-mono text-[9px] uppercase tracking-[0.22em] text-[#53c7ff]">
+                <span className="cpeg-hero-live relative inline-flex h-1.5 w-1.5 items-center justify-center">
+                  <span className="absolute inline-block h-1.5 w-1.5 rounded-full bg-[#53c7ff]/55" />
+                  <span className="relative inline-block h-1 w-1 rounded-full bg-[#53c7ff]" />
+                </span>
+                Identity
+              </div>
+              <div className="aspect-square w-full" dangerouslySetInnerHTML={{ __html: heroSamples[2].svg }} />
+              <div className="mt-3 flex items-center justify-between font-mono text-[10px] uppercase tracking-[0.2em]">
+                <span className="text-neutral-500 dark:text-white/55">cPEG #{heroSamples[2].pegId}</span>
+                <span className="font-black text-neutral-950 dark:text-[#f7f2df]">Backed</span>
+              </div>
+            </div>
+
+            {/* bottom-left card */}
+            <div className="cpeg-hero-card-3 absolute bottom-2 left-2 w-[34%] border border-neutral-300/70 bg-neutral-50/90 p-2 shadow-[0_18px_60px_-30px_rgba(247,201,72,0.5)] backdrop-blur-sm dark:border-white/15 dark:bg-white/[0.04]">
+              <div className="aspect-square w-full" dangerouslySetInnerHTML={{ __html: heroSamples[3].svg }} />
+              <div className="mt-2 flex items-center justify-between font-mono text-[9px] uppercase tracking-[0.18em] text-neutral-500 dark:text-white/45">
+                <span>#{heroSamples[3].pegId}</span>
+                <span className="text-[#f7c948]">Trade</span>
+              </div>
+            </div>
+
+            {/* bottom-right card */}
+            <div className="cpeg-hero-card-1 absolute bottom-0 right-3 w-[34%] border border-neutral-300/70 bg-neutral-50/90 p-2 shadow-[0_18px_60px_-30px_rgba(83,199,255,0.4)] backdrop-blur-sm dark:border-white/15 dark:bg-white/[0.04]" style={{ animationDelay: "1.5s" }}>
+              <div className="aspect-square w-full" dangerouslySetInnerHTML={{ __html: heroSamples[4].svg }} />
+              <div className="mt-2 flex items-center justify-between font-mono text-[9px] uppercase tracking-[0.18em] text-neutral-500 dark:text-white/45">
+                <span>#{heroSamples[4].pegId}</span>
+                <span className="text-[#53c7ff]">Owned</span>
+              </div>
+            </div>
           </div>
         </div>
 
@@ -378,7 +487,7 @@ export default async function CpegPage() {
                 Recent activity
               </h2>
               <p className="mt-2 max-w-xl text-sm leading-6 text-neutral-700 dark:text-white/55">
-                Every list, sale, and delisting across the cPEG market — in real time.
+                Every list, sale, and delisting across the cPEG market, in real time.
               </p>
             </div>
             <Link
@@ -448,7 +557,7 @@ export default async function CpegPage() {
           ) : (
             <div className="mt-8 border border-dashed border-neutral-200 bg-neutral-50 p-12 text-center dark:border-white/10 dark:bg-white/[0.02]">
               <p className="font-mono text-xs uppercase tracking-[0.2em] text-neutral-500 dark:text-white/40">
-                No activity yet — be the first to list
+                No activity yet, be the first to list
               </p>
             </div>
           )}
@@ -465,7 +574,7 @@ export default async function CpegPage() {
             Token-backed identity.
           </h2>
           <p className="mt-4 text-base leading-7 text-neutral-700 dark:text-white/60">
-            Three Metaplex programs working together — one product. Your token mints with
+            Three Metaplex programs working together as one product. Your token mints with
             Genesis, your collection lives in Core, and Hybrid handles the swap between
             them.
           </p>
@@ -497,7 +606,7 @@ export default async function CpegPage() {
             <h3 className="mt-3 text-2xl font-black uppercase">Or sell directly</h3>
             <p className="mt-3 text-sm leading-6 text-neutral-600 dark:text-white/62">
               List a captured cPEG on the marketplace. Buyers pay in SOL, sellers exit
-              instantly — no backing tokens needed.
+              instantly, no backing tokens needed.
             </p>
           </div>
         </div>

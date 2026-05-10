@@ -92,7 +92,7 @@ export function deriveMplHybridNftDataPda(
   programId: PublicKeyInput = MPL_HYBRID_PROGRAM_ID
 ) {
   // mpl-hybrid's init_nft_data_v1 declares the PDA as
-  // seeds = ["nft".as_bytes(), asset.key().as_ref()] — using anything other
+  // seeds = ["nft".as_bytes(), asset.key().as_ref()]; using anything other
   // than the literal "nft" prefix surfaces as ConstraintSeeds (Anchor 2006)
   // when the program tries to (re)derive the account inside the handler.
   return PublicKey.findProgramAddressSync(
