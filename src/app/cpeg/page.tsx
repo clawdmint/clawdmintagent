@@ -179,7 +179,7 @@ export default async function CpegPage() {
                 href={urls.market()}
                 className="inline-flex items-center gap-2 border border-neutral-400 dark:border-white/25 px-5 py-3 text-sm font-black uppercase tracking-wide text-neutral-900 transition hover:border-[#53c7ff] hover:text-[#53c7ff] dark:text-white"
               >
-                <ShoppingBag className="h-4 w-4" /> Explore market
+                <ShoppingBag className="h-4 w-4" /> cPEG Market
               </Link>
             </div>
 

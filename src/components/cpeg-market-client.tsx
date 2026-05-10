@@ -1320,106 +1320,232 @@ export function CpegMarketClient() {
       ) : null}
 
       {showingCollectionDetail && showListPanel ? (
-        <section className="mt-6 border border-[#53c7ff]/30 bg-[#0c1722] p-5">
-          <div className="flex flex-wrap items-end justify-between gap-3">
-            <div>
-              <p className="font-mono text-xs uppercase tracking-[0.25em] text-[#53c7ff]">List a PEG</p>
-              <p className="mt-2 text-sm text-neutral-600 dark:text-white/65">
-                Pick from your unlisted PEGs and set a SOL price. Creator royalty and protocol fee
-                are calculated below.
-              </p>
+        <section className="relative mt-6 overflow-hidden border border-[#53c7ff]/35 bg-gradient-to-br from-[#0a1421] via-[#0c1722] to-[#0a0c12] p-6">
+          <div
+            aria-hidden
+            className="pointer-events-none absolute inset-0 opacity-60"
+            style={{
+              backgroundImage:
+                "radial-gradient(circle at 0% 0%, rgba(83,199,255,0.16), transparent 45%), radial-gradient(circle at 100% 100%, rgba(236,92,255,0.10), transparent 50%)",
+            }}
+          />
+
+          <div className="relative flex flex-wrap items-center justify-between gap-3">
+            <div className="flex items-center gap-3">
+              <span className="grid h-10 w-10 place-items-center border border-[#53c7ff]/50 bg-[#53c7ff]/10">
+                <Tag className="h-4 w-4 text-[#53c7ff]" />
+              </span>
+              <div>
+                <p className="font-mono text-[10px] uppercase tracking-[0.28em] text-[#53c7ff]">List a PEG</p>
+                <h3 className="mt-1 text-xl font-black uppercase tracking-tight text-neutral-950 dark:text-[#f7f2df]">
+                  Sell your cPEG for SOL
+                </h3>
+              </div>
             </div>
             <button
               type="button"
               onClick={() => setShowListPanel(false)}
-              className="font-mono text-[10px] uppercase tracking-[0.2em] text-neutral-700 dark:text-white/55 transition hover:text-[#53c7ff]"
+              className="inline-flex items-center gap-1 border border-white/10 px-3 py-2 font-mono text-[10px] uppercase tracking-[0.2em] text-white/55 transition hover:border-[#ec5cff]/60 hover:text-[#ec5cff]"
             >
-              Close
+              <X className="h-3 w-3" /> Close
             </button>
           </div>
 
-          <div className="mt-5 grid gap-5 lg:grid-cols-[1fr_360px]">
-            <div>
-              <p className="font-mono text-[10px] uppercase tracking-[0.2em] text-neutral-500 dark:text-white/45">
-                Your PEGs in this collection
-              </p>
-              {connectedAddress ? (
-                ownedPegs.length ? (
-                  <div className="mt-3 grid grid-cols-4 gap-2 sm:grid-cols-6 lg:grid-cols-7">
-                    {ownedPegs.slice(0, 28).map((peg) => (
+          <div className="relative mt-6 grid gap-6 lg:grid-cols-[1fr_360px]">
+            <div className="space-y-5">
+              {/* selected preview */}
+              <div className="grid gap-4 sm:grid-cols-[120px_1fr]">
+                <div className="aspect-square overflow-hidden border border-white/10 bg-black">
+                  {(() => {
+                    const selectedPeg = ownedPegs.find((p) => String(p.id) === pegId);
+                    if (selectedPeg) {
+                      return (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img
+                          src={selectedPeg.image}
+                          alt={`${identityPrefix} #${selectedPeg.id}`}
+                          className="h-full w-full object-cover [image-rendering:pixelated]"
+                        />
+                      );
+                    }
+                    return (
+                      <div className="flex h-full w-full items-center justify-center font-mono text-[10px] uppercase tracking-[0.2em] text-white/30">
+                        Pick PEG
+                      </div>
+                    );
+                  })()}
+                </div>
+                <div className="space-y-2">
+                  <p className="font-mono text-[10px] uppercase tracking-[0.2em] text-white/45">Listing as</p>
+                  <p className="text-lg font-black uppercase tracking-tight text-white">
+                    {pegId ? `${identityPrefix} #${pegId}` : "Select a PEG"}
+                  </p>
+                  <p className="font-mono text-[10px] uppercase tracking-[0.18em] text-white/35">
+                    {selectedLaunch?.name ?? "Collection"}
+                  </p>
+                  {connectedAddress ? (
+                    <p className="font-mono text-[10px] tracking-tight text-white/40">
+                      Wallet {truncateAddress(connectedAddress)}
+                    </p>
+                  ) : null}
+                </div>
+              </div>
+
+              {/* PEG picker */}
+              <div>
+                <div className="flex items-center justify-between">
+                  <p className="font-mono text-[10px] uppercase tracking-[0.22em] text-white/55">
+                    Your PEGs in this collection
+                  </p>
+                  {connectedAddress && ownedPegs.length ? (
+                    <span className="font-mono text-[10px] uppercase tracking-[0.18em] text-white/40">
+                      {ownedPegs.length} owned
+                    </span>
+                  ) : null}
+                </div>
+                {connectedAddress ? (
+                  ownedPegs.length ? (
+                    <div className="mt-3 grid grid-cols-5 gap-1.5 sm:grid-cols-7 lg:grid-cols-9">
+                      {ownedPegs.slice(0, 36).map((peg) => {
+                        const isActive = pegId === String(peg.id);
+                        return (
+                          <button
+                            key={peg.id}
+                            type="button"
+                            onClick={() => setPegId(String(peg.id))}
+                            className={`group relative overflow-hidden border bg-black/40 text-left transition ${
+                              isActive
+                                ? "border-[#53c7ff] shadow-[0_0_18px_-2px_rgba(83,199,255,0.55)]"
+                                : "border-white/10 hover:border-[#53c7ff]/55"
+                            }`}
+                          >
+                            <div className="aspect-square overflow-hidden bg-black">
+                              {/* eslint-disable-next-line @next/next/no-img-element */}
+                              <img
+                                src={peg.image}
+                                alt={`${identityPrefix} #${peg.id}`}
+                                className={`h-full w-full object-cover transition [image-rendering:pixelated] ${
+                                  isActive ? "opacity-100" : "opacity-90 group-hover:opacity-100"
+                                }`}
+                                loading="lazy"
+                              />
+                            </div>
+                            <p
+                              className={`text-center font-mono text-[9px] uppercase tracking-[0.18em] py-0.5 ${
+                                isActive ? "bg-[#53c7ff] text-black" : "text-white/55"
+                              }`}
+                            >
+                              #{peg.id}
+                            </p>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  ) : (
+                    <div className="mt-3 border border-dashed border-white/10 bg-white/[0.02] p-4 text-xs text-white/55">
+                      No PEGs found in your wallet for this collection. Enter a PEG ID manually below if
+                      you know it.
+                    </div>
+                  )
+                ) : (
+                  <div className="mt-3 border border-dashed border-white/10 bg-white/[0.02] p-4 text-xs text-white/55">
+                    Connect your wallet to pick from your PEGs.
+                  </div>
+                )}
+              </div>
+
+              {/* inputs */}
+              <div className="grid gap-3 md:grid-cols-2">
+                <label className="block">
+                  <span className="font-mono text-[10px] uppercase tracking-[0.22em] text-white/55">PEG ID</span>
+                  <div className="mt-2 flex items-center border border-white/10 bg-black/40 transition focus-within:border-[#53c7ff]">
+                    <span className="px-3 font-mono text-sm text-white/35">#</span>
+                    <input
+                      value={pegId}
+                      inputMode="numeric"
+                      onChange={(event) => setPegId(event.target.value.replace(/[^0-9]/g, ""))}
+                      placeholder="e.g. 42"
+                      className="w-full bg-transparent py-3 pr-3 font-mono text-sm text-white outline-none placeholder:text-white/25"
+                    />
+                  </div>
+                </label>
+                <label className="block">
+                  <span className="font-mono text-[10px] uppercase tracking-[0.22em] text-white/55">Price (SOL)</span>
+                  <div className="mt-2 flex items-center border border-white/10 bg-black/40 transition focus-within:border-[#53c7ff]">
+                    <input
+                      value={priceSol}
+                      inputMode="decimal"
+                      onChange={(event) => setPriceSol(event.target.value)}
+                      placeholder="0.0"
+                      className="w-full bg-transparent px-3 py-3 font-mono text-sm text-white outline-none placeholder:text-white/25"
+                    />
+                    <span className="px-3 font-mono text-[10px] uppercase tracking-[0.22em] text-[#53c7ff]">SOL</span>
+                  </div>
+                  {/* price suggestions */}
+                  <div className="mt-2 flex flex-wrap gap-1.5">
+                    {["0.05", "0.1", "0.25", "0.5", "1"].map((preset) => (
                       <button
-                        key={peg.id}
+                        key={preset}
                         type="button"
-                        onClick={() => setPegId(String(peg.id))}
-                        className={`group border bg-neutral-100/90 dark:bg-black/40 p-1 text-left transition ${
-                          pegId === String(peg.id) ? "border-[#53c7ff]" : "border-neutral-200 dark:border-white/10 hover:border-[#53c7ff]/50"
+                        onClick={() => setPriceSol(preset)}
+                        className={`border px-2 py-1 font-mono text-[10px] uppercase tracking-[0.18em] transition ${
+                          priceSol === preset
+                            ? "border-[#53c7ff] bg-[#53c7ff]/15 text-[#53c7ff]"
+                            : "border-white/10 text-white/45 hover:border-[#53c7ff]/45 hover:text-[#53c7ff]"
                         }`}
                       >
-                        <div className="aspect-square overflow-hidden bg-neutral-200 dark:bg-black">
-                          {/* eslint-disable-next-line @next/next/no-img-element */}
-                          <img
-                            src={peg.image}
-                            alt={`${identityPrefix} #${peg.id}`}
-                            className="h-full w-full object-cover [image-rendering:pixelated]"
-                            loading="lazy"
-                          />
-                        </div>
-                        <p className="mt-1 text-center font-mono text-[10px] uppercase tracking-[0.18em] text-neutral-600 dark:text-white/65">
-                          #{peg.id}
-                        </p>
+                        {preset}
                       </button>
                     ))}
                   </div>
-                ) : (
-                  <p className="mt-3 text-xs text-neutral-500 dark:text-white/45">
-                    No PEGs found in your wallet for this collection. You can still list one by typing
-                    a PEG ID below.
-                  </p>
-                )
-              ) : (
-                <p className="mt-3 text-xs text-neutral-500 dark:text-white/45">Connect a wallet to see your PEGs.</p>
-              )}
-
-              <div className="mt-5 grid gap-3 md:grid-cols-2">
-                <label className="block">
-                  <span className="font-mono text-[10px] uppercase tracking-[0.2em] text-neutral-500 dark:text-white/45">PEG ID</span>
-                  <input
-                    value={pegId}
-                    inputMode="numeric"
-                    onChange={(event) => setPegId(event.target.value)}
-                    placeholder="e.g. 42"
-                    className="mt-2 w-full border border-neutral-300 dark:border-white/12 bg-neutral-50 dark:bg-white/[0.04] px-3 py-3 text-sm text-neutral-950 outline-none transition focus:border-[#53c7ff] dark:text-white"
-                  />
-                </label>
-                <label className="block">
-                  <span className="font-mono text-[10px] uppercase tracking-[0.2em] text-neutral-500 dark:text-white/45">Price (SOL)</span>
-                  <input
-                    value={priceSol}
-                    inputMode="decimal"
-                    onChange={(event) => setPriceSol(event.target.value)}
-                    className="mt-2 w-full border border-neutral-300 dark:border-white/12 bg-neutral-50 dark:bg-white/[0.04] px-3 py-3 text-sm text-neutral-950 outline-none transition focus:border-[#53c7ff] dark:text-white"
-                  />
                 </label>
               </div>
             </div>
 
-            <div className="grid gap-4">
-              {listPreview ? (
-                <div className="border border-neutral-200 dark:border-white/10 bg-neutral-100/90 dark:bg-black/40 p-4 font-mono text-[10px] uppercase tracking-[0.18em] text-neutral-700 dark:text-white/55">
-                  <Row label="Seller proceeds" value={`${listPreview.seller} SOL`} highlight />
-                  <Row label={`Creator royalty (${bpsToPercent(listPreview.royaltyBps)})`} value={`${listPreview.royalty} SOL`} />
-                  <Row label={`Protocol fee (${bpsToPercent(listPreview.protocolBps)})`} value={`${listPreview.protocol} SOL`} muted />
+            {/* right column: fees + CTA */}
+            <div className="flex flex-col gap-4">
+              <div className="border border-white/10 bg-black/40 p-5">
+                <p className="font-mono text-[10px] uppercase tracking-[0.24em] text-white/55">
+                  You will receive
+                </p>
+                <p className="mt-2 text-3xl font-black tracking-tight text-[#53c7ff]">
+                  {listPreview ? `${listPreview.seller}` : "0.00"}
+                  <span className="ml-1 text-base text-white/55">SOL</span>
+                </p>
+                <div className="mt-4 space-y-2 border-t border-white/10 pt-4 font-mono text-[10px] uppercase tracking-[0.18em]">
+                  <div className="flex items-center justify-between">
+                    <span className="text-white/45">Listing price</span>
+                    <span className="text-white">{listPreview ? `${listPreview.total} SOL` : "0 SOL"}</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-white/45">
+                      Creator royalty {listPreview ? `(${bpsToPercent(listPreview.royaltyBps)})` : ""}
+                    </span>
+                    <span className="text-white/75">{listPreview ? `${listPreview.royalty} SOL` : "0 SOL"}</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-white/45">
+                      Protocol fee {listPreview ? `(${bpsToPercent(listPreview.protocolBps)})` : ""}
+                    </span>
+                    <span className="text-white/55">{listPreview ? `${listPreview.protocol} SOL` : "0 SOL"}</span>
+                  </div>
                 </div>
-              ) : null}
+              </div>
+
               <button
                 type="button"
                 onClick={isConnected ? handleList : login}
-                disabled={Boolean(busy) || !selectedLaunch}
-                className="inline-flex items-center justify-center gap-2 border border-[#f7f2df] bg-[#f7f2df] px-5 py-3 text-sm font-black uppercase tracking-wide text-black transition hover:bg-[#53c7ff] disabled:cursor-not-allowed disabled:opacity-50"
+                disabled={Boolean(busy) || !selectedLaunch || (isConnected && (!pegId || !priceSol))}
+                className="group relative inline-flex items-center justify-center gap-2 overflow-hidden border-2 border-[#f7f2df] bg-[#f7f2df] px-5 py-4 text-sm font-black uppercase tracking-wide text-black transition hover:bg-[#53c7ff] hover:border-[#53c7ff] disabled:cursor-not-allowed disabled:opacity-50"
               >
                 {busy === "list" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Tag className="h-4 w-4" />}
-                {isConnected ? "List PEG" : "Connect Phantom"}
+                {isConnected ? "Confirm listing" : "Connect Phantom to list"}
               </button>
+
+              <p className="font-mono text-[10px] leading-5 uppercase tracking-[0.18em] text-white/35">
+                Your PEG stays in your wallet. A transfer delegate authorizes the marketplace to move
+                it only when a buyer fills the order.
+              </p>
             </div>
           </div>
         </section>
