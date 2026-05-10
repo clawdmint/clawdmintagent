@@ -1356,8 +1356,8 @@ async function sendInstructionsWithAgentSigner(
       .simulateTransaction(transaction, undefined, true)
       .catch(() => null);
     if (sim && sim.value.err) {
-      const logs = sim.value.logs || [];
-      const interesting = logs.find((line) =>
+      const logs: string[] = sim.value.logs || [];
+      const interesting = logs.find((line: string) =>
         /Error|failed|custom program error|InvalidArgument|InvalidAccountData/i.test(line)
       );
       const errSummary = typeof sim.value.err === "string" ? sim.value.err : JSON.stringify(sim.value.err);
@@ -1380,7 +1380,7 @@ async function sendInstructionsWithAgentSigner(
     const baseMessage = sendError instanceof Error ? sendError.message : String(sendError);
     const logs = (sendError as { logs?: string[] })?.logs;
     if (Array.isArray(logs) && logs.length) {
-      const interesting = logs.find((line) =>
+      const interesting = logs.find((line: string) =>
         /Error|failed|custom program error|InvalidArgument|InvalidAccountData/i.test(line)
       );
       if (interesting) {
