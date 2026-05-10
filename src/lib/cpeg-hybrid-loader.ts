@@ -27,6 +27,8 @@ export async function loadHybridLaunchAndAgent(tokenMint: string): Promise<Hybri
       tokenMint: true,
       agentTokenMint: true,
       agentId: true,
+      agentAssetAddress: true,
+      agentWalletAddress: true,
       hybridCoreCollectionAddress: true,
       hybridEscrowAddress: true,
       hybridProgramId: true,
@@ -43,17 +45,51 @@ export async function loadHybridLaunchAndAgent(tokenMint: string): Promise<Hybri
       cluster: true,
     },
   });
-  if (!launch || !launch.agentId) return null;
+  if (!launch) return null;
 
-  const agent = await prisma.agent.findUnique({
-    where: { id: launch.agentId },
-    select: {
-      id: true,
-      name: true,
-      solanaWalletAddress: true,
-      solanaWalletEncryptedKey: true,
-    },
-  });
+  // Try the direct foreign key first; fall back to the agent identity persisted
+  // on the launch row so launches saved before the linked-agent query was
+  // hardened can still resolve their operational signer. When the fallback
+  // succeeds we backfill agentId so subsequent calls take the fast path.
+  let agent = launch.agentId
+    ? await prisma.agent.findUnique({
+        where: { id: launch.agentId },
+        select: {
+          id: true,
+          name: true,
+          solanaWalletAddress: true,
+          solanaWalletEncryptedKey: true,
+        },
+      })
+    : null;
+
+  if (!agent && (launch.agentAssetAddress || launch.agentWalletAddress)) {
+    const fallbackOr: Array<Record<string, string>> = [];
+    if (launch.agentAssetAddress) fallbackOr.push({ metaplexAssetAddress: launch.agentAssetAddress });
+    if (launch.agentWalletAddress) fallbackOr.push({ solanaWalletAddress: launch.agentWalletAddress });
+    agent = await prisma.agent
+      .findFirst({
+        where: {
+          status: "VERIFIED",
+          deployEnabled: true,
+          OR: fallbackOr,
+        },
+        orderBy: { updatedAt: "desc" },
+        select: {
+          id: true,
+          name: true,
+          solanaWalletAddress: true,
+          solanaWalletEncryptedKey: true,
+        },
+      })
+      .catch(() => null);
+    if (agent) {
+      await prisma.clawPegLaunch
+        .update({ where: { id: launch.id }, data: { agentId: agent.id } })
+        .catch(() => null);
+    }
+  }
+
   if (!agent) return null;
 
   return {

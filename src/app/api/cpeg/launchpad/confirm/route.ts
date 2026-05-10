@@ -271,16 +271,27 @@ export async function POST(request: NextRequest) {
       // hybrid setup/capture/release endpoints can sign with the agent operational
       // wallet. We never read the secret key here; we just persist the agent.id
       // foreign key. Setup endpoints load the encrypted key on demand.
+      // Match on the agent identity persisted in the launch payload first
+      // (agentAssetAddress is unique on the Agent table) and fall back to wallet
+      // matches. This keeps launches signed with a wallet that does not exactly
+      // equal the agent ownerWalletAddress still linkable, which is the common
+      // case once the operator switches between wallets owned by the same user.
+      const linkedAgentOr: Array<Record<string, string>> = [];
+      if (agentRoot.agentAssetAddress) {
+        linkedAgentOr.push({ metaplexAssetAddress: agentRoot.agentAssetAddress });
+      }
+      if (agentRoot.agentWalletAddress) {
+        linkedAgentOr.push({ solanaWalletAddress: agentRoot.agentWalletAddress });
+      }
+      linkedAgentOr.push({ solanaWalletAddress: authorityAddress });
+      linkedAgentOr.push({ ownerWalletAddress: authorityAddress });
       const linkedAgent = await prisma.agent
         .findFirst({
           where: {
             status: "VERIFIED",
             deployEnabled: true,
             metaplexAssetAddress: { not: null },
-            OR: [
-              { solanaWalletAddress: authorityAddress },
-              { ownerWalletAddress: authorityAddress },
-            ],
+            OR: linkedAgentOr,
           },
           orderBy: { updatedAt: "desc" },
           select: { id: true },
