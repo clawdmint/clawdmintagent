@@ -73,7 +73,7 @@ interface ExplorePayload {
   pegs: ExplorePeg[];
 }
 
-type DetailTab = "traits" | "provenance" | "rarity";
+type DetailTab = "traits" | "details";
 
 const DEFAULT_PAYLOAD: ExplorePayload = {
   success: true,
@@ -98,11 +98,7 @@ function traitRows(traits: ExplorePeg["traits"]) {
     }));
 }
 
-function rarityRows(peg: ExplorePeg) {
-  return traitRows(peg.traits).filter((row) => row.label !== "rank");
-}
-
-function formatProvenanceValue(label: string, value: string | null) {
+function formatDetailValue(label: string, value: string | null) {
   if (value) {
     if (/^\d{4}-\d{2}-\d{2}T/.test(value)) {
       return new Date(value).toLocaleString("en-US", {
@@ -225,7 +221,6 @@ export function CpegExploreClient({ initialPayload }: { initialPayload: ExploreP
   };
 
   const selectedTraits = selected ? traitRows(selected.traits) : [];
-  const selectedRarity = selected ? rarityRows(selected) : [];
 
   return (
     <div className="relative min-h-screen overflow-hidden bg-[#f4efe7] text-neutral-950 dark:bg-[#070707] dark:text-[#f7f2df]">
@@ -246,18 +241,13 @@ export function CpegExploreClient({ initialPayload }: { initialPayload: ExploreP
               <div>
                 <h1 className="text-5xl font-black uppercase leading-none md:text-7xl">Gallery</h1>
                 <p className="mt-4 max-w-2xl text-sm leading-6 text-neutral-600 dark:text-white/55">
-                  Browse deterministic PEG identities by score, owner, peg id, or collection.
+                  Browse every cPEG across collections. Search by wallet, mint, or peg number.
                 </p>
-                {collection ? (
-                  <p className="mt-3 inline-flex border border-neutral-300 px-2 py-1 font-mono text-[10px] uppercase tracking-[0.18em] text-neutral-600 dark:border-white/15 dark:text-white/45">
-                    {collection.identity_mode === "metaplex_agent" ? "Metaplex Agent Root" : "Legacy Test Collection"}
-                  </p>
-                ) : null}
               </div>
               <div className="grid grid-cols-3 gap-5 font-mono text-xs uppercase tracking-[0.18em]">
                 <div>
                   <p className="text-2xl font-black text-neutral-950 dark:text-white">{payload.stats.cpegs.toLocaleString()}</p>
-                  <p className="mt-1 text-neutral-500 dark:text-white/35">Identities</p>
+                  <p className="mt-1 text-neutral-500 dark:text-white/35">Total cPEGs</p>
                 </div>
                 <div>
                   <p className="text-2xl font-black text-neutral-950 dark:text-white">{payload.stats.holders.toLocaleString()}</p>
@@ -303,7 +293,7 @@ export function CpegExploreClient({ initialPayload }: { initialPayload: ExploreP
                     : "border-neutral-300 text-neutral-500 hover:border-[#53c7ff] hover:text-[#53c7ff] dark:border-white/10 dark:text-white/45"
                 }`}
               >
-                Visual Score
+                Featured
               </button>
               <button
                 type="button"
@@ -317,10 +307,10 @@ export function CpegExploreClient({ initialPayload }: { initialPayload: ExploreP
                     : "border-neutral-300 text-neutral-500 hover:border-[#53c7ff] hover:text-[#53c7ff] dark:border-white/10 dark:text-white/45"
                 }`}
               >
-                Age Score
+                Latest
               </button>
               <label className="inline-flex items-center gap-2 border border-neutral-300 bg-neutral-50 px-3 py-2 font-mono text-[10px] uppercase tracking-[0.18em] text-neutral-500 dark:border-white/10 dark:bg-[#111] dark:text-white/45">
-                <span>Set</span>
+                <span>Collection</span>
                 <select
                   value={mint}
                   onChange={(event) => changeMint(event.target.value)}
@@ -328,7 +318,7 @@ export function CpegExploreClient({ initialPayload }: { initialPayload: ExploreP
                 >
                   {payload.collections.map((item) => (
                     <option key={item.token_mint} value={item.token_mint} className="bg-neutral-50 dark:bg-[#111]">
-                      {item.symbol} / {item.identity_mode === "metaplex_agent" ? "Agent" : "Legacy"}
+                      {item.symbol}
                     </option>
                   ))}
                 </select>
@@ -348,29 +338,16 @@ export function CpegExploreClient({ initialPayload }: { initialPayload: ExploreP
             <h2 className="mt-3 text-3xl font-black uppercase leading-none">
               {collection?.name || "No collection"}
             </h2>
-            <div className="mt-4 grid gap-2 font-mono text-[10px] uppercase tracking-[0.18em] text-neutral-500 dark:text-white/45">
+            {collection ? (
+              <p className="mt-1 font-mono text-xs text-neutral-500 dark:text-white/45">${collection.symbol}</p>
+            ) : null}
+            <div className="mt-5 grid gap-2 font-mono text-[10px] uppercase tracking-[0.18em] text-neutral-500 dark:text-white/45">
               <div className="flex items-center justify-between gap-3">
-                <span>Symbol</span>
-                <span className="text-neutral-950 dark:text-white">{collection?.symbol || "--"}</span>
+                <span>Supply</span>
+                <span className="text-neutral-950 dark:text-white">{collection ? collection.max_pegs.toLocaleString() : "--"}</span>
               </div>
               <div className="flex items-center justify-between gap-3">
-                <span>Renderer</span>
-                <span className="truncate text-neutral-950 dark:text-white">{collection?.renderer || "--"}</span>
-              </div>
-              <div className="flex items-center justify-between gap-3">
-                <span>Root</span>
-                <span className="truncate text-neutral-950 dark:text-white">
-                  {collection?.identity_mode === "metaplex_agent" ? "Metaplex Agent" : "Legacy"}
-                </span>
-              </div>
-              {collection?.agent_asset_address ? (
-                <div className="flex items-center justify-between gap-3">
-                  <span>Agent Asset</span>
-                  <span className="text-neutral-950 dark:text-white">{truncateAddress(collection.agent_asset_address, 5, 5)}</span>
-                </div>
-              ) : null}
-              <div className="flex items-center justify-between gap-3">
-                <span>Mint</span>
+                <span>Token</span>
                 <span className="text-neutral-950 dark:text-white">{collection ? truncateAddress(collection.token_mint, 5, 5) : "--"}</span>
               </div>
             </div>
@@ -379,9 +356,12 @@ export function CpegExploreClient({ initialPayload }: { initialPayload: ExploreP
                 href={urls.collection(collection.token_mint)}
                 className="mt-5 inline-flex w-full items-center justify-center gap-2 border border-[#f7f2df] bg-[#f7f2df] px-4 py-3 text-xs font-black uppercase tracking-wide text-black transition hover:bg-[#53c7ff]"
               >
-                Open market <ExternalLink className="h-3.5 w-3.5" />
+                Open collection <ExternalLink className="h-3.5 w-3.5" />
               </Link>
             ) : null}
+            <p className="mt-4 font-mono text-[9px] uppercase tracking-[0.22em] text-neutral-400 dark:text-white/30">
+              On Metaplex Core
+            </p>
           </aside>
         </section>
 
@@ -468,13 +448,15 @@ export function CpegExploreClient({ initialPayload }: { initialPayload: ExploreP
       </main>
 
       {selected ? (
-        <div className="fixed inset-0 z-[80] overflow-y-auto bg-black/72 px-4 py-8 backdrop-blur-sm">
-          <div className="mx-auto max-w-6xl border border-white/10 bg-[#1d1a18] p-5 shadow-2xl md:p-7">
+        <div className="fixed inset-0 z-[80] overflow-y-auto bg-black/80 px-4 py-8 backdrop-blur-sm">
+          <div className="mx-auto max-w-5xl border border-white/10 bg-gradient-to-br from-[#1d1a18] to-[#0d0c0b] p-5 shadow-[0_20px_80px_rgba(0,0,0,0.6)] md:p-7">
             <div className="flex items-start justify-between gap-4">
               <div>
-                <p className="font-mono text-[10px] uppercase tracking-[0.24em] text-[#ec5cff]">Detail</p>
-                <h2 className="mt-3 text-3xl font-black uppercase leading-none text-white md:text-4xl">
-                  {selected.collection_symbol} #{selected.id} <span className="align-middle text-sm text-[#ec5cff]">#{selected.visual_score}</span>
+                <p className="font-mono text-[10px] uppercase tracking-[0.24em] text-[#ec5cff]">
+                  {selected.collection_name}
+                </p>
+                <h2 className="mt-2 text-3xl font-black uppercase leading-none text-white md:text-4xl">
+                  {selected.collection_symbol} #{selected.id}
                 </h2>
               </div>
               <button
@@ -487,9 +469,9 @@ export function CpegExploreClient({ initialPayload }: { initialPayload: ExploreP
               </button>
             </div>
 
-            <div className="mt-8 grid gap-8 lg:grid-cols-[1fr_0.95fr]">
+            <div className="mt-7 grid gap-7 lg:grid-cols-[1fr_0.95fr]">
               <div>
-                <div className="aspect-square overflow-hidden bg-black">
+                <div className="aspect-square overflow-hidden bg-black shadow-[0_8px_30px_rgba(236,92,255,0.15)]">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
                     src={selected.image}
@@ -497,11 +479,18 @@ export function CpegExploreClient({ initialPayload }: { initialPayload: ExploreP
                     className="h-full w-full object-cover [image-rendering:pixelated]"
                   />
                 </div>
+                <button
+                  type="button"
+                  onClick={() => void downloadJpeg(selected)}
+                  className="mt-4 inline-flex w-full items-center justify-center gap-2 border border-white/15 bg-white/5 px-4 py-2.5 text-xs font-black uppercase tracking-[0.18em] text-white transition hover:border-[#53c7ff] hover:bg-[#53c7ff]/15 hover:text-[#53c7ff]"
+                >
+                  <Download className="h-3.5 w-3.5" /> Save image
+                </button>
               </div>
 
-              <div className="flex min-h-[520px] flex-col">
+              <div className="flex flex-col">
                 <div className="flex gap-5 border-b border-white/10 font-mono text-[10px] uppercase tracking-[0.2em]">
-                  {(["traits", "provenance", "rarity"] as DetailTab[]).map((item) => (
+                  {(["traits", "details"] as DetailTab[]).map((item) => (
                     <button
                       key={item}
                       type="button"
@@ -516,9 +505,12 @@ export function CpegExploreClient({ initialPayload }: { initialPayload: ExploreP
                 </div>
 
                 {tab === "traits" ? (
-                  <div className="mt-6 grid gap-x-8 gap-y-0 md:grid-cols-2">
+                  <div className="mt-5 grid gap-x-8 md:grid-cols-2">
                     {selectedTraits.map((row) => (
-                      <div key={row.label} className="flex items-center justify-between border-b border-white/10 py-3 font-mono text-[11px] uppercase tracking-[0.16em]">
+                      <div
+                        key={row.label}
+                        className="flex items-center justify-between border-b border-white/10 py-3 font-mono text-[11px] uppercase tracking-[0.16em]"
+                      >
                         <span className="text-white/35">{row.label}</span>
                         <span className="text-right font-black text-white">{row.value}</span>
                       </div>
@@ -526,71 +518,29 @@ export function CpegExploreClient({ initialPayload }: { initialPayload: ExploreP
                   </div>
                 ) : null}
 
-                {tab === "provenance" ? (
-                  <div className="mt-6 grid gap-0">
+                {tab === "details" ? (
+                  <div className="mt-5 grid gap-0">
                     {([
-                      ["Peg record", selected.peg_record],
                       ["Owner", selected.owner],
                       ["Status", selected.status],
-                      ["Minted slot", selected.minted_slot],
-                      ["Transferred slot", selected.transferred_slot],
-                      ["Burned slot", selected.burned_slot],
-                      ["Seed", selected.on_chain_seed || String(selected.traits.seed || "")],
                       ["Token mint", selected.token_mint],
+                      ["Asset", selected.peg_record],
                     ] as Array<[string, string | null]>).map(([label, value]) => (
-                      <div key={label} className="flex items-center justify-between gap-4 border-b border-white/10 py-3 font-mono text-[11px] uppercase tracking-[0.16em]">
+                      <div
+                        key={label}
+                        className="flex items-center justify-between gap-4 border-b border-white/10 py-3 font-mono text-[11px] uppercase tracking-[0.16em]"
+                      >
                         <span className="text-white/35">{label}</span>
                         <span className="max-w-[68%] truncate text-right font-black text-white" title={value || ""}>
-                          {formatProvenanceValue(label, value)}
+                          {formatDetailValue(label, value)}
                         </span>
                       </div>
                     ))}
-                  </div>
-                ) : null}
-
-                {tab === "rarity" ? (
-                  <div className="mt-6">
-                    <p className="font-mono text-sm font-black uppercase tracking-[0.16em] text-white">
-                      Top {selected.rarity_percent} <span className="text-white/35">by deterministic rank</span>
-                    </p>
-                    <div className="mt-5 grid gap-4 md:grid-cols-2">
-                      {selectedRarity.map((row, index) => {
-                        const width = `${Math.max(8, Math.min(100, (selected.visual_score + index * 377) % 100))}%`;
-                        return (
-                          <div key={row.label}>
-                            <div className="flex items-center justify-between font-mono text-[10px] uppercase tracking-[0.16em]">
-                              <span className="text-white/35">{row.label}</span>
-                              <span className="text-[#ec5cff]">{row.value}</span>
-                            </div>
-                            <div className="mt-2 h-1 bg-white/10">
-                              <div className="h-full bg-[#ec5cff]" style={{ width }} />
-                            </div>
-                          </div>
-                        );
-                      })}
+                    <div className="mt-4 inline-flex items-center gap-2 border border-[#53c7ff]/30 bg-[#53c7ff]/5 px-3 py-2 font-mono text-[9px] uppercase tracking-[0.22em] text-[#53c7ff]/80">
+                      <span>Metaplex Core asset</span>
                     </div>
                   </div>
                 ) : null}
-
-                <div className="mt-auto pt-8">
-                  <div className="grid gap-3 font-mono text-[11px] uppercase tracking-[0.16em] text-white/35">
-                    <div>
-                      <p>Hash</p>
-                      <p className="mt-1 break-all text-white">{String(selected.traits.seed || selected.on_chain_seed || "pending")}</p>
-                    </div>
-                    <div>
-                      <p>Owner</p>
-                      <p className="mt-1 break-all text-white">{selected.owner || "Pending mint"}</p>
-                    </div>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => void downloadJpeg(selected)}
-                    className="mt-5 inline-flex w-full items-center justify-center gap-2 bg-[#8ca0bd] px-4 py-3 text-sm font-bold text-white transition hover:bg-[#53c7ff]"
-                  >
-                    <Download className="h-4 w-4" /> Save as JPEG
-                  </button>
-                </div>
               </div>
             </div>
           </div>

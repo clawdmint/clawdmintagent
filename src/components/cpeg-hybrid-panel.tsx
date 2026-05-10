@@ -11,7 +11,6 @@ import {
   PackageOpen,
   Rocket,
   ShieldCheck,
-  ShoppingCart,
   Tag,
 } from "lucide-react";
 import {
@@ -568,7 +567,6 @@ export function CpegHybridPanel({ tokenMint, initialAuthorityAddress, compact }:
   const requiredLabel = formatRawTokenAmount(requiredRaw, state.decimals, state.symbol);
   const supplyLabel = formatRawTokenAmount(state.token_supply_raw, state.decimals, state.symbol);
   const collectionHref = urls.collection(tokenMint);
-  const swapHref = `${urls.swap}?mint=${encodeURIComponent(tokenMint)}&side=buy`;
   const marketHref = urls.market({ mint: tokenMint });
 
   return (
@@ -609,8 +607,7 @@ export function CpegHybridPanel({ tokenMint, initialAuthorityAddress, compact }:
         </div>
       </div>
 
-      <div className="mt-5 grid gap-2 sm:grid-cols-4">
-        <ActionLink href={swapHref} icon={ShoppingCart} label="Buy token" />
+      <div className="mt-5 grid gap-2 sm:grid-cols-3">
         <ActionLink href={collectionHref} icon={PackageOpen} label="Get cPEG" />
         <ActionLink href="#release" icon={ArrowDownUp} label="Release" />
         <ActionLink href={marketHref} icon={Tag} label="List / Buy cPEG" />

@@ -62,7 +62,6 @@ export function cpegPublicPaths(isCpegSubdomain: boolean) {
     /** Hub */
     home: root,
     explore: isCpegSubdomain ? "/explore" : "/cpeg/explore",
-    swap: isCpegSubdomain ? "/swap" : "/cpeg/swap",
     launch: isCpegSubdomain ? "/launch" : "/cpeg/launch",
     market: marketPath,
     /** Public token to cPEG convert page. The market remains /market?mint=... */

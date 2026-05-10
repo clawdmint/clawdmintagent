@@ -938,12 +938,6 @@ export function CpegLaunchpad() {
               >
                 View gallery <ArrowRight className="h-4 w-4" />
               </a>
-              <a
-                href={`${cpegUrls.swap}?mint=${encodeURIComponent(result.mint)}`}
-                className="inline-flex items-center gap-2 border border-neutral-400 dark:border-white/20 px-5 py-3 text-sm font-bold uppercase tracking-wide text-neutral-950 dark:text-white transition hover:border-[#53c7ff] hover:text-[#53c7ff]"
-              >
-                Open swap <ArrowRight className="h-4 w-4" />
-              </a>
               {result.signature ? (
                 <a
                   href={explorerTxUrl(result.signature, result.cluster)}
