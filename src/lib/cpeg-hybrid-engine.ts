@@ -1348,11 +1348,47 @@ async function sendInstructionsWithAgentSigner(
   transaction.recentBlockhash = latest.blockhash;
   transaction.sign(signer);
   const raw = transaction.serialize({ requireAllSignatures: true });
-  const signature = await connection.sendRawTransaction(raw, {
-    skipPreflight: false,
-    preflightCommitment: "confirmed",
-    maxRetries: 5,
-  });
+  // Run a server-side simulation before broadcasting so we can surface the
+  // exact program log that caused a custom-error rejection instead of the
+  // opaque "Transaction simulation failed" string from sendRawTransaction.
+  try {
+    const sim = await connection
+      .simulateTransaction(transaction, undefined, true)
+      .catch(() => null);
+    if (sim && sim.value.err) {
+      const logs = sim.value.logs || [];
+      const interesting = logs.find((line) =>
+        /Error|failed|custom program error|InvalidArgument|InvalidAccountData/i.test(line)
+      );
+      const errSummary = typeof sim.value.err === "string" ? sim.value.err : JSON.stringify(sim.value.err);
+      const detail = interesting ? ` (${interesting.replace("Program log: ", "")})` : "";
+      throw new Error(`Agent tx simulation failed: ${errSummary}${detail}`);
+    }
+  } catch (simulationError) {
+    if (simulationError instanceof Error && simulationError.message.startsWith("Agent tx simulation failed")) {
+      throw simulationError;
+    }
+  }
+  let signature: string;
+  try {
+    signature = await connection.sendRawTransaction(raw, {
+      skipPreflight: false,
+      preflightCommitment: "confirmed",
+      maxRetries: 5,
+    });
+  } catch (sendError) {
+    const baseMessage = sendError instanceof Error ? sendError.message : String(sendError);
+    const logs = (sendError as { logs?: string[] })?.logs;
+    if (Array.isArray(logs) && logs.length) {
+      const interesting = logs.find((line) =>
+        /Error|failed|custom program error|InvalidArgument|InvalidAccountData/i.test(line)
+      );
+      if (interesting) {
+        throw new Error(`${baseMessage} (${interesting.replace("Program log: ", "")})`);
+      }
+    }
+    throw sendError;
+  }
   await connection.confirmTransaction(
     {
       signature,

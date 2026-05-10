@@ -18,7 +18,7 @@ const INIT_ESCROW_V1_DISCRIMINATOR = Buffer.from([193, 10, 167, 121, 222, 6, 21,
 const INIT_NFT_DATA_V1_DISCRIMINATOR = Buffer.from([235, 157, 80, 8, 35, 66, 54, 130]);
 const CAPTURE_V1_DISCRIMINATOR = Buffer.from([22, 23, 128, 17, 40, 133, 224, 228]);
 const RELEASE_V1_DISCRIMINATOR = Buffer.from([86, 208, 216, 30, 127, 65, 71, 80]);
-const UPDATE_ESCROW_V1_DISCRIMINATOR = Buffer.from([252, 228, 127, 1, 60, 43, 54, 28]);
+const UPDATE_ESCROW_V1_DISCRIMINATOR = Buffer.from([72, 45, 208, 14, 174, 238, 27, 95]);
 
 // Path bit indices used by mpl-hybrid: NoRerollMetadata = bit 0.
 export const MPL_HYBRID_PATH_NO_REROLL_METADATA = 1 << 0;
