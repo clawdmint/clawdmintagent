@@ -687,13 +687,14 @@ export async function ensureHybridPoolAssetOwnership(
       wallet_address: ctx.signer.publicKey.toBase58(),
     });
   }
-  const collectionAccount = await safeFetchCollectionV1(umi, publicKey(launch.hybridCoreCollectionAddress));
+  const collectionPk = publicKey(launch.hybridCoreCollectionAddress);
+  const collectionAccount = await safeFetchCollectionV1(umi, collectionPk);
   if (!collectionAccount) {
     throw new CpegHybridEngineError(409, "Core PEG collection account is not present on chain");
   }
   const transferResult = await transferCoreAsset(umi, {
-    asset,
-    collection: collectionAccount,
+    asset: publicKey(assetAddress),
+    collection: collectionPk,
     newOwner: publicKey(custody.escrowAddress),
   })
     .useLegacyVersion()
