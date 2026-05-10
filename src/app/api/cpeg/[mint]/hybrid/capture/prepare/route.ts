@@ -6,6 +6,7 @@ import {
   CpegHybridEngineError,
   buildHybridStateSummary,
   buildCaptureTransferInstructions,
+  ensureHybridPoolAssetData,
   getMplHybridCustodyTarget,
   mintHybridPoolAsset,
 } from "@/lib/cpeg-hybrid-engine";
@@ -92,6 +93,24 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
         { status: 409 }
       );
     }
+    const hybridLaunchSnapshot = {
+      id: data.launch.id,
+      name: data.launch.name,
+      symbol: data.launch.symbol,
+      cluster: data.launch.cluster,
+      tokenMint: data.launch.tokenMint,
+      agentTokenMint: data.launch.agentTokenMint,
+      hybridCoreCollectionAddress: data.launch.hybridCoreCollectionAddress,
+      hybridEscrowAddress: data.launch.hybridEscrowAddress,
+      hybridProgramId: data.launch.hybridProgramId,
+      hybridStatus: data.launch.hybridStatus,
+      feeVaultAddress: data.launch.feeVaultAddress,
+      pegUnitRaw: summary.pegUnitRaw,
+      maxPegs: summary.effectiveMaxPegs,
+      rendererId: data.launch.rendererId,
+      rendererVersion: data.launch.rendererVersion,
+      collectionSeed: data.launch.collectionSeed,
+    };
     let captureAssets: Array<{ asset_address: string; peg_id: number }> = [];
     if (custody.isNativeReady && custody.escrowAddress) {
       const poolRows = await prisma.clawPegHybridAsset.findMany({
@@ -101,6 +120,9 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
         select: { assetAddress: true, pegId: true },
       });
       captureAssets = poolRows.map((row) => ({ asset_address: row.assetAddress, peg_id: row.pegId }));
+      for (const asset of captureAssets) {
+        await ensureHybridPoolAssetData(data.agent, hybridLaunchSnapshot, asset.asset_address, asset.peg_id);
+      }
       if (captureAssets.length < parsed.data.count) {
         const taken = await listHybridAssetPegIds(data.launch.id);
         for (const row of captureAssets) taken.add(row.peg_id);
@@ -108,24 +130,7 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
         for (let index = 0; index < missing; index += 1) {
           const seeded = await mintHybridPoolAsset(
             data.agent,
-            {
-              id: data.launch.id,
-              name: data.launch.name,
-              symbol: data.launch.symbol,
-              cluster: data.launch.cluster,
-              tokenMint: data.launch.tokenMint,
-              agentTokenMint: data.launch.agentTokenMint,
-              hybridCoreCollectionAddress: data.launch.hybridCoreCollectionAddress,
-              hybridEscrowAddress: data.launch.hybridEscrowAddress,
-              hybridProgramId: data.launch.hybridProgramId,
-              hybridStatus: data.launch.hybridStatus,
-              feeVaultAddress: data.launch.feeVaultAddress,
-              pegUnitRaw: summary.pegUnitRaw,
-              maxPegs: summary.effectiveMaxPegs,
-              rendererId: data.launch.rendererId,
-              rendererVersion: data.launch.rendererVersion,
-              collectionSeed: data.launch.collectionSeed,
-            },
+            hybridLaunchSnapshot,
             taken
           );
           taken.add(seeded.pegId);
@@ -147,24 +152,7 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
 
     const result = await buildCaptureTransferInstructions(
       data.agent,
-      {
-        id: data.launch.id,
-        name: data.launch.name,
-        symbol: data.launch.symbol,
-        cluster: data.launch.cluster,
-        tokenMint: data.launch.tokenMint,
-        agentTokenMint: data.launch.agentTokenMint,
-        hybridCoreCollectionAddress: data.launch.hybridCoreCollectionAddress,
-        hybridEscrowAddress: data.launch.hybridEscrowAddress,
-        hybridProgramId: data.launch.hybridProgramId,
-        hybridStatus: data.launch.hybridStatus,
-        feeVaultAddress: data.launch.feeVaultAddress,
-        pegUnitRaw: data.launch.pegUnitRaw,
-        maxPegs: data.launch.maxPegs,
-        rendererId: data.launch.rendererId,
-        rendererVersion: data.launch.rendererVersion,
-        collectionSeed: data.launch.collectionSeed,
-      },
+      hybridLaunchSnapshot,
       parsed.data.wallet,
       parsed.data.count,
       captureAssets.map((asset) => asset.asset_address)

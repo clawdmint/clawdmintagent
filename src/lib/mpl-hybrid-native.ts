@@ -15,6 +15,7 @@ export const MPL_HYBRID_DEFAULT_SOL_FEE_ACCOUNT = new PublicKey("GjF4LqmEhV33riV
 export const SYSVAR_SLOT_HASHES_ID = new PublicKey("SysvarS1otHashes111111111111111111111111111");
 
 const INIT_ESCROW_V1_DISCRIMINATOR = Buffer.from([193, 10, 167, 121, 222, 6, 21, 146]);
+const INIT_NFT_DATA_V1_DISCRIMINATOR = Buffer.from([235, 157, 80, 8, 35, 66, 54, 130]);
 const CAPTURE_V1_DISCRIMINATOR = Buffer.from([22, 23, 128, 17, 40, 133, 224, 228]);
 const RELEASE_V1_DISCRIMINATOR = Buffer.from([86, 208, 216, 30, 127, 65, 71, 80]);
 
@@ -72,6 +73,16 @@ export function deriveMplHybridEscrowTokenAccount(
   );
 }
 
+export function deriveMplHybridNftDataPda(
+  asset: PublicKeyInput,
+  programId: PublicKeyInput = MPL_HYBRID_PROGRAM_ID
+) {
+  return PublicKey.findProgramAddressSync(
+    [Buffer.from("data"), toPublicKey(asset, "asset").toBuffer()],
+    toPublicKey(programId, "mpl_hybrid_program_id")
+  )[0];
+}
+
 export interface InitEscrowV1InstructionInput {
   escrow: PublicKeyInput;
   authority: PublicKeyInput;
@@ -108,6 +119,50 @@ export function createInitEscrowV1Instruction(input: InitEscrowV1InstructionInpu
     ],
     data: Buffer.concat([
       INIT_ESCROW_V1_DISCRIMINATOR,
+      writeString(input.name),
+      writeString(input.uri),
+      writeU64(input.max),
+      writeU64(input.min),
+      writeU64(input.amount),
+      writeU64(input.feeAmount),
+      writeU64(input.solFeeAmount),
+      writeU16(input.path ?? 0),
+    ]),
+  });
+}
+
+export interface InitNftDataV1InstructionInput {
+  nftData: PublicKeyInput;
+  authority: PublicKeyInput;
+  asset: PublicKeyInput;
+  collection: PublicKeyInput;
+  token: PublicKeyInput;
+  feeLocation: PublicKeyInput;
+  name: string;
+  uri: string;
+  max: bigint | number | string;
+  min: bigint | number | string;
+  amount: bigint | number | string;
+  feeAmount: bigint | number | string;
+  solFeeAmount: bigint | number | string;
+  path?: number;
+  programId?: PublicKeyInput;
+}
+
+export function createInitNftDataV1Instruction(input: InitNftDataV1InstructionInput) {
+  return new TransactionInstruction({
+    programId: toPublicKey(input.programId || MPL_HYBRID_PROGRAM_ID, "mpl_hybrid_program_id"),
+    keys: [
+      { pubkey: toPublicKey(input.nftData, "nft_data"), isSigner: false, isWritable: true },
+      { pubkey: toPublicKey(input.authority, "authority"), isSigner: true, isWritable: true },
+      { pubkey: toPublicKey(input.asset, "asset"), isSigner: false, isWritable: false },
+      { pubkey: toPublicKey(input.collection, "collection"), isSigner: false, isWritable: false },
+      { pubkey: toPublicKey(input.token, "token"), isSigner: false, isWritable: false },
+      { pubkey: toPublicKey(input.feeLocation, "fee_location"), isSigner: false, isWritable: false },
+      { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
+    ],
+    data: Buffer.concat([
+      INIT_NFT_DATA_V1_DISCRIMINATOR,
       writeString(input.name),
       writeString(input.uri),
       writeU64(input.max),

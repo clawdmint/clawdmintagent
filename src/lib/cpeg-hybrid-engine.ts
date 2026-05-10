@@ -50,8 +50,10 @@ import {
   MPL_HYBRID_DEFAULT_SOL_FEE_ACCOUNT,
   createCaptureV1Instruction,
   createInitEscrowV1Instruction,
+  createInitNftDataV1Instruction,
   createReleaseV1Instruction,
   deriveMplHybridEscrowTokenAccount,
+  deriveMplHybridNftDataPda,
 } from "@/lib/mpl-hybrid-native";
 import { getMetaplexCoreConnection } from "@/lib/synapse-sap";
 
@@ -538,6 +540,58 @@ export async function setupHybridLaunch(
   };
 }
 
+export async function ensureHybridPoolAssetData(
+  agent: HybridAgentRecord,
+  launch: HybridLaunchSnapshot,
+  assetAddress: string,
+  pegId: number
+): Promise<{ nftDataAddress: string; initialized: boolean; txSignature: string | null }> {
+  const ctx = await loadHybridContext(agent, launch);
+  const custody = getMplHybridCustodyTarget(launch, ctx.tokenProgramId.toBase58());
+  if (!custody.isNativeReady) {
+    return { nftDataAddress: "", initialized: false, txSignature: null };
+  }
+  if (!launch.hybridCoreCollectionAddress) {
+    throw new CpegHybridEngineError(409, "Metaplex Hybrid collection is missing for this launch");
+  }
+  const asset = new PublicKey(assetAddress);
+  const nftData = deriveMplHybridNftDataPda(asset, launch.hybridProgramId || undefined);
+  const nftDataInfo = await ctx.connection.getAccountInfo(nftData, "confirmed");
+  if (nftDataInfo) {
+    return { nftDataAddress: nftData.toBase58(), initialized: true, txSignature: null };
+  }
+  const balance = await getAgentWalletBalance(ctx.signer.publicKey.toBase58());
+  if (balance.lamports < MIN_AGENT_WALLET_LAMPORTS_FOR_CAPTURE) {
+    throw new CpegHybridEngineError(402, "Agent wallet does not have enough SOL to initialize cPEG asset data", {
+      balance_sol: balance.sol,
+      required_sol: Number(MIN_AGENT_WALLET_LAMPORTS_FOR_CAPTURE) / 1_000_000_000,
+      wallet_address: ctx.signer.publicKey.toBase58(),
+    });
+  }
+  const metadata = buildAssetMetadata(launch, pegId);
+  const feeLocation = resolveFeeLocation(launch, ctx.signer.publicKey);
+  const txSignature = await sendInstructionsWithAgentSigner(ctx.connection, ctx.signer, [
+    createInitNftDataV1Instruction({
+      nftData,
+      authority: ctx.signer.publicKey,
+      asset,
+      collection: launch.hybridCoreCollectionAddress,
+      token: ctx.tokenMint,
+      feeLocation,
+      name: metadata.name,
+      uri: metadata.uri,
+      max: Math.max(1, Math.min(10_000, launch.maxPegs || 1)),
+      min: 0,
+      amount: ctx.pegUnitRaw,
+      feeAmount: 0,
+      solFeeAmount: 0,
+      path: 0,
+      programId: launch.hybridProgramId || undefined,
+    }),
+  ]);
+  return { nftDataAddress: nftData.toBase58(), initialized: true, txSignature };
+}
+
 /**
  * Build the unsigned instructions required to convert one or more fixed PEG
  * backing units from the user's wallet into Core cPEG assets. In MPL-Hybrid
@@ -839,6 +893,7 @@ export async function mintHybridPoolAsset(
     const onchain = await safeFetchAssetV1(umi, publicKey(assetSigner.publicKey));
     if (!onchain) throw mintError;
   }
+  await ensureHybridPoolAssetData(agent, launch, assetSigner.publicKey.toString(), pegId);
   return {
     assetAddress: assetSigner.publicKey.toString(),
     pegId,
