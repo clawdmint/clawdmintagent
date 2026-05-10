@@ -1515,7 +1515,7 @@ export function CpegMarketClient() {
                 <div className="mt-4 space-y-2 border-t border-white/10 pt-4 font-mono text-[10px] uppercase tracking-[0.18em]">
                   <div className="flex items-center justify-between">
                     <span className="text-white/45">Listing price</span>
-                    <span className="text-white">{listPreview ? `${listPreview.total} SOL` : "0 SOL"}</span>
+                    <span className="text-white">{priceSol ? `${priceSol} SOL` : "0 SOL"}</span>
                   </div>
                   <div className="flex items-center justify-between">
                     <span className="text-white/45">
