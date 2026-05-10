@@ -642,6 +642,68 @@ export async function setupHybridLaunch(
   };
 }
 
+/**
+ * Make sure a Core asset that lives in the cPEG pool is owned by the MPL Hybrid
+ * escrow PDA. Pool assets minted before the explicit `owner` parameter was
+ * threaded into mpl-core CreateV2 ended up owned by the agent wallet, which
+ * causes capture_v1 to fail inside mpl-core Transfer with "Neither the asset or
+ * any plugins have approved this operation". When that happens we have the
+ * agent (current owner) sign a Core transferV1 that moves the asset into the
+ * escrow so the next capture can spend it. Idempotent and self-healing.
+ */
+export async function ensureHybridPoolAssetOwnership(
+  agent: HybridAgentRecord,
+  launch: HybridLaunchSnapshot,
+  assetAddress: string
+): Promise<{ owner: string; transferred: boolean; txSignature: string | null }> {
+  const ctx = await loadHybridContext(agent, launch);
+  const custody = getMplHybridCustodyTarget(launch, ctx.tokenProgramId.toBase58());
+  if (!custody.isNativeReady || !custody.escrowAddress) {
+    return { owner: "", transferred: false, txSignature: null };
+  }
+  if (!launch.hybridCoreCollectionAddress) {
+    throw new CpegHybridEngineError(409, "Metaplex Hybrid collection is missing for this launch");
+  }
+  const umi = createUmi(getMetaplexCoreConnection());
+  umi.use(mplCore());
+  umi.use(keypairIdentity(fromWeb3JsKeypair(ctx.signer)));
+  const asset = await fetchAssetV1(umi, publicKey(assetAddress));
+  const ownerAddress = toWeb3JsPublicKey(asset.owner).toBase58();
+  if (ownerAddress === custody.escrowAddress) {
+    return { owner: ownerAddress, transferred: false, txSignature: null };
+  }
+  if (ownerAddress !== ctx.signer.publicKey.toBase58()) {
+    throw new CpegHybridEngineError(409, "cPEG pool asset is owned by an unexpected wallet", {
+      asset: assetAddress,
+      owner: ownerAddress,
+      expected_escrow: custody.escrowAddress,
+    });
+  }
+  const balance = await getAgentWalletBalance(ctx.signer.publicKey.toBase58());
+  if (balance.lamports < MIN_AGENT_WALLET_LAMPORTS_FOR_RELEASE) {
+    throw new CpegHybridEngineError(402, "Agent wallet does not have enough SOL to migrate cPEG pool asset", {
+      balance_sol: balance.sol,
+      required_sol: Number(MIN_AGENT_WALLET_LAMPORTS_FOR_RELEASE) / 1_000_000_000,
+      wallet_address: ctx.signer.publicKey.toBase58(),
+    });
+  }
+  const collectionAccount = await safeFetchCollectionV1(umi, publicKey(launch.hybridCoreCollectionAddress));
+  if (!collectionAccount) {
+    throw new CpegHybridEngineError(409, "Core PEG collection account is not present on chain");
+  }
+  const transferResult = await transferCoreAsset(umi, {
+    asset,
+    collection: collectionAccount,
+    newOwner: publicKey(custody.escrowAddress),
+  })
+    .useLegacyVersion()
+    .sendAndConfirm(umi, { confirm: { commitment: "confirmed" } });
+  const txSignature = transferResult?.signature
+    ? bytesToBase58Signature(transferResult.signature)
+    : null;
+  return { owner: custody.escrowAddress, transferred: true, txSignature };
+}
+
 export async function ensureHybridPoolAssetData(
   agent: HybridAgentRecord,
   launch: HybridLaunchSnapshot,

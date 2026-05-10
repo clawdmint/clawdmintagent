@@ -7,6 +7,7 @@ import {
   buildHybridStateSummary,
   buildCaptureTransferInstructions,
   ensureHybridPoolAssetData,
+  ensureHybridPoolAssetOwnership,
   getMplHybridCustodyTarget,
   mintHybridPoolAsset,
 } from "@/lib/cpeg-hybrid-engine";
@@ -135,6 +136,7 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
       });
       captureAssets = poolRows.map((row) => ({ asset_address: row.assetAddress, peg_id: row.pegId }));
       for (const asset of captureAssets) {
+        await ensureHybridPoolAssetOwnership(data.agent, hybridLaunchSnapshot, asset.asset_address);
         await ensureHybridPoolAssetData(data.agent, hybridLaunchSnapshot, asset.asset_address, asset.peg_id);
       }
       if (captureAssets.length < parsed.data.count) {
