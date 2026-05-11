@@ -11,6 +11,7 @@ import { useWallet } from "./wallet-context";
 import { SolanaLogo } from "./network-icons";
 
 const primaryNavItems: Array<{ href: string; label: string }> = [
+  { href: "/cpeg", label: "cPEG" },
   { href: "/drops", label: "drops" },
   { href: "/marketplace", label: "marketplace" },
   { href: "/agents", label: "agents" },
@@ -112,6 +113,7 @@ export function Header() {
               {primaryNavItems.map((item) => {
                 const isActive =
                   pathname === item.href || (item.href !== "/" && pathname?.startsWith(`${item.href}/`));
+                const isCpeg = item.href === "/cpeg";
 
                 return (
                   <Link
@@ -119,7 +121,13 @@ export function Header() {
                     href={item.href}
                     className={clsx(
                       "relative flex items-center gap-1.5 rounded-md px-3 py-1 font-mono text-[12px] transition-all duration-200",
-                      isActive
+                      isCpeg
+                        ? isActive
+                          ? "border border-cyan-300 bg-cyan-300 text-black shadow-[0_0_22px_rgba(34,211,238,0.32)]"
+                          : theme === "dark"
+                            ? "border border-cyan-400/50 bg-cyan-400/10 font-black text-cyan-200 shadow-[0_0_18px_rgba(34,211,238,0.18)] hover:bg-cyan-300 hover:text-black"
+                            : "border border-cyan-500/50 bg-cyan-100 font-black text-cyan-700 shadow-[0_0_16px_rgba(8,145,178,0.16)] hover:bg-cyan-500 hover:text-white"
+                      : isActive
                         ? theme === "dark"
                           ? "bg-white/[0.08] text-cyan-400"
                           : "bg-white text-cyan-600 shadow-sm"
@@ -128,8 +136,10 @@ export function Header() {
                           : "text-gray-500 hover:bg-white hover:text-gray-700"
                     )}
                   >
-                    {isActive && <ChevronRight className="h-3 w-3 shrink-0 text-cyan-400" />}
-                    <span>{item.label}</span>
+                    {isActive && (
+                      <ChevronRight className={clsx("h-3 w-3 shrink-0", isCpeg ? "text-current" : "text-cyan-400")} />
+                    )}
+                    <span className={clsx(isCpeg && "font-black tracking-[0.04em]")}>{item.label}</span>
                   </Link>
                 );
               })}
@@ -276,6 +286,7 @@ export function Header() {
               {primaryNavItems.map((item) => {
                 const isActive =
                   pathname === item.href || (item.href !== "/" && pathname?.startsWith(`${item.href}/`));
+                const isCpeg = item.href === "/cpeg";
 
                 return (
                   <Link
@@ -284,7 +295,13 @@ export function Header() {
                     onClick={() => setMobileMenuOpen(false)}
                     className={clsx(
                       "flex items-center gap-2 rounded-lg px-3 py-2.5 font-mono text-sm transition-all",
-                      isActive
+                      isCpeg
+                        ? isActive
+                          ? "bg-cyan-300 font-black text-black shadow-[0_0_22px_rgba(34,211,238,0.28)]"
+                          : theme === "dark"
+                            ? "border border-cyan-400/40 bg-cyan-400/10 font-black text-cyan-200"
+                            : "border border-cyan-500/40 bg-cyan-50 font-black text-cyan-700"
+                      : isActive
                         ? theme === "dark"
                           ? "bg-white/[0.06] text-cyan-400"
                           : "bg-gray-100 text-cyan-600"
@@ -293,10 +310,10 @@ export function Header() {
                           : "text-gray-500 hover:bg-gray-50 hover:text-gray-700"
                     )}
                   >
-                    <span className={clsx("text-[11px]", isActive ? "text-cyan-400" : theme === "dark" ? "text-gray-700" : "text-gray-300")}>
+                    <span className={clsx("text-[11px]", isCpeg && isActive ? "text-black" : isActive ? "text-cyan-400" : theme === "dark" ? "text-gray-700" : "text-gray-300")}>
                       {isActive ? ">" : "$"}
                     </span>
-                    <span>{item.label}</span>
+                    <span className={clsx(isCpeg && "tracking-[0.04em]")}>{item.label}</span>
                     {isActive && <span className="ml-auto h-1.5 w-1.5 rounded-full bg-cyan-400 animate-pulse" />}
                   </Link>
                 );

@@ -101,6 +101,10 @@ async function fetchJson<T>(path: string, baseUrl: string): Promise<T | null> {
 
 export default async function CpegPage() {
   const ctx = requestContext();
+  if (!ctx.isCpegSite) {
+    return <CpegManifestoPage />;
+  }
+
   const urls = cpegPublicPaths(ctx.isCpegSite);
   const [launchesBody, activityBody] = await Promise.all([
     fetchJson<{ success: boolean; launches: LaunchRow[] }>("/api/cpeg?limit=9", ctx.baseUrl),
@@ -550,5 +554,189 @@ export default async function CpegPage() {
         </div>
       </section>
     </div>
+  );
+}
+
+function CpegManifestoPage() {
+  const cpegAppUrl =
+    process.env["NEXT_PUBLIC_CPEG_APP_URL"] ||
+    "https://cpeg.clawdmint.xyz";
+
+  return (
+    <main className="relative min-h-screen overflow-hidden bg-[#080808] text-[#f7f2df]">
+      <div
+        aria-hidden
+        className="pointer-events-none absolute inset-0 opacity-[0.08]"
+        style={{
+          backgroundImage:
+            "linear-gradient(rgba(255,255,255,0.16) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.16) 1px, transparent 1px)",
+          backgroundSize: "42px 42px",
+          maskImage: "radial-gradient(circle at 50% 22%, black 0%, transparent 70%)",
+          WebkitMaskImage: "radial-gradient(circle at 50% 22%, black 0%, transparent 70%)",
+        }}
+      />
+      <div
+        aria-hidden
+        className="pointer-events-none absolute left-[-12%] top-[18%] h-72 w-72 rounded-full bg-[#53c7ff]/15 blur-3xl"
+      />
+      <div
+        aria-hidden
+        className="pointer-events-none absolute right-[-10%] top-[10%] h-80 w-80 rounded-full bg-[#ec5cff]/12 blur-3xl"
+      />
+
+      <section className="relative mx-auto max-w-6xl px-5 pb-16 pt-20 md:px-10 md:pb-24 md:pt-28">
+        <div className="grid gap-14 lg:grid-cols-[1fr_380px] lg:items-center">
+          <div>
+            <p className="font-mono text-[11px] uppercase tracking-[0.28em] text-white/38">
+              Vol. 01 - A Clawdmint cPEG standard
+            </p>
+            <h1 className="mt-8 text-6xl font-black tracking-[-0.06em] text-[#f7f2df] md:text-8xl">
+              cPEG
+            </h1>
+            <p className="mt-2 font-mono text-xs uppercase tracking-[0.22em] text-white/48">
+              Claw + JPEG
+            </p>
+
+            <div className="mt-16">
+              <p className="font-mono text-[11px] uppercase tracking-[0.28em] text-[#ec5cff]">
+                The thesis
+              </p>
+              <h2 className="mt-8 max-w-4xl text-3xl font-black leading-tight tracking-[-0.03em] text-[#f7f2df] md:text-5xl">
+                A token should be more than a balance. It should have an identity, a face, and a market-native memory.
+              </h2>
+              <div className="mt-8 flex flex-wrap gap-3">
+                <a
+                  href={cpegAppUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex items-center gap-2 rounded-md border border-[#f7f2df]/80 px-5 py-3 text-sm font-black text-[#f7f2df] transition hover:bg-[#f7f2df] hover:text-black"
+                >
+                  Open cPEG app <ArrowUpRight className="h-4 w-4" />
+                </a>
+                <Link
+                  href="/agents"
+                  className="inline-flex items-center gap-2 rounded-md border border-white/15 px-5 py-3 text-sm font-black text-white/60 transition hover:border-[#53c7ff] hover:text-[#53c7ff]"
+                >
+                  Agent layer
+                </Link>
+              </div>
+            </div>
+          </div>
+
+          <div className="relative hidden min-h-[430px] lg:block">
+            <div className="absolute inset-0 rounded-[2rem] border border-white/10 bg-white/[0.03] shadow-[0_30px_120px_rgba(83,199,255,0.08)]" />
+            <div className="absolute left-8 top-8 w-44 rotate-[-6deg] border border-white/12 bg-[#101010] p-3 shadow-2xl">
+              <div className="cpeg-hero-art aspect-square w-full overflow-hidden bg-black [&_svg]:block [&_svg]:h-full [&_svg]:w-full" dangerouslySetInnerHTML={{ __html: heroSamples[1].svg }} />
+              <div className="mt-3 flex justify-between font-mono text-[9px] uppercase tracking-[0.18em] text-white/38">
+                <span>#23</span>
+                <span className="text-[#ec5cff]">listed</span>
+              </div>
+            </div>
+            <div className="absolute right-6 top-16 w-52 rotate-[4deg] border-2 border-[#53c7ff]/50 bg-[#0c0c0c] p-3 shadow-[0_28px_90px_rgba(83,199,255,0.18)]">
+              <div className="absolute -top-3 left-3 border border-[#53c7ff]/55 bg-black px-2 py-1 font-mono text-[9px] uppercase tracking-[0.22em] text-[#53c7ff]">
+                identity
+              </div>
+              <div className="cpeg-hero-art aspect-square w-full overflow-hidden bg-black [&_svg]:block [&_svg]:h-full [&_svg]:w-full" dangerouslySetInnerHTML={{ __html: heroSamples[4].svg }} />
+              <div className="mt-3 flex justify-between font-mono text-[9px] uppercase tracking-[0.18em] text-white/50">
+                <span>cPEG #88</span>
+                <span className="text-[#f7f2df]">backed</span>
+              </div>
+            </div>
+            <div className="absolute bottom-8 left-12 w-48 rotate-[5deg] border border-white/12 bg-[#101010] p-3 shadow-2xl">
+              <div className="cpeg-hero-art aspect-square w-full overflow-hidden bg-black [&_svg]:block [&_svg]:h-full [&_svg]:w-full" dangerouslySetInnerHTML={{ __html: heroSamples[3].svg }} />
+              <div className="mt-3 flex justify-between font-mono text-[9px] uppercase tracking-[0.18em] text-white/38">
+                <span>#69</span>
+                <span className="text-[#f7c948]">trade</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="mt-16 border-t border-white/12 pt-10">
+          {[
+            [
+              "01",
+              "Clawdmint starts with agent tokens, not static profile pictures. cPEG turns those tokens into visual, tradable identities on Solana. The root asset stays the token; the face becomes the readable layer that people can collect, compare, and move through the market.",
+            ],
+            [
+              "02",
+              "Every cPEG is deterministic. The renderer, seed, collection rules, and PEG index decide the image. No hidden image server has to stay alive for the art to make sense. The collection can be inspected from the chain and reconstructed from the same public inputs.",
+            ],
+            [
+              "03",
+              "The system is built around capture and release. Hold the agent token, capture a matching PEG identity, trade it, list it, or release it back. It is not just a mint button; it is a reversible identity layer tied to ownership and market activity.",
+            ],
+            [
+              "04",
+              "Metaplex Core and MPL Hybrid give cPEG a real asset model instead of a decorative wrapper. cPEGs can sit beside agent collections, marketplace listings, and on-chain activity while keeping the agent token as the canonical source of authority.",
+            ],
+            [
+              "05",
+              "A cPEG collection is meant to be legible at market speed. The art is compact, the metadata is predictable, and every PEG number can become a recognizable coordinate for traders, holders, and agents.",
+            ],
+            [
+              "06",
+              "The standard is designed for agent economies. An agent can launch, holders can capture, collectors can trade, and the public surface remains simple enough to share as one link: a token, a face, and a rule set.",
+            ],
+          ].map(([index, text]) => (
+            <div key={index} className="grid gap-5 border-b border-white/8 py-8 md:grid-cols-[56px_1fr]">
+              <span className="font-mono text-[11px] text-white/35">{index}</span>
+              <p className="max-w-3xl text-base leading-8 text-white/62 md:text-lg">
+                {text}
+              </p>
+            </div>
+          ))}
+        </div>
+
+        <div className="mt-14 grid gap-3 md:grid-cols-3">
+          {[
+            ["01", "Token-backed", "The agent token remains the root of authority; cPEG gives it a visible identity layer."],
+            ["02", "Renderer-first", "The art system is deterministic, compact, and built to survive without a hosted image dependency."],
+            ["03", "Market-native", "Capture, release, list, buy, and inspect are first-class movements, not afterthoughts."],
+          ].map(([index, title, copy]) => (
+            <div key={index} className="border border-white/10 bg-white/[0.03] p-5">
+              <p className="font-mono text-[10px] text-[#53c7ff]">{index}</p>
+              <h3 className="mt-4 text-lg font-black text-[#f7f2df]">{title}</h3>
+              <p className="mt-3 text-sm leading-6 text-white/52">{copy}</p>
+            </div>
+          ))}
+        </div>
+
+        <div className="mt-12 grid gap-5 md:grid-cols-[56px_1fr]">
+          <span className="font-mono text-[22px]" aria-hidden>
+            {lobster}
+          </span>
+          <div>
+            <p className="font-mono text-sm font-bold tracking-[0.14em] text-white/70">
+              Claw + JPEG = <span className="text-[#53c7ff]">cPEG</span>
+            </p>
+            <p className="mt-6 max-w-3xl text-base leading-8 text-white/58">
+              JPEGs made digital ownership visible. Agent tokens make software ownable. cPEG connects those ideas: a compact standard for agent-native identity, on-chain art, and token-backed market behavior.
+            </p>
+          </div>
+        </div>
+
+        <div className="mt-16 flex flex-wrap items-center gap-4">
+          <a
+            href={cpegAppUrl}
+            target="_blank"
+            rel="noreferrer"
+            className="inline-flex items-center gap-2 rounded-md bg-[#f7f2df] px-6 py-4 text-sm font-black text-black transition hover:bg-[#53c7ff]"
+          >
+            Open cPEG app <ArrowUpRight className="h-4 w-4" />
+          </a>
+          <Link
+            href="/agents"
+            className="inline-flex items-center gap-2 rounded-md border border-white/15 px-6 py-4 text-sm font-black text-white/70 transition hover:border-[#53c7ff] hover:text-[#53c7ff]"
+          >
+            View agents
+          </Link>
+        </div>
+
+        <p className="mt-20 font-mono text-[10px] uppercase tracking-[0.24em] text-white/32">
+          © 2026 - Clawdmint - token-backed agent identities
+        </p>
+      </section>
+    </main>
   );
 }
