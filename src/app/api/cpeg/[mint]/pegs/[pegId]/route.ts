@@ -77,7 +77,15 @@ export async function GET(request: NextRequest, { params }: RouteContext) {
   };
 
   if (request.nextUrl.searchParams.get("format") !== "cpeg") {
-    return NextResponse.json(metadata);
+    return NextResponse.json(metadata, {
+      headers: {
+        "Cache-Control": "public, max-age=300, s-maxage=300",
+        "Access-Control-Allow-Origin": "*",
+        "Access-Control-Allow-Methods": "GET, OPTIONS",
+        "Access-Control-Allow-Headers": "Content-Type, Accept",
+        "Cross-Origin-Resource-Policy": "cross-origin",
+      },
+    });
   }
 
   if (launch.standardMode === "metaplex_hybrid") {
@@ -125,6 +133,18 @@ export async function GET(request: NextRequest, { params }: RouteContext) {
       burned_slot: record?.burnedSlot.toString() || null,
       image: relativeImage,
       traits,
+    },
+  });
+}
+
+export async function OPTIONS() {
+  return new NextResponse(null, {
+    status: 204,
+    headers: {
+      "Access-Control-Allow-Origin": "*",
+      "Access-Control-Allow-Methods": "GET, OPTIONS",
+      "Access-Control-Allow-Headers": "Content-Type, Accept",
+      "Access-Control-Max-Age": "86400",
     },
   });
 }

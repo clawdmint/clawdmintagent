@@ -93,7 +93,7 @@ export async function GET(_request: Request, { params }: RouteContext) {
       take: 12,
     }),
     prisma.clawPegHybridAsset.findMany({
-      where: { ownerAddress: address, status: "OWNED" },
+      where: { ownerAddress: address, status: { in: ["OWNED", "LISTED"] } },
       include: {
         launch: {
           select: {
