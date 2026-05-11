@@ -364,6 +364,8 @@ export function CpegLaunchpad() {
   const isCpegSite = useCpegSite();
   const cpegUrls = useMemo(() => cpegPublicPaths(isCpegSite), [isCpegSite]);
   const [form, setForm] = useState(DEFAULT_FORM);
+  /** Shifts preview collection seed so non-subject traits re-roll in the grid (not used on-chain). */
+  const [previewVariance, setPreviewVariance] = useState<string | null>(null);
   const [status, setStatus] = useState("");
   const [error, setError] = useState("");
   const [launching, setLaunching] = useState(false);
@@ -395,8 +397,10 @@ export function CpegLaunchpad() {
     Boolean(agentRoot?.agent_token_mint);
 
   const previewQuery = useMemo(() => {
-    return new URLSearchParams({ subject: form.subject }).toString();
-  }, [form.subject]);
+    const params = new URLSearchParams({ subject: form.subject });
+    if (previewVariance) params.set("v", previewVariance);
+    return params.toString();
+  }, [form.subject, previewVariance]);
 
   // Fetch the live fee quote so that the user sees the actual launch cost before signing.
   useEffect(() => {
@@ -1036,9 +1040,28 @@ export function CpegLaunchpad() {
     );
   }
 
-  const randomize = () => {
+  const randomizeArt = () => {
     const random = <T,>(arr: Array<[string, T]>) => arr[Math.floor(Math.random() * arr.length)][0];
     updateForm("subject", random(SUBJECT_OPTIONS));
+    let next = "";
+    try {
+      const bytes = crypto.getRandomValues(new Uint8Array(8));
+      next = Array.from(bytes, (b) => b.toString(16).padStart(2, "0")).join("");
+    } catch {
+      next = Math.random().toString(36).slice(2, 14);
+    }
+    setPreviewVariance(next.slice(0, 24));
+  };
+
+  const shufflePreviewRoll = () => {
+    let next = "";
+    try {
+      const bytes = crypto.getRandomValues(new Uint8Array(8));
+      next = Array.from(bytes, (b) => b.toString(16).padStart(2, "0")).join("");
+    } catch {
+      next = Math.random().toString(36).slice(2, 14);
+    }
+    setPreviewVariance(next.slice(0, 24));
   };
 
   const applyPreset = (name: string, symbol: string, subject: string) => {
@@ -1056,10 +1079,10 @@ export function CpegLaunchpad() {
               <p className="font-mono text-[11px] uppercase tracking-[0.25em] text-[#53c7ff]">Identity</p>
               <button
                 type="button"
-                onClick={randomize}
+                onClick={randomizeArt}
                 className="inline-flex items-center gap-1.5 border border-neutral-300 dark:border-white/15 px-3 py-1.5 font-mono text-[10px] uppercase tracking-[0.2em] text-neutral-600 dark:text-white/65 transition hover:border-[#53c7ff] hover:text-[#53c7ff]"
               >
-                <RefreshCw className="h-3 w-3" /> Random archetype
+                <RefreshCw className="h-3 w-3" /> Randomize art
               </button>
             </div>
             <div className="mt-4 grid gap-4 md:grid-cols-2">
@@ -1133,7 +1156,7 @@ export function CpegLaunchpad() {
               <div>
                 <p className="font-mono text-[11px] uppercase tracking-[0.25em] text-[#53c7ff]">Character</p>
                 <p className="mt-1 text-xs leading-5 text-neutral-600 dark:text-white/55">
-                  Archetypes set the shared character silhouette. Palette, mood, accessories, and backdrops are peg-seeded, so large supplies explore many combinations while staying deterministic for each mint.
+                  Archetypes set the shared silhouette; some read as a tight PFP bust, others as a full-body sprite (for example Unicorn is a side-profile pegasus). Palette, mood, accessories, and backdrops stay peg-seeded for huge variety per mint.
                 </p>
               </div>
             </div>
@@ -1216,11 +1239,20 @@ export function CpegLaunchpad() {
 
         <div className="space-y-4">
           <div className="border border-neutral-200 dark:border-white/10 bg-neutral-100 dark:bg-[#0c0c0c] p-5">
-            <div className="flex items-center justify-between">
+            <div className="flex flex-wrap items-center justify-between gap-2">
               <p className="font-mono text-[11px] uppercase tracking-[0.25em] text-[#53c7ff]">Live preview</p>
-              <span className="font-mono text-[10px] uppercase tracking-[0.2em] text-neutral-500 dark:text-white/40">
-                v0.3.0
-              </span>
+              <div className="flex flex-wrap items-center gap-2">
+                <button
+                  type="button"
+                  onClick={shufflePreviewRoll}
+                  className="inline-flex items-center gap-1.5 border border-neutral-300 dark:border-white/15 px-3 py-1 font-mono text-[10px] uppercase tracking-[0.2em] text-neutral-600 dark:text-white/65 transition hover:border-[#53c7ff] hover:text-[#53c7ff]"
+                >
+                  <RefreshCw className="h-3 w-3" /> Shuffle traits
+                </button>
+                <span className="font-mono text-[10px] uppercase tracking-[0.2em] text-neutral-500 dark:text-white/40">
+                  v0.3.0
+                </span>
+              </div>
             </div>
             <div className="mt-4 grid gap-3">
               <div className="relative aspect-square overflow-hidden border border-[#53c7ff]/35 bg-neutral-200 shadow-[0_0_35px_rgba(83,199,255,0.12)] dark:bg-black">

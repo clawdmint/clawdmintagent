@@ -12,6 +12,13 @@ function safeOption(value: string | null, allowed: Set<string>, fallback: string
   return allowed.has(normalized) ? normalized : fallback;
 }
 
+function safePreviewVariance(value: string | null): string | null {
+  const v = String(value || "").trim();
+  if (!v || v === "0") return null;
+  if (!/^[a-zA-Z0-9_-]{1,24}$/.test(v)) return null;
+  return v;
+}
+
 export async function GET(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams;
   const pegId = Number(searchParams.get("pegId") || "1");
@@ -20,6 +27,8 @@ export async function GET(request: NextRequest) {
   }
 
   const subject = safeOption(searchParams.get("subject"), ALLOWED_SUBJECTS, "ape");
+  const variance = safePreviewVariance(searchParams.get("v"));
+  const collectionSeed = variance ? `preview:${subject}:${variance}` : `preview:${subject}`;
 
   // v0.3.0+: palette, mood, accessory, and background are peg-seeded only; query cannot pin them.
   const params: Record<string, string> = { subject };
@@ -27,7 +36,7 @@ export async function GET(request: NextRequest) {
   const svg = renderClawPegSvg({
     rendererId: CLAWPEG_DEFAULT_RENDERER_ID,
     rendererVersion: CLAWPEG_DEFAULT_RENDERER_VERSION,
-    collectionSeed: `preview:${subject}`,
+    collectionSeed,
     tokenMint: "preview",
     pegId,
     params,
