@@ -14,6 +14,10 @@ export function isLikelyMintPathSegment(segment: string) {
 export function hostnameMatchesCpegSite(hostWithoutPort: string): boolean {
   const h = hostWithoutPort.toLowerCase();
 
+  if (h === "cpeg.localhost" || h === "cpeg.127.0.0.1") {
+    return true;
+  }
+
   const configured =
     process.env["CPEG_SITE_HOST"] ||
     process.env["NEXT_PUBLIC_CPEG_SITE_HOST"] ||

@@ -8,6 +8,8 @@ export function BaseLogo({ className, ...props }: IconProps) {
   return (
     <svg
       viewBox="0 0 111 111"
+      width="1em"
+      height="1em"
       fill="none"
       aria-hidden="true"
       className={clsx("shrink-0", className)}
@@ -27,6 +29,8 @@ export function SolanaLogo({ className, ...props }: IconProps) {
   return (
     <svg
       viewBox="0 0 101 88"
+      width="1em"
+      height="1em"
       fill="none"
       aria-hidden="true"
       className={clsx("shrink-0", className)}

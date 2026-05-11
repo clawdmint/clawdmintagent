@@ -9,6 +9,7 @@ import { CpegSiteFooter } from "@/components/cpeg-site-footer";
 import { CpegSiteHeader } from "@/components/cpeg-site-header";
 import { Footer } from "@/components/footer";
 import { MiniAppInit } from "@/components/miniapp-init";
+import { ReferralWidget } from "@/components/referral-widget";
 import { CPEG_SITE_HEADER } from "@/lib/cpeg-site-paths";
 
 // Decorative layer only: defer to after first paint, skip SSR work for 10+ animated nodes
@@ -104,6 +105,7 @@ export default function RootLayout({
             <main className="flex-1">
               {children}
             </main>
+            {!isCpegSite ? <ReferralWidget /> : null}
             {isCpegSite ? <CpegSiteFooter /> : <Footer />}
           </div>
         </Providers>

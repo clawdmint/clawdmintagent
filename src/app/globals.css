@@ -218,6 +218,24 @@
   50% { opacity: 1; transform: scale(1.1); }
 }
 
+@keyframes referral-widget-in {
+  0% {
+    opacity: 0;
+    transform: translate3d(0, 18px, 0) scale(0.96);
+    filter: blur(4px);
+  }
+  65% {
+    opacity: 1;
+    transform: translate3d(0, -3px, 0) scale(1.01);
+    filter: blur(0);
+  }
+  100% {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) scale(1);
+    filter: blur(0);
+  }
+}
+
 @keyframes orbit {
   from { transform: rotate(0deg) translateX(150px) rotate(0deg); }
   to { transform: rotate(360deg) translateX(150px) rotate(-360deg); }
@@ -256,6 +274,13 @@
 .animate-pulse-glow { animation: pulse-glow 3s ease-in-out infinite; }
 .animate-orbit { animation: orbit 20s linear infinite; }
 .animate-gradient { background-size: 200% 200%; animation: gradient-shift 8s ease infinite; }
+.animate-referral-widget-in { animation: referral-widget-in 0.7s cubic-bezier(0.16, 1, 0.3, 1) both; }
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-referral-widget-in {
+    animation: none;
+  }
+}
 
 /* ═══════════════════════════════════════════════════════════════════════
    3D & INTERACTIVE
