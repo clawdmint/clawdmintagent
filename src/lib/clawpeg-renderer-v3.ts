@@ -673,6 +673,507 @@ function drawCat(palette: CreaturePalette): Rect[] {
   ];
 }
 
+/** Floppy ear variant so "Dog" no longer renders as a pointed-eared cat. */
+const DOG_SILHOUETTE = [
+  "                        ",
+  "                        ",
+  "  ####              ####",
+  "  #####            #####",
+  "   ###              ### ",
+  "   ###              ### ",
+  "    ##              ##  ",
+  "    ##              ##  ",
+  "  ######################",
+  " ###################### ",
+  " ###################### ",
+  " ###################### ",
+  " ###################### ",
+  " ###################### ",
+  " ###################### ",
+  " ###################### ",
+  " ###################### ",
+  "  ####################  ",
+  "  ####################  ",
+  "   ##################   ",
+  "                        ",
+  "    ################    ",
+  "  ####################  ",
+  "########################",
+];
+
+const DOG_EAR_SHADOW = [
+  "                        ",
+  "                        ",
+  "                        ",
+  "   ##            ##     ",
+  "   ##            ##     ",
+  "                        ",
+  "                        ",
+  "                        ",
+  "                        ",
+  "                        ",
+  "                        ",
+  "                        ",
+  "                        ",
+  "                        ",
+  "                        ",
+  "                        ",
+  "                        ",
+  "                        ",
+  "                        ",
+  "                        ",
+  "                        ",
+  "                        ",
+  "                        ",
+  "                        ",
+];
+
+function drawDog(palette: CreaturePalette): Rect[] {
+  return [
+    ...rectsFromMask(DOG_SILHOUETTE, palette.fur0),
+    ...rectsFromMask(DOG_EAR_SHADOW, palette.fur2, 0.5),
+    ...rectsFromMask(APE_HIGHLIGHT_TOP, palette.fur2, 0.55),
+    ...rectsFromMask(APE_CHEEK_HIGH, palette.fur1, 0.65),
+    ...rectsFromMask(APE_EYE_SOCKET, palette.shadow),
+    ...rectsFromMask(APE_EYE_GLOW, palette.eyeIris),
+    ...rectsFromMask(APE_EYE_PUPIL, palette.eyeGlow),
+    ...rectsFromMask(APE_NOSE, palette.nose),
+    ...rectsFromMask(APE_MOUTH, palette.mouth, 0.9),
+    ...rectsFromMask(APE_BODY, palette.body0),
+    ...rectsFromMask(APE_BODY_SHADE, palette.bodyShade),
+  ];
+}
+
+const MONKEY_EAR_SIDE = [
+  "                        ",
+  "                        ",
+  "                        ",
+  "                        ",
+  "                        ",
+  "                        ",
+  "                        ",
+  "                        ",
+  "                        ",
+  "###                  ###",
+  "####                ####",
+  "###                  ###",
+  "                        ",
+  "                        ",
+  "                        ",
+  "                        ",
+  "                        ",
+  "                        ",
+  "                        ",
+  "                        ",
+  "                        ",
+  "                        ",
+  "                        ",
+  "                        ",
+];
+
+const MONKEY_FACE_LINE = [
+  "                        ",
+  "                        ",
+  "                        ",
+  "                        ",
+  "                        ",
+  "                        ",
+  "                        ",
+  "                        ",
+  "                        ",
+  "                        ",
+  "                        ",
+  "                        ",
+  "                        ",
+  "                        ",
+  "##                    ##",
+  "###                  ###",
+  "                        ",
+  "                        ",
+  "                        ",
+  "                        ",
+  "                        ",
+  "                        ",
+  "                        ",
+  "                        ",
+];
+
+function drawMonkey(palette: CreaturePalette): Rect[] {
+  return [
+    ...rectsFromMask(APE_SILHOUETTE, palette.fur0),
+    ...rectsFromMask(MONKEY_EAR_SIDE, palette.fur2),
+    ...rectsFromMask(APE_HIGHLIGHT_TOP, palette.fur2),
+    ...rectsFromMask(APE_CHEEK_HIGH, palette.fur1),
+    ...rectsFromMask(APE_BROW, palette.brow),
+    ...rectsFromMask(APE_EYE_SOCKET, palette.shadow),
+    ...rectsFromMask(APE_EYE_GLOW, palette.eyeIris),
+    ...rectsFromMask(APE_EYE_PUPIL, palette.eyeGlow),
+    ...rectsFromMask(APE_EYE_HIGHLIGHT, palette.spark),
+    ...rectsFromMask(APE_NOSE_BRIDGE, palette.shadow, 0.6),
+    ...rectsFromMask(APE_NOSE, palette.nose),
+    ...rectsFromMask(APE_NOSE_SHADE, palette.fur2, 0.7),
+    ...rectsFromMask(APE_MOUTH, palette.mouth),
+    ...rectsFromMask(APE_JAW_SHADE, palette.shadow, 0.7),
+    ...rectsFromMask(MONKEY_FACE_LINE, palette.shadow, 0.55),
+    ...rectsFromMask(APE_NECK_SHADE, palette.bodyShade),
+    ...rectsFromMask(APE_BODY, palette.body0),
+    ...rectsFromMask(APE_BODY_SHADE, palette.bodyShade),
+  ];
+}
+
+const BEAR_ROUND_EARS = [
+  "                        ",
+  "                        ",
+  "    ####        ####    ",
+  "   ######      ######   ",
+  "   ######      ######   ",
+  "                        ",
+  "                        ",
+  "                        ",
+  "                        ",
+  "                        ",
+  "                        ",
+  "                        ",
+  "                        ",
+  "                        ",
+  "                        ",
+  "                        ",
+  "                        ",
+  "                        ",
+  "                        ",
+  "                        ",
+  "                        ",
+  "                        ",
+  "                        ",
+  "                        ",
+];
+
+function drawBear(palette: CreaturePalette): Rect[] {
+  return [
+    ...rectsFromMask(APE_SILHOUETTE, palette.fur0),
+    ...rectsFromMask(BEAR_ROUND_EARS, palette.fur2),
+    ...rectsFromMask(APE_HIGHLIGHT_TOP, palette.fur1, 0.65),
+    ...rectsFromMask(APE_LIP, palette.fur1, 0.85),
+    ...rectsFromMask(APE_BROW, palette.brow),
+    ...rectsFromMask(APE_EYE_SOCKET, palette.shadow),
+    ...rectsFromMask(APE_EYE_GLOW, palette.eyeIris),
+    ...rectsFromMask(APE_EYE_PUPIL, palette.eyeGlow),
+    ...rectsFromMask(APE_NOSE, palette.nose),
+    ...rectsFromMask(APE_MOUTH, palette.mouth),
+    ...rectsFromMask(APE_JAW_SHADE, palette.shadow, 0.8),
+    ...rectsFromMask(APE_NECK_SHADE, palette.bodyShade),
+    ...rectsFromMask(APE_BODY, palette.body0),
+    ...rectsFromMask(APE_BODY_SHADE, palette.bodyShade),
+  ];
+}
+
+const BIRD_HEAD = [
+  "                        ",
+  "                        ",
+  "                        ",
+  "                        ",
+  "                        ",
+  "                        ",
+  "      ###########       ",
+  "     #############      ",
+  "    ###############     ",
+  "    ###############     ",
+  "    ###############     ",
+  "     #############      ",
+  "      ###########       ",
+  "                        ",
+  "                        ",
+  "                        ",
+  "                        ",
+  "                        ",
+  "                        ",
+  "                        ",
+  "                        ",
+  "                        ",
+  "                        ",
+  "                        ",
+];
+
+const BIRD_BEAK = [
+  "                        ",
+  "                        ",
+  "                        ",
+  "                        ",
+  "                        ",
+  "                        ",
+  "                        ",
+  "                        ",
+  "                        ",
+  "                        ",
+  "                        ",
+  "              ####      ",
+  "               ####     ",
+  "                ##      ",
+  "                        ",
+  "                        ",
+  "                        ",
+  "                        ",
+  "                        ",
+  "                        ",
+  "                        ",
+  "                        ",
+  "                        ",
+  "                        ",
+];
+
+function drawBird(palette: CreaturePalette): Rect[] {
+  return [
+    ...rectsFromMask(BIRD_HEAD, palette.fur0),
+    ...rectsFromMask(BIRD_BEAK, palette.accent),
+    ...rectsFromMask(APE_HIGHLIGHT_TOP, palette.fur2, 0.45),
+    ...rectsFromMask(APE_EYE_SOCKET, palette.shadow),
+    ...rectsFromMask(APE_EYE_GLOW, palette.eyeIris),
+    ...rectsFromMask(APE_EYE_PUPIL, palette.eyeGlow),
+    ...rectsFromMask(APE_BODY, palette.body0),
+    ...rectsFromMask(APE_BODY_SHADE, palette.bodyShade),
+  ];
+}
+
+const HORSE_SNOUT = [
+  "                        ",
+  "                        ",
+  "                        ",
+  "                        ",
+  "                        ",
+  "                        ",
+  "                        ",
+  "                        ",
+  "                        ",
+  "                        ",
+  "                        ",
+  "                        ",
+  "                        ",
+  "          ##            ",
+  "          ##            ",
+  "         ####           ",
+  "         ####           ",
+  "         ####           ",
+  "         ####           ",
+  "         ####           ",
+  "         ####           ",
+  "         ####           ",
+  "                        ",
+  "                        ",
+];
+
+const HORSE_MANE = [
+  "                        ",
+  "       ##        ##     ",
+  "      ####      ####    ",
+  "      ####      ####    ",
+  "       ##        ##     ",
+  "                        ",
+  "                        ",
+  "                        ",
+  "                        ",
+  "                        ",
+  "                        ",
+  "                        ",
+  "                        ",
+  "                        ",
+  "                        ",
+  "                        ",
+  "                        ",
+  "                        ",
+  "                        ",
+  "                        ",
+  "                        ",
+  "                        ",
+  "                        ",
+  "                        ",
+];
+
+function drawHorse(palette: CreaturePalette): Rect[] {
+  return [
+    ...rectsFromMask(APE_SILHOUETTE, palette.fur0),
+    ...rectsFromMask(HORSE_MANE, palette.fur2),
+    ...rectsFromMask(APE_HIGHLIGHT_TOP, palette.fur1, 0.5),
+    ...rectsFromMask(APE_BROW, palette.brow),
+    ...rectsFromMask(APE_EYE_SOCKET, palette.shadow),
+    ...rectsFromMask(APE_EYE_GLOW, palette.eyeIris),
+    ...rectsFromMask(APE_EYE_PUPIL, palette.eyeGlow),
+    ...rectsFromMask(APE_NOSE_BRIDGE, palette.shadow, 0.5),
+    ...rectsFromMask(HORSE_SNOUT, palette.fur1),
+    ...rectsFromMask(APE_NECK_SHADE, palette.bodyShade),
+    ...rectsFromMask(APE_BODY, palette.body0),
+    ...rectsFromMask(APE_BODY_SHADE, palette.bodyShade),
+  ];
+}
+
+const GHOST_SILHOUETTE = [
+  "                        ",
+  "                        ",
+  "      ##########        ",
+  "    ##############      ",
+  "   ################     ",
+  "  ##################    ",
+  " ####################   ",
+  " ####################   ",
+  " ####################   ",
+  " ####################   ",
+  " ####################   ",
+  " ####################   ",
+  " ####################   ",
+  " ####################   ",
+  " ####################   ",
+  " ####################   ",
+  " ####################   ",
+  " ####################   ",
+  " ## ## ## ## ## ## ## # ",
+  " #   #   #   #   #   #  ",
+  "                        ",
+  "    ################    ",
+  "  ####################  ",
+  "########################",
+];
+
+const GHOST_EYE_HOLLOW = [
+  "                        ",
+  "                        ",
+  "                        ",
+  "                        ",
+  "                        ",
+  "                        ",
+  "                        ",
+  "                        ",
+  "                        ",
+  "                        ",
+  "   ####          ####   ",
+  "   ####          ####   ",
+  "   ####          ####   ",
+  "                        ",
+  "                        ",
+  "                        ",
+  "                        ",
+  "                        ",
+  "                        ",
+  "                        ",
+  "                        ",
+  "                        ",
+  "                        ",
+  "                        ",
+  "                        ",
+];
+
+const GHOST_MOUTH_O = [
+  "                        ",
+  "                        ",
+  "                        ",
+  "                        ",
+  "                        ",
+  "                        ",
+  "                        ",
+  "                        ",
+  "                        ",
+  "                        ",
+  "                        ",
+  "                        ",
+  "                        ",
+  "        ########        ",
+  "        ########        ",
+  "                        ",
+  "                        ",
+  "                        ",
+  "                        ",
+  "                        ",
+  "                        ",
+  "                        ",
+  "                        ",
+  "                        ",
+];
+
+function drawGhost(palette: CreaturePalette): Rect[] {
+  return [
+    ...rectsFromMask(GHOST_SILHOUETTE, palette.fur0, 0.88),
+    ...rectsFromMask(GHOST_EYE_HOLLOW, palette.shadow, 0.75),
+    ...rectsFromMask(APE_EYE_GLOW, palette.eyeGlow, 0.35),
+    ...rectsFromMask(APE_EYE_PUPIL, palette.eyeIris, 0.65),
+    ...rectsFromMask(GHOST_MOUTH_O, palette.mouth, 0.6),
+    ...rectsFromMask(APE_BODY, palette.body0, 0.75),
+    ...rectsFromMask(APE_BODY_SHADE, palette.bodyShade, 0.65),
+  ];
+}
+
+const MEME_MOUTH = [
+  "                        ",
+  "                        ",
+  "                        ",
+  "                        ",
+  "                        ",
+  "                        ",
+  "                        ",
+  "                        ",
+  "                        ",
+  "                        ",
+  "                        ",
+  "                        ",
+  "                        ",
+  "                        ",
+  "                        ",
+  "    ################    ",
+  "                        ",
+  "                        ",
+  "                        ",
+  "                        ",
+  "                        ",
+  "                        ",
+  "                        ",
+  "                        ",
+];
+
+const MEME_EYE_BAGS = [
+  "                        ",
+  "                        ",
+  "                        ",
+  "                        ",
+  "                        ",
+  "                        ",
+  "                        ",
+  "                        ",
+  "                        ",
+  "                        ",
+  "  ########      ########",
+  "  ########      ########",
+  "  ########      ########",
+  "                        ",
+  "                        ",
+  "                        ",
+  "                        ",
+  "                        ",
+  "                        ",
+  "                        ",
+  "                        ",
+  "                        ",
+  "                        ",
+  "                        ",
+];
+
+function drawMeme(palette: CreaturePalette): Rect[] {
+  return [
+    ...rectsFromMask(APE_SILHOUETTE, palette.fur0),
+    ...rectsFromMask(APE_HIGHLIGHT_TOP, palette.fur2),
+    ...rectsFromMask(APE_BROW, palette.brow),
+    ...rectsFromMask(APE_EYE_SOCKET, palette.shadow),
+    ...rectsFromMask(MEME_EYE_BAGS, palette.fur2, 0.45),
+    ...rectsFromMask(APE_EYE_GLOW, palette.eyeIris),
+    [8, 11, 3, 3, palette.eyeGlow],
+    [13, 11, 3, 3, palette.eyeGlow],
+    [9, 12, 1, 1, palette.shadow],
+    [14, 12, 1, 1, palette.shadow],
+    ...rectsFromMask(APE_NOSE, palette.nose),
+    ...rectsFromMask(MEME_MOUTH, palette.mouth),
+    ...rectsFromMask(APE_JAW_SHADE, palette.shadow, 0.6),
+    ...rectsFromMask(APE_NECK_SHADE, palette.bodyShade),
+    ...rectsFromMask(APE_BODY, palette.body0),
+    ...rectsFromMask(APE_BODY_SHADE, palette.bodyShade),
+  ];
+}
+
 const ROBOT_PLATE = [
   "                        ",
   "                        ",
@@ -906,8 +1407,9 @@ function drawFrog(palette: CreaturePalette): Rect[] {
 function drawSubject(subject: SubjectKey, palette: CreaturePalette): Rect[] {
   switch (subject) {
     case "cat":
-    case "dog":
       return drawCat(palette);
+    case "dog":
+      return drawDog(palette);
     case "robot":
       return drawRobot(palette);
     case "dragon":
@@ -916,18 +1418,24 @@ function drawSubject(subject: SubjectKey, palette: CreaturePalette): Rect[] {
       return drawAlien(palette);
     case "frog":
       return drawFrog(palette);
-    case "ape":
     case "monkey":
+      return drawMonkey(palette);
     case "bear":
+      return drawBear(palette);
+    case "bird":
+      return drawBird(palette);
+    case "horse":
+      return drawHorse(palette);
+    case "ghost":
+      return drawGhost(palette);
+    case "meme":
+      return drawMeme(palette);
+    case "ape":
     case "agent":
     case "wizard":
     case "samurai":
     case "ninja":
-    case "ghost":
-    case "horse":
-    case "bird":
     case "sports":
-    case "meme":
     case "custom":
     default:
       return drawApe(palette);
@@ -1377,6 +1885,29 @@ function normalizeSubjectV3(value: unknown): SubjectKey {
   return (SUBJECT_LABELS[subject as SubjectKey] ? subject : "custom") as SubjectKey;
 }
 
+function accessoryParameterIsAutomatic(value: unknown): boolean {
+  if (value === undefined || value === null) return true;
+  const s = String(value).toLowerCase();
+  return s === "" || s === "auto";
+}
+
+function signatureAccessoryForSubject(subject: SubjectKey): AccessoryKey | null {
+  switch (subject) {
+    case "wizard":
+      return "wizard_hat";
+    case "samurai":
+      return "samurai_helm";
+    case "ninja":
+      return "ninja_mask";
+    case "agent":
+      return "visor";
+    case "sports":
+      return "bandanna";
+    default:
+      return null;
+  }
+}
+
 function normalizeAccessory(value: unknown, fallback: AccessoryKey, rng: () => number): AccessoryKey {
   const accessory = String(value || "").toLowerCase();
   if (ACCESSORY_LABELS[accessory as AccessoryKey]) return accessory as AccessoryKey;
@@ -1416,7 +1947,9 @@ function buildModel(input: ClawPegRenderInput): RenderModel {
   const spec = PALETTE_SPECS[paletteName] || PALETTE_SPECS.claw;
   const vibe = String(params.vibe || "balanced").toLowerCase();
   const palette = buildCreaturePalette(spec, subject, vibe);
-  const accessory = normalizeAccessory(params.accessory, "none", rng);
+  const accessory: AccessoryKey = accessoryParameterIsAutomatic(params.accessory)
+    ? signatureAccessoryForSubject(subject) ?? normalizeAccessory(params.accessory, "none", rng)
+    : normalizeAccessory(params.accessory, "none", rng);
   const background = normalizeBackground(params.background, rng);
   const rank = hashUint32(`${seed}:rank`) % 10_000;
   return {

@@ -1176,7 +1176,7 @@ export function CpegLaunchpad() {
               <div>
                 <p className="font-mono text-[11px] uppercase tracking-[0.25em] text-[#53c7ff]">Character</p>
                 <p className="mt-1 text-xs leading-5 text-neutral-600 dark:text-white/55">
-                  Pick the creature for your collection. Palette, accessories, background and mood are auto-generated per PEG.
+                  Pick the archetype for your collection. Each choice has its own silhouette or body type, and roles like Wizard, Samurai, Ninja, Agent, or Athlete pin a signature prop when extras are on automatic. Palette and background still roll per PEG.
                 </p>
               </div>
               <button
