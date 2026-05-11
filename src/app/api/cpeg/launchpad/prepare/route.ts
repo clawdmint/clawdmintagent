@@ -189,6 +189,8 @@ export async function POST(request: NextRequest) {
     if (rendererVersion === CLAWPEG_DEFAULT_RENDERER_VERSION && rendererId === CLAWPEG_DEFAULT_RENDERER_ID) {
       rendererParams.accessory = "auto";
       rendererParams.background = "auto";
+      rendererParams.palette = "auto";
+      rendererParams.vibe = "auto";
     }
     const rendererHash = computeClawPegRendererHash({
       id: rendererId,

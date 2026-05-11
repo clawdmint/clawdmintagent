@@ -12,10 +12,7 @@ export const dynamic = "force-dynamic";
 const lobster = "\u{1F99E}";
 
 const sampleMint = "cPEG111111111111111111111111111111111111111";
-const heroAccessories = ["wizard_hat", "fire_mohawk", "gold_chain", "crown", "samurai_helm", "headphones"];
-const heroPalettes = ["claw", "shadow", "volcanic", "gold", "cyber", "emerald"];
-const heroBackgrounds = ["stars", "solid", "horizon", "vignette", "dust", "grid"];
-const heroSamples = [11, 23, 47, 69, 88, 142].map((pegId, index) => ({
+const heroSamples = [11, 23, 47, 69, 88, 142].map((pegId) => ({
   pegId,
   svg: renderClawPegSvg({
     rendererId: "clawpeg-agent-pixel",
@@ -25,10 +22,10 @@ const heroSamples = [11, 23, 47, 69, 88, 142].map((pegId, index) => ({
     pegId,
     params: {
       subject: "ape",
-      palette: heroPalettes[index % heroPalettes.length],
-      accessory: heroAccessories[index % heroAccessories.length],
-      background: heroBackgrounds[index % heroBackgrounds.length],
-      vibe: "balanced",
+      palette: "auto",
+      accessory: "auto",
+      background: "auto",
+      vibe: "auto",
     },
   }),
 }));

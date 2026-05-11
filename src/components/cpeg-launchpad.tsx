@@ -192,8 +192,6 @@ const DEFAULT_FORM = {
   name: "",
   symbol: "",
   subject: "ape",
-  palette: "claw",
-  vibe: "balanced",
   maxPegs: "1000",
   decimals: "6",
 };
@@ -267,38 +265,18 @@ const SUBJECT_EMOJI: Record<string, string> = {
   panda: "\u{1F43C}",
 };
 
-const PALETTE_OPTIONS: Array<[string, string]> = [
-  ["claw", "Claw"],
-  ["shadow", "Shadow"],
-  ["volcanic", "Volcanic"],
-  ["cyber", "Cyber"],
-  ["candy", "Candy"],
-  ["jungle", "Jungle"],
-  ["frost", "Frost"],
-  ["gold", "Gold"],
-  ["emerald", "Emerald"],
-  ["monochrome", "Mono"],
-];
-
-const VIBE_OPTIONS: Array<[string, string]> = [
-  ["balanced", "Balanced"],
-  ["loud", "Loud"],
-  ["holy", "Holy"],
-  ["dark", "Dark"],
-];
-
 const PREVIEW_PEG_IDS = [1, 7, 23, 47, 88, 142];
 
-const SUGGESTED_NAMES = [
-  ["Claw Apes", "CLAWAPE", "ape", "claw"],
-  ["Shadow Pack", "SHDW", "ape", "shadow"],
-  ["Volcanic Tribe", "VOLT", "ape", "volcanic"],
-  ["Cyber Agents", "CYAGT", "agent", "cyber"],
-  ["Frost Wardens", "FROST", "ape", "frost"],
-  ["Gold Standard", "GLD", "ape", "gold"],
-  ["Pixel Punks", "PPUNK", "punk", "monochrome"],
-  ["Spirit Azuki", "AZUKI", "azuki", "emerald"],
-  ["Ether Unicorns", "UNICORN", "unicorn", "candy"],
+const SUGGESTED_NAMES: Array<[string, string, string]> = [
+  ["Claw Apes", "CLAWAPE", "ape"],
+  ["Shadow Pack", "SHDW", "ape"],
+  ["Volcanic Tribe", "VOLT", "ape"],
+  ["Cyber Agents", "CYAGT", "agent"],
+  ["Frost Wardens", "FROST", "ape"],
+  ["Gold Standard", "GLD", "ape"],
+  ["Pixel Punks", "PPUNK", "punk"],
+  ["Spirit Azuki", "AZUKI", "azuki"],
+  ["Ether Unicorns", "UNICORN", "unicorn"],
 ];
 
 function base64ToBytes(value: string): Uint8Array {
@@ -417,13 +395,8 @@ export function CpegLaunchpad() {
     Boolean(agentRoot?.agent_token_mint);
 
   const previewQuery = useMemo(() => {
-    const params = new URLSearchParams({
-      subject: form.subject,
-      palette: form.palette,
-      vibe: form.vibe,
-    });
-    return params.toString();
-  }, [form.palette, form.subject, form.vibe]);
+    return new URLSearchParams({ subject: form.subject }).toString();
+  }, [form.subject]);
 
   // Fetch the live fee quote so that the user sees the actual launch cost before signing.
   useEffect(() => {
@@ -617,10 +590,10 @@ export function CpegLaunchpad() {
           agent_token_launch_id: agentRoot?.agent_token_launch_id || undefined,
           renderer_params: {
             subject: form.subject,
-            palette: form.palette,
+            palette: "auto",
             accessory: "auto",
             background: "auto",
-            vibe: form.vibe,
+            vibe: "auto",
           },
         }),
       });
@@ -827,9 +800,7 @@ export function CpegLaunchpad() {
     connectedAddress,
     decimalsNumber,
     form.name,
-    form.palette,
     form.subject,
-    form.vibe,
     isConnected,
     login,
     maxPegsNumber,
@@ -1068,21 +1039,12 @@ export function CpegLaunchpad() {
   const randomize = () => {
     const random = <T,>(arr: Array<[string, T]>) => arr[Math.floor(Math.random() * arr.length)][0];
     updateForm("subject", random(SUBJECT_OPTIONS));
-    updateForm("palette", random(PALETTE_OPTIONS));
-    updateForm("vibe", random(VIBE_OPTIONS));
   };
 
-  const rerollStyle = () => {
-    const random = <T,>(arr: Array<[string, T]>) => arr[Math.floor(Math.random() * arr.length)][0];
-    updateForm("palette", random(PALETTE_OPTIONS));
-    updateForm("vibe", random(VIBE_OPTIONS));
-  };
-
-  const applyPreset = (name: string, symbol: string, subject: string, palette: string) => {
+  const applyPreset = (name: string, symbol: string, subject: string) => {
     updateForm("name", name);
     updateForm("symbol", symbol);
     updateForm("subject", subject);
-    updateForm("palette", palette);
   };
 
   return (
@@ -1097,7 +1059,7 @@ export function CpegLaunchpad() {
                 onClick={randomize}
                 className="inline-flex items-center gap-1.5 border border-neutral-300 dark:border-white/15 px-3 py-1.5 font-mono text-[10px] uppercase tracking-[0.2em] text-neutral-600 dark:text-white/65 transition hover:border-[#53c7ff] hover:text-[#53c7ff]"
               >
-                <RefreshCw className="h-3 w-3" /> Randomize art
+                <RefreshCw className="h-3 w-3" /> Random archetype
               </button>
             </div>
             <div className="mt-4 grid gap-4 md:grid-cols-2">
@@ -1132,11 +1094,11 @@ export function CpegLaunchpad() {
               />
             </div>
             <div className="mt-4 flex flex-wrap gap-2">
-              {SUGGESTED_NAMES.map(([name, symbol, subject, palette]) => (
+              {SUGGESTED_NAMES.map(([name, symbol, subject]) => (
                 <button
                   key={`${name}-${symbol}`}
                   type="button"
-                  onClick={() => applyPreset(name, symbol, subject, palette)}
+                  onClick={() => applyPreset(name, symbol, subject)}
                   className="border border-neutral-200 dark:border-white/10 bg-neutral-100/95 dark:bg-white/[0.03] px-3 py-1.5 font-mono text-[10px] uppercase tracking-[0.18em] text-neutral-700 dark:text-white/55 transition hover:border-[#53c7ff]/50 hover:text-[#53c7ff]"
                 >
                   {name}
@@ -1171,16 +1133,9 @@ export function CpegLaunchpad() {
               <div>
                 <p className="font-mono text-[11px] uppercase tracking-[0.25em] text-[#53c7ff]">Character</p>
                 <p className="mt-1 text-xs leading-5 text-neutral-600 dark:text-white/55">
-                  Archetypes set the character shape, from PFP classics to anime, mythic, and street culture. Palette and mood are collection-wide style presets. Accessories and backdrops roll on every mint so large supplies stay visually mixed.
+                  Archetypes set the shared character silhouette. Palette, mood, accessories, and backdrops are peg-seeded, so large supplies explore many combinations while staying deterministic for each mint.
                 </p>
               </div>
-              <button
-                type="button"
-                onClick={rerollStyle}
-                className="inline-flex shrink-0 items-center gap-1.5 border border-neutral-300 dark:border-white/15 px-3 py-1.5 font-mono text-[10px] uppercase tracking-[0.2em] text-neutral-600 dark:text-white/65 transition hover:border-[#53c7ff] hover:text-[#53c7ff]"
-              >
-                <RefreshCw className="h-3 w-3" /> Reroll style
-              </button>
             </div>
             <div className="mt-4 grid grid-cols-2 gap-2 min-[480px]:grid-cols-4 sm:grid-cols-5 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-7">
               {SUBJECT_OPTIONS.map(([value, label]) => {
@@ -1209,7 +1164,13 @@ export function CpegLaunchpad() {
             </div>
             <div className="mt-4 flex flex-wrap items-center gap-2 border-t border-neutral-200 pt-3 dark:border-white/10">
               <span className="font-mono text-[10px] uppercase tracking-[0.2em] text-neutral-500 dark:text-white/40">
-                Collection style
+                Shared
+              </span>
+              <span className="border border-neutral-200 bg-neutral-100/95 px-2 py-0.5 font-mono text-[9px] uppercase tracking-[0.18em] text-neutral-600 dark:border-white/10 dark:bg-black/30 dark:text-white/55">
+                Archetype
+              </span>
+              <span className="font-mono text-[10px] uppercase tracking-[0.2em] text-neutral-500 dark:text-white/40">
+                Per peg
               </span>
               <span className="border border-neutral-200 bg-neutral-100/95 px-2 py-0.5 font-mono text-[9px] uppercase tracking-[0.18em] text-neutral-600 dark:border-white/10 dark:bg-black/30 dark:text-white/55">
                 Palette
@@ -1217,14 +1178,11 @@ export function CpegLaunchpad() {
               <span className="border border-neutral-200 bg-neutral-100/95 px-2 py-0.5 font-mono text-[9px] uppercase tracking-[0.18em] text-neutral-600 dark:border-white/10 dark:bg-black/30 dark:text-white/55">
                 Mood
               </span>
-              <span className="font-mono text-[10px] uppercase tracking-[0.2em] text-neutral-500 dark:text-white/40">
-                Per mint
+              <span className="border border-neutral-200 bg-neutral-100/95 px-2 py-0.5 font-mono text-[9px] uppercase tracking-[0.18em] text-neutral-600 dark:border-white/10 dark:bg-black/30 dark:text-white/55">
+                Accessory
               </span>
               <span className="border border-neutral-200 bg-neutral-100/95 px-2 py-0.5 font-mono text-[9px] uppercase tracking-[0.18em] text-neutral-600 dark:border-white/10 dark:bg-black/30 dark:text-white/55">
-                Accessory pool
-              </span>
-              <span className="border border-neutral-200 bg-neutral-100/95 px-2 py-0.5 font-mono text-[9px] uppercase tracking-[0.18em] text-neutral-600 dark:border-white/10 dark:bg-black/30 dark:text-white/55">
-                Backdrop pool
+                Backdrop
               </span>
             </div>
           </div>

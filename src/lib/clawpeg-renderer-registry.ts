@@ -70,23 +70,10 @@ const SUBJECT_OPTIONS = [
   { value: "zombie", label: "Zombie" },
 ];
 
-const PALETTE_OPTIONS = [
-  { value: "claw", label: "Claw" },
-  { value: "shadow", label: "Shadow" },
-  { value: "volcanic", label: "Volcanic" },
-  { value: "cyber", label: "Cyber" },
-  { value: "candy", label: "Candy" },
-  { value: "jungle", label: "Jungle" },
-  { value: "frost", label: "Frost" },
-  { value: "gold", label: "Gold" },
-  { value: "emerald", label: "Emerald" },
-  { value: "monochrome", label: "Mono" },
-];
-
-/** v0.3.0: accessory and background are sampled per PEG; launch params must stay `auto`. */
+/** v0.3.0: palette, mood, accessory, background are sampled per PEG in the renderer. */
 const PER_PEG_RANDOM_OPTION = [{ value: "auto", label: "Random per PEG" }];
 
-const VIBE_OPTIONS = [
+const VIBE_OPTIONS_LEGACY = [
   { value: "balanced", label: "Balanced" },
   { value: "loud", label: "Loud" },
   { value: "holy", label: "Holy" },
@@ -137,20 +124,20 @@ const AGENT_PIXEL_V3: ClawPegRendererManifest = {
   version: "0.3.0",
   name: "Agent Pixel v3",
   description:
-    "Deterministic 24x24 pixel art: 30 archetypes (apes, punks, anime, mythic, wildlife, undead, and more). Per-PEG random accessories and backgrounds.",
+    "Deterministic 24x24 pixel art: 30 archetypes with per-PEG random palette, mood, accessories and backgrounds.",
   fields: [
     { key: "subject", label: "Subject", options: SUBJECT_OPTIONS },
-    { key: "palette", label: "Palette", options: PALETTE_OPTIONS },
+    { key: "palette", label: "Palette", options: PER_PEG_RANDOM_OPTION },
     { key: "accessory", label: "Accessory", options: PER_PEG_RANDOM_OPTION },
     { key: "background", label: "Background", options: PER_PEG_RANDOM_OPTION },
-    { key: "vibe", label: "Vibe", options: VIBE_OPTIONS },
+    { key: "vibe", label: "Mood", options: PER_PEG_RANDOM_OPTION },
   ],
   defaultParams: {
     subject: "ape",
-    palette: "claw",
+    palette: "auto",
     accessory: "auto",
     background: "auto",
-    vibe: "balanced",
+    vibe: "auto",
   },
   supportedSubjects: SUBJECT_OPTIONS.map((option) => option.value),
   isBuiltIn: true,
@@ -166,7 +153,7 @@ const AGENT_PIXEL_V2_LEGACY: ClawPegRendererManifest = {
     { key: "subject", label: "Subject", options: SUBJECT_OPTIONS_LEGACY },
     { key: "style", label: "Style", options: STYLE_OPTIONS_LEGACY },
     { key: "palette", label: "Palette", options: PALETTE_OPTIONS_LEGACY },
-    { key: "vibe", label: "Vibe", options: VIBE_OPTIONS },
+    { key: "vibe", label: "Vibe", options: VIBE_OPTIONS_LEGACY },
   ],
   defaultParams: {
     subject: "agent",

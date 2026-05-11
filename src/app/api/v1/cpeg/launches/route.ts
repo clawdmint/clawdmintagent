@@ -147,6 +147,8 @@ export async function POST(request: NextRequest) {
       const coerce = linkedRendererParams as Record<string, unknown>;
       coerce["accessory"] = "auto";
       coerce["background"] = "auto";
+      coerce["palette"] = "auto";
+      coerce["vibe"] = "auto";
     }
     const metadataEntries = cpegAgentRootToTokenMetadata(agentRoot);
     const premiumIndexing = true;

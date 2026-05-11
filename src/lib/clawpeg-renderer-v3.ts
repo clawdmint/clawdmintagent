@@ -2608,11 +2608,12 @@ function buildModel(input: ClawPegRenderInput): RenderModel {
   const rng = createRng(hashUint32(seed));
   const params = input.params || {};
   const subject = normalizeSubjectV3(params.subject);
-  const paletteName = String(params.palette || "claw").toLowerCase();
+  const paletteNames = Object.keys(PALETTE_SPECS);
+  const paletteName = pick(paletteNames, rng);
   const spec = PALETTE_SPECS[paletteName] || PALETTE_SPECS.claw;
-  const vibe = String(params.vibe || "balanced").toLowerCase();
+  const vibes = ["balanced", "loud", "holy", "dark"];
+  const vibe = pick(vibes, rng);
   const palette = buildCreaturePalette(spec, subject, vibe);
-  // Accessory + background pin from launch params break 10k variety; they're always sampled from the peg RNG.
   const accessory = normalizeAccessory("auto", "none", rng);
   const background = normalizeBackground("auto", rng);
   const rank = hashUint32(`${seed}:rank`) % 10_000;
@@ -2670,9 +2671,12 @@ export function renderClawPegTradeArtSvgV3(input: ClawPegTradeArtRenderInput): s
   const seed = input.seed || deriveTradeArtSeedV3(input);
   const rng = createRng(hashUint32(seed));
   const params = input.params || {};
-  const paletteName = String(params.palette || "cyber").toLowerCase();
+  const paletteNames = Object.keys(PALETTE_SPECS);
+  const paletteName = pick(paletteNames, rng);
   const spec = PALETTE_SPECS[paletteName] || PALETTE_SPECS.cyber;
-  const palette = buildCreaturePalette(spec, normalizeSubjectV3(params.subject), "balanced");
+  const vibes = ["balanced", "loud", "holy", "dark"];
+  const vibe = pick(vibes, rng);
+  const palette = buildCreaturePalette(spec, normalizeSubjectV3(params.subject), vibe);
   const rects: Rect[] = [];
   rects.push([0, 0, 24, 24, palette.bg]);
   rects.push([0, 0, 24, 1, palette.accent]);

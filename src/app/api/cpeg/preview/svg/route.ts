@@ -1,16 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { CLAWPEG_DEFAULT_RENDERER_ID, CLAWPEG_DEFAULT_RENDERER_VERSION } from "@/lib/clawpeg";
 import { renderClawPegSvg } from "@/lib/clawpeg-renderer";
-import {
-  CLAWPEG_RENDERER_V3_PALETTES,
-  CLAWPEG_RENDERER_V3_SUBJECTS,
-} from "@/lib/clawpeg-renderer-v3";
+import { CLAWPEG_RENDERER_V3_SUBJECTS } from "@/lib/clawpeg-renderer-v3";
 
 export const dynamic = "force-dynamic";
 
 const ALLOWED_SUBJECTS = new Set<string>(CLAWPEG_RENDERER_V3_SUBJECTS);
-const ALLOWED_PALETTES = new Set<string>(CLAWPEG_RENDERER_V3_PALETTES);
-const ALLOWED_VIBES = new Set(["balanced", "loud", "holy", "dark"]);
 
 function safeOption(value: string | null, allowed: Set<string>, fallback: string) {
   const normalized = String(value || fallback).toLowerCase();
@@ -25,16 +20,14 @@ export async function GET(request: NextRequest) {
   }
 
   const subject = safeOption(searchParams.get("subject"), ALLOWED_SUBJECTS, "ape");
-  const palette = safeOption(searchParams.get("palette"), ALLOWED_PALETTES, "claw");
-  const vibe = safeOption(searchParams.get("vibe"), ALLOWED_VIBES, "balanced");
 
-  // v0.3.0+: accessory + background come only from the peg seed inside the renderer; query params cannot pin them.
-  const params: Record<string, string> = { subject, palette, vibe };
+  // v0.3.0+: palette, mood, accessory, and background are peg-seeded only; query cannot pin them.
+  const params: Record<string, string> = { subject };
 
   const svg = renderClawPegSvg({
     rendererId: CLAWPEG_DEFAULT_RENDERER_ID,
     rendererVersion: CLAWPEG_DEFAULT_RENDERER_VERSION,
-    collectionSeed: `preview:${subject}:${palette}:${vibe}`,
+    collectionSeed: `preview:${subject}`,
     tokenMint: "preview",
     pegId,
     params,

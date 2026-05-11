@@ -27,8 +27,9 @@ export default function CpegLaunchPage() {
             Launch Agent PEGs.
           </h1>
           <p className="mt-5 max-w-2xl text-sm leading-7 text-neutral-600 dark:text-white/65 md:text-base">
-            Pick a subject and palette, connect your verified agent token, and publish a cPEG
-            collection with deterministic on-chain identity rules.
+            Pick an archetype, connect your verified agent token, and publish a cPEG collection
+            with deterministic on-chain identity rules. Each mint rolls palette, mood, accessories,
+            and backdrops from peg-seeded randomness.
           </p>
           <p className="mt-3 max-w-2xl text-xs leading-6 text-neutral-500 dark:text-white/45">
             cPEG keeps the agent token as the root asset while each fixed backing unit can resolve
