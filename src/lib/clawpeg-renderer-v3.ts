@@ -234,7 +234,7 @@ function buildCreaturePalette(spec: PaletteSpec, subject: SubjectKey, vibe: stri
   if (subject === "dragon") furBase = "#202d4a";
   if (subject === "cat") furBase = "#1a1a1a";
   if (subject === "bird") furBase = "#3a2310";
-  if (subject === "unicorn") furBase = "#e4d2ec";
+  if (subject === "unicorn") furBase = "#efe4f5";
   if (subject === "punk") furBase = "#242424";
   if (subject === "azuki") furBase = "#2c2220";
   if (subject === "zombie") furBase = "#4a5c46";
@@ -245,21 +245,20 @@ function buildCreaturePalette(spec: PaletteSpec, subject: SubjectKey, vibe: stri
   if (subject === "penguin") furBase = "#1a1a1e";
   if (vibe === "loud") furBase = shadeHex(furBase, 0.05);
 
-  // Apply stronger highlight steps so dark palettes still show 3 distinct tones on the face.
-  // The previous +6% / +13% steps were imperceptible on near-black furs (e.g. claw, shadow).
-  const fur0 = furBase;
-  const fur1 = shadeHex(furBase, 0.13);
-  const fur2 = shadeHex(furBase, 0.24);
-  const fur3 = shadeHex(furBase, 0.36);
-  const shadow = shadeHex(furBase, -0.18);
+  // Wider tonal spread reads better at 24×24; dark vibe deepens the base slightly for contrast on bg.
+  const fur0 = vibe === "dark" ? shadeHex(furBase, -0.07) : furBase;
+  const fur1 = shadeHex(fur0, 0.17);
+  const fur2 = shadeHex(fur0, 0.34);
+  const fur3 = shadeHex(fur0, 0.5);
+  const shadow = shadeHex(fur0, vibe === "dark" ? -0.24 : -0.2);
   const brow = "#040404";
-  const body0 = shadeHex(furBase, -0.06);
-  const body1 = shadeHex(furBase, 0.04);
-  const bodyShade = shadeHex(furBase, -0.22);
+  const body0 = shadeHex(fur0, -0.07);
+  const body1 = shadeHex(fur0, 0.05);
+  const bodyShade = shadeHex(fur0, vibe === "dark" ? -0.29 : -0.26);
 
   const accent = spec.accent;
   const eyeGlow = vibe === "holy" ? spec.spark : accent;
-  const eyeIris = shadeHex(accent, -0.22);
+  const eyeIris = shadeHex(accent, vibe === "dark" ? -0.14 : -0.22);
   const pupil = "#0a0a0a";
 
   return {
@@ -276,7 +275,7 @@ function buildCreaturePalette(spec: PaletteSpec, subject: SubjectKey, vibe: stri
     pupil,
     nose: subject === "ghost" ? "#1a2233" : "#040404",
     mouth: "#040404",
-    lip: shadeHex(furBase, 0.28),
+    lip: shadeHex(fur0, 0.28),
     body0,
     body1,
     bodyShade,
@@ -643,11 +642,11 @@ function drawApe(palette: CreaturePalette): Rect[] {
     ...rectsFromMask(APE_EYE_GLOW, palette.eyeIris),
     ...rectsFromMask(APE_EYE_PUPIL, palette.eyeGlow),
     ...rectsFromMask(APE_EYE_HIGHLIGHT, palette.spark),
-    ...rectsFromMask(APE_NOSE_BRIDGE, palette.shadow, 0.6),
+    ...rectsFromMask(APE_NOSE_BRIDGE, palette.shadow, 0.72),
     ...rectsFromMask(APE_NOSE, palette.nose),
     ...rectsFromMask(APE_NOSE_SHADE, palette.fur2, 0.7),
     ...rectsFromMask(APE_MOUTH, palette.mouth),
-    ...rectsFromMask(APE_JAW_SHADE, palette.shadow, 0.7),
+    ...rectsFromMask(APE_JAW_SHADE, palette.shadow, 0.82),
     ...rectsFromMask(APE_NECK_SHADE, palette.bodyShade),
     ...rectsFromMask(APE_BODY, palette.body0),
     ...rectsFromMask(APE_BODY_SHADE, palette.bodyShade),
@@ -842,11 +841,11 @@ function drawMonkey(palette: CreaturePalette): Rect[] {
     ...rectsFromMask(APE_EYE_GLOW, palette.eyeIris),
     ...rectsFromMask(APE_EYE_PUPIL, palette.eyeGlow),
     ...rectsFromMask(APE_EYE_HIGHLIGHT, palette.spark),
-    ...rectsFromMask(APE_NOSE_BRIDGE, palette.shadow, 0.6),
+    ...rectsFromMask(APE_NOSE_BRIDGE, palette.shadow, 0.72),
     ...rectsFromMask(APE_NOSE, palette.nose),
     ...rectsFromMask(APE_NOSE_SHADE, palette.fur2, 0.7),
     ...rectsFromMask(APE_MOUTH, palette.mouth),
-    ...rectsFromMask(APE_JAW_SHADE, palette.shadow, 0.7),
+    ...rectsFromMask(APE_JAW_SHADE, palette.shadow, 0.82),
     ...rectsFromMask(MONKEY_FACE_LINE, palette.shadow, 0.55),
     ...rectsFromMask(APE_NECK_SHADE, palette.bodyShade),
     ...rectsFromMask(APE_BODY, palette.body0),
@@ -1030,7 +1029,7 @@ function drawHorse(palette: CreaturePalette): Rect[] {
     ...rectsFromMask(APE_EYE_SOCKET, palette.shadow),
     ...rectsFromMask(APE_EYE_GLOW, palette.eyeIris),
     ...rectsFromMask(APE_EYE_PUPIL, palette.eyeGlow),
-    ...rectsFromMask(APE_NOSE_BRIDGE, palette.shadow, 0.5),
+    ...rectsFromMask(APE_NOSE_BRIDGE, palette.shadow, 0.62),
     ...rectsFromMask(HORSE_SNOUT, palette.fur1),
     ...rectsFromMask(APE_NECK_SHADE, palette.bodyShade),
     ...rectsFromMask(APE_BODY, palette.body0),
@@ -1038,46 +1037,98 @@ function drawHorse(palette: CreaturePalette): Rect[] {
   ];
 }
 
-/** Side-profile winged unicorn (pegasus): full-body sprite, not bust PFP layout. */
+/** Side-profile pegasus unicorn: fuller wing read, tapered muzzle, 24×24 crisp silhouette. */
 const UNICORN_BODY_SIL = [
   "                        ",
   "                        ",
-  "            ##          ",
-  "           ####         ",
-  "          ######        ",
-  "         ########       ",
-  "        ##########      ",
-  "       ###########      ",
-  "      ############      ",
-  "     #############      ",
-  "    ####### ######      ",
-  "   #####    ######      ",
-  "  ###       ######      ",
-  " ##         ######      ",
-  "######      #######     ",
-  "####        #######     ",
-  "###         ########    ",
-  "##          ########    ",
-  "#           #########   ",
-  "            # ## # ##   ",
-  "            # ## # ##   ",
-  "            # ## # ##   ",
-  "             # ## #     ",
+  "                  ##    ",
+  "                 ####   ",
+  "                ######  ",
+  "              ########  ",
+  "            ##########  ",
+  "          ###########   ",
+  "        ######## ###    ",
+  "       ########  ###    ",
+  "      #######    ###    ",
+  "     ######      ###    ",
+  "    #####        ###    ",
+  "   ####          ###    ",
+  "  ###            ####   ",
+  " ##             #####   ",
+  "##             ######   ",
+  "#             #######   ",
+  "             ########   ",
+  "            ## ## ##    ",
+  "            ## ## ##    ",
+  "            ## ## ##    ",
+  "             # # #      ",
   "              ###       ",
+];
+
+const UNICORN_WING_FOLD = [
+  "                        ",
+  "                        ",
+  "                        ",
+  "                        ",
+  "                        ",
+  "                        ",
+  "                        ",
+  "        ##              ",
+  "       ####             ",
+  "      ######            ",
+  "     ########           ",
+  "    #####               ",
+  "   ###                  ",
+  "                        ",
+  "                        ",
+  "                        ",
+  "                        ",
+  "                        ",
+  "                        ",
+  "                        ",
+  "                        ",
+  "                        ",
+  "                        ",
+];
+
+const UNICORN_UNDERBELLY = [
+  "                        ",
+  "                        ",
+  "                        ",
+  "                        ",
+  "                        ",
+  "                        ",
+  "                        ",
+  "                        ",
+  "                        ",
+  "                        ",
+  "                        ",
+  "                        ",
+  "                        ",
+  "                        ",
+  "                        ",
+  "                        ",
+  "                        ",
+  "              ####      ",
+  "             #####      ",
+  "              ###       ",
+  "                        ",
+  "                        ",
+  "                        ",
 ];
 
 const UNICORN_MANE = [
   "                        ",
   "                        ",
   "                        ",
-  "           ##           ",
-  "          #####         ",
-  "         #####          ",
-  "        #####           ",
-  "       #####            ",
-  "      #####             ",
-  "     ####               ",
-  "    ###                 ",
+  "               ##       ",
+  "              ####      ",
+  "             #####      ",
+  "            #####       ",
+  "           ####         ",
+  "          ###           ",
+  "         ##             ",
+  "                        ",
   "                        ",
   "                        ",
   "                        ",
@@ -1105,14 +1156,14 @@ const UNICORN_TAIL = [
   "                        ",
   "                        ",
   "                        ",
-  "                        ",
-  "                        ",
-  "                        ",
   "###                     ",
   "####                    ",
+  "#####                   ",
   "####                    ",
   "###                     ",
   " ##                     ",
+  "                        ",
+  "                        ",
   "                        ",
   "                        ",
   "                        ",
@@ -1122,6 +1173,9 @@ const UNICORN_FOREHEAD_HORN = [
   "                        ",
   "                        ",
   "                        ",
+  "                   ##   ",
+  "                  ####  ",
+  "                   ##   ",
   "                        ",
   "                        ",
   "                        ",
@@ -1129,9 +1183,6 @@ const UNICORN_FOREHEAD_HORN = [
   "                        ",
   "                        ",
   "                        ",
-  "                 ##     ",
-  "                ####    ",
-  "                 ##     ",
   "                        ",
   "                        ",
   "                        ",
@@ -1147,10 +1198,12 @@ const UNICORN_FOREHEAD_HORN = [
 function drawUnicorn(palette: CreaturePalette): Rect[] {
   return [
     ...rectsFromMask(UNICORN_BODY_SIL, palette.fur0),
+    ...rectsFromMask(UNICORN_WING_FOLD, palette.fur1, 0.5),
+    ...rectsFromMask(UNICORN_UNDERBELLY, palette.fur3, 0.42),
     ...rectsFromMask(UNICORN_TAIL, palette.lip),
     ...rectsFromMask(UNICORN_MANE, palette.fur2, 0.9),
-    [14, 16, 3, 1, palette.bodyShade],
-    [17, 10, 1, 1, palette.eyeIris],
+    [13, 17, 4, 1, palette.bodyShade],
+    [14, 11, 1, 1, palette.eyeIris],
     ...rectsFromMask(UNICORN_FOREHEAD_HORN, palette.spark, 0.95),
   ];
 }
@@ -1632,7 +1685,7 @@ function drawLion(palette: CreaturePalette): Rect[] {
     ...rectsFromMask(APE_EYE_PUPIL, palette.eyeGlow),
     ...rectsFromMask(APE_NOSE, palette.nose),
     ...rectsFromMask(APE_MOUTH, palette.mouth),
-    ...rectsFromMask(APE_JAW_SHADE, palette.shadow, 0.7),
+    ...rectsFromMask(APE_JAW_SHADE, palette.shadow, 0.82),
     ...rectsFromMask(APE_NECK_SHADE, palette.bodyShade),
     ...rectsFromMask(APE_BODY, palette.body0),
     ...rectsFromMask(APE_BODY_SHADE, palette.bodyShade),
@@ -2607,7 +2660,7 @@ function drawBackground(bg: BackgroundKey, palette: CreaturePalette, rng: () => 
     return rects;
   }
   if (bg === "stars") {
-    const count = 14;
+    const count = 10;
     for (let i = 0; i < count; i += 1) {
       const x = Math.floor(rng() * 22) + 1;
       const y = Math.floor(rng() * 22) + 1;
@@ -2628,7 +2681,7 @@ function drawBackground(bg: BackgroundKey, palette: CreaturePalette, rng: () => 
     return rects;
   }
   if (bg === "dust") {
-    for (let i = 0; i < 30; i += 1) {
+    for (let i = 0; i < 18; i += 1) {
       const x = Math.floor(rng() * 24);
       const y = Math.floor(rng() * 24);
       rects.push([x, y, 1, 1, palette.bgAlt, 0.6]);
@@ -2673,7 +2726,10 @@ function normalizeAccessory(value: unknown, fallback: AccessoryKey, rng: () => n
       "signal_horns",
       "ninja_mask",
     ];
-    return pick(pool, rng);
+    // Bias toward bare heads so silhouettes read clearly; accessories still show often.
+    if (rng() < 0.46) return "none";
+    const decorated = pool.filter((item) => item !== "none");
+    return pick(decorated, rng);
   }
   return fallback;
 }

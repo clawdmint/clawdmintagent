@@ -1075,16 +1075,7 @@ export function CpegLaunchpad() {
       <div className="mx-auto grid max-w-7xl gap-8 px-5 py-12 md:grid-cols-[1.1fr_0.9fr] md:px-10 md:py-14">
         <div className="space-y-5">
           <div className="border border-neutral-200 dark:border-white/10 bg-neutral-100 dark:bg-[#0c0c0c] p-5">
-            <div className="flex items-center justify-between gap-3">
-              <p className="font-mono text-[11px] uppercase tracking-[0.25em] text-[#53c7ff]">Identity</p>
-              <button
-                type="button"
-                onClick={randomizeArt}
-                className="inline-flex items-center gap-1.5 border border-neutral-300 dark:border-white/15 px-3 py-1.5 font-mono text-[10px] uppercase tracking-[0.2em] text-neutral-600 dark:text-white/65 transition hover:border-[#53c7ff] hover:text-[#53c7ff]"
-              >
-                <RefreshCw className="h-3 w-3" /> Randomize art
-              </button>
-            </div>
+            <p className="font-mono text-[11px] uppercase tracking-[0.25em] text-[#53c7ff]">Identity</p>
             <div className="mt-4 grid gap-4 md:grid-cols-2">
               <Field
                 label="Name"
@@ -1152,12 +1143,28 @@ export function CpegLaunchpad() {
           </div>
 
           <div className="border border-neutral-200 dark:border-white/10 bg-neutral-100 dark:bg-[#0c0c0c] p-5">
-            <div className="flex items-center justify-between gap-3">
-              <div>
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+              <div className="min-w-0">
                 <p className="font-mono text-[11px] uppercase tracking-[0.25em] text-[#53c7ff]">Character</p>
                 <p className="mt-1 text-xs leading-5 text-neutral-600 dark:text-white/55">
                   Archetypes set the shared silhouette; some read as a tight PFP bust, others as a full-body sprite (for example Unicorn is a side-profile pegasus). Palette, mood, accessories, and backdrops stay peg-seeded for huge variety per mint.
                 </p>
+              </div>
+              <div className="flex shrink-0 flex-wrap gap-2">
+                <button
+                  type="button"
+                  onClick={randomizeArt}
+                  className="inline-flex items-center gap-1.5 border border-neutral-300 dark:border-white/15 px-3 py-1.5 font-mono text-[10px] uppercase tracking-[0.2em] text-neutral-600 dark:text-white/65 transition hover:border-[#53c7ff] hover:text-[#53c7ff]"
+                >
+                  <RefreshCw className="h-3 w-3" /> Randomize art
+                </button>
+                <button
+                  type="button"
+                  onClick={shufflePreviewRoll}
+                  className="inline-flex items-center gap-1.5 border border-neutral-300 dark:border-white/15 px-3 py-1.5 font-mono text-[10px] uppercase tracking-[0.2em] text-neutral-600 dark:text-white/65 transition hover:border-[#53c7ff] hover:text-[#53c7ff]"
+                >
+                  <RefreshCw className="h-3 w-3" /> Shuffle traits
+                </button>
               </div>
             </div>
             <div className="mt-4 grid grid-cols-2 gap-2 min-[480px]:grid-cols-4 sm:grid-cols-5 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-7">
@@ -1241,18 +1248,9 @@ export function CpegLaunchpad() {
           <div className="border border-neutral-200 dark:border-white/10 bg-neutral-100 dark:bg-[#0c0c0c] p-5">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <p className="font-mono text-[11px] uppercase tracking-[0.25em] text-[#53c7ff]">Live preview</p>
-              <div className="flex flex-wrap items-center gap-2">
-                <button
-                  type="button"
-                  onClick={shufflePreviewRoll}
-                  className="inline-flex items-center gap-1.5 border border-neutral-300 dark:border-white/15 px-3 py-1 font-mono text-[10px] uppercase tracking-[0.2em] text-neutral-600 dark:text-white/65 transition hover:border-[#53c7ff] hover:text-[#53c7ff]"
-                >
-                  <RefreshCw className="h-3 w-3" /> Shuffle traits
-                </button>
-                <span className="font-mono text-[10px] uppercase tracking-[0.2em] text-neutral-500 dark:text-white/40">
-                  v0.3.0
-                </span>
-              </div>
+              <span className="font-mono text-[10px] uppercase tracking-[0.2em] text-neutral-500 dark:text-white/40">
+                v0.3.0
+              </span>
             </div>
             <div className="mt-4 grid gap-3">
               <div className="relative aspect-square overflow-hidden border border-[#53c7ff]/35 bg-neutral-200 shadow-[0_0_35px_rgba(83,199,255,0.12)] dark:bg-black">
