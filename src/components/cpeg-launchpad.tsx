@@ -204,22 +204,34 @@ const MAX_PEGS_PER_COLLECTION = 10_000;
 const SUBJECT_OPTIONS: Array<[string, string]> = [
   ["ape", "Ape"],
   ["agent", "Agent"],
-  ["monkey", "Monkey"],
-  ["cat", "Cat"],
-  ["dog", "Dog"],
-  ["robot", "Robot"],
   ["alien", "Alien"],
-  ["dragon", "Dragon"],
-  ["wizard", "Wizard"],
-  ["samurai", "Samurai"],
-  ["ninja", "Ninja"],
-  ["ghost", "Ghost"],
-  ["frog", "Frog"],
+  ["azuki", "Azuki"],
   ["bear", "Bear"],
   ["bird", "Bird"],
+  ["cat", "Cat"],
+  ["demon", "Demon"],
+  ["dog", "Dog"],
+  ["dragon", "Dragon"],
+  ["fox", "Fox"],
+  ["frog", "Frog"],
+  ["ghost", "Ghost"],
   ["horse", "Horse"],
-  ["sports", "Athlete"],
+  ["lion", "Lion"],
   ["meme", "Meme"],
+  ["monkey", "Monkey"],
+  ["ninja", "Ninja"],
+  ["panda", "Panda"],
+  ["penguin", "Penguin"],
+  ["punk", "Punk"],
+  ["robot", "Robot"],
+  ["samurai", "Samurai"],
+  ["skeleton", "Skeleton"],
+  ["sports", "Athlete"],
+  ["unicorn", "Unicorn"],
+  ["vampire", "Vampire"],
+  ["wizard", "Wizard"],
+  ["wolf", "Wolf"],
+  ["zombie", "Zombie"],
 ];
 
 const SUBJECT_EMOJI: Record<string, string> = {
@@ -241,6 +253,18 @@ const SUBJECT_EMOJI: Record<string, string> = {
   horse: "\u{1F40E}",
   sports: "\u{1F3C6}",
   meme: "\u{1F602}",
+  unicorn: "\u{1F984}",
+  punk: "\u{1F3B8}",
+  azuki: "\u{1F338}",
+  fox: "\u{1F98A}",
+  wolf: "\u{1F43A}",
+  zombie: "\u{1F9DF}",
+  demon: "\u{1F608}",
+  vampire: "\u{1F9DB}",
+  skeleton: "\u{1F480}",
+  lion: "\u{1F981}",
+  penguin: "\u{1F427}",
+  panda: "\u{1F43C}",
 };
 
 const PALETTE_OPTIONS: Array<[string, string]> = [
@@ -272,6 +296,9 @@ const SUGGESTED_NAMES = [
   ["Cyber Agents", "CYAGT", "agent", "cyber"],
   ["Frost Wardens", "FROST", "ape", "frost"],
   ["Gold Standard", "GLD", "ape", "gold"],
+  ["Pixel Punks", "PPUNK", "punk", "monochrome"],
+  ["Spirit Azuki", "AZUKI", "azuki", "emerald"],
+  ["Ether Unicorns", "UNICORN", "unicorn", "candy"],
 ];
 
 function base64ToBytes(value: string): Uint8Array {
@@ -1144,7 +1171,7 @@ export function CpegLaunchpad() {
               <div>
                 <p className="font-mono text-[11px] uppercase tracking-[0.25em] text-[#53c7ff]">Character</p>
                 <p className="mt-1 text-xs leading-5 text-neutral-600 dark:text-white/55">
-                  Archetypes set the character shape. Palette and mood are collection-wide style presets. Accessories and backdrops are drawn from a pool on every mint and change with each PEG id, so large supplies stay visually mixed.
+                  Archetypes set the character shape, from PFP classics to anime, mythic, and street culture. Palette and mood are collection-wide style presets. Accessories and backdrops roll on every mint so large supplies stay visually mixed.
                 </p>
               </div>
               <button
@@ -1155,7 +1182,7 @@ export function CpegLaunchpad() {
                 <RefreshCw className="h-3 w-3" /> Reroll style
               </button>
             </div>
-            <div className="mt-4 grid grid-cols-3 gap-2 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6">
+            <div className="mt-4 grid grid-cols-2 gap-2 min-[480px]:grid-cols-4 sm:grid-cols-5 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-7">
               {SUBJECT_OPTIONS.map(([value, label]) => {
                 const isActive = form.subject === value;
                 const emoji = SUBJECT_EMOJI[value] || "\u{2728}";
