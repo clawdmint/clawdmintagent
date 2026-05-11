@@ -216,6 +216,7 @@ export default async function CpegPage() {
               .cpeg-hero-card-2 { animation: cpegHeroFloat2 7s ease-in-out infinite; }
               .cpeg-hero-card-3 { animation: cpegHeroFloat3 5.5s ease-in-out infinite; }
               .cpeg-hero-card-main { animation: cpegHeroFloatHero 5s ease-in-out infinite; }
+              .cpeg-hero-art svg { display: block; width: 100%; height: 100%; }
               .cpeg-hero-live span:first-child { animation: cpegHeroPulse 2.2s ease-out infinite; }
               @media (prefers-reduced-motion: reduce) {
                 .cpeg-hero-card-1, .cpeg-hero-card-2, .cpeg-hero-card-3, .cpeg-hero-card-main, .cpeg-hero-live span:first-child {
@@ -236,7 +237,7 @@ export default async function CpegPage() {
 
             {/* back-left card */}
             <div className="cpeg-hero-card-1 absolute left-0 top-6 w-[40%] border border-neutral-300/70 bg-neutral-50/90 p-2 shadow-[0_18px_60px_-30px_rgba(83,199,255,0.5)] backdrop-blur-sm dark:border-white/15 dark:bg-white/[0.04]">
-              <div className="aspect-square w-full" dangerouslySetInnerHTML={{ __html: heroSamples[0].svg }} />
+              <div className="cpeg-hero-art aspect-square w-full overflow-hidden bg-neutral-200 dark:bg-black" dangerouslySetInnerHTML={{ __html: heroSamples[0].svg }} />
               <div className="mt-2 flex items-center justify-between font-mono text-[9px] uppercase tracking-[0.18em] text-neutral-500 dark:text-white/45">
                 <span>#{heroSamples[0].pegId}</span>
                 <span className="text-[#53c7ff]">Pool</span>
@@ -245,7 +246,7 @@ export default async function CpegPage() {
 
             {/* back-right card */}
             <div className="cpeg-hero-card-2 absolute right-0 top-2 w-[40%] border border-neutral-300/70 bg-neutral-50/90 p-2 shadow-[0_18px_60px_-30px_rgba(236,92,255,0.5)] backdrop-blur-sm dark:border-white/15 dark:bg-white/[0.04]">
-              <div className="aspect-square w-full" dangerouslySetInnerHTML={{ __html: heroSamples[1].svg }} />
+              <div className="cpeg-hero-art aspect-square w-full overflow-hidden bg-neutral-200 dark:bg-black" dangerouslySetInnerHTML={{ __html: heroSamples[1].svg }} />
               <div className="mt-2 flex items-center justify-between font-mono text-[9px] uppercase tracking-[0.18em] text-neutral-500 dark:text-white/45">
                 <span>#{heroSamples[1].pegId}</span>
                 <span className="text-[#ec5cff]">Listed</span>
@@ -261,7 +262,7 @@ export default async function CpegPage() {
                 </span>
                 Identity
               </div>
-              <div className="aspect-square w-full" dangerouslySetInnerHTML={{ __html: heroSamples[2].svg }} />
+              <div className="cpeg-hero-art aspect-square w-full overflow-hidden bg-neutral-200 dark:bg-black" dangerouslySetInnerHTML={{ __html: heroSamples[2].svg }} />
               <div className="mt-3 flex items-center justify-between font-mono text-[10px] uppercase tracking-[0.2em]">
                 <span className="text-neutral-500 dark:text-white/55">cPEG #{heroSamples[2].pegId}</span>
                 <span className="font-black text-neutral-950 dark:text-[#f7f2df]">Backed</span>
@@ -270,7 +271,7 @@ export default async function CpegPage() {
 
             {/* bottom-left card */}
             <div className="cpeg-hero-card-3 absolute bottom-2 left-2 w-[34%] border border-neutral-300/70 bg-neutral-50/90 p-2 shadow-[0_18px_60px_-30px_rgba(247,201,72,0.5)] backdrop-blur-sm dark:border-white/15 dark:bg-white/[0.04]">
-              <div className="aspect-square w-full" dangerouslySetInnerHTML={{ __html: heroSamples[3].svg }} />
+              <div className="cpeg-hero-art aspect-square w-full overflow-hidden bg-neutral-200 dark:bg-black" dangerouslySetInnerHTML={{ __html: heroSamples[3].svg }} />
               <div className="mt-2 flex items-center justify-between font-mono text-[9px] uppercase tracking-[0.18em] text-neutral-500 dark:text-white/45">
                 <span>#{heroSamples[3].pegId}</span>
                 <span className="text-[#f7c948]">Trade</span>
@@ -279,7 +280,7 @@ export default async function CpegPage() {
 
             {/* bottom-right card */}
             <div className="cpeg-hero-card-1 absolute bottom-0 right-3 w-[34%] border border-neutral-300/70 bg-neutral-50/90 p-2 shadow-[0_18px_60px_-30px_rgba(83,199,255,0.4)] backdrop-blur-sm dark:border-white/15 dark:bg-white/[0.04]" style={{ animationDelay: "1.5s" }}>
-              <div className="aspect-square w-full" dangerouslySetInnerHTML={{ __html: heroSamples[4].svg }} />
+              <div className="cpeg-hero-art aspect-square w-full overflow-hidden bg-neutral-200 dark:bg-black" dangerouslySetInnerHTML={{ __html: heroSamples[4].svg }} />
               <div className="mt-2 flex items-center justify-between font-mono text-[9px] uppercase tracking-[0.18em] text-neutral-500 dark:text-white/45">
                 <span>#{heroSamples[4].pegId}</span>
                 <span className="text-[#53c7ff]">Owned</span>

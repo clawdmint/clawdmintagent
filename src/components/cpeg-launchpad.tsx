@@ -232,52 +232,7 @@ const SUBJECT_OPTIONS: Array<[string, string]> = [
   ["zombie", "Zombie"],
 ];
 
-const SUBJECT_EMOJI: Record<string, string> = {
-  ape: "\u{1F435}",
-  agent: "\u{1F575}",
-  monkey: "\u{1F412}",
-  cat: "\u{1F408}",
-  dog: "\u{1F415}",
-  robot: "\u{1F916}",
-  alien: "\u{1F47D}",
-  dragon: "\u{1F432}",
-  wizard: "\u{1F9D9}",
-  samurai: "\u{1F5E1}",
-  ninja: "\u{1F977}",
-  ghost: "\u{1F47B}",
-  frog: "\u{1F438}",
-  bear: "\u{1F43B}",
-  bird: "\u{1F426}",
-  horse: "\u{1F40E}",
-  sports: "\u{1F3C6}",
-  meme: "\u{1F602}",
-  unicorn: "\u{1F984}",
-  punk: "\u{1F3B8}",
-  azuki: "\u{1F338}",
-  fox: "\u{1F98A}",
-  wolf: "\u{1F43A}",
-  zombie: "\u{1F9DF}",
-  demon: "\u{1F608}",
-  vampire: "\u{1F9DB}",
-  skeleton: "\u{1F480}",
-  lion: "\u{1F981}",
-  penguin: "\u{1F427}",
-  panda: "\u{1F43C}",
-};
-
 const PREVIEW_PEG_IDS = [1, 7, 23, 47, 88, 142];
-
-const SUGGESTED_NAMES: Array<[string, string, string]> = [
-  ["Claw Apes", "CLAWAPE", "ape"],
-  ["Shadow Pack", "SHDW", "ape"],
-  ["Volcanic Tribe", "VOLT", "ape"],
-  ["Cyber Agents", "CYAGT", "agent"],
-  ["Frost Wardens", "FROST", "ape"],
-  ["Gold Standard", "GLD", "ape"],
-  ["Pixel Punks", "PPUNK", "punk"],
-  ["Spirit Azuki", "AZUKI", "azuki"],
-  ["Ether Unicorns", "UNICORN", "unicorn"],
-];
 
 function base64ToBytes(value: string): Uint8Array {
   const binary = window.atob(value);
@@ -1064,12 +1019,6 @@ export function CpegLaunchpad() {
     setPreviewVariance(next.slice(0, 24));
   };
 
-  const applyPreset = (name: string, symbol: string, subject: string) => {
-    updateForm("name", name);
-    updateForm("symbol", symbol);
-    updateForm("subject", subject);
-  };
-
   return (
     <section className="border-y border-neutral-200 dark:border-white/10 bg-neutral-100 dark:bg-[#0a0a0a]">
       <div className="mx-auto grid max-w-7xl gap-8 px-5 py-12 md:grid-cols-[1.1fr_0.9fr] md:px-10 md:py-14">
@@ -1107,18 +1056,6 @@ export function CpegLaunchpad() {
                 error={!decimalsValid && form.decimals.length > 0 ? "0 to 9." : ""}
               />
             </div>
-            <div className="mt-4 flex flex-wrap gap-2">
-              {SUGGESTED_NAMES.map(([name, symbol, subject]) => (
-                <button
-                  key={`${name}-${symbol}`}
-                  type="button"
-                  onClick={() => applyPreset(name, symbol, subject)}
-                  className="border border-neutral-200 dark:border-white/10 bg-neutral-100/95 dark:bg-white/[0.03] px-3 py-1.5 font-mono text-[10px] uppercase tracking-[0.18em] text-neutral-700 dark:text-white/55 transition hover:border-[#53c7ff]/50 hover:text-[#53c7ff]"
-                >
-                  {name}
-                </button>
-              ))}
-            </div>
             <div className="mt-4 border border-neutral-200 bg-neutral-50/80 p-4 dark:border-white/10 dark:bg-black/35">
               <p className="font-mono text-[10px] uppercase tracking-[0.2em] text-[#53c7ff]">Agent link</p>
               {agentRootLoading ? (
@@ -1143,48 +1080,76 @@ export function CpegLaunchpad() {
           </div>
 
           <div className="border border-neutral-200 dark:border-white/10 bg-neutral-100 dark:bg-[#0c0c0c] p-5">
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+            <div className="flex flex-col gap-3 border-b border-neutral-200 pb-4 dark:border-white/10 sm:flex-row sm:items-center sm:justify-between">
               <div className="min-w-0">
                 <p className="font-mono text-[11px] uppercase tracking-[0.25em] text-[#53c7ff]">Character</p>
-                <p className="mt-1 text-xs leading-5 text-neutral-600 dark:text-white/55">
-                  Archetypes set the shared silhouette; some read as a tight PFP bust, others as a full-body sprite (for example Unicorn is a side-profile pegasus). Palette, mood, accessories, and backdrops stay peg-seeded for huge variety per mint.
-                </p>
+                <div className="mt-2 flex min-w-0 flex-wrap items-center gap-2">
+                  <span className="border border-[#53c7ff]/35 bg-[#53c7ff]/10 px-2.5 py-1 font-mono text-[10px] uppercase tracking-[0.18em] text-[#53c7ff]">
+                    {SUBJECT_OPTIONS.find(([value]) => value === form.subject)?.[1] || "Custom"}
+                  </span>
+                  <span className="font-mono text-[10px] uppercase tracking-[0.18em] text-neutral-500 dark:text-white/40">
+                    Archetype
+                  </span>
+                </div>
               </div>
-              <div className="flex shrink-0 flex-wrap gap-2">
+              <div className="flex shrink-0 flex-wrap gap-2 sm:justify-end">
                 <button
                   type="button"
                   onClick={randomizeArt}
-                  className="inline-flex items-center gap-1.5 border border-neutral-300 dark:border-white/15 px-3 py-1.5 font-mono text-[10px] uppercase tracking-[0.2em] text-neutral-600 dark:text-white/65 transition hover:border-[#53c7ff] hover:text-[#53c7ff]"
+                  className="inline-flex h-9 items-center gap-1.5 border border-neutral-300 px-3 font-mono text-[10px] uppercase tracking-[0.18em] text-neutral-600 transition hover:border-[#53c7ff] hover:text-[#53c7ff] dark:border-white/15 dark:text-white/65"
                 >
                   <RefreshCw className="h-3 w-3" /> Randomize art
                 </button>
                 <button
                   type="button"
                   onClick={shufflePreviewRoll}
-                  className="inline-flex items-center gap-1.5 border border-neutral-300 dark:border-white/15 px-3 py-1.5 font-mono text-[10px] uppercase tracking-[0.2em] text-neutral-600 dark:text-white/65 transition hover:border-[#53c7ff] hover:text-[#53c7ff]"
+                  className="inline-flex h-9 items-center gap-1.5 border border-neutral-300 px-3 font-mono text-[10px] uppercase tracking-[0.18em] text-neutral-600 transition hover:border-[#53c7ff] hover:text-[#53c7ff] dark:border-white/15 dark:text-white/65"
                 >
                   <RefreshCw className="h-3 w-3" /> Shuffle traits
                 </button>
               </div>
             </div>
-            <div className="mt-4 grid grid-cols-2 gap-2 min-[480px]:grid-cols-4 sm:grid-cols-5 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-7">
+            <div className="mt-4 rounded-sm border border-neutral-200 bg-neutral-50/70 p-3 dark:border-white/10 dark:bg-black/30">
+              <div className="mb-3 flex items-center justify-between gap-3">
+                <span className="font-mono text-[10px] uppercase tracking-[0.2em] text-neutral-500 dark:text-white/40">
+                  Archetypes
+                </span>
+                <span className="font-mono text-[10px] uppercase tracking-[0.18em] text-[#53c7ff]">
+                  {SUBJECT_OPTIONS.find(([value]) => value === form.subject)?.[1] || "Custom"}
+                </span>
+              </div>
+            <div className="grid grid-cols-3 gap-2 min-[480px]:grid-cols-4 sm:grid-cols-5 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-6">
               {SUBJECT_OPTIONS.map(([value, label]) => {
                 const isActive = form.subject === value;
-                const emoji = SUBJECT_EMOJI[value] || "\u{2728}";
+                const tileQuery = new URLSearchParams({
+                  subject: value,
+                  pegId: "1",
+                  v: `tile-${value}`,
+                }).toString();
                 return (
                   <button
                     key={value}
                     type="button"
                     onClick={() => updateForm("subject", value)}
                     aria-pressed={isActive}
-                    className={`group relative flex aspect-square flex-col items-center justify-center gap-1 border bg-neutral-100/95 dark:bg-black/30 p-2 transition ${
+                    className={`group relative flex min-h-[96px] flex-col overflow-hidden border bg-neutral-100/95 p-1.5 transition dark:bg-black/30 ${
                       isActive
-                        ? "border-[#53c7ff] text-[#53c7ff] shadow-[0_0_18px_rgba(83,199,255,0.25)]"
+                        ? "border-[#53c7ff] text-[#53c7ff] shadow-[0_0_22px_rgba(83,199,255,0.22)]"
                         : "border-neutral-200 text-neutral-700 hover:border-[#53c7ff]/50 hover:text-[#53c7ff] dark:border-white/10 dark:text-white/75 dark:hover:border-[#53c7ff]/50"
                     }`}
                   >
-                    <span className="text-2xl leading-none" aria-hidden>{emoji}</span>
-                    <span className="font-mono text-[9px] uppercase tracking-[0.18em]">{label}</span>
+                    <span className="relative block aspect-square w-full overflow-hidden bg-neutral-200 dark:bg-[#050505]">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={`/api/cpeg/preview/svg?${tileQuery}`}
+                        alt=""
+                        aria-hidden
+                        className="h-full w-full object-contain object-center [image-rendering:pixelated] [image-rendering:crisp-edges]"
+                      />
+                    </span>
+                    <span className="mt-1 w-full truncate text-center font-mono text-[9px] uppercase tracking-[0.16em]">
+                      {label}
+                    </span>
                     {isActive ? (
                       <span className="absolute right-1.5 top-1.5 h-1.5 w-1.5 rounded-full bg-[#53c7ff] shadow-[0_0_8px_rgba(83,199,255,0.9)]" />
                     ) : null}
@@ -1192,28 +1157,6 @@ export function CpegLaunchpad() {
                 );
               })}
             </div>
-            <div className="mt-4 flex flex-wrap items-center gap-2 border-t border-neutral-200 pt-3 dark:border-white/10">
-              <span className="font-mono text-[10px] uppercase tracking-[0.2em] text-neutral-500 dark:text-white/40">
-                Shared
-              </span>
-              <span className="border border-neutral-200 bg-neutral-100/95 px-2 py-0.5 font-mono text-[9px] uppercase tracking-[0.18em] text-neutral-600 dark:border-white/10 dark:bg-black/30 dark:text-white/55">
-                Archetype
-              </span>
-              <span className="font-mono text-[10px] uppercase tracking-[0.2em] text-neutral-500 dark:text-white/40">
-                Per peg
-              </span>
-              <span className="border border-neutral-200 bg-neutral-100/95 px-2 py-0.5 font-mono text-[9px] uppercase tracking-[0.18em] text-neutral-600 dark:border-white/10 dark:bg-black/30 dark:text-white/55">
-                Palette
-              </span>
-              <span className="border border-neutral-200 bg-neutral-100/95 px-2 py-0.5 font-mono text-[9px] uppercase tracking-[0.18em] text-neutral-600 dark:border-white/10 dark:bg-black/30 dark:text-white/55">
-                Mood
-              </span>
-              <span className="border border-neutral-200 bg-neutral-100/95 px-2 py-0.5 font-mono text-[9px] uppercase tracking-[0.18em] text-neutral-600 dark:border-white/10 dark:bg-black/30 dark:text-white/55">
-                Accessory
-              </span>
-              <span className="border border-neutral-200 bg-neutral-100/95 px-2 py-0.5 font-mono text-[9px] uppercase tracking-[0.18em] text-neutral-600 dark:border-white/10 dark:bg-black/30 dark:text-white/55">
-                Backdrop
-              </span>
             </div>
           </div>
 
