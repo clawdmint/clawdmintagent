@@ -987,7 +987,7 @@ export function CpegLaunchpad() {
                   <img
                     src={`/api/cpeg/preview/svg?pegId=${pegId}&${previewQuery}`}
                     alt={`${form.symbol || "cPEG"} preview #${pegId}`}
-                    className="h-full w-full object-cover [image-rendering:pixelated]"
+                    className="h-full w-full object-contain object-center [image-rendering:pixelated] [image-rendering:crisp-edges]"
                   />
                 </div>
               ))}
@@ -1258,7 +1258,7 @@ export function CpegLaunchpad() {
                 <img
                   src={`/api/cpeg/preview/svg?pegId=${PREVIEW_PEG_IDS[0]}&${previewQuery}`}
                   alt={`Featured preview #${PREVIEW_PEG_IDS[0]}`}
-                  className="h-full w-full object-cover [image-rendering:pixelated]"
+                  className="h-full w-full object-contain object-center [image-rendering:pixelated] [image-rendering:crisp-edges]"
                 />
                 <span className="absolute bottom-2 left-2 bg-neutral-950/75 px-2 py-1 font-mono text-[10px] uppercase tracking-[0.15em] text-white">
                   #{PREVIEW_PEG_IDS[0]}
@@ -1274,7 +1274,7 @@ export function CpegLaunchpad() {
                   <img
                     src={`/api/cpeg/preview/svg?pegId=${pegId}&${previewQuery}`}
                     alt={`Preview #${pegId}`}
-                    className="h-full w-full object-cover [image-rendering:pixelated]"
+                    className="h-full w-full object-contain object-center [image-rendering:pixelated] [image-rendering:crisp-edges]"
                   />
                   <span className="absolute bottom-1 left-1 bg-neutral-950/75 px-1.5 py-0.5 font-mono text-[9px] uppercase tracking-[0.15em] text-white">
                     #{pegId}

@@ -5,8 +5,10 @@
  *   - Match the reference quality of premium pixel-art PFP collections (multi-tone
  *     shading, dense feature detail, accessorised head + body composition).
  *   - Stay 100% deterministic. Same (seed, params) always produces identical SVG.
- *   - Produce clean, frame-friendly 24x24 logical pixels rendered into a 480x480
- *     viewBox with `shape-rendering: crispEdges` for pin-sharp scaling.
+ *   - Produce clean, frame-friendly 24×24 logical pixels exported at 48×48 SVG units
+ *     with explicit width/height so browser <img> never applies a default 300×150 box
+ *     (which made previews look like random cropped blocks). `shape-rendering: crispEdges`
+ *     keeps edges sharp when scaled.
  *
  * Design:
  *   - Each subject (`ape`, `cat`, `robot`, ...) has its own creature template that
@@ -225,6 +227,20 @@ function shadeHex(hex: string, ratio: number): string {
   return `#${((r << 16) | (g << 8) | b).toString(16).padStart(6, "0")}`;
 }
 
+/** Linear RGB mix for palette-tinted subjects (e.g. pegasus body that must not read as flat white). */
+function mixRgbHex(hexA: string, hexB: string, t: number): string {
+  const parse = (hex: string) => {
+    const v = parseInt(hex.replace("#", ""), 16);
+    return { r: (v >> 16) & 255, g: (v >> 8) & 255, b: v & 255 };
+  };
+  const a = parse(hexA);
+  const b = parse(hexB);
+  const r = Math.round(a.r + (b.r - a.r) * t);
+  const g = Math.round(a.g + (b.g - a.g) * t);
+  const bl = Math.round(a.b + (b.b - a.b) * t);
+  return `#${((r << 16) | (g << 8) | bl).toString(16).padStart(6, "0")}`;
+}
+
 function buildCreaturePalette(spec: PaletteSpec, subject: SubjectKey, vibe: string): CreaturePalette {
   let furBase = spec.furBase;
   if (subject === "alien") furBase = "#2a5d2a";
@@ -234,7 +250,10 @@ function buildCreaturePalette(spec: PaletteSpec, subject: SubjectKey, vibe: stri
   if (subject === "dragon") furBase = "#202d4a";
   if (subject === "cat") furBase = "#1a1a1a";
   if (subject === "bird") furBase = "#3a2310";
-  if (subject === "unicorn") furBase = "#efe4f5";
+  if (subject === "unicorn") {
+    const accentTint = shadeHex(spec.accent, -0.16);
+    furBase = mixRgbHex(spec.furBase, accentTint, 0.62);
+  }
   if (subject === "punk") furBase = "#242424";
   if (subject === "azuki") furBase = "#2c2220";
   if (subject === "zombie") furBase = "#4a5c46";
@@ -633,6 +652,10 @@ const APE_NECK_SHADE = [
 
 function drawApe(palette: CreaturePalette): Rect[] {
   return [
+    [1, 18, 4, 4, palette.fur2],
+    [19, 18, 4, 4, palette.fur2],
+    [2, 19, 2, 2, palette.fur3, 0.55],
+    [20, 19, 2, 2, palette.fur3, 0.55],
     ...rectsFromMask(APE_SILHOUETTE, palette.fur0),
     ...rectsFromMask(APE_HIGHLIGHT_TOP, palette.fur2),
     ...rectsFromMask(APE_CHEEK_HIGH, palette.fur1),
@@ -645,6 +668,10 @@ function drawApe(palette: CreaturePalette): Rect[] {
     ...rectsFromMask(APE_NOSE_BRIDGE, palette.shadow, 0.72),
     ...rectsFromMask(APE_NOSE, palette.nose),
     ...rectsFromMask(APE_NOSE_SHADE, palette.fur2, 0.7),
+    [6, 14, 12, 3, palette.fur1, 0.78],
+    [7, 17, 10, 2, palette.fur2, 0.65],
+    [8, 14, 2, 1, palette.pupil, 0.78],
+    [14, 14, 2, 1, palette.pupil, 0.78],
     ...rectsFromMask(APE_MOUTH, palette.mouth),
     ...rectsFromMask(APE_JAW_SHADE, palette.shadow, 0.82),
     ...rectsFromMask(APE_NECK_SHADE, palette.bodyShade),
@@ -699,6 +726,10 @@ function drawCat(palette: CreaturePalette): Rect[] {
     ...rectsFromMask(APE_EYE_GLOW, palette.eyeIris),
     ...rectsFromMask(APE_EYE_PUPIL, palette.eyeGlow),
     ...rectsFromMask(APE_NOSE, palette.accent, 0.85),
+    [2, 14, 6, 1, palette.fur3, 0.8],
+    [16, 14, 6, 1, palette.fur3, 0.8],
+    [3, 16, 5, 1, palette.fur3, 0.55],
+    [16, 16, 5, 1, palette.fur3, 0.55],
     ...rectsFromMask(APE_MOUTH, palette.mouth, 0.9),
     ...rectsFromMask(APE_BODY, palette.body0),
     ...rectsFromMask(APE_BODY_SHADE, palette.bodyShade),
@@ -769,6 +800,8 @@ function drawDog(palette: CreaturePalette): Rect[] {
     ...rectsFromMask(APE_EYE_SOCKET, palette.shadow),
     ...rectsFromMask(APE_EYE_GLOW, palette.eyeIris),
     ...rectsFromMask(APE_EYE_PUPIL, palette.eyeGlow),
+    [8, 13, 8, 4, palette.fur2, 0.85],
+    [9, 15, 6, 2, palette.fur3, 0.65],
     ...rectsFromMask(APE_NOSE, palette.nose),
     ...rectsFromMask(APE_MOUTH, palette.mouth, 0.9),
     ...rectsFromMask(APE_BODY, palette.body0),
@@ -954,15 +987,33 @@ const BIRD_BEAK = [
 ];
 
 function drawBird(palette: CreaturePalette): Rect[] {
+  const feather = palette.fur0;
+  const wing = shadeHex(palette.accent, -0.16);
+  const beak = palette.spark;
   return [
-    ...rectsFromMask(BIRD_HEAD, palette.fur0),
-    ...rectsFromMask(BIRD_BEAK, palette.accent),
-    ...rectsFromMask(APE_HIGHLIGHT_TOP, palette.fur2, 0.45),
-    ...rectsFromMask(APE_EYE_SOCKET, palette.shadow),
-    ...rectsFromMask(APE_EYE_GLOW, palette.eyeIris),
-    ...rectsFromMask(APE_EYE_PUPIL, palette.eyeGlow),
-    ...rectsFromMask(APE_BODY, palette.body0),
-    ...rectsFromMask(APE_BODY_SHADE, palette.bodyShade),
+    [9, 1, 2, 2, palette.accent],
+    [10, 2, 3, 2, palette.accent],
+    [11, 3, 2, 2, palette.spark],
+    [6, 4, 9, 3, feather],
+    [5, 6, 12, 4, feather],
+    [4, 9, 12, 5, feather],
+    [5, 14, 10, 3, feather],
+    [7, 17, 7, 2, feather],
+    [15, 8, 5, 2, beak],
+    [19, 9, 3, 1, beak],
+    [15, 10, 4, 1, palette.metalDark],
+    [9, 6, 5, 2, palette.fur2, 0.8],
+    [7, 9, 4, 7, wing],
+    [8, 11, 6, 2, shadeHex(wing, 0.15)],
+    [9, 13, 5, 2, shadeHex(wing, 0.3)],
+    [11, 7, 2, 2, palette.eyeIris],
+    [12, 7, 1, 1, palette.eyeGlow],
+    [11, 19, 1, 3, palette.metal],
+    [14, 19, 1, 3, palette.metal],
+    [9, 22, 3, 1, palette.metalDark],
+    [14, 22, 3, 1, palette.metalDark],
+    [5, 20, 13, 3, palette.body0],
+    [2, 22, 20, 2, palette.bodyShade],
   ];
 }
 
@@ -1021,19 +1072,29 @@ const HORSE_MANE = [
 ];
 
 function drawHorse(palette: CreaturePalette): Rect[] {
+  const coat = palette.fur0;
+  const mane = palette.accent;
   return [
-    ...rectsFromMask(APE_SILHOUETTE, palette.fur0),
-    ...rectsFromMask(HORSE_MANE, palette.fur2),
-    ...rectsFromMask(APE_HIGHLIGHT_TOP, palette.fur1, 0.5),
-    ...rectsFromMask(APE_BROW, palette.brow),
-    ...rectsFromMask(APE_EYE_SOCKET, palette.shadow),
-    ...rectsFromMask(APE_EYE_GLOW, palette.eyeIris),
-    ...rectsFromMask(APE_EYE_PUPIL, palette.eyeGlow),
-    ...rectsFromMask(APE_NOSE_BRIDGE, palette.shadow, 0.62),
-    ...rectsFromMask(HORSE_SNOUT, palette.fur1),
-    ...rectsFromMask(APE_NECK_SHADE, palette.bodyShade),
-    ...rectsFromMask(APE_BODY, palette.body0),
-    ...rectsFromMask(APE_BODY_SHADE, palette.bodyShade),
+    [7, 1, 3, 6, coat],
+    [16, 2, 3, 5, coat],
+    [8, 3, 10, 4, coat],
+    [7, 6, 11, 6, coat],
+    [8, 11, 10, 5, coat],
+    [11, 15, 7, 3, coat],
+    [16, 9, 5, 4, coat],
+    [18, 12, 4, 3, coat],
+    [19, 14, 2, 2, palette.shadow, 0.6],
+    [7, 4, 3, 12, mane],
+    [6, 8, 3, 10, shadeHex(mane, -0.2)],
+    [9, 16, 9, 2, palette.fur1],
+    [10, 18, 8, 5, palette.body0],
+    [15, 20, 7, 3, palette.bodyShade],
+    [13, 8, 2, 2, palette.eyeIris],
+    [14, 8, 1, 1, palette.eyeGlow],
+    [20, 12, 1, 1, palette.nose],
+    [18, 15, 2, 1, palette.mouth],
+    [11, 6, 6, 1, palette.fur3, 0.72],
+    [11, 11, 6, 1, palette.fur2, 0.55],
   ];
 }
 
@@ -1089,6 +1150,7 @@ const UNICORN_WING_FOLD = [
   "                        ",
   "                        ",
   "                        ",
+  "                        ",
 ];
 
 const UNICORN_UNDERBELLY = [
@@ -1128,6 +1190,7 @@ const UNICORN_MANE = [
   "           ####         ",
   "          ###           ",
   "         ##             ",
+  "                        ",
   "                        ",
   "                        ",
   "                        ",
@@ -1198,13 +1261,14 @@ const UNICORN_FOREHEAD_HORN = [
 function drawUnicorn(palette: CreaturePalette): Rect[] {
   return [
     ...rectsFromMask(UNICORN_BODY_SIL, palette.fur0),
-    ...rectsFromMask(UNICORN_WING_FOLD, palette.fur1, 0.5),
-    ...rectsFromMask(UNICORN_UNDERBELLY, palette.fur3, 0.42),
+    ...rectsFromMask(UNICORN_WING_FOLD, palette.fur1),
+    ...rectsFromMask(UNICORN_UNDERBELLY, palette.fur3, 0.46),
+    ...rectsFromMask(UNICORN_MANE, palette.fur2),
     ...rectsFromMask(UNICORN_TAIL, palette.lip),
-    ...rectsFromMask(UNICORN_MANE, palette.fur2, 0.9),
-    [13, 17, 4, 1, palette.bodyShade],
-    [14, 11, 1, 1, palette.eyeIris],
+    [14, 10, 3, 1, palette.shadow, 0.4],
+    [18, 10, 1, 1, palette.eyeIris],
     ...rectsFromMask(UNICORN_FOREHEAD_HORN, palette.spark, 0.95),
+    [13, 17, 4, 1, palette.bodyShade, 0.85],
   ];
 }
 
@@ -2670,8 +2734,8 @@ function drawBackground(bg: BackgroundKey, palette: CreaturePalette, rng: () => 
   }
   if (bg === "grid") {
     for (let i = 4; i < 24; i += 6) {
-      rects.push([0, i, 24, 1, palette.bgAlt, 0.45]);
-      rects.push([i, 0, 1, 24, palette.bgAlt, 0.45]);
+      rects.push([0, i, 24, 1, palette.bgAlt, 0.22]);
+      rects.push([i, 0, 1, 24, palette.bgAlt, 0.22]);
     }
     return rects;
   }
@@ -2738,6 +2802,31 @@ function normalizeBackground(value: unknown, rng: () => number): BackgroundKey {
   const v = String(value || "").toLowerCase();
   const allowed: BackgroundKey[] = ["solid", "stars", "grid", "vignette", "dust", "horizon"];
   if (allowed.includes(v as BackgroundKey)) return v as BackgroundKey;
+  const weighted: BackgroundKey[] = [
+    "solid",
+    "solid",
+    "solid",
+    "solid",
+    "vignette",
+    "vignette",
+    "horizon",
+    "stars",
+    "dust",
+    "grid",
+  ];
+  return pick(weighted, rng);
+}
+
+function normalizePaletteName(value: unknown, rng: () => number): string {
+  const palette = String(value || "").toLowerCase();
+  if (palette && palette !== "auto" && PALETTE_SPECS[palette]) return palette;
+  return pick(Object.keys(PALETTE_SPECS), rng);
+}
+
+function normalizeVibe(value: unknown, rng: () => number): string {
+  const vibe = String(value || "").toLowerCase();
+  const allowed = ["balanced", "loud", "holy", "dark"];
+  if (allowed.includes(vibe)) return vibe;
   return pick(allowed, rng);
 }
 
@@ -2746,14 +2835,12 @@ function buildModel(input: ClawPegRenderInput): RenderModel {
   const rng = createRng(hashUint32(seed));
   const params = input.params || {};
   const subject = normalizeSubjectV3(params.subject);
-  const paletteNames = Object.keys(PALETTE_SPECS);
-  const paletteName = pick(paletteNames, rng);
+  const paletteName = normalizePaletteName(params.palette, rng);
   const spec = PALETTE_SPECS[paletteName] || PALETTE_SPECS.claw;
-  const vibes = ["balanced", "loud", "holy", "dark"];
-  const vibe = pick(vibes, rng);
+  const vibe = normalizeVibe(params.vibe, rng);
   const palette = buildCreaturePalette(spec, subject, vibe);
-  const accessory = normalizeAccessory("auto", "none", rng);
-  const background = normalizeBackground("auto", rng);
+  const accessory = normalizeAccessory(params.accessory, "none", rng);
+  const background = normalizeBackground(params.background, rng);
   const rank = hashUint32(`${seed}:rank`) % 10_000;
   return {
     seed,
@@ -2782,6 +2869,23 @@ function deriveSeedV3(input: Omit<ClawPegRenderInput, "seed">): string {
   return hashUint32(source).toString(16).padStart(8, "0");
 }
 
+/** Native SVG default aspect is not 1:1 in many browsers → <img object-cover> cropped identity art. Logical grid is 24; we export 48×48 crisp blocks. */
+const IDENTITY_EXPORT_SCALE = 2;
+const IDENTITY_LOGICAL = 24;
+
+function rectToSvgIdentity(rect: Rect): string {
+  const s = IDENTITY_EXPORT_SCALE;
+  const [x, y, w, h, fill, opacity] = rect;
+  const sx = x * s;
+  const sy = y * s;
+  const sw = w * s;
+  const sh = h * s;
+  if (opacity !== undefined) {
+    return `<rect x='${sx}' y='${sy}' width='${sw}' height='${sh}' fill='${fill}' opacity='${opacity}'/>`;
+  }
+  return `<rect x='${sx}' y='${sy}' width='${sw}' height='${sh}' fill='${fill}'/>`;
+}
+
 function rectToString(rect: Rect): string {
   const [x, y, w, h, fill, opacity] = rect;
   if (opacity !== undefined) {
@@ -2797,9 +2901,10 @@ export function renderClawPegSvgV3(input: ClawPegRenderInput): string {
   rects.push(...drawSubject(model.subject, model.palette));
   rects.push(...drawAccessory(model.accessory, model.palette, model.rng));
 
+  const dim = IDENTITY_LOGICAL * IDENTITY_EXPORT_SCALE;
   const out: string[] = [
-    "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'>",
-    rects.map(rectToString).join(""),
+    `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 ${dim} ${dim}' width='${dim}' height='${dim}' shape-rendering='crispEdges'>`,
+    rects.map(rectToSvgIdentity).join(""),
     "</svg>",
   ];
   return out.join("");
@@ -2843,7 +2948,7 @@ export function renderClawPegTradeArtSvgV3(input: ClawPegTradeArtRenderInput): s
   rects.push([10, 12, 4, 1, palette.mouth]);
 
   return [
-    "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'>",
+    "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' width='24' height='24' shape-rendering='crispEdges'>",
     rects.map(rectToString).join(""),
     "</svg>",
   ].join("");
