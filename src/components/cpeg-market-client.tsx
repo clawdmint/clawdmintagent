@@ -1014,6 +1014,13 @@ export function CpegMarketClient() {
       }
       if (!selectedLaunch) return;
 
+      if (typeof window !== "undefined") {
+        const confirmed = window.confirm(
+          `Delist ${selectedLaunch.symbol} #${listing.peg_id}?\n\nThis will revoke the marketplace transfer delegate and remove the listing from the marketplace. The cPEG stays in your wallet.`
+        );
+        if (!confirmed) return;
+      }
+
       setBusy(`cancel-${listing.peg_id}`);
       try {
         const response = await fetch(`/api/cpeg/${selectedLaunch.token_mint}/market/cancel/prepare`, {
@@ -1790,10 +1797,13 @@ export function CpegMarketClient() {
                         ) : null}
                       </div>
 
-                      <div className="mt-3 grid grid-cols-2 gap-2">
+                      <div className={`mt-3 grid gap-2 ${isOwn ? "grid-cols-[1fr_auto]" : "grid-cols-1"}`}>
                         <button
                           type="button"
-                          onClick={() => handleBuy(listing)}
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            handleBuy(listing);
+                          }}
                           disabled={Boolean(busy) || isOwn}
                           className="inline-flex items-center justify-center gap-1 border border-[#53c7ff]/45 bg-[#53c7ff]/10 px-2 py-2 text-[10px] font-black uppercase tracking-wide text-[#53c7ff] transition hover:bg-[#53c7ff]/20 disabled:opacity-40"
                         >
@@ -1802,21 +1812,26 @@ export function CpegMarketClient() {
                           ) : (
                             <ShoppingCart className="h-3 w-3" />
                           )}
-                          Buy
+                          {isOwn ? "Your listing" : "Buy"}
                         </button>
-                        <button
-                          type="button"
-                          onClick={() => handleCancel(listing)}
-                          disabled={Boolean(busy) || !isOwn}
-                          className="inline-flex items-center justify-center gap-1 border border-neutral-300 px-2 py-2 text-[10px] font-black uppercase tracking-wide text-neutral-600 transition hover:border-red-400/40 hover:text-red-500 disabled:opacity-30 dark:border-white/15 dark:text-white/55 dark:hover:border-red-300/40 dark:hover:text-red-200"
-                        >
-                          {busy === `cancel-${listing.peg_id}` ? (
-                            <Loader2 className="h-3 w-3 animate-spin" />
-                          ) : (
-                            <XCircle className="h-3 w-3" />
-                          )}
-                          {isOwn ? "Cancel" : "-"}
-                        </button>
+                        {isOwn ? (
+                          <button
+                            type="button"
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              handleCancel(listing);
+                            }}
+                            disabled={Boolean(busy)}
+                            title="Delist this PEG"
+                            className="inline-flex h-full w-9 items-center justify-center border border-neutral-300 text-neutral-500 transition hover:border-red-400/50 hover:text-red-500 disabled:opacity-30 dark:border-white/15 dark:text-white/45 dark:hover:border-red-300/50 dark:hover:text-red-200"
+                          >
+                            {busy === `cancel-${listing.peg_id}` ? (
+                              <Loader2 className="h-3 w-3 animate-spin" />
+                            ) : (
+                              <XCircle className="h-3 w-3" />
+                            )}
+                          </button>
+                        ) : null}
                       </div>
                     </div>
                   );
