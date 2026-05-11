@@ -47,15 +47,55 @@ export async function GET(request: NextRequest, { params }: RouteContext) {
     })
     .catch(() => null);
   if (launch?.standardMode === "metaplex_hybrid") {
+    // When an ownerFilter is set, pull both OWNED and LISTED rows. A LISTED row
+    // whose matching marketplace row is no longer ACTIVE is stale state left
+    // behind by a half-finished cancel/buy flow; self-heal it back to OWNED so
+    // the user can list or release the cPEG again.
     const rows = await prisma.clawPegHybridAsset.findMany({
       where: {
         launchId: launch.id,
-        ...(ownerFilter ? { ownerAddress: ownerFilter, status: "OWNED" } : {}),
+        ...(ownerFilter
+          ? { ownerAddress: ownerFilter, status: { in: ["OWNED", "LISTED"] } }
+          : {}),
       },
       orderBy: { pegId: "asc" },
       skip: start,
       take: limit,
     });
+
+    let filteredRows = rows;
+    if (ownerFilter && rows.length > 0) {
+      const pegIds = rows.map((row) => row.pegId);
+      const activeListings = await prisma.clawPegMarketListing.findMany({
+        where: {
+          launchId: launch.id,
+          pegId: { in: pegIds },
+          status: "ACTIVE",
+        },
+        select: { pegId: true },
+      });
+      const activeListedSet = new Set(activeListings.map((row) => row.pegId));
+      const driftedPegIds = rows
+        .filter((row) => row.status === "LISTED" && !activeListedSet.has(row.pegId))
+        .map((row) => row.pegId);
+      if (driftedPegIds.length > 0) {
+        await prisma.clawPegHybridAsset
+          .updateMany({
+            where: {
+              launchId: launch.id,
+              ownerAddress: ownerFilter,
+              pegId: { in: driftedPegIds },
+              status: "LISTED",
+            },
+            data: { status: "OWNED" },
+          })
+          .catch(() => null);
+      }
+      filteredRows = rows
+        .filter((row) => !activeListedSet.has(row.pegId))
+        .map((row) => ({ ...row, status: "OWNED" }));
+    }
+
     return NextResponse.json({
       success: true,
       collection: {
@@ -71,7 +111,7 @@ export async function GET(request: NextRequest, { params }: RouteContext) {
         next_start: start + limit < launch.maxPegs ? start + limit : null,
         previous_start: start > 0 ? Math.max(0, start - limit) : null,
       },
-      pegs: rows.map((row) => {
+      pegs: filteredRows.map((row) => {
         const traits = getClawPegTraits({
           rendererId: launch.rendererId,
           rendererVersion: launch.rendererVersion,

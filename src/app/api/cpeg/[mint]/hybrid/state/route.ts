@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import {
+  CPEG_HYBRID_ASSET_STATUS_LISTED,
   CPEG_HYBRID_ASSET_STATUS_OWNED,
   buildHybridStateSummary,
   getMplHybridCustodyTarget,
@@ -50,10 +51,18 @@ export async function GET(request: NextRequest, { params }: RouteContext) {
     captured_at: string | null;
   }> = [];
   if (wallet) {
-    const rows = await prisma.clawPegHybridAsset.findMany({
-      where: { launchId: data.launch.id, ownerAddress: wallet, status: CPEG_HYBRID_ASSET_STATUS_OWNED },
+    // Pull both OWNED and LISTED rows for the wallet. A LISTED row whose
+    // matching ClawPegMarketListing is no longer ACTIVE is a stale state left
+    // behind by a half-finished cancel/buy flow; self-heal it back to OWNED so
+    // the user can list or release the cPEG again.
+    const allRows = await prisma.clawPegHybridAsset.findMany({
+      where: {
+        launchId: data.launch.id,
+        ownerAddress: wallet,
+        status: { in: [CPEG_HYBRID_ASSET_STATUS_OWNED, CPEG_HYBRID_ASSET_STATUS_LISTED] },
+      },
       orderBy: { capturedAt: "desc" },
-      take: 60,
+      take: 80,
       select: {
         assetAddress: true,
         pegId: true,
@@ -61,12 +70,45 @@ export async function GET(request: NextRequest, { params }: RouteContext) {
         capturedAt: true,
       },
     });
-    walletAssets = rows.map((row) => ({
-      asset_address: row.assetAddress,
-      peg_id: row.pegId,
-      status: row.status,
-      captured_at: row.capturedAt?.toISOString() || null,
-    }));
+
+    const candidatePegIds = allRows.map((row) => row.pegId);
+    const activeListings = candidatePegIds.length
+      ? await prisma.clawPegMarketListing.findMany({
+          where: {
+            launchId: data.launch.id,
+            pegId: { in: candidatePegIds },
+            status: "ACTIVE",
+          },
+          select: { pegId: true },
+        })
+      : [];
+    const activeListedSet = new Set(activeListings.map((row) => row.pegId));
+
+    const driftedPegIds = allRows
+      .filter((row) => row.status === CPEG_HYBRID_ASSET_STATUS_LISTED && !activeListedSet.has(row.pegId))
+      .map((row) => row.pegId);
+    if (driftedPegIds.length > 0) {
+      await prisma.clawPegHybridAsset
+        .updateMany({
+          where: {
+            launchId: data.launch.id,
+            ownerAddress: wallet,
+            pegId: { in: driftedPegIds },
+            status: CPEG_HYBRID_ASSET_STATUS_LISTED,
+          },
+          data: { status: CPEG_HYBRID_ASSET_STATUS_OWNED },
+        })
+        .catch(() => null);
+    }
+
+    walletAssets = allRows
+      .filter((row) => !activeListedSet.has(row.pegId))
+      .map((row) => ({
+        asset_address: row.assetAddress,
+        peg_id: row.pegId,
+        status: CPEG_HYBRID_ASSET_STATUS_OWNED,
+        captured_at: row.capturedAt?.toISOString() || null,
+      }));
   }
   return NextResponse.json({
     success: true,

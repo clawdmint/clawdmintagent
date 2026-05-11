@@ -55,11 +55,31 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
     if (!asset || asset.launchId !== data.launch.id) {
       return NextResponse.json({ success: false, error: "Asset is not part of this hybrid launch" }, { status: 404 });
     }
-    if (asset.ownerAddress !== parsed.data.wallet || asset.status !== CPEG_HYBRID_ASSET_STATUS_OWNED) {
+    if (asset.ownerAddress !== parsed.data.wallet) {
       return NextResponse.json(
         { success: false, error: "Asset is not owned by this wallet" },
         { status: 403 }
       );
+    }
+    if (asset.status !== CPEG_HYBRID_ASSET_STATUS_OWNED) {
+      // Self-heal: if the asset is marked LISTED but no active marketplace row exists,
+      // a previous cancel/buy flow left the DB stale. Flip back to OWNED so release works.
+      const activeListing = await prisma.clawPegMarketListing.findFirst({
+        where: { launchId: data.launch.id, pegId: asset.pegId, status: "ACTIVE" },
+        select: { id: true },
+      });
+      if (activeListing) {
+        return NextResponse.json(
+          { success: false, error: "Cancel the active marketplace listing before releasing this cPEG." },
+          { status: 409 }
+        );
+      }
+      await prisma.clawPegHybridAsset
+        .update({
+          where: { assetAddress: asset.assetAddress },
+          data: { status: CPEG_HYBRID_ASSET_STATUS_OWNED },
+        })
+        .catch(() => null);
     }
     const onChainOwner = await fetchHybridCoreAssetOwner(parsed.data.asset_address);
     if (onChainOwner !== parsed.data.wallet) {
