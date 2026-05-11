@@ -212,9 +212,38 @@ const SUBJECT_OPTIONS: Array<[string, string]> = [
   ["robot", "Robot"],
   ["alien", "Alien"],
   ["dragon", "Dragon"],
+  ["wizard", "Wizard"],
+  ["samurai", "Samurai"],
+  ["ninja", "Ninja"],
+  ["ghost", "Ghost"],
   ["frog", "Frog"],
   ["bear", "Bear"],
+  ["bird", "Bird"],
+  ["horse", "Horse"],
+  ["sports", "Athlete"],
+  ["meme", "Meme"],
 ];
+
+const SUBJECT_EMOJI: Record<string, string> = {
+  ape: "\u{1F435}",
+  agent: "\u{1F575}",
+  monkey: "\u{1F412}",
+  cat: "\u{1F408}",
+  dog: "\u{1F415}",
+  robot: "\u{1F916}",
+  alien: "\u{1F47D}",
+  dragon: "\u{1F432}",
+  wizard: "\u{1F9D9}",
+  samurai: "\u{1F5E1}",
+  ninja: "\u{1F977}",
+  ghost: "\u{1F47B}",
+  frog: "\u{1F438}",
+  bear: "\u{1F43B}",
+  bird: "\u{1F426}",
+  horse: "\u{1F40E}",
+  sports: "\u{1F3C6}",
+  meme: "\u{1F602}",
+};
 
 const PALETTE_OPTIONS: Array<[string, string]> = [
   ["claw", "Claw"],
@@ -1045,8 +1074,12 @@ export function CpegLaunchpad() {
     const random = <T,>(arr: Array<[string, T]>) => arr[Math.floor(Math.random() * arr.length)][0];
     updateForm("subject", random(SUBJECT_OPTIONS));
     updateForm("palette", random(PALETTE_OPTIONS));
-    updateForm("accessory", random(ACCESSORY_OPTIONS.filter(([v]) => v !== "auto")));
-    updateForm("background", random(BACKGROUND_OPTIONS.filter(([v]) => v !== "auto")));
+    updateForm("vibe", random(VIBE_OPTIONS));
+  };
+
+  const rerollStyle = () => {
+    const random = <T,>(arr: Array<[string, T]>) => arr[Math.floor(Math.random() * arr.length)][0];
+    updateForm("palette", random(PALETTE_OPTIONS));
     updateForm("vibe", random(VIBE_OPTIONS));
   };
 
@@ -1139,13 +1172,62 @@ export function CpegLaunchpad() {
           </div>
 
           <div className="border border-neutral-200 dark:border-white/10 bg-neutral-100 dark:bg-[#0c0c0c] p-5">
-            <p className="font-mono text-[11px] uppercase tracking-[0.25em] text-[#53c7ff]">Art</p>
-            <div className="mt-4 grid gap-3 md:grid-cols-2">
-              <Select label="Subject" value={form.subject} onChange={(value) => updateForm("subject", value)} options={SUBJECT_OPTIONS} />
-              <Select label="Palette" value={form.palette} onChange={(value) => updateForm("palette", value)} options={PALETTE_OPTIONS} />
-              <Select label="Accessory" value={form.accessory} onChange={(value) => updateForm("accessory", value)} options={ACCESSORY_OPTIONS} />
-              <Select label="Background" value={form.background} onChange={(value) => updateForm("background", value)} options={BACKGROUND_OPTIONS} />
-              <Select label="Vibe" value={form.vibe} onChange={(value) => updateForm("vibe", value)} options={VIBE_OPTIONS} />
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <p className="font-mono text-[11px] uppercase tracking-[0.25em] text-[#53c7ff]">Character</p>
+                <p className="mt-1 text-xs leading-5 text-neutral-600 dark:text-white/55">
+                  Pick the creature for your collection. Palette, accessories, background and mood are auto-generated per PEG.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={rerollStyle}
+                className="inline-flex shrink-0 items-center gap-1.5 border border-neutral-300 dark:border-white/15 px-3 py-1.5 font-mono text-[10px] uppercase tracking-[0.2em] text-neutral-600 dark:text-white/65 transition hover:border-[#53c7ff] hover:text-[#53c7ff]"
+              >
+                <RefreshCw className="h-3 w-3" /> Reroll style
+              </button>
+            </div>
+            <div className="mt-4 grid grid-cols-3 gap-2 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6">
+              {SUBJECT_OPTIONS.map(([value, label]) => {
+                const isActive = form.subject === value;
+                const emoji = SUBJECT_EMOJI[value] || "\u{2728}";
+                return (
+                  <button
+                    key={value}
+                    type="button"
+                    onClick={() => updateForm("subject", value)}
+                    aria-pressed={isActive}
+                    className={`group relative flex aspect-square flex-col items-center justify-center gap-1 border bg-neutral-100/95 dark:bg-black/30 p-2 transition ${
+                      isActive
+                        ? "border-[#53c7ff] text-[#53c7ff] shadow-[0_0_18px_rgba(83,199,255,0.25)]"
+                        : "border-neutral-200 text-neutral-700 hover:border-[#53c7ff]/50 hover:text-[#53c7ff] dark:border-white/10 dark:text-white/75 dark:hover:border-[#53c7ff]/50"
+                    }`}
+                  >
+                    <span className="text-2xl leading-none" aria-hidden>{emoji}</span>
+                    <span className="font-mono text-[9px] uppercase tracking-[0.18em]">{label}</span>
+                    {isActive ? (
+                      <span className="absolute right-1.5 top-1.5 h-1.5 w-1.5 rounded-full bg-[#53c7ff] shadow-[0_0_8px_rgba(83,199,255,0.9)]" />
+                    ) : null}
+                  </button>
+                );
+              })}
+            </div>
+            <div className="mt-4 flex flex-wrap items-center gap-2 border-t border-neutral-200 pt-3 dark:border-white/10">
+              <span className="font-mono text-[10px] uppercase tracking-[0.2em] text-neutral-500 dark:text-white/40">
+                Auto-tuned
+              </span>
+              <span className="border border-neutral-200 bg-neutral-100/95 px-2 py-0.5 font-mono text-[9px] uppercase tracking-[0.18em] text-neutral-600 dark:border-white/10 dark:bg-black/30 dark:text-white/55">
+                Palette
+              </span>
+              <span className="border border-neutral-200 bg-neutral-100/95 px-2 py-0.5 font-mono text-[9px] uppercase tracking-[0.18em] text-neutral-600 dark:border-white/10 dark:bg-black/30 dark:text-white/55">
+                Accessory
+              </span>
+              <span className="border border-neutral-200 bg-neutral-100/95 px-2 py-0.5 font-mono text-[9px] uppercase tracking-[0.18em] text-neutral-600 dark:border-white/10 dark:bg-black/30 dark:text-white/55">
+                Background
+              </span>
+              <span className="border border-neutral-200 bg-neutral-100/95 px-2 py-0.5 font-mono text-[9px] uppercase tracking-[0.18em] text-neutral-600 dark:border-white/10 dark:bg-black/30 dark:text-white/55">
+                Mood
+              </span>
             </div>
           </div>
 
