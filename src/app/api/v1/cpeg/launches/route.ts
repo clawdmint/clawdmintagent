@@ -140,6 +140,14 @@ export async function POST(request: NextRequest) {
       ...(rendererParams as Record<string, unknown>),
       ...cpegAgentRootToRendererParams(agentRoot),
     } as Prisma.InputJsonObject;
+    if (
+      input.renderer_id === CLAWPEG_DEFAULT_RENDERER_ID &&
+      input.renderer_version === CLAWPEG_DEFAULT_RENDERER_VERSION
+    ) {
+      const coerce = linkedRendererParams as Record<string, unknown>;
+      coerce["accessory"] = "auto";
+      coerce["background"] = "auto";
+    }
     const metadataEntries = cpegAgentRootToTokenMetadata(agentRoot);
     const premiumIndexing = true;
     const fees = quoteClawPegLaunchFee({

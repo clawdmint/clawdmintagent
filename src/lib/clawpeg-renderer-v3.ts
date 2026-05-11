@@ -1885,29 +1885,6 @@ function normalizeSubjectV3(value: unknown): SubjectKey {
   return (SUBJECT_LABELS[subject as SubjectKey] ? subject : "custom") as SubjectKey;
 }
 
-function accessoryParameterIsAutomatic(value: unknown): boolean {
-  if (value === undefined || value === null) return true;
-  const s = String(value).toLowerCase();
-  return s === "" || s === "auto";
-}
-
-function signatureAccessoryForSubject(subject: SubjectKey): AccessoryKey | null {
-  switch (subject) {
-    case "wizard":
-      return "wizard_hat";
-    case "samurai":
-      return "samurai_helm";
-    case "ninja":
-      return "ninja_mask";
-    case "agent":
-      return "visor";
-    case "sports":
-      return "bandanna";
-    default:
-      return null;
-  }
-}
-
 function normalizeAccessory(value: unknown, fallback: AccessoryKey, rng: () => number): AccessoryKey {
   const accessory = String(value || "").toLowerCase();
   if (ACCESSORY_LABELS[accessory as AccessoryKey]) return accessory as AccessoryKey;
@@ -1947,10 +1924,9 @@ function buildModel(input: ClawPegRenderInput): RenderModel {
   const spec = PALETTE_SPECS[paletteName] || PALETTE_SPECS.claw;
   const vibe = String(params.vibe || "balanced").toLowerCase();
   const palette = buildCreaturePalette(spec, subject, vibe);
-  const accessory: AccessoryKey = accessoryParameterIsAutomatic(params.accessory)
-    ? signatureAccessoryForSubject(subject) ?? normalizeAccessory(params.accessory, "none", rng)
-    : normalizeAccessory(params.accessory, "none", rng);
-  const background = normalizeBackground(params.background, rng);
+  // Accessory + background pin from launch params break 10k variety; they're always sampled from the peg RNG.
+  const accessory = normalizeAccessory("auto", "none", rng);
+  const background = normalizeBackground("auto", rng);
   const rank = hashUint32(`${seed}:rank`) % 10_000;
   return {
     seed,

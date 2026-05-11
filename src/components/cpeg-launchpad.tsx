@@ -193,8 +193,6 @@ const DEFAULT_FORM = {
   symbol: "",
   subject: "ape",
   palette: "claw",
-  accessory: "auto",
-  background: "auto",
   vibe: "balanced",
   maxPegs: "1000",
   decimals: "6",
@@ -256,32 +254,6 @@ const PALETTE_OPTIONS: Array<[string, string]> = [
   ["gold", "Gold"],
   ["emerald", "Emerald"],
   ["monochrome", "Mono"],
-];
-
-const ACCESSORY_OPTIONS: Array<[string, string]> = [
-  ["auto", "Auto"],
-  ["none", "Bare"],
-  ["wizard_hat", "Wizard Hat"],
-  ["fire_mohawk", "Fire Mohawk"],
-  ["gold_chain", "Gold Chain"],
-  ["crown", "Crown"],
-  ["halo", "Halo"],
-  ["visor", "Visor"],
-  ["bandanna", "Bandanna"],
-  ["samurai_helm", "Samurai Helm"],
-  ["headphones", "Headphones"],
-  ["signal_horns", "Signal Horns"],
-  ["ninja_mask", "Ninja Mask"],
-];
-
-const BACKGROUND_OPTIONS: Array<[string, string]> = [
-  ["auto", "Auto"],
-  ["solid", "Solid"],
-  ["stars", "Stars"],
-  ["grid", "Grid"],
-  ["vignette", "Vignette"],
-  ["dust", "Dust"],
-  ["horizon", "Horizon"],
 ];
 
 const VIBE_OPTIONS: Array<[string, string]> = [
@@ -421,12 +393,10 @@ export function CpegLaunchpad() {
     const params = new URLSearchParams({
       subject: form.subject,
       palette: form.palette,
-      accessory: form.accessory,
-      background: form.background,
       vibe: form.vibe,
     });
     return params.toString();
-  }, [form.accessory, form.background, form.palette, form.subject, form.vibe]);
+  }, [form.palette, form.subject, form.vibe]);
 
   // Fetch the live fee quote so that the user sees the actual launch cost before signing.
   useEffect(() => {
@@ -621,8 +591,8 @@ export function CpegLaunchpad() {
           renderer_params: {
             subject: form.subject,
             palette: form.palette,
-            accessory: form.accessory,
-            background: form.background,
+            accessory: "auto",
+            background: "auto",
             vibe: form.vibe,
           },
         }),
@@ -829,8 +799,6 @@ export function CpegLaunchpad() {
     canLaunch,
     connectedAddress,
     decimalsNumber,
-    form.accessory,
-    form.background,
     form.name,
     form.palette,
     form.subject,
@@ -1176,7 +1144,7 @@ export function CpegLaunchpad() {
               <div>
                 <p className="font-mono text-[11px] uppercase tracking-[0.25em] text-[#53c7ff]">Character</p>
                 <p className="mt-1 text-xs leading-5 text-neutral-600 dark:text-white/55">
-                  Pick the archetype for your collection. Each choice has its own silhouette or body type, and roles like Wizard, Samurai, Ninja, Agent, or Athlete pin a signature prop when extras are on automatic. Palette and background still roll per PEG.
+                  Archetypes set the character shape. Palette and mood are collection-wide style presets. Accessories and backdrops are drawn from a pool on every mint and change with each PEG id, so large supplies stay visually mixed.
                 </p>
               </div>
               <button
@@ -1214,19 +1182,22 @@ export function CpegLaunchpad() {
             </div>
             <div className="mt-4 flex flex-wrap items-center gap-2 border-t border-neutral-200 pt-3 dark:border-white/10">
               <span className="font-mono text-[10px] uppercase tracking-[0.2em] text-neutral-500 dark:text-white/40">
-                Auto-tuned
+                Collection style
               </span>
               <span className="border border-neutral-200 bg-neutral-100/95 px-2 py-0.5 font-mono text-[9px] uppercase tracking-[0.18em] text-neutral-600 dark:border-white/10 dark:bg-black/30 dark:text-white/55">
                 Palette
               </span>
               <span className="border border-neutral-200 bg-neutral-100/95 px-2 py-0.5 font-mono text-[9px] uppercase tracking-[0.18em] text-neutral-600 dark:border-white/10 dark:bg-black/30 dark:text-white/55">
-                Accessory
-              </span>
-              <span className="border border-neutral-200 bg-neutral-100/95 px-2 py-0.5 font-mono text-[9px] uppercase tracking-[0.18em] text-neutral-600 dark:border-white/10 dark:bg-black/30 dark:text-white/55">
-                Background
-              </span>
-              <span className="border border-neutral-200 bg-neutral-100/95 px-2 py-0.5 font-mono text-[9px] uppercase tracking-[0.18em] text-neutral-600 dark:border-white/10 dark:bg-black/30 dark:text-white/55">
                 Mood
+              </span>
+              <span className="font-mono text-[10px] uppercase tracking-[0.2em] text-neutral-500 dark:text-white/40">
+                Per mint
+              </span>
+              <span className="border border-neutral-200 bg-neutral-100/95 px-2 py-0.5 font-mono text-[9px] uppercase tracking-[0.18em] text-neutral-600 dark:border-white/10 dark:bg-black/30 dark:text-white/55">
+                Accessory pool
+              </span>
+              <span className="border border-neutral-200 bg-neutral-100/95 px-2 py-0.5 font-mono text-[9px] uppercase tracking-[0.18em] text-neutral-600 dark:border-white/10 dark:bg-black/30 dark:text-white/55">
+                Backdrop pool
               </span>
             </div>
           </div>

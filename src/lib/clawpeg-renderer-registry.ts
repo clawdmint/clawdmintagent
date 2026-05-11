@@ -63,31 +63,8 @@ const PALETTE_OPTIONS = [
   { value: "monochrome", label: "Mono" },
 ];
 
-const ACCESSORY_OPTIONS = [
-  { value: "auto", label: "Auto (per peg)" },
-  { value: "none", label: "Bare" },
-  { value: "wizard_hat", label: "Wizard Hat" },
-  { value: "fire_mohawk", label: "Fire Mohawk" },
-  { value: "gold_chain", label: "Gold Chain" },
-  { value: "crown", label: "Crown" },
-  { value: "halo", label: "Halo" },
-  { value: "visor", label: "Visor" },
-  { value: "bandanna", label: "Bandanna" },
-  { value: "samurai_helm", label: "Samurai Helm" },
-  { value: "headphones", label: "Headphones" },
-  { value: "signal_horns", label: "Signal Horns" },
-  { value: "ninja_mask", label: "Ninja Mask" },
-];
-
-const BACKGROUND_OPTIONS = [
-  { value: "auto", label: "Auto (per peg)" },
-  { value: "solid", label: "Solid" },
-  { value: "stars", label: "Stars" },
-  { value: "grid", label: "Grid" },
-  { value: "vignette", label: "Vignette" },
-  { value: "dust", label: "Dust" },
-  { value: "horizon", label: "Horizon" },
-];
+/** v0.3.0: accessory and background are sampled per PEG; launch params must stay `auto`. */
+const PER_PEG_RANDOM_OPTION = [{ value: "auto", label: "Random per PEG" }];
 
 const VIBE_OPTIONS = [
   { value: "balanced", label: "Balanced" },
@@ -140,12 +117,12 @@ const AGENT_PIXEL_V3: ClawPegRendererManifest = {
   version: "0.3.0",
   name: "Agent Pixel v3",
   description:
-    "High-fidelity deterministic pixel-art renderer with multi-tone face shading, dense feature detail, and 12 accessories.",
+    "High-fidelity deterministic pixel-art renderer with multi-tone face shading, dense feature detail, and per-PEG random accessories and backgrounds.",
   fields: [
     { key: "subject", label: "Subject", options: SUBJECT_OPTIONS },
     { key: "palette", label: "Palette", options: PALETTE_OPTIONS },
-    { key: "accessory", label: "Accessory", options: ACCESSORY_OPTIONS },
-    { key: "background", label: "Background", options: BACKGROUND_OPTIONS },
+    { key: "accessory", label: "Accessory", options: PER_PEG_RANDOM_OPTION },
+    { key: "background", label: "Background", options: PER_PEG_RANDOM_OPTION },
     { key: "vibe", label: "Vibe", options: VIBE_OPTIONS },
   ],
   defaultParams: {
