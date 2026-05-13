@@ -32,7 +32,7 @@ import {
 } from "@/lib/mpl-hybrid-native";
 import { prisma } from "@/lib/db";
 import { getMetaplexCoreConnection } from "@/lib/synapse-sap";
-import { getAgentOperationalKeypair } from "@/lib/agent-wallets";
+import { AgentWalletError, getAgentOperationalKeypair } from "@/lib/agent-wallets";
 
 export const dynamic = "force-dynamic";
 
@@ -201,7 +201,10 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
     const summary = await buildHybridStateSummary(data.agent, data.launch, counts);
     const tokenProgramId = summary.tokenProgramId;
     if (!tokenProgramId) {
-      throw new CpegHybridEngineError(409, "Agent token mint is not available on mainnet yet");
+      throw new CpegHybridEngineError(
+        409,
+        "Agent token mint is not available on mainnet yet. Deploy or sync the agent token mint to mainnet, then create a new cPEG launch."
+      );
     }
     const agentAuthority = getAgentOperationalKeypair(data.agent);
 
@@ -445,6 +448,9 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
     });
   } catch (error) {
     if (error instanceof CpegHybridEngineError) {
+      return NextResponse.json({ success: false, error: error.message, details: error.details }, { status: error.status });
+    }
+    if (error instanceof AgentWalletError) {
       return NextResponse.json({ success: false, error: error.message, details: error.details }, { status: error.status });
     }
     const message = error instanceof Error ? error.message : "Failed to set up hybrid launch";

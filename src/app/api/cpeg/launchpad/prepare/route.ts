@@ -74,25 +74,38 @@ function pegUnitFromDecimals(decimals: number): bigint {
   return BigInt(`1${"0".repeat(decimals)}`);
 }
 
-async function resolvePegBackingUnitRaw(
+function getSupportedTokenProgramId(owner: InstanceType<typeof PublicKey>) {
+  if (owner.equals(TOKEN_2022_PROGRAM_ID)) return TOKEN_2022_PROGRAM_ID;
+  if (owner.equals(TOKEN_PROGRAM_ID)) return TOKEN_PROGRAM_ID;
+  throw new Error("Agent token mint account is not owned by SPL Token or Token-2022 on mainnet.");
+}
+
+async function requireAgentTokenMintForHybridLaunch(
   connection: InstanceType<typeof Connection>,
   mintAddress: string,
   maxPegs: number,
   fallbackDecimals: number
 ) {
+  const mint = assertPublicKey(mintAddress, "agent_token_mint");
   const fallback = pegUnitFromDecimals(fallbackDecimals);
-  try {
-    const mint = new PublicKey(mintAddress);
-    const account = await connection.getAccountInfo(mint, "confirmed");
-    if (!account) return fallback;
-    const tokenProgramId = account.owner.equals(TOKEN_2022_PROGRAM_ID) ? TOKEN_2022_PROGRAM_ID : TOKEN_PROGRAM_ID;
-    const mintInfo = await getMint(connection, mint, "confirmed", tokenProgramId);
-    const cap = BigInt(Math.max(1, Math.min(CLAWPEG_MAX_SUPPLY_PER_COLLECTION, maxPegs)));
-    const unit = mintInfo.supply / cap;
-    return unit > BigInt(0) ? unit : fallback;
-  } catch {
-    return fallback;
+  const account = await connection.getAccountInfo(mint, "confirmed");
+  if (!account) {
+    throw new Error(
+      "Agent token mint is not available on mainnet yet. Deploy or sync the agent token mint to mainnet before launching cPEG."
+    );
   }
+  const tokenProgramId = getSupportedTokenProgramId(account.owner);
+  let mintInfo: Awaited<ReturnType<typeof getMint>>;
+  try {
+    mintInfo = await getMint(connection, mint, "confirmed", tokenProgramId);
+  } catch {
+    throw new Error("Agent token mint is not a valid SPL mint account on mainnet.");
+  }
+  const cap = BigInt(Math.max(1, Math.min(CLAWPEG_MAX_SUPPLY_PER_COLLECTION, maxPegs)));
+  const unit = mintInfo.supply / cap;
+  return {
+    pegUnitRaw: unit > BigInt(0) ? unit : fallback,
+  };
 }
 
 function getCpegMetadataUri(tokenMint: string) {
@@ -243,7 +256,26 @@ export async function POST(request: NextRequest) {
       }
       const agentTokenMint = input.agent_token_mint || input.token_mint;
       assertPublicKey(agentTokenMint, "agent_token_mint");
-      pegUnitRaw = (await resolvePegBackingUnitRaw(connection, agentTokenMint, input.max_pegs, input.decimals)).toString();
+      try {
+        const mintState = await requireAgentTokenMintForHybridLaunch(
+          connection,
+          agentTokenMint,
+          input.max_pegs,
+          input.decimals
+        );
+        pegUnitRaw = mintState.pegUnitRaw.toString();
+      } catch (error) {
+        return NextResponse.json(
+          {
+            success: false,
+            error:
+              error instanceof Error
+                ? error.message
+                : "Agent token mint is not available on mainnet yet.",
+          },
+          { status: 409 }
+        );
+      }
       const identityAccounts = await connection.getMultipleAccountsInfo(
         [new PublicKey(agentRoot.agentAssetAddress), new PublicKey(agentRoot.agentIdentityPda)],
         "confirmed"

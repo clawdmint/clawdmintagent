@@ -239,13 +239,16 @@ interface HybridContext {
 
 function deriveTokenProgramId(ownerProgramId: string): InstanceType<typeof PublicKey> {
   if (ownerProgramId === TOKEN_2022_PROGRAM_ID.toBase58()) return TOKEN_2022_PROGRAM_ID;
-  return TOKEN_PROGRAM_ID;
+  if (ownerProgramId === TOKEN_PROGRAM_ID.toBase58()) return TOKEN_PROGRAM_ID;
+  throw new CpegHybridEngineError(
+    409,
+    "Agent token mint account is not owned by SPL Token or Token-2022 on mainnet"
+  );
 }
 
-async function loadHybridContext(
-  agent: HybridAgentRecord,
+async function loadHybridTokenContext(
   launch: Pick<HybridLaunchSnapshot, "agentTokenMint" | "tokenMint" | "pegUnitRaw" | "maxPegs">
-): Promise<HybridContext> {
+) {
   const mintBase58 = (launch.agentTokenMint || launch.tokenMint || "").trim();
   if (!mintBase58) {
     throw new CpegHybridEngineError(400, "Agent token mint is missing on this cPEG launch");
@@ -256,7 +259,6 @@ async function loadHybridContext(
   } catch {
     throw new CpegHybridEngineError(400, "Agent token mint is not a valid Solana address");
   }
-  const signer = getAgentOperationalKeypair(agent);
   const connection = getMetaplexCoreConnection({ commitment: "confirmed" });
   const mintAccount = await connection.getAccountInfo(tokenMint, "confirmed");
   if (!mintAccount) {
@@ -270,7 +272,7 @@ async function loadHybridContext(
     decimals = info.decimals;
     tokenSupplyRaw = info.supply;
   } catch {
-    decimals = 0;
+    throw new CpegHybridEngineError(409, "Agent token mint is not a valid SPL mint account on mainnet");
   }
   let pegUnitRaw: bigint;
   try {
@@ -291,7 +293,16 @@ async function loadHybridContext(
   if (pegUnitRaw <= BigInt(0)) {
     pegUnitRaw = baseUnitRaw;
   }
-  return { agent, signer, connection, tokenMint, tokenProgramId, decimals, tokenSupplyRaw, pegUnitRaw };
+  return { connection, tokenMint, tokenProgramId, decimals, tokenSupplyRaw, pegUnitRaw };
+}
+
+async function loadHybridContext(
+  agent: HybridAgentRecord,
+  launch: Pick<HybridLaunchSnapshot, "agentTokenMint" | "tokenMint" | "pegUnitRaw" | "maxPegs">
+): Promise<HybridContext> {
+  const tokenContext = await loadHybridTokenContext(launch);
+  const signer = getAgentOperationalKeypair(agent);
+  return { agent, signer, ...tokenContext };
 }
 
 function effectiveHybridCapacity(maxPegs: number, tokenSupplyRaw: bigint, pegUnitRaw: bigint) {
@@ -352,7 +363,7 @@ export async function buildHybridStateSummary(
   let vaultRaw = BigInt(0);
   let vaultWhole = 0;
   try {
-    const ctx = await loadHybridContext(agent, launch);
+    const ctx = await loadHybridTokenContext(launch);
     tokenProgramId = ctx.tokenProgramId.toBase58();
     decimals = ctx.decimals;
     tokenSupplyRaw = ctx.tokenSupplyRaw;

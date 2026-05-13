@@ -1,4 +1,5 @@
 import { Connection, PublicKey } from "@solana/web3.js";
+import { TOKEN_2022_PROGRAM_ID, TOKEN_PROGRAM_ID, getMint } from "@solana/spl-token";
 import type { Prisma } from "@prisma/client";
 import { createPublicKey, verify } from "crypto";
 import bs58 from "bs58";
@@ -171,6 +172,30 @@ function parsePegCollection(data: Buffer) {
   };
 }
 
+function getSupportedTokenProgramId(owner: InstanceType<typeof PublicKey>) {
+  if (owner.equals(TOKEN_2022_PROGRAM_ID)) return TOKEN_2022_PROGRAM_ID;
+  if (owner.equals(TOKEN_PROGRAM_ID)) return TOKEN_PROGRAM_ID;
+  throw new Error("Agent token mint account is not owned by SPL Token or Token-2022 on mainnet.");
+}
+
+async function requireAgentTokenMintOnMainnet(
+  connection: InstanceType<typeof Connection>,
+  tokenMint: InstanceType<typeof PublicKey>
+) {
+  const account = await connection.getAccountInfo(tokenMint, "confirmed");
+  if (!account) {
+    throw new Error(
+      "Agent token mint is not available on mainnet yet. Deploy or sync the agent token mint to mainnet before confirming cPEG."
+    );
+  }
+  const tokenProgramId = getSupportedTokenProgramId(account.owner);
+  try {
+    await getMint(connection, tokenMint, "confirmed", tokenProgramId);
+  } catch {
+    throw new Error("Agent token mint is not a valid SPL mint account on mainnet.");
+  }
+}
+
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
@@ -227,6 +252,20 @@ export async function POST(request: NextRequest) {
 
     if (input.standard_mode === CPEG_STANDARD_MODE_METAPLEX_HYBRID) {
       const tokenMint = new PublicKey(input.agent_token_mint || input.token_mint);
+      try {
+        await requireAgentTokenMintOnMainnet(connection, tokenMint);
+      } catch (error) {
+        return NextResponse.json(
+          {
+            success: false,
+            error:
+              error instanceof Error
+                ? error.message
+                : "Agent token mint is not available on mainnet yet.",
+          },
+          { status: 409 }
+        );
+      }
       const rendererId = input.renderer_id || CLAWPEG_DEFAULT_RENDERER_ID;
       const rendererVersion = input.renderer_version || CLAWPEG_DEFAULT_RENDERER_VERSION;
       const rendererParamsObject = (input.renderer_params || {}) as Record<string, unknown>;
