@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { Prisma } from "@prisma/client";
 import { z } from "zod";
-import { findClawPegCollectionAddress, findTradeArtRecordAddress } from "@/lib/clawpeg";
+import { CPEG_STANDARD_MODE_METAPLEX_HYBRID } from "@/lib/cpeg-metaplex-hybrid";
 import { prisma } from "@/lib/db";
 
 export const dynamic = "force-dynamic";
@@ -25,38 +24,26 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
       { status: 400 }
     );
   }
-  const launch = await prisma.clawPegLaunch.findUnique({ where: { tokenMint: params.mint } });
-  if (!launch) {
-    return NextResponse.json({ success: false, error: "cPEG collection not found" }, { status: 404 });
-  }
-  const uniquePegIds = Array.from(new Set(parsed.data.peg_ids));
-  const idList = Prisma.join(uniquePegIds);
-  const rows = await prisma.$queryRaw<Array<{ id: string; pegId: number }>>`
-    UPDATE "ClawPegMarketListing"
-    SET "status" = ${"FILLED"},
-      "buyerAddress" = ${parsed.data.buyer},
-      "buyTxHash" = ${parsed.data.signature},
-      "soldAt" = NOW(),
-      "updatedAt" = NOW()
-    WHERE "tokenMint" = ${launch.tokenMint}
-      AND "pegId" IN (${idList})
-      AND "status" = ${"ACTIVE"}
-    RETURNING "id", "pegId"
-  `;
-  // Each fill in this batch atomically wrote its own deterministic trade-art via CPI from
-  // cpeg-market::buy -> clawpeg::record_trade_art. Surface the PDA + image URL for each so
-  // the client can render a "your batch produced this art" gallery immediately.
-  const collectionAddress = findClawPegCollectionAddress(launch.tokenMint).toBase58();
-  const trade_art = parsed.data.peg_ids.map((pegId, index) => {
-    const tradeIndex = parsed.data.trade_indices?.[index]
-      ? BigInt(parsed.data.trade_indices[index])
-      : BigInt(pegId);
-    return {
-      peg_id: pegId,
-      trade_index: tradeIndex.toString(),
-      address: findTradeArtRecordAddress(collectionAddress, tradeIndex).toBase58(),
-      image_url: `/api/cpeg/${launch.tokenMint}/trade-art/${tradeIndex.toString()}/svg`,
-    };
+
+  const launch = await prisma.clawPegLaunch.findUnique({
+    where: { tokenMint: params.mint },
+    select: { standardMode: true },
   });
-  return NextResponse.json({ success: true, listings: rows, trade_art });
+  if (!launch) {
+    return NextResponse.json({ success: false, error: "cPEG launch not found" }, { status: 404 });
+  }
+  if (launch.standardMode !== CPEG_STANDARD_MODE_METAPLEX_HYBRID) {
+    return NextResponse.json(
+      { success: false, error: "Legacy custom cPEG batch buys are disabled. This market only supports Metaplex Hybrid cPEGs." },
+      { status: 410 }
+    );
+  }
+
+  return NextResponse.json(
+    {
+      success: false,
+      error: "Metaplex Hybrid cPEG batch buy confirm is disabled. Confirm each Core asset purchase through the single-buy endpoint.",
+    },
+    { status: 400 }
+  );
 }

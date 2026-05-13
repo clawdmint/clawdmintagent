@@ -88,7 +88,10 @@ export async function GET(request: NextRequest) {
 
   const launches = await prisma.clawPegLaunch
     .findMany({
-      where: { status: { in: ["ACTIVE", "LAUNCHED", "HYBRID_READY", "HYBRID_CONFIGURED"] } },
+      where: {
+        status: { in: ["ACTIVE", "LAUNCHED", "HYBRID_READY", "HYBRID_CONFIGURED"] },
+        standardMode: "metaplex_hybrid",
+      },
       orderBy: { createdAt: "desc" },
       take: 30,
       select: {
@@ -135,10 +138,8 @@ export async function GET(request: NextRequest) {
 
   const candidateIds = buildCandidateIds(selected.maxPegs, search, sort, offset, limit);
   const isHybrid = selected.standardMode === "metaplex_hybrid";
-  // For the legacy custom_registry path we read the on-chain peg PDAs to learn
-  // who owns each cPEG. For the metaplex_hybrid path the PEG identity lives as
-  // a Metaplex Core asset whose ownership we already track in
-  // ClawPegHybridAsset, so we can render the gallery without an RPC roundtrip.
+  // Metaplex Hybrid PEG identity lives as a Core asset whose ownership we track
+  // in ClawPegHybridAsset, so the gallery does not need the legacy market PDA path.
   const pegAddresses = !isHybrid && selected.collectionAddress
     ? candidateIds.map((pegId) => findPegRecordAddress(selected.collectionAddress || "", pegId))
     : [];

@@ -1,15 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { Prisma } from "@prisma/client";
-import { Connection, PublicKey } from "@solana/web3.js";
 import { prisma } from "@/lib/db";
-import {
-  CPEG_MARKET_LISTING_STATUS_ACTIVE,
-  findClawPegCollectionAddress,
-  findMarketListingAddress,
-  parseCpegMarketListingAccount,
-  splitClawPegMarketPayment,
-} from "@/lib/clawpeg";
-import { getClawPegRpcUrl } from "@/lib/env";
+import { splitClawPegMarketPayment } from "@/lib/clawpeg";
+import { CPEG_STANDARD_MODE_METAPLEX_HYBRID } from "@/lib/cpeg-metaplex-hybrid";
 
 export const dynamic = "force-dynamic";
 
@@ -61,38 +54,11 @@ export async function GET(request: NextRequest, { params }: RouteContext) {
   if (!launch) {
     return NextResponse.json({ success: false, error: "cPEG collection not found" }, { status: 404 });
   }
-  if (!launch.collectionAddress && launch.standardMode !== "metaplex_hybrid") {
-    return NextResponse.json({
-      success: true,
-      collection: {
-        name: launch.name,
-        symbol: launch.symbol,
-        token_mint: launch.tokenMint,
-        collection_address: null,
-        royalty_bps: launch.royaltyBps,
-        marketplace_fee_bps: launch.marketplaceFeeBps,
-        creator_address: launch.creatorAddress,
-        fee_vault_address: launch.feeVaultAddress,
-        max_pegs: launch.maxPegs,
-      },
-      summary: {
-        active_listings: 0,
-        filled_listings: 0,
-        floor_lamports: null,
-        floor_sol: null,
-        volume_lamports: "0",
-        volume_sol: "0",
-      },
-      filters: {
-        sort,
-        seller: seller || null,
-        min_price_lamports: minPriceParam || null,
-        max_price_lamports: maxPriceParam || null,
-        limit,
-      },
-      listings: [],
-      status: "HYBRID_READY",
-    });
+  if (launch.standardMode !== CPEG_STANDARD_MODE_METAPLEX_HYBRID) {
+    return NextResponse.json(
+      { success: false, error: "Legacy custom cPEG market listings are disabled. This market only supports Metaplex Hybrid cPEGs." },
+      { status: 410 }
+    );
   }
 
   const conditions: Prisma.Sql[] = [
@@ -113,29 +79,26 @@ export async function GET(request: NextRequest, { params }: RouteContext) {
   const whereSql = Prisma.sql`WHERE ${Prisma.join(conditions, " AND ")}`;
   const limitSql = Prisma.sql`LIMIT ${limit}`;
 
-  const isHybrid = launch.standardMode === "metaplex_hybrid";
-  if (isHybrid) {
-    // A previous reconciliation path treated hybrid Core listings like legacy
-    // PDA listings and marked them FILLED when there was no legacy market PDA.
-    // Hybrid sales always have a buyer/buyTxHash; if both are absent and the
-    // Core asset is still LISTED in the agent vault, this is an active escrow.
-    await prisma.$executeRaw`
-      UPDATE "ClawPegMarketListing" AS l
-      SET "status" = 'ACTIVE',
-        "soldAt" = NULL,
-        "buyerAddress" = NULL,
-        "buyTxHash" = NULL,
-        "updatedAt" = NOW()
-      FROM "ClawPegHybridAsset" AS a
-      WHERE l."launchId" = ${launch.id}
-        AND l."status" = 'FILLED'
-        AND l."buyerAddress" IS NULL
-        AND l."buyTxHash" IS NULL
-        AND a."launchId" = l."launchId"
-        AND a."assetAddress" = l."listingAddress"
-        AND a."status" = 'LISTED'
-    `.catch(() => 0);
-  }
+  // A previous reconciliation path treated hybrid Core listings like legacy
+  // PDA listings and marked them FILLED when there was no legacy market PDA.
+  // Hybrid sales always have a buyer/buyTxHash; if both are absent and the
+  // Core asset is still LISTED in local state, this is an active delegated listing.
+  await prisma.$executeRaw`
+    UPDATE "ClawPegMarketListing" AS l
+    SET "status" = 'ACTIVE',
+      "soldAt" = NULL,
+      "buyerAddress" = NULL,
+      "buyTxHash" = NULL,
+      "updatedAt" = NOW()
+    FROM "ClawPegHybridAsset" AS a
+    WHERE l."launchId" = ${launch.id}
+      AND l."status" = 'FILLED'
+      AND l."buyerAddress" IS NULL
+      AND l."buyTxHash" IS NULL
+      AND a."launchId" = l."launchId"
+      AND a."assetAddress" = l."listingAddress"
+      AND a."status" = 'LISTED'
+  `.catch(() => 0);
 
   const rawListings = await prisma.$queryRaw<Array<{
     id: string;
@@ -159,63 +122,6 @@ export async function GET(request: NextRequest, { params }: RouteContext) {
     ${orderBy}
     ${limitSql}
   `;
-
-  // On-chain reconciliation: skim each candidate listing's PDA to filter out rows whose
-  // on-chain status drifted from the DB (e.g. stale ACTIVE rows produced by a previously
-  // failed list/confirm round trip, or pre-upgrade rows where the PDA is FILLED but the DB
-  // never updated). We also auto-heal the DB so the row vanishes from the next request.
-  const listings: typeof rawListings = [];
-  if (rawListings.length > 0 && launch.collectionAddress && !isHybrid) {
-    try {
-      const collectionAddress = findClawPegCollectionAddress(launch.tokenMint);
-      const pdas = rawListings.map((row) =>
-        findMarketListingAddress(collectionAddress.toBase58(), row.pegId)
-      );
-      const connection = new Connection(getClawPegRpcUrl(), { commitment: "confirmed" });
-      // Solana RPC limits getMultipleAccountsInfo to 100 accounts per call; we cap at 240 above
-      // so split into chunks of 100 to stay within bounds.
-      const infos: (Awaited<ReturnType<typeof connection.getAccountInfo>>)[] = [];
-      for (let i = 0; i < pdas.length; i += 100) {
-        const chunk = pdas.slice(i, i + 100).map((pk) => new PublicKey(pk));
-        const got = await connection.getMultipleAccountsInfo(chunk, "confirmed");
-        infos.push(...got);
-      }
-      const driftedPegIds: number[] = [];
-      for (let i = 0; i < rawListings.length; i += 1) {
-        const row = rawListings[i];
-        const info = infos[i];
-        if (!info || info.data.length === 0) {
-          driftedPegIds.push(row.pegId);
-          continue;
-        }
-        const state = parseCpegMarketListingAccount(Buffer.from(info.data));
-        if (!state.isInitialized || state.status !== CPEG_MARKET_LISTING_STATUS_ACTIVE) {
-          driftedPegIds.push(row.pegId);
-          continue;
-        }
-        listings.push(row);
-      }
-      if (driftedPegIds.length > 0) {
-        // Best-effort drift heal. We mark the rows FILLED so the marketplace stops showing
-        // them; a more precise reconciliation could distinguish FILLED vs CANCELLED, but for
-        // hide-purposes either terminal state is sufficient.
-        await prisma
-          .$executeRaw`
-            UPDATE "ClawPegMarketListing"
-            SET "status" = 'FILLED', "updatedAt" = NOW(), "soldAt" = COALESCE("soldAt", NOW())
-            WHERE "launchId" = ${launch.id}
-              AND "status" = 'ACTIVE'
-              AND "pegId" IN (${Prisma.join(driftedPegIds)})
-          `
-          .catch(() => null);
-      }
-    } catch {
-      // If RPC reconciliation fails (network blip, RPC down) we fall back to the raw DB
-      // result so the marketplace stays usable. The buy/prepare preflight will still catch
-      // any drift at purchase time.
-      listings.push(...rawListings);
-    }
-  }
 
   // Aggregations for the marketplace header (independent of filters except seller).
   const baseConditions: Prisma.Sql[] = [Prisma.sql`"launchId" = ${launch.id}`];
@@ -250,7 +156,7 @@ export async function GET(request: NextRequest, { params }: RouteContext) {
       name: launch.name,
       symbol: launch.symbol,
       token_mint: launch.tokenMint,
-      collection_address: launch.collectionAddress,
+      collection_address: launch.hybridCoreCollectionAddress || launch.collectionAddress,
       royalty_bps: launch.royaltyBps,
       marketplace_fee_bps: launch.marketplaceFeeBps,
       creator_address: launch.creatorAddress,
@@ -272,7 +178,7 @@ export async function GET(request: NextRequest, { params }: RouteContext) {
       max_price_lamports: maxPriceParam || null,
       limit,
     },
-    listings: (launch.collectionAddress && !isHybrid ? listings : rawListings).map((listing) => {
+    listings: rawListings.map((listing) => {
       const breakdown = splitClawPegMarketPayment(
         BigInt(listing.priceLamports),
         listing.royaltyBps,

@@ -66,6 +66,7 @@ interface CpegLaunchSummary {
   symbol: string;
   token_mint: string;
   collection_address: string | null;
+  hybrid_core_collection_address?: string | null;
   authority_address?: string | null;
   cluster: string;
   standard_mode?: string;
@@ -354,7 +355,11 @@ export function CpegMarketClient() {
   );
   const showingCollectionDetail = Boolean(selectedMint && selectedLaunch);
   const identityPrefix = selectedLaunch?.symbol || collection?.symbol || "PEG";
-  const marketReady = Boolean(selectedLaunch?.collection_address);
+  const marketReady = Boolean(
+    selectedLaunch?.standard_mode === "metaplex_hybrid" ||
+      selectedLaunch?.collection_address ||
+      selectedLaunch?.hybrid_core_collection_address
+  );
   const isLaunchAuthority = Boolean(
     selectedLaunch?.authority_address && connectedAddress && selectedLaunch.authority_address === connectedAddress
   );

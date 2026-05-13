@@ -72,6 +72,7 @@ interface LaunchRow {
   agentIdentityPda: string | null;
   agentTokenMint: string | null;
   hybridStatus: string | null;
+  hybridCoreCollectionAddress: string | null;
   authorityAddress: string | null;
   createdAt: Date;
 }
@@ -107,9 +108,11 @@ export async function GET(request: NextRequest) {
       SELECT "id", "name", "symbol", "tokenMint", "collectionAddress", "hookValidationAddress",
         "cluster", "rendererId", "rendererVersion", "rendererHash", "maxPegs", "status", "standardMode",
         "royaltyBps", "marketplaceFeeBps", "identityMode", "canonicalRoot", "agentAssetAddress",
-        "agentIdentityPda", "agentTokenMint", "hybridStatus", "authorityAddress", "createdAt"
+        "agentIdentityPda", "agentTokenMint", "hybridStatus", "hybridCoreCollectionAddress",
+        "authorityAddress", "createdAt"
       FROM "ClawPegLaunch"
       WHERE "status" IN (${"ACTIVE"}, ${"LAUNCHED"}, ${"HYBRID_READY"}, ${"HYBRID_CONFIGURED"})
+        AND "standardMode" = ${"metaplex_hybrid"}
       ${orderClause}
       LIMIT ${limit}
     `;
@@ -154,7 +157,6 @@ export async function GET(request: NextRequest) {
     ],
     indexer: {
       standard_events: "/api/cpeg/indexer/events?program=standard",
-      market_events: "/api/cpeg/indexer/events?program=market",
     },
     token2022: {
       mint_extensions: ["TransferHook", "MetadataPointer", "TokenMetadata"],
@@ -194,7 +196,8 @@ export async function GET(request: NextRequest) {
         name: launch.name,
         symbol: launch.symbol,
         token_mint: launch.tokenMint,
-        collection_address: launch.collectionAddress,
+        collection_address: launch.hybridCoreCollectionAddress || launch.collectionAddress,
+        hybrid_core_collection_address: launch.hybridCoreCollectionAddress,
         hook_validation_address: launch.hookValidationAddress,
         cluster: launch.cluster,
         renderer_id: launch.rendererId,

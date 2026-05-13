@@ -1,6 +1,6 @@
 import { Connection, PublicKey } from "@solana/web3.js";
 import { NextRequest, NextResponse } from "next/server";
-import { getClawPegProgramId, getCpegMarketProgramId } from "@/lib/clawpeg";
+import { getClawPegProgramId } from "@/lib/clawpeg";
 import { insertCpegIndexerEvents } from "@/lib/cpeg-indexer-store";
 import { getClawPegRpcUrl } from "@/lib/env";
 
@@ -33,7 +33,10 @@ function parseCpegEvents(logs: string[] | null | undefined) {
 }
 
 function programAddress(program: ProgramType): InstanceType<typeof PublicKey> {
-  return program === "market" ? getCpegMarketProgramId() : getClawPegProgramId();
+  if (program === "market") {
+    throw new Error("Legacy custom cPEG market program indexing is disabled on the Metaplex Hybrid path.");
+  }
+  return getClawPegProgramId();
 }
 
 async function syncProgram(program: ProgramType, limit: number) {
@@ -68,7 +71,7 @@ export async function POST(request: NextRequest) {
   const limit = Math.min(Math.max(Number.parseInt(request.nextUrl.searchParams.get("limit") || "40", 10), 1), 100);
   const only = request.nextUrl.searchParams.get("program");
   const programs: ProgramType[] =
-    only === "market" ? ["market"] : only === "standard" ? ["standard"] : ["standard", "market"];
+    only === "market" ? ["market"] : ["standard"];
 
   try {
     const results = await Promise.all(programs.map((program) => syncProgram(program, limit)));
@@ -88,4 +91,3 @@ export async function POST(request: NextRequest) {
     );
   }
 }
-

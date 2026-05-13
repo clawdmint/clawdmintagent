@@ -1,6 +1,6 @@
 import { Connection, PublicKey } from "@solana/web3.js";
 import { NextRequest, NextResponse } from "next/server";
-import { getClawPegProgramId, getCpegMarketProgramId } from "@/lib/clawpeg";
+import { getClawPegProgramId } from "@/lib/clawpeg";
 import { ensureCpegIndexerEventTable, insertCpegIndexerEvents } from "@/lib/cpeg-indexer-store";
 import { prisma } from "@/lib/db";
 import { getClawPegRpcUrl } from "@/lib/env";
@@ -33,7 +33,10 @@ function parseCpegEvents(logs: string[] | null | undefined) {
 }
 
 function readProgramAddress(name: string): InstanceType<typeof PublicKey> {
-  return name === "market" ? getCpegMarketProgramId() : getClawPegProgramId();
+  if (name === "market") {
+    throw new Error("Legacy custom cPEG market program indexing is disabled on the Metaplex Hybrid path.");
+  }
+  return getClawPegProgramId();
 }
 
 export async function GET(request: NextRequest) {
