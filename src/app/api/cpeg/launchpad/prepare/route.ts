@@ -133,6 +133,34 @@ export async function POST(request: NextRequest) {
     }
 
     const input = parsed.data;
+    const cluster = getClawPegCluster();
+    if (cluster !== "mainnet-beta") {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "Public cPEG launches are mainnet-only. Configure Solana mainnet before preparing cPEG.",
+        },
+        { status: 409 }
+      );
+    }
+    if (input.standard_mode !== CPEG_STANDARD_MODE_METAPLEX_HYBRID) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "Legacy custom-registry cPEG launches are disabled. Use Metaplex Agent + MPL-Hybrid.",
+        },
+        { status: 400 }
+      );
+    }
+    if (input.identity_mode !== CPEG_IDENTITY_MODE_METAPLEX_AGENT) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "cPEG launches require a registered Metaplex Agent Identity root.",
+        },
+        { status: 400 }
+      );
+    }
     assertPublicKey(input.token_mint, "token_mint");
     if (input.agent_token_mint) assertPublicKey(input.agent_token_mint, "agent_token_mint");
     assertPublicKey(input.authority_address, "authority_address");

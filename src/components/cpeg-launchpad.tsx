@@ -651,7 +651,7 @@ export function CpegLaunchpad() {
       }
 
       if (!prepareBody.token2022_setup || !prepareBody.manifest) {
-        throw new Error("Launch transaction manifest is missing.");
+        throw new Error("Legacy custom-registry cPEG launches are disabled. Use Metaplex Agent + MPL-Hybrid.");
       }
 
       const provider = getPhantomProvider();
@@ -724,6 +724,7 @@ export function CpegLaunchpad() {
           symbol: normalizedSymbol,
           signature,
           token_mint: prepareBody.launch.token_mint,
+          standard_mode: "custom_registry",
           collection_address: prepareBody.launch.collection_address,
           hook_validation_address: prepareBody.launch.hook_validation_address,
           renderer_id: prepareBody.launch.renderer_id,

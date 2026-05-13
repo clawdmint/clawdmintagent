@@ -3,7 +3,7 @@
 
 generator client {
   provider      = "prisma-client-js"
-  binaryTargets = ["native", "rhel-openssl-3.0.x"]
+  binaryTargets = ["native", "rhel-openssl-3.0.x", "debian-openssl-3.0.x"]
 }
 
 datasource db {
@@ -484,7 +484,7 @@ model ClawPegLaunch {
   partnerApiEnabled    Boolean  @default(false)
   whiteLabelDomain     String?
   identityMode         String   @default("standalone")
-  standardMode         String   @default("custom_registry")
+  standardMode         String   @default("metaplex_hybrid")
   canonicalRoot        String?
   agentAssetAddress    String?
   agentIdentityPda     String?

@@ -15,6 +15,7 @@ import {
 import { verifyClawPegRendererHash } from "@/lib/clawpeg-renderer-registry";
 import { getClawPegRpcUrl } from "@/lib/env";
 import {
+  CPEG_IDENTITY_MODE_METAPLEX_AGENT,
   normalizeCpegAgentRootLink,
 } from "@/lib/cpeg-agent-root";
 import {
@@ -39,7 +40,9 @@ const ConfirmSchema = z.object({
   authority_address: z.string().min(32).optional(),
   creator_address: z.string().min(32).optional(),
   fee_vault_address: z.string().min(32).optional(),
-  standard_mode: z.enum(["custom_registry", "metaplex_hybrid"]).default("custom_registry"),
+  // Public product launches default to Metaplex Hybrid. The custom registry
+  // path remains readable and explicitly callable for legacy launch records.
+  standard_mode: z.enum(["custom_registry", "metaplex_hybrid"]).default("metaplex_hybrid"),
   renderer_id: z.string().min(1).optional(),
   renderer_version: z.string().min(1).optional(),
   renderer_hash: z.string().min(64).optional(),
@@ -180,7 +183,34 @@ export async function POST(request: NextRequest) {
     }
 
     const input = parsed.data;
-    const cluster = getClawPegCluster();
+    const cluster: string = getClawPegCluster();
+    if (cluster !== "mainnet-beta") {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "Public cPEG launches are mainnet-only. Configure Solana mainnet before confirming cPEG.",
+        },
+        { status: 409 }
+      );
+    }
+    if (input.standard_mode !== CPEG_STANDARD_MODE_METAPLEX_HYBRID) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "Legacy custom-registry cPEG launches are disabled. Use Metaplex Agent + MPL-Hybrid.",
+        },
+        { status: 400 }
+      );
+    }
+    if (input.identity_mode !== CPEG_IDENTITY_MODE_METAPLEX_AGENT) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "cPEG launches require a registered Metaplex Agent Identity root.",
+        },
+        { status: 400 }
+      );
+    }
     const rpcUrl = process.env["CPEG_CONFIRM_RPC_URL"] || getClawPegRpcUrl();
     const connection = new Connection(rpcUrl, "confirmed");
     if (input.signature) {
@@ -308,7 +338,7 @@ export async function POST(request: NextRequest) {
           collectionAddress: null,
           hookValidationAddress: null,
           hookProgramId: input.hybrid_program_id || null,
-          chain: cluster === "devnet" ? "solana-devnet" : "solana",
+          chain: "solana",
           cluster,
           rendererHash,
           collectionSeed: input.collection_seed || rendererHash.slice(0, 64),
@@ -353,7 +383,7 @@ export async function POST(request: NextRequest) {
           collectionAddress: null,
           hookValidationAddress: null,
           hookProgramId: input.hybrid_program_id || null,
-          chain: cluster === "devnet" ? "solana-devnet" : "solana",
+          chain: "solana",
           cluster,
           rendererId,
           rendererVersion,
@@ -491,7 +521,7 @@ export async function POST(request: NextRequest) {
         collectionAddress: collectionAddress.toBase58(),
         hookValidationAddress: hookValidationAddress.toBase58(),
         hookProgramId: programId.toBase58(),
-        chain: cluster === "devnet" ? "solana-devnet" : "solana",
+        chain: "solana",
         cluster,
         rendererHash: collection.rendererHash,
         collectionSeed: collection.collectionSeed,
@@ -523,7 +553,7 @@ export async function POST(request: NextRequest) {
         collectionAddress: collectionAddress.toBase58(),
         hookValidationAddress: hookValidationAddress.toBase58(),
         hookProgramId: programId.toBase58(),
-        chain: cluster === "devnet" ? "solana-devnet" : "solana",
+        chain: "solana",
         cluster,
         rendererId,
         rendererVersion,

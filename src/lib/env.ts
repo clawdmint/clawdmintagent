@@ -381,7 +381,7 @@ export function getServerEnv() {
     solanaCollectionProgramId: getEnv("SOLANA_COLLECTION_PROGRAM_ID", ""),
     clawPegProgramId: getEnv("CLAWPEG_PROGRAM_ID", ""),
     clawPegFeeVaultAddress: getEnv("CLAWPEG_FEE_VAULT_ADDRESS", ""),
-    clawPegLaunchFeeLamports: getEnv("CLAWPEG_LAUNCH_FEE_LAMPORTS", "1000000"),
+    clawPegLaunchFeeLamports: getEnv("CLAWPEG_LAUNCH_FEE_LAMPORTS", "0"),
     clawPegMarketplaceFeeBps: parseInt(getEnv("CLAWPEG_MARKETPLACE_FEE_BPS", "200")),
     clawPegDefaultCreatorRoyaltyBps: parseInt(getEnv("CLAWPEG_DEFAULT_CREATOR_ROYALTY_BPS", "200")),
     clawPegPremiumIndexingFeeLamports: getEnv("CLAWPEG_PREMIUM_INDEXING_FEE_LAMPORTS", "0"),

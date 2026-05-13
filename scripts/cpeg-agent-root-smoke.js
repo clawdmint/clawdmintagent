@@ -1,7 +1,42 @@
+require("dotenv").config();
+
 const { PrismaClient } = require("@prisma/client");
 const { PublicKey } = require("@solana/web3.js");
 
-const prisma = new PrismaClient();
+function normalizeDatabaseUrl(raw) {
+  if (!raw) return raw;
+  try {
+    const url = new URL(raw);
+    if (url.protocol !== "postgresql:" && url.protocol !== "postgres:") {
+      return raw;
+    }
+    // Keep the app URL untouched by default, but let this smoke test use an
+    // explicit non-pooled URL when the local machine cannot negotiate TLS with
+    // the pooler. Values are never printed.
+    url.searchParams.delete("pgbouncer");
+    url.searchParams.delete("channel_binding");
+    url.searchParams.set("sslmode", url.searchParams.get("sslmode") || "require");
+    return url.toString();
+  } catch {
+    return raw;
+  }
+}
+
+const smokeDatabaseUrl = normalizeDatabaseUrl(
+  process.env.CPEG_AGENT_ROOT_SMOKE_DATABASE_URL || process.env.DIRECT_URL || process.env.DATABASE_URL
+);
+
+const prisma = new PrismaClient(
+  smokeDatabaseUrl
+    ? {
+        datasources: {
+          db: {
+            url: smokeDatabaseUrl,
+          },
+        },
+      }
+    : undefined
+);
 const AGENT_IDENTITY_PROGRAM_ID = new PublicKey("1DREGFgysWYxLnRnKQnwrxnJQeSMk2HmGaC6whw2B2p");
 
 function deriveAgentIdentityPda(agentAssetAddress) {
@@ -68,7 +103,19 @@ async function main() {
 
 main()
   .catch((error) => {
-    console.error(error instanceof Error ? error.message : "cPEG Agent root smoke failed");
+    const message = error instanceof Error ? error.message : "cPEG Agent root smoke failed";
+    if (/TLS connection|identity|certificate|ssl/i.test(message)) {
+      console.error(
+        [
+          "cPEG Agent root smoke could not open the database TLS connection.",
+          "No secret values were printed.",
+          "Use a Neon direct/non-pooled URL without -pooler, pgbouncer=true, or channel_binding=require.",
+          "Set CPEG_AGENT_ROOT_SMOKE_DATABASE_URL or DIRECT_URL to that URL with sslmode=require, then rerun npm run cpeg:agent-root-smoke.",
+        ].join("\n")
+      );
+    } else {
+      console.error(message);
+    }
     process.exitCode = 1;
   })
   .finally(async () => {
