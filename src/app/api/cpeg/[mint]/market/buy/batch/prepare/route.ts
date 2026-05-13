@@ -9,9 +9,12 @@ import {
   describeCpegMarketListingStatus,
   findClawPegCollectionAddress,
   findMarketListingAddress,
+  findMarketSaleCounterAddress,
   findOwnerPegAddress,
+  findTradeArtRecordAddress,
   parseClawPegCollectionAccount,
   parseCpegMarketListingAccount,
+  parseCpegMarketSaleCounterAccount,
   splitClawPegMarketPayment,
   CPEG_MARKET_LISTING_STATUS_ACTIVE,
 } from "@/lib/clawpeg";
@@ -78,6 +81,7 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
     // we can detect drift, reject stale DB rows, and substitute the on-chain creator/feeVault.
     const connection = new Connection(getClawPegRpcUrl(), { commitment: "confirmed" });
     const collectionAddress = findClawPegCollectionAddress(launch.tokenMint);
+    const saleCounterAddress = findMarketSaleCounterAddress(collectionAddress.toBase58());
     const buyerOwnerPegAddress = findOwnerPegAddress(collectionAddress.toBase58(), buyer.toBase58());
     const orderedListings = [...listings].sort(
       (a, b) => uniquePegIds.indexOf(a.pegId) - uniquePegIds.indexOf(b.pegId)
@@ -86,12 +90,13 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
       findMarketListingAddress(collectionAddress.toBase58(), row.pegId)
     );
     const accounts = await connection.getMultipleAccountsInfo(
-      [collectionAddress, buyerOwnerPegAddress, ...listingPdas],
+      [collectionAddress, buyerOwnerPegAddress, saleCounterAddress, ...listingPdas],
       "confirmed"
     );
     const collectionInfo = accounts[0];
     const buyerOwnerPegInfo = accounts[1];
-    const listingInfos = accounts.slice(2);
+    const saleCounterInfo = accounts[2];
+    const listingInfos = accounts.slice(3);
 
     if (!collectionInfo) {
       return NextResponse.json(
@@ -108,6 +113,16 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
     }
     const onChainCreator = collectionState.creator;
     const onChainFeeVault = collectionState.feeVault;
+    const saleCounterState = saleCounterInfo && saleCounterInfo.data.length > 0
+      ? parseCpegMarketSaleCounterAccount(Buffer.from(saleCounterInfo.data))
+      : null;
+    if (saleCounterState && (!saleCounterState.isInitialized || saleCounterState.collection !== collectionAddress.toBase58())) {
+      return NextResponse.json(
+        { success: false, error: "On-chain sale counter does not match this cPEG collection." },
+        { status: 409 }
+      );
+    }
+    const nextTradeIndexStart = (saleCounterState?.count ?? BigInt(0)) + BigInt(1);
 
     let totalPrice = BigInt(0);
     let totalRoyalty = BigInt(0);
@@ -161,6 +176,7 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
       totalRoyalty += BigInt(breakdown.creatorRoyaltyLamports);
       totalProtocol += BigInt(breakdown.protocolFeeLamports);
       totalSeller += BigInt(breakdown.sellerProceedsLamports);
+      const tradeIndex = nextTradeIndexStart + BigInt(i);
       manifests.push(
         buildClawPegBuyPegEscrowManifest({
           buyer: buyer.toBase58(),
@@ -171,6 +187,7 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
           buyerTokenAccount: buyerTokenAccount.toBase58(),
           escrowTokenAccount: state.escrowToken,
           pegId: row.pegId,
+          tradeIndex,
         })
       );
     }
@@ -196,6 +213,15 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
         total_creator_royalty_lamports: totalRoyalty.toString(),
         total_protocol_fee_lamports: totalProtocol.toString(),
       },
+      trade_art: orderedListings.map((row, index) => {
+        const tradeIndex = nextTradeIndexStart + BigInt(index);
+        return {
+          peg_id: row.pegId,
+          trade_index: tradeIndex.toString(),
+          address: findTradeArtRecordAddress(collectionAddress.toBase58(), tradeIndex).toBase58(),
+          image_url: `/api/cpeg/${launch.tokenMint}/trade-art/${tradeIndex.toString()}/svg`,
+        };
+      }),
       instructions: [...setupInstructions, ...manifests],
       preflight: {
         buyer_owner_peg_initialized: Boolean(buyerOwnerPegInfo),

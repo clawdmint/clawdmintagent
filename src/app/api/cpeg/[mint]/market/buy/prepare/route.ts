@@ -8,10 +8,12 @@ import {
   describeCpegMarketListingStatus,
   findClawPegCollectionAddress,
   findMarketListingAddress,
+  findMarketSaleCounterAddress,
   findOwnerPegAddress,
   findTradeArtRecordAddress,
   parseClawPegCollectionAccount,
   parseCpegMarketListingAccount,
+  parseCpegMarketSaleCounterAccount,
   splitClawPegMarketPayment,
   CPEG_MARKET_LISTING_STATUS_ACTIVE,
 } from "@/lib/clawpeg";
@@ -213,6 +215,12 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
           serialized_transaction_base64: prepared.serializedTransactionBase64,
           delegate_address: prepared.delegateAddress,
         },
+        trade_art: {
+          peg_id: listing.pegId,
+          address: listing.listingAddress,
+          image_url: `/api/cpeg/${launch.tokenMint}/pegs/${listing.pegId}/svg`,
+          kind: "hybrid_core_transfer",
+        },
         instructions: [],
       });
     }
@@ -251,10 +259,11 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
     const connection = new Connection(getClawPegRpcUrl(), { commitment: "confirmed" });
     const collectionAddress = findClawPegCollectionAddress(launch.tokenMint);
     const listingAddress = findMarketListingAddress(collectionAddress.toBase58(), listing.pegId);
+    const saleCounterAddress = findMarketSaleCounterAddress(collectionAddress.toBase58());
     const buyerOwnerPegAddress = findOwnerPegAddress(collectionAddress.toBase58(), buyer.toBase58());
 
-    const [collectionInfo, listingInfo, buyerOwnerPegInfo] = await connection.getMultipleAccountsInfo(
-      [collectionAddress, listingAddress, buyerOwnerPegAddress],
+    const [collectionInfo, listingInfo, buyerOwnerPegInfo, saleCounterInfo] = await connection.getMultipleAccountsInfo(
+      [collectionAddress, listingAddress, buyerOwnerPegAddress, saleCounterAddress],
       "confirmed"
     );
 
@@ -355,6 +364,16 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
     // on-chain values are authoritative, and the cpeg-market `buy()` validates them by byte-equality.
     const onChainCreator = collectionState.creator;
     const onChainFeeVault = collectionState.feeVault;
+    const saleCounterState = saleCounterInfo && saleCounterInfo.data.length > 0
+      ? parseCpegMarketSaleCounterAccount(Buffer.from(saleCounterInfo.data))
+      : null;
+    if (saleCounterState && (!saleCounterState.isInitialized || saleCounterState.collection !== collectionAddress.toBase58())) {
+      return NextResponse.json(
+        { success: false, error: "On-chain sale counter does not match this cPEG collection." },
+        { status: 409 }
+      );
+    }
+    const nextTradeIndex = (saleCounterState?.count ?? BigInt(0)) + BigInt(1);
 
     const setupInstructions: ReturnType<typeof buildClawPegInitializeOwnerPegManifest>[] = [];
     if (!buyerOwnerPegInfo) {
@@ -378,6 +397,7 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
       buyerTokenAccount: buyerTokenAccount.toBase58(),
       escrowTokenAccount: listingState.escrowToken,
       pegId: listing.pegId,
+      tradeIndex: nextTradeIndex,
     });
 
     const breakdown = splitClawPegMarketPayment(
@@ -386,10 +406,7 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
       collectionState.marketplaceFeeBps
     );
 
-    const tradeArtAddress = findTradeArtRecordAddress(
-      collectionAddress.toBase58(),
-      BigInt(listing.pegId)
-    );
+    const tradeArtAddress = findTradeArtRecordAddress(collectionAddress.toBase58(), nextTradeIndex);
 
     return NextResponse.json({
       success: true,
@@ -407,9 +424,10 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
         on_chain_status: describeCpegMarketListingStatus(listingState.status),
       },
       trade_art: {
-        trade_index: listing.pegId,
+        trade_index: nextTradeIndex.toString(),
+        sale_counter_address: saleCounterAddress.toBase58(),
         address: tradeArtAddress.toBase58(),
-        image_url: `/api/cpeg/${launch.tokenMint}/trade-art/${listing.pegId}/svg`,
+        image_url: `/api/cpeg/${launch.tokenMint}/trade-art/${nextTradeIndex.toString()}/svg`,
       },
       breakdown: {
         seller_proceeds_lamports: breakdown.sellerProceedsLamports,

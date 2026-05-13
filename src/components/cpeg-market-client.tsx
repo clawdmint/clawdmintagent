@@ -905,7 +905,12 @@ export function CpegMarketClient() {
         const confirmRes = await fetch(`/api/cpeg/${selectedLaunch.token_mint}/market/buy/confirm`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ signature, buyer: connectedAddress, peg_id: listing.peg_id }),
+          body: JSON.stringify({
+            signature,
+            buyer: connectedAddress,
+            peg_id: listing.peg_id,
+            trade_index: body.trade_art?.kind === "hybrid_core_transfer" ? undefined : body.trade_art?.trade_index,
+          }),
         }).catch(() => null);
         if (confirmRes?.ok) {
           const confirmBody = await confirmRes.json().catch(() => null);
@@ -968,7 +973,14 @@ export function CpegMarketClient() {
       const confirmRes = await fetch(`/api/cpeg/${selectedLaunch.token_mint}/market/buy/batch/confirm`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ signature, buyer: connectedAddress, peg_ids: body.peg_ids }),
+        body: JSON.stringify({
+          signature,
+          buyer: connectedAddress,
+          peg_ids: body.peg_ids,
+          trade_indices: Array.isArray(body.trade_art)
+            ? body.trade_art.map((item: { trade_index?: string | number }) => item.trade_index)
+            : undefined,
+        }),
       }).catch(() => null);
       if (confirmRes?.ok) {
         const confirmBody = await confirmRes.json().catch(() => null);

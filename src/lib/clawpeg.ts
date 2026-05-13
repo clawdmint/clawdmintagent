@@ -34,7 +34,7 @@ export const CLAWPEG_DEFAULT_RENDERER_ID = "clawpeg-agent-pixel";
 export const CLAWPEG_DEFAULT_RENDERER_VERSION = "0.3.0";
 export const CLAWPEG_FIXED_CREATOR_ROYALTY_BPS = 200;
 export const CLAWPEG_MAX_SUPPLY_PER_COLLECTION = 10_000;
-export const CLAWPEG_DEFAULT_LAUNCH_FEE_LAMPORTS = "1000000";
+export const CLAWPEG_DEFAULT_LAUNCH_FEE_LAMPORTS = "0";
 
 export interface ClawPegRevenueConfig {
   launchFeeLamports: bigint;
@@ -143,6 +143,7 @@ export interface ClawPegBuyPegEscrowParams {
   buyerTokenAccount: string;
   escrowTokenAccount: string;
   pegId: number;
+  tradeIndex: bigint;
 }
 
 export interface ClawPegCancelPegEscrowParams {
@@ -319,6 +320,13 @@ export function findMarketListingAddress(collectionAddress: string, pegId: numbe
   pegIdBytes.writeUInt32LE(pegId, 0);
   return PublicKey.findProgramAddressSync(
     [Buffer.from("listing", "utf8"), new PublicKey(collectionAddress).toBuffer(), pegIdBytes],
+    getCpegMarketProgramId()
+  )[0];
+}
+
+export function findMarketSaleCounterAddress(collectionAddress: string): InstanceType<typeof PublicKey> {
+  return PublicKey.findProgramAddressSync(
+    [Buffer.from("sale-counter", "utf8"), new PublicKey(collectionAddress).toBuffer()],
     getCpegMarketProgramId()
   )[0];
 }
@@ -736,12 +744,12 @@ export function buildClawPegBuyPegEscrowManifest(params: ClawPegBuyPegEscrowPara
   const escrowOwnerPeg = findOwnerPegAddress(collectionAddress.toBase58(), listing.toBase58());
   const pegRecord = findPegRecordAddress(collectionAddress.toBase58(), params.pegId);
   const hookValidationAddress = findClawPegHookValidationAddress(params.tokenMint);
-  // Trade-art recording is now bundled atomically into every market fill via CPI from
-  // cpeg-market -> clawpeg::record_trade_art. The trade_index is the peg_id so each
-  // PEG identity has at most one canonical "first sale" art piece, and re-runs are safe
-  // because the on-chain instruction is idempotent. This keeps routed trades art-emitting
-  // pattern where every swap automatically materializes one piece of art.
-  const tradeArt = findTradeArtRecordAddress(collectionAddress.toBase58(), BigInt(params.pegId));
+  const saleCounter = findMarketSaleCounterAddress(collectionAddress.toBase58());
+  // Trade-art recording is bundled atomically into every market fill via CPI from
+  // cpeg-market -> clawpeg::record_trade_art. The trade_index is the collection sale
+  // sequence, so every sale mints a separate on-chain art PDA even when the same PEG is
+  // re-listed and sold again.
+  const tradeArt = findTradeArtRecordAddress(collectionAddress.toBase58(), params.tradeIndex);
   const data = Buffer.concat([Buffer.from([1]), encodeU32(params.pegId)]);
 
   return {
@@ -764,6 +772,7 @@ export function buildClawPegBuyPegEscrowManifest(params: ClawPegBuyPegEscrowPara
       { pubkey: SystemProgram.programId.toBase58(), isSigner: false, isWritable: false },
       { pubkey: new PublicKey(params.creator).toBase58(), isSigner: false, isWritable: true },
       { pubkey: new PublicKey(params.feeVault).toBase58(), isSigner: false, isWritable: true },
+      { pubkey: saleCounter.toBase58(), isSigner: false, isWritable: true },
       { pubkey: tradeArt.toBase58(), isSigner: false, isWritable: true },
     ],
     dataBase64: data.toString("base64"),
@@ -877,6 +886,13 @@ export interface ParsedCpegMarketListingAccount {
   closedSlot: bigint;
 }
 
+export interface ParsedCpegMarketSaleCounterAccount {
+  isInitialized: boolean;
+  bump: number;
+  collection: string;
+  count: bigint;
+}
+
 export interface ParsedClawPegRecordAccount {
   isInitialized: boolean;
   status: number;
@@ -901,6 +917,7 @@ export interface ParsedClawPegOwnerPegAccount {
 }
 
 export const CPEG_MARKET_LISTING_ACCOUNT_SIZE = 152;
+export const CPEG_MARKET_SALE_COUNTER_ACCOUNT_SIZE = 42;
 export const CPEG_MARKET_LISTING_STATUS_ACTIVE = 1;
 export const CPEG_MARKET_LISTING_STATUS_FILLED = 2;
 export const CPEG_MARKET_LISTING_STATUS_CANCELLED = 3;
@@ -941,6 +958,20 @@ export function describeCpegMarketListingStatus(status: number): string {
     default:
       return `UNKNOWN(${status})`;
   }
+}
+
+export function parseCpegMarketSaleCounterAccount(data: Buffer): ParsedCpegMarketSaleCounterAccount {
+  if (data.length < CPEG_MARKET_SALE_COUNTER_ACCOUNT_SIZE) {
+    throw new Error(
+      `SaleCounter account data too small: got ${data.length}, expected >= ${CPEG_MARKET_SALE_COUNTER_ACCOUNT_SIZE}`
+    );
+  }
+  return {
+    isInitialized: data[0] === 1,
+    bump: data[1],
+    collection: new PublicKey(data.subarray(2, 34)).toBase58(),
+    count: data.readBigUInt64LE(34),
+  };
 }
 
 export function parseClawPegRecordAccount(data: Buffer): ParsedClawPegRecordAccount {

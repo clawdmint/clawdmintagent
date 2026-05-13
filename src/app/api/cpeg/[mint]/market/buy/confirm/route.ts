@@ -13,6 +13,7 @@ const ConfirmSchema = z.object({
   signature: z.string().min(32),
   buyer: z.string().min(32),
   peg_id: z.number().int().min(0),
+  trade_index: z.union([z.string(), z.number()]).optional(),
 });
 
 interface RouteContext {
@@ -74,7 +75,7 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
       listing: rows[0] || null,
       core_transfer_signature: parsed.data.signature,
       trade_art: {
-        trade_index: parsed.data.peg_id,
+        peg_id: parsed.data.peg_id,
         address: listing.listingAddress,
         image_url: `/api/cpeg/${launch.tokenMint}/pegs/${parsed.data.peg_id}/svg`,
         kind: "hybrid_core_transfer",
@@ -97,17 +98,15 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
   // buyer to "your fill just produced this art" without re-querying the chain. The cpeg-market
   // program writes this PDA atomically as part of the buy() instruction via CPI to clawpeg.
   const collectionAddress = findClawPegCollectionAddress(launch.tokenMint).toBase58();
-  const tradeArtAddress = findTradeArtRecordAddress(
-    collectionAddress,
-    BigInt(parsed.data.peg_id)
-  ).toBase58();
+  const tradeIndex = parsed.data.trade_index ? BigInt(parsed.data.trade_index) : BigInt(parsed.data.peg_id);
+  const tradeArtAddress = findTradeArtRecordAddress(collectionAddress, tradeIndex).toBase58();
   return NextResponse.json({
     success: true,
     listing: rows[0] || null,
     trade_art: {
-      trade_index: parsed.data.peg_id,
+      trade_index: tradeIndex.toString(),
       address: tradeArtAddress,
-      image_url: `/api/cpeg/${launch.tokenMint}/trade-art/${parsed.data.peg_id}/svg`,
+      image_url: `/api/cpeg/${launch.tokenMint}/trade-art/${tradeIndex.toString()}/svg`,
     },
   });
 }

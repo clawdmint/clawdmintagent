@@ -7,6 +7,8 @@ import { getClawPegRpcUrl } from "@/lib/env";
 
 export const dynamic = "force-dynamic";
 
+const WRAPPED_SOL_MINT = "So11111111111111111111111111111111111111112";
+
 interface RouteContext {
   params: {
     mint: string;
@@ -63,6 +65,8 @@ export async function GET(_request: NextRequest, { params }: RouteContext) {
       rendererId: true,
       rendererVersion: true,
       rendererParams: true,
+      id: true,
+      pegUnitRaw: true,
       cluster: true,
       standardMode: true,
     },
@@ -72,12 +76,72 @@ export async function GET(_request: NextRequest, { params }: RouteContext) {
     if (!Number.isSafeInteger(pegId) || pegId < 1) {
       return NextResponse.json({ success: false, error: "Invalid hybrid cPEG id" }, { status: 400 });
     }
-    const svg = renderClawPegSvg({
+    const listing = await prisma.clawPegMarketListing.findFirst({
+      where: {
+        launchId: launch.id,
+        pegId,
+        status: "FILLED",
+      },
+      orderBy: [{ soldAt: "desc" }, { updatedAt: "desc" }],
+      select: {
+        id: true,
+        sellerAddress: true,
+        buyerAddress: true,
+        priceLamports: true,
+        buyTxHash: true,
+        soldAt: true,
+      },
+    });
+    if (!listing) {
+      const svg = renderClawPegSvg({
+        rendererId: launch.rendererId,
+        rendererVersion: launch.rendererVersion,
+        collectionSeed: launch.collectionSeed,
+        tokenMint: launch.tokenMint,
+        pegId,
+        params: (launch.rendererParams as Record<string, unknown> | null) || {},
+      });
+      return new NextResponse(svg, {
+        status: 200,
+        headers: {
+          "Content-Type": "image/svg+xml; charset=utf-8",
+          "Cache-Control": "public, max-age=31536000, immutable",
+        },
+      });
+    }
+
+    let slot = listing.soldAt ? BigInt(listing.soldAt.getTime()) : BigInt(pegId);
+    if (listing.buyTxHash) {
+      const tx = await new Connection(getClawPegRpcUrl(), "confirmed")
+        .getTransaction(listing.buyTxHash, {
+          commitment: "confirmed",
+          maxSupportedTransactionVersion: 0,
+        })
+        .catch(() => null);
+      if (tx?.slot !== undefined) slot = BigInt(tx.slot);
+    }
+
+    const svg = renderClawPegTradeArtSvg({
       rendererId: launch.rendererId,
       rendererVersion: launch.rendererVersion,
       collectionSeed: launch.collectionSeed,
       tokenMint: launch.tokenMint,
-      pegId,
+      tradeIndex,
+      trader: listing.buyerAddress || listing.sellerAddress,
+      inputMint: WRAPPED_SOL_MINT,
+      outputMint: launch.tokenMint,
+      amountIn: listing.priceLamports,
+      amountOut: launch.pegUnitRaw || "1",
+      slot,
+      seed: [
+        "hybrid-market-fill",
+        listing.buyTxHash || listing.id,
+        String(slot),
+        String(pegId),
+        listing.sellerAddress,
+        listing.buyerAddress || "",
+        listing.priceLamports,
+      ].join(":"),
       params: (launch.rendererParams as Record<string, unknown> | null) || {},
     });
     return new NextResponse(svg, {

@@ -55,10 +55,21 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
       select: {
         tokenMint: true,
         collectionAddress: true,
+        standardMode: true,
       },
     });
     if (!launch?.collectionAddress) {
       return NextResponse.json({ success: false, error: "cPEG collection not found" }, { status: 404 });
+    }
+    if (launch.standardMode === "metaplex_hybrid") {
+      return NextResponse.json(
+        {
+          success: false,
+          error:
+            "Custom trade-art PDA preparation is disabled for Metaplex Hybrid cPEG. Hybrid art state comes from MPL-Hybrid/Core ownership.",
+        },
+        { status: 400 }
+      );
     }
 
     const body = await request.json();

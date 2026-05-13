@@ -10,6 +10,7 @@ const ConfirmSchema = z.object({
   signature: z.string().min(32),
   buyer: z.string().min(32),
   peg_ids: z.array(z.number().int().min(0)).min(1).max(6),
+  trade_indices: z.array(z.union([z.string(), z.number()])).optional(),
 });
 
 interface RouteContext {
@@ -46,11 +47,16 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
   // cpeg-market::buy -> clawpeg::record_trade_art. Surface the PDA + image URL for each so
   // the client can render a "your batch produced this art" gallery immediately.
   const collectionAddress = findClawPegCollectionAddress(launch.tokenMint).toBase58();
-  const trade_art = parsed.data.peg_ids.map((pegId) => ({
-    peg_id: pegId,
-    trade_index: pegId,
-    address: findTradeArtRecordAddress(collectionAddress, BigInt(pegId)).toBase58(),
-    image_url: `/api/cpeg/${launch.tokenMint}/trade-art/${pegId}/svg`,
-  }));
+  const trade_art = parsed.data.peg_ids.map((pegId, index) => {
+    const tradeIndex = parsed.data.trade_indices?.[index]
+      ? BigInt(parsed.data.trade_indices[index])
+      : BigInt(pegId);
+    return {
+      peg_id: pegId,
+      trade_index: tradeIndex.toString(),
+      address: findTradeArtRecordAddress(collectionAddress, tradeIndex).toBase58(),
+      image_url: `/api/cpeg/${launch.tokenMint}/trade-art/${tradeIndex.toString()}/svg`,
+    };
+  });
   return NextResponse.json({ success: true, listings: rows, trade_art });
 }

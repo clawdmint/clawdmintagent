@@ -55,12 +55,23 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
       collectionAddress: true,
       cluster: true,
       status: true,
+      standardMode: true,
       maxPegs: true,
       pegUnitRaw: true,
     },
   });
   if (!launch?.collectionAddress) {
     return NextResponse.json({ success: false, error: "cPEG launch not found" }, { status: 404 });
+  }
+  if (launch.standardMode === "metaplex_hybrid") {
+    return NextResponse.json(
+      {
+        success: false,
+        error:
+          "Jupiter + record_trade_art is disabled for Metaplex Hybrid cPEG. Use MPL-Hybrid capture/release and the Core asset market.",
+      },
+      { status: 400 }
+    );
   }
 
   if (parsed.data.side === "sell") {

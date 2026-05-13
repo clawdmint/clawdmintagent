@@ -12,7 +12,7 @@ use spl_token_2022::instruction as token_instruction;
 
 use crate::{
     instruction::{unpack, MarketInstruction},
-    state::{MarketListing, MARKET_LISTING_SIZE, STATUS_ACTIVE},
+    state::{MarketListing, SaleCounter, MARKET_LISTING_SIZE, SALE_COUNTER_SIZE, STATUS_ACTIVE},
 };
 
 pub struct Processor;
@@ -158,6 +158,7 @@ impl Processor {
         let system_program = next_account_info(account_info_iter)?;
         let creator = next_account_info(account_info_iter)?;
         let fee_vault = next_account_info(account_info_iter)?;
+        let sale_counter = next_account_info(account_info_iter)?;
         let trade_art = next_account_info(account_info_iter)?;
 
         if !buyer.is_signer {
@@ -282,22 +283,28 @@ impl Processor {
             ],
             &[&[b"listing", collection.key.as_ref(), &peg_id.to_le_bytes(), &[bump]]],
         )?;
-        // Trade-art recording: every market fill atomically writes a TradeArtRecord to
-        // mirror the Uniswap-v4 hook semantics ("every swap = one piece of art"). The
-        // buyer signs the outer transaction so their signature propagates as both the
-        // payer and the trader of the inner CPI. The clawpeg program's record_trade_art
-        // is idempotent, so a pre-existing PDA (e.g. seeded manually by the curator)
-        // gracefully no-ops without bricking the buy.
+        // Trade-art recording: every market fill atomically writes a fresh TradeArtRecord
+        // to mirror the Uniswap-v4 hook semantics ("every swap = one piece of art"). The
+        // collection-level sale_counter PDA is initialized by the first buyer and then
+        // increments once per fill. The buyer signs the outer transaction so their
+        // signature propagates as both the payer and the trader of the inner CPI.
         //
         // We capture the price BEFORE closing the listing because close_account_into() zeroes
         // out the listing's data and the trade-art instruction needs the original sale amount.
         let sale_price_lamports = state.price_lamports;
-        let trade_index = peg_id as u64;
+        let mut sale_counter_state =
+            load_or_initialize_sale_counter(program_id, buyer, collection, sale_counter, system_program)?;
+        let trade_index = sale_counter_state
+            .count
+            .checked_add(1)
+            .ok_or(ProgramError::ArithmeticOverflow)?;
         let (expected_trade_art, _trade_art_bump) = trade_art_address(cpeg_program.key, collection.key, trade_index);
         if expected_trade_art != *trade_art.key {
             solana_program::msg!("CpegMarketBuy: trade-art PDA mismatch");
             return Err(ProgramError::InvalidAccountData);
         }
+        sale_counter_state.count = trade_index;
+        sale_counter_state.pack(&mut sale_counter.try_borrow_mut_data()?)?;
 
         // Close the listing PDA so the same (collection, peg_id) pair can be re-listed in
         // the future. cPEG recycles per-fill state so each fill can be listed again later;
@@ -439,6 +446,52 @@ impl Processor {
 
 fn listing_address(program_id: &Pubkey, collection: &Pubkey, peg_id: u32) -> (Pubkey, u8) {
     Pubkey::find_program_address(&[b"listing", collection.as_ref(), &peg_id.to_le_bytes()], program_id)
+}
+
+fn sale_counter_address(program_id: &Pubkey, collection: &Pubkey) -> (Pubkey, u8) {
+    Pubkey::find_program_address(&[b"sale-counter", collection.as_ref()], program_id)
+}
+
+fn load_or_initialize_sale_counter<'a>(
+    program_id: &Pubkey,
+    buyer: &AccountInfo<'a>,
+    collection: &AccountInfo<'a>,
+    sale_counter: &AccountInfo<'a>,
+    system_program: &AccountInfo<'a>,
+) -> Result<SaleCounter, ProgramError> {
+    let (expected_sale_counter, bump) = sale_counter_address(program_id, collection.key);
+    if expected_sale_counter != *sale_counter.key {
+        solana_program::msg!("CpegMarketBuy: sale-counter PDA mismatch");
+        return Err(ProgramError::InvalidAccountData);
+    }
+
+    if sale_counter.data_is_empty() {
+        create_pda_account(
+            buyer,
+            sale_counter,
+            system_program,
+            program_id,
+            SALE_COUNTER_SIZE,
+            &[b"sale-counter", collection.key.as_ref(), &[bump]],
+        )?;
+        return Ok(SaleCounter {
+            is_initialized: true,
+            bump,
+            collection: *collection.key,
+            count: 0,
+        });
+    }
+
+    if sale_counter.owner != program_id {
+        solana_program::msg!("CpegMarketBuy: sale-counter owner mismatch");
+        return Err(ProgramError::InvalidAccountData);
+    }
+    let state = SaleCounter::unpack(&sale_counter.try_borrow_data()?)?;
+    if !state.is_initialized || state.collection != *collection.key {
+        solana_program::msg!("CpegMarketBuy: sale-counter state mismatch");
+        return Err(ProgramError::InvalidAccountData);
+    }
+    Ok(state)
 }
 
 /// Close a program-owned account by draining its lamports into `recipient`, zeroing the
@@ -765,14 +818,26 @@ mod tests {
     }
 
     #[test]
-    fn trade_art_pda_is_deterministic_and_unique_per_peg_id() {
+    fn sale_counter_pda_is_deterministic_per_collection() {
+        let program_id = Pubkey::new_unique();
+        let collection = Pubkey::new_unique();
+        let other_collection = Pubkey::new_unique();
+        let (a1, _) = sale_counter_address(&program_id, &collection);
+        let (a2, _) = sale_counter_address(&program_id, &collection);
+        let (a3, _) = sale_counter_address(&program_id, &other_collection);
+        assert_eq!(a1, a2);
+        assert_ne!(a1, a3);
+    }
+
+    #[test]
+    fn trade_art_pda_is_deterministic_and_unique_per_sale_index() {
         let program_id = Pubkey::new_unique();
         let collection = Pubkey::new_unique();
         let (a1, _) = trade_art_address(&program_id, &collection, 7);
         let (a2, _) = trade_art_address(&program_id, &collection, 7);
         let (a3, _) = trade_art_address(&program_id, &collection, 8);
-        assert_eq!(a1, a2, "same peg_id yields same trade-art PDA");
-        assert_ne!(a1, a3, "different peg_id yields different trade-art PDA");
+        assert_eq!(a1, a2, "same sale index yields same trade-art PDA");
+        assert_ne!(a1, a3, "different sale index yields different trade-art PDA");
     }
 
     #[test]

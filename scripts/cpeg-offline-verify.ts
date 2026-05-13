@@ -29,6 +29,7 @@ import {
   findClawPegCollectionAddress,
   findClawPegHookValidationAddress,
   findMarketListingAddress,
+  findMarketSaleCounterAddress,
   findOwnerPegAddress,
   findPegRecordAddress,
   findTradeArtRecordAddress,
@@ -94,8 +95,11 @@ expect(peg7 !== peg8, "different peg ids get different records");
 const listing7 = findMarketListingAddress(collectionA, 7).toBase58();
 const listing7Again = findMarketListingAddress(collectionA, 7).toBase58();
 expect(listing7 === listing7Again, "listing PDA deterministic");
+const saleCounter = findMarketSaleCounterAddress(collectionA).toBase58();
+const saleCounterAgain = findMarketSaleCounterAddress(collectionA).toBase58();
+expect(saleCounter === saleCounterAgain, "sale-counter PDA deterministic");
 
-header("buy manifest must include creator + fee_vault + trade_art accounts");
+header("buy manifest must include creator + fee_vault + sale_counter + trade_art accounts");
 const buyManifest = buildClawPegBuyPegEscrowManifest({
   buyer,
   seller,
@@ -105,26 +109,28 @@ const buyManifest = buildClawPegBuyPegEscrowManifest({
   buyerTokenAccount: SystemProgram.programId.toBase58(),
   escrowTokenAccount: TOKEN_2022_PROGRAM_ID.toBase58(),
   pegId: 7,
+  tradeIndex: BigInt(42),
 });
-expect(buyManifest.accounts.length === 18, `buy ix has 18 accounts (got ${buyManifest.accounts.length})`);
-const lastThree = buyManifest.accounts.slice(-3);
-expect(lastThree[0].pubkey === creator && lastThree[0].isWritable, "creator account writable & last-2");
-expect(lastThree[1].pubkey === feeVault && lastThree[1].isWritable, "fee_vault account writable & last-1");
-const expectedTradeArt = findTradeArtRecordAddress(collectionA, BigInt(7)).toBase58();
+expect(buyManifest.accounts.length === 19, `buy ix has 19 accounts (got ${buyManifest.accounts.length})`);
+const lastFour = buyManifest.accounts.slice(-4);
+expect(lastFour[0].pubkey === creator && lastFour[0].isWritable, "creator account writable & last-3");
+expect(lastFour[1].pubkey === feeVault && lastFour[1].isWritable, "fee_vault account writable & last-2");
+expect(lastFour[2].pubkey === saleCounter && lastFour[2].isWritable, "sale_counter PDA writable & last-1");
+const expectedTradeArt = findTradeArtRecordAddress(collectionA, BigInt(42)).toBase58();
 expect(
-  lastThree[2].pubkey === expectedTradeArt && lastThree[2].isWritable,
-  `trade_art PDA writable & last (got ${lastThree[2].pubkey} expected ${expectedTradeArt})`
+  lastFour[3].pubkey === expectedTradeArt && lastFour[3].isWritable,
+  `trade_art PDA writable & last (got ${lastFour[3].pubkey} expected ${expectedTradeArt})`
 );
 const buyerEntry = buyManifest.accounts[0];
 expect(buyerEntry.pubkey === buyer && buyerEntry.isSigner && buyerEntry.isWritable, "buyer at index 0 signer+writable");
 const sellerEntry = buyManifest.accounts[1];
 expect(sellerEntry.pubkey === seller && !sellerEntry.isSigner && sellerEntry.isWritable, "seller at index 1 writable");
 
-// Trade-art PDA must be unique per (collection, peg_id) so each cPEG identity has at
-// most one canonical "first sale" art piece.
+// Trade-art PDA must be unique per (collection, sale sequence) so every cPEG sale can
+// materialize a separate art piece, including repeat sales of the same PEG identity.
 const tradeArt7 = findTradeArtRecordAddress(collectionA, BigInt(7)).toBase58();
 const tradeArt8 = findTradeArtRecordAddress(collectionA, BigInt(8)).toBase58();
-expect(tradeArt7 !== tradeArt8, "different peg ids derive different trade-art PDAs");
+expect(tradeArt7 !== tradeArt8, "different sale indices derive different trade-art PDAs");
 const tradeArt7Again = findTradeArtRecordAddress(collectionA, BigInt(7)).toBase58();
 expect(tradeArt7 === tradeArt7Again, "trade-art PDA derivation is deterministic");
 

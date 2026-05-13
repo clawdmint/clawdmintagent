@@ -51,9 +51,22 @@ export async function GET(request: NextRequest, { params }: RouteContext) {
       tokenMint: true,
       collectionAddress: true,
       cluster: true,
+      standardMode: true,
     },
   });
-  if (!launch?.collectionAddress) {
+  if (!launch) {
+    return NextResponse.json({ success: false, error: "cPEG collection not found" }, { status: 404 });
+  }
+  if (launch.standardMode === "metaplex_hybrid") {
+    return NextResponse.json({
+      success: true,
+      page: { offset, limit, next_offset: null, previous_offset: offset > 0 ? Math.max(0, offset - limit) : null },
+      trade_art: [],
+      mode: "metaplex_hybrid",
+      message: "Metaplex Hybrid cPEG does not use custom TradeArtRecord PDAs.",
+    });
+  }
+  if (!launch.collectionAddress) {
     return NextResponse.json({ success: false, error: "cPEG collection not found" }, { status: 404 });
   }
 
