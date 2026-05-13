@@ -11,6 +11,7 @@ import {
   findMarketSaleCounterAddress,
   findOwnerPegAddress,
   findTradeArtRecordAddress,
+  isCpegMarketSaleCounterEnabled,
   parseClawPegCollectionAccount,
   parseCpegMarketListingAccount,
   parseCpegMarketSaleCounterAccount,
@@ -260,12 +261,15 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
     const collectionAddress = findClawPegCollectionAddress(launch.tokenMint);
     const listingAddress = findMarketListingAddress(collectionAddress.toBase58(), listing.pegId);
     const saleCounterAddress = findMarketSaleCounterAddress(collectionAddress.toBase58());
+    const saleCounterEnabled = isCpegMarketSaleCounterEnabled();
     const buyerOwnerPegAddress = findOwnerPegAddress(collectionAddress.toBase58(), buyer.toBase58());
+    const preflightAccounts = [collectionAddress, listingAddress, buyerOwnerPegAddress];
+    if (saleCounterEnabled) {
+      preflightAccounts.push(saleCounterAddress);
+    }
 
-    const [collectionInfo, listingInfo, buyerOwnerPegInfo, saleCounterInfo] = await connection.getMultipleAccountsInfo(
-      [collectionAddress, listingAddress, buyerOwnerPegAddress, saleCounterAddress],
-      "confirmed"
-    );
+    const [collectionInfo, listingInfo, buyerOwnerPegInfo, saleCounterInfo] =
+      await connection.getMultipleAccountsInfo(preflightAccounts, "confirmed");
 
     if (!collectionInfo) {
       return NextResponse.json(
@@ -364,7 +368,7 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
     // on-chain values are authoritative, and the cpeg-market `buy()` validates them by byte-equality.
     const onChainCreator = collectionState.creator;
     const onChainFeeVault = collectionState.feeVault;
-    const saleCounterState = saleCounterInfo && saleCounterInfo.data.length > 0
+    const saleCounterState = saleCounterEnabled && saleCounterInfo && saleCounterInfo.data.length > 0
       ? parseCpegMarketSaleCounterAccount(Buffer.from(saleCounterInfo.data))
       : null;
     if (saleCounterState && (!saleCounterState.isInitialized || saleCounterState.collection !== collectionAddress.toBase58())) {
@@ -373,7 +377,9 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
         { status: 409 }
       );
     }
-    const nextTradeIndex = (saleCounterState?.count ?? BigInt(0)) + BigInt(1);
+    const nextTradeIndex = saleCounterEnabled
+      ? (saleCounterState?.count ?? BigInt(0)) + BigInt(1)
+      : BigInt(listing.pegId);
 
     const setupInstructions: ReturnType<typeof buildClawPegInitializeOwnerPegManifest>[] = [];
     if (!buyerOwnerPegInfo) {
@@ -397,7 +403,7 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
       buyerTokenAccount: buyerTokenAccount.toBase58(),
       escrowTokenAccount: listingState.escrowToken,
       pegId: listing.pegId,
-      tradeIndex: nextTradeIndex,
+      tradeIndex: saleCounterEnabled ? nextTradeIndex : undefined,
     });
 
     const breakdown = splitClawPegMarketPayment(
@@ -425,7 +431,7 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
       },
       trade_art: {
         trade_index: nextTradeIndex.toString(),
-        sale_counter_address: saleCounterAddress.toBase58(),
+        sale_counter_address: saleCounterEnabled ? saleCounterAddress.toBase58() : undefined,
         address: tradeArtAddress.toBase58(),
         image_url: `/api/cpeg/${launch.tokenMint}/trade-art/${nextTradeIndex.toString()}/svg`,
       },

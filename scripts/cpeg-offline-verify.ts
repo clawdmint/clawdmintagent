@@ -4,8 +4,8 @@
  * Validates that:
  *   - splitClawPegMarketPayment matches the on-chain split logic byte-for-byte.
  *   - buildClawPegBuyPegEscrowManifest emits the exact account list the
- *     cpeg-market program expects, including the trailing creator + fee_vault
- *     accounts required for royalty + protocol fee distribution.
+ *     deployed cpeg-market program expects by default, including the trailing
+ *     creator + fee_vault + trade_art accounts.
  *   - Owner-peg, peg-record, and listing PDAs derive identically across SDK
  *     usages (sanity for batch-buy / batch-transfer flows).
  *
@@ -99,8 +99,34 @@ const saleCounter = findMarketSaleCounterAddress(collectionA).toBase58();
 const saleCounterAgain = findMarketSaleCounterAddress(collectionA).toBase58();
 expect(saleCounter === saleCounterAgain, "sale-counter PDA deterministic");
 
-header("buy manifest must include creator + fee_vault + sale_counter + trade_art accounts");
+header("buy manifest must match deployed market account layout by default");
 const buyManifest = buildClawPegBuyPegEscrowManifest({
+  buyer,
+  seller,
+  creator,
+  feeVault,
+  tokenMint,
+  buyerTokenAccount: SystemProgram.programId.toBase58(),
+  escrowTokenAccount: TOKEN_2022_PROGRAM_ID.toBase58(),
+  pegId: 7,
+});
+expect(buyManifest.accounts.length === 18, `buy ix has 18 accounts (got ${buyManifest.accounts.length})`);
+const lastThree = buyManifest.accounts.slice(-3);
+expect(lastThree[0].pubkey === creator && lastThree[0].isWritable, "creator account writable & last-2");
+expect(lastThree[1].pubkey === feeVault && lastThree[1].isWritable, "fee_vault account writable & last-1");
+const expectedTradeArt = findTradeArtRecordAddress(collectionA, BigInt(7)).toBase58();
+expect(
+  lastThree[2].pubkey === expectedTradeArt && lastThree[2].isWritable,
+  `trade_art PDA writable & last (got ${lastThree[2].pubkey} expected ${expectedTradeArt})`
+);
+const buyerEntry = buyManifest.accounts[0];
+expect(buyerEntry.pubkey === buyer && buyerEntry.isSigner && buyerEntry.isWritable, "buyer at index 0 signer+writable");
+const sellerEntry = buyManifest.accounts[1];
+expect(sellerEntry.pubkey === seller && !sellerEntry.isSigner && sellerEntry.isWritable, "seller at index 1 writable");
+
+header("buy manifest can opt into sale counter account layout");
+process.env["CPEG_MARKET_SALE_COUNTER_ENABLED"] = "true";
+const saleCounterManifest = buildClawPegBuyPegEscrowManifest({
   buyer,
   seller,
   creator,
@@ -111,20 +137,20 @@ const buyManifest = buildClawPegBuyPegEscrowManifest({
   pegId: 7,
   tradeIndex: BigInt(42),
 });
-expect(buyManifest.accounts.length === 19, `buy ix has 19 accounts (got ${buyManifest.accounts.length})`);
-const lastFour = buyManifest.accounts.slice(-4);
-expect(lastFour[0].pubkey === creator && lastFour[0].isWritable, "creator account writable & last-3");
-expect(lastFour[1].pubkey === feeVault && lastFour[1].isWritable, "fee_vault account writable & last-2");
-expect(lastFour[2].pubkey === saleCounter && lastFour[2].isWritable, "sale_counter PDA writable & last-1");
-const expectedTradeArt = findTradeArtRecordAddress(collectionA, BigInt(42)).toBase58();
 expect(
-  lastFour[3].pubkey === expectedTradeArt && lastFour[3].isWritable,
-  `trade_art PDA writable & last (got ${lastFour[3].pubkey} expected ${expectedTradeArt})`
+  saleCounterManifest.accounts.length === 19,
+  `sale-counter buy ix has 19 accounts (got ${saleCounterManifest.accounts.length})`
 );
-const buyerEntry = buyManifest.accounts[0];
-expect(buyerEntry.pubkey === buyer && buyerEntry.isSigner && buyerEntry.isWritable, "buyer at index 0 signer+writable");
-const sellerEntry = buyManifest.accounts[1];
-expect(sellerEntry.pubkey === seller && !sellerEntry.isSigner && sellerEntry.isWritable, "seller at index 1 writable");
+const saleCounterLastFour = saleCounterManifest.accounts.slice(-4);
+expect(saleCounterLastFour[0].pubkey === creator && saleCounterLastFour[0].isWritable, "creator account writable & last-3");
+expect(saleCounterLastFour[1].pubkey === feeVault && saleCounterLastFour[1].isWritable, "fee_vault account writable & last-2");
+expect(saleCounterLastFour[2].pubkey === saleCounter && saleCounterLastFour[2].isWritable, "sale_counter PDA writable & last-1");
+const expectedSaleTradeArt = findTradeArtRecordAddress(collectionA, BigInt(42)).toBase58();
+expect(
+  saleCounterLastFour[3].pubkey === expectedSaleTradeArt && saleCounterLastFour[3].isWritable,
+  `trade_art PDA writable & last (got ${saleCounterLastFour[3].pubkey} expected ${expectedSaleTradeArt})`
+);
+process.env["CPEG_MARKET_SALE_COUNTER_ENABLED"] = "false";
 
 // Trade-art PDA must be unique per (collection, sale sequence) so every cPEG sale can
 // materialize a separate art piece, including repeat sales of the same PEG identity.

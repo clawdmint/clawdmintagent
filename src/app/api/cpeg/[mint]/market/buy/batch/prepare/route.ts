@@ -12,6 +12,7 @@ import {
   findMarketSaleCounterAddress,
   findOwnerPegAddress,
   findTradeArtRecordAddress,
+  isCpegMarketSaleCounterEnabled,
   parseClawPegCollectionAccount,
   parseCpegMarketListingAccount,
   parseCpegMarketSaleCounterAccount,
@@ -82,6 +83,7 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
     const connection = new Connection(getClawPegRpcUrl(), { commitment: "confirmed" });
     const collectionAddress = findClawPegCollectionAddress(launch.tokenMint);
     const saleCounterAddress = findMarketSaleCounterAddress(collectionAddress.toBase58());
+    const saleCounterEnabled = isCpegMarketSaleCounterEnabled();
     const buyerOwnerPegAddress = findOwnerPegAddress(collectionAddress.toBase58(), buyer.toBase58());
     const orderedListings = [...listings].sort(
       (a, b) => uniquePegIds.indexOf(a.pegId) - uniquePegIds.indexOf(b.pegId)
@@ -89,14 +91,16 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
     const listingPdas = orderedListings.map((row) =>
       findMarketListingAddress(collectionAddress.toBase58(), row.pegId)
     );
-    const accounts = await connection.getMultipleAccountsInfo(
-      [collectionAddress, buyerOwnerPegAddress, saleCounterAddress, ...listingPdas],
-      "confirmed"
-    );
+    const accountKeys = [collectionAddress, buyerOwnerPegAddress];
+    if (saleCounterEnabled) {
+      accountKeys.push(saleCounterAddress);
+    }
+    accountKeys.push(...listingPdas);
+    const accounts = await connection.getMultipleAccountsInfo(accountKeys, "confirmed");
     const collectionInfo = accounts[0];
     const buyerOwnerPegInfo = accounts[1];
-    const saleCounterInfo = accounts[2];
-    const listingInfos = accounts.slice(3);
+    const saleCounterInfo = saleCounterEnabled ? accounts[2] : null;
+    const listingInfos = accounts.slice(saleCounterEnabled ? 3 : 2);
 
     if (!collectionInfo) {
       return NextResponse.json(
@@ -113,7 +117,7 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
     }
     const onChainCreator = collectionState.creator;
     const onChainFeeVault = collectionState.feeVault;
-    const saleCounterState = saleCounterInfo && saleCounterInfo.data.length > 0
+    const saleCounterState = saleCounterEnabled && saleCounterInfo && saleCounterInfo.data.length > 0
       ? parseCpegMarketSaleCounterAccount(Buffer.from(saleCounterInfo.data))
       : null;
     if (saleCounterState && (!saleCounterState.isInitialized || saleCounterState.collection !== collectionAddress.toBase58())) {
@@ -122,7 +126,7 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
         { status: 409 }
       );
     }
-    const nextTradeIndexStart = (saleCounterState?.count ?? BigInt(0)) + BigInt(1);
+    const nextTradeIndexStart = saleCounterEnabled ? (saleCounterState?.count ?? BigInt(0)) + BigInt(1) : BigInt(0);
 
     let totalPrice = BigInt(0);
     let totalRoyalty = BigInt(0);
@@ -176,7 +180,7 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
       totalRoyalty += BigInt(breakdown.creatorRoyaltyLamports);
       totalProtocol += BigInt(breakdown.protocolFeeLamports);
       totalSeller += BigInt(breakdown.sellerProceedsLamports);
-      const tradeIndex = nextTradeIndexStart + BigInt(i);
+      const tradeIndex = saleCounterEnabled ? nextTradeIndexStart + BigInt(i) : BigInt(row.pegId);
       manifests.push(
         buildClawPegBuyPegEscrowManifest({
           buyer: buyer.toBase58(),
@@ -187,7 +191,7 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
           buyerTokenAccount: buyerTokenAccount.toBase58(),
           escrowTokenAccount: state.escrowToken,
           pegId: row.pegId,
-          tradeIndex,
+          tradeIndex: saleCounterEnabled ? tradeIndex : undefined,
         })
       );
     }
@@ -214,7 +218,7 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
         total_protocol_fee_lamports: totalProtocol.toString(),
       },
       trade_art: orderedListings.map((row, index) => {
-        const tradeIndex = nextTradeIndexStart + BigInt(index);
+        const tradeIndex = saleCounterEnabled ? nextTradeIndexStart + BigInt(index) : BigInt(row.pegId);
         return {
           peg_id: row.pegId,
           trade_index: tradeIndex.toString(),

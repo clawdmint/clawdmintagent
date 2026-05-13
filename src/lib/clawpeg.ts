@@ -143,7 +143,7 @@ export interface ClawPegBuyPegEscrowParams {
   buyerTokenAccount: string;
   escrowTokenAccount: string;
   pegId: number;
-  tradeIndex: bigint;
+  tradeIndex?: bigint;
 }
 
 export interface ClawPegCancelPegEscrowParams {
@@ -213,6 +213,11 @@ export function getCpegMarketProgramId(): InstanceType<typeof PublicKey> {
     throw new Error("CPEG_MARKET_PROGRAM_ID not configured");
   }
   return new PublicKey(programId);
+}
+
+export function isCpegMarketSaleCounterEnabled(): boolean {
+  const raw = getEnv("CPEG_MARKET_SALE_COUNTER_ENABLED", "false").trim().toLowerCase();
+  return raw === "1" || raw === "true" || raw === "yes" || raw === "on" || raw === "enabled";
 }
 
 export function getClawPegFeeVaultAddress(): string {
@@ -745,36 +750,39 @@ export function buildClawPegBuyPegEscrowManifest(params: ClawPegBuyPegEscrowPara
   const pegRecord = findPegRecordAddress(collectionAddress.toBase58(), params.pegId);
   const hookValidationAddress = findClawPegHookValidationAddress(params.tokenMint);
   const saleCounter = findMarketSaleCounterAddress(collectionAddress.toBase58());
-  // Trade-art recording is bundled atomically into every market fill via CPI from
-  // cpeg-market -> clawpeg::record_trade_art. The trade_index is the collection sale
-  // sequence, so every sale mints a separate on-chain art PDA even when the same PEG is
-  // re-listed and sold again.
-  const tradeArt = findTradeArtRecordAddress(collectionAddress.toBase58(), params.tradeIndex);
+  const saleCounterEnabled = isCpegMarketSaleCounterEnabled();
+  // The deployed market program currently uses the PEG id as the trade-art index.
+  // Collection-wide sale counters are opt-in for a future upgraded program build.
+  const tradeIndex = saleCounterEnabled ? params.tradeIndex ?? BigInt(params.pegId) : BigInt(params.pegId);
+  const tradeArt = findTradeArtRecordAddress(collectionAddress.toBase58(), tradeIndex);
   const data = Buffer.concat([Buffer.from([1]), encodeU32(params.pegId)]);
+  const accounts: ClawPegManifestAccount[] = [
+    { pubkey: buyer.toBase58(), isSigner: true, isWritable: true },
+    { pubkey: seller.toBase58(), isSigner: false, isWritable: true },
+    { pubkey: collectionAddress.toBase58(), isSigner: false, isWritable: false },
+    { pubkey: listing.toBase58(), isSigner: false, isWritable: true },
+    { pubkey: escrowOwnerPeg.toBase58(), isSigner: false, isWritable: true },
+    { pubkey: buyerOwnerPeg.toBase58(), isSigner: false, isWritable: true },
+    { pubkey: pegRecord.toBase58(), isSigner: false, isWritable: true },
+    { pubkey: new PublicKey(params.escrowTokenAccount).toBase58(), isSigner: false, isWritable: true },
+    { pubkey: new PublicKey(params.buyerTokenAccount).toBase58(), isSigner: false, isWritable: true },
+    { pubkey: tokenMint.toBase58(), isSigner: false, isWritable: false },
+    { pubkey: cpegProgramId.toBase58(), isSigner: false, isWritable: false },
+    { pubkey: TOKEN_2022_PROGRAM_ID.toBase58(), isSigner: false, isWritable: false },
+    { pubkey: cpegProgramId.toBase58(), isSigner: false, isWritable: false },
+    { pubkey: hookValidationAddress.toBase58(), isSigner: false, isWritable: false },
+    { pubkey: SystemProgram.programId.toBase58(), isSigner: false, isWritable: false },
+    { pubkey: new PublicKey(params.creator).toBase58(), isSigner: false, isWritable: true },
+    { pubkey: new PublicKey(params.feeVault).toBase58(), isSigner: false, isWritable: true },
+  ];
+  if (saleCounterEnabled) {
+    accounts.push({ pubkey: saleCounter.toBase58(), isSigner: false, isWritable: true });
+  }
+  accounts.push({ pubkey: tradeArt.toBase58(), isSigner: false, isWritable: true });
 
   return {
     programId: programId.toBase58(),
-    accounts: [
-      { pubkey: buyer.toBase58(), isSigner: true, isWritable: true },
-      { pubkey: seller.toBase58(), isSigner: false, isWritable: true },
-      { pubkey: collectionAddress.toBase58(), isSigner: false, isWritable: false },
-      { pubkey: listing.toBase58(), isSigner: false, isWritable: true },
-      { pubkey: escrowOwnerPeg.toBase58(), isSigner: false, isWritable: true },
-      { pubkey: buyerOwnerPeg.toBase58(), isSigner: false, isWritable: true },
-      { pubkey: pegRecord.toBase58(), isSigner: false, isWritable: true },
-      { pubkey: new PublicKey(params.escrowTokenAccount).toBase58(), isSigner: false, isWritable: true },
-      { pubkey: new PublicKey(params.buyerTokenAccount).toBase58(), isSigner: false, isWritable: true },
-      { pubkey: tokenMint.toBase58(), isSigner: false, isWritable: false },
-      { pubkey: cpegProgramId.toBase58(), isSigner: false, isWritable: false },
-      { pubkey: TOKEN_2022_PROGRAM_ID.toBase58(), isSigner: false, isWritable: false },
-      { pubkey: cpegProgramId.toBase58(), isSigner: false, isWritable: false },
-      { pubkey: hookValidationAddress.toBase58(), isSigner: false, isWritable: false },
-      { pubkey: SystemProgram.programId.toBase58(), isSigner: false, isWritable: false },
-      { pubkey: new PublicKey(params.creator).toBase58(), isSigner: false, isWritable: true },
-      { pubkey: new PublicKey(params.feeVault).toBase58(), isSigner: false, isWritable: true },
-      { pubkey: saleCounter.toBase58(), isSigner: false, isWritable: true },
-      { pubkey: tradeArt.toBase58(), isSigner: false, isWritable: true },
-    ],
+    accounts,
     dataBase64: data.toString("base64"),
   };
 }
