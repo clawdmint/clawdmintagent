@@ -8,7 +8,7 @@ For agent launches, the Metaplex Agent/Core Asset identity is the canonical root
 
 Current public standard: `cPEG Standard v0.1`.
 
-The v0.1 compatibility surface is:
+The legacy v0.1 custom-registry compatibility surface is:
 
 - Optional Metaplex Agent/Core Asset canonical root for agent launches.
 - Token-2022 mint with the `TransferHook` extension.
@@ -20,6 +20,9 @@ The v0.1 compatibility surface is:
 - Stable event logs: `PegMinted`, `PegTransferred`, `PegBurned`, `OwnerPegSynced`, `TradeArtGenerated`, `CpegMarketListed`, `CpegMarketSold`, `CpegMarketCancelled`.
 
 Changing PDA seeds, instruction tags, account sizes, or event names requires a new standard version.
+
+The current mainnet product surface is Metaplex Agent + MPL-Hybrid. It uses Core collections/assets,
+the Agent Identity root, and Hybrid capture/release instead of new Clawdmint PDA writes.
 
 ## Positioning
 
@@ -42,7 +45,7 @@ The Token-2022 mint metadata stores:
 
 The renderer hash commits to the same root fields. Generated Agent PEG identities can therefore be verified against the agent's Core Asset identity without introducing a parallel root identity.
 
-New agent launches use a Metaplex-native Hybrid preparation path first. The agent token and Agent/Core Asset are treated as the root, and cPEG stores the renderer commitment plus the capture/release setup plan. Legacy custom-registry launches remain readable while tests are in progress.
+New agent launches use the Metaplex-native Hybrid path as the canonical product flow. The agent token and Agent/Core Asset are treated as the root, and cPEG stores the renderer commitment plus the capture/release setup plan. Legacy custom-registry launches remain readable for backward compatibility, but they are not the mainnet product path and are not used for new public launches.
 
 ## Product Modes
 
@@ -50,32 +53,32 @@ New public launches use:
 
 - `identity_mode = metaplex_agent`
 - `standard_mode = metaplex_hybrid`
-- `status = HYBRID_READY` until the Core PEG collection and Hybrid escrow are funded
+- `status = HYBRID_READY` until the user-paid Core Agent PEG collection and Hybrid escrow are initialized on mainnet
 
-Legacy test launches may still exist in the database while devnet and mainnet smoke tests are in progress. They keep working through their original Token-2022 mint, cPEG collection PDA, and renderer hash, but they are not the target product path.
+Legacy test launches may still exist in the database. They keep working through their original Token-2022 mint, cPEG collection PDA, and renderer hash, but new public launches must use `metaplex_hybrid`.
 
 ## Metaplex-Native Sync Path
 
-Current cPEG enforcement:
+Legacy cPEG enforcement:
 
 ```text
 Token-2022 balance -> Transfer Hook -> OwnerPeg capacity -> PegRecord ownership
 ```
 
-Metaplex-native target:
+Mainnet cPEG enforcement:
 
 ```text
 Metaplex Agent/Core Asset -> Agent token -> MPL-Hybrid capture/release -> Agent PEG Core identity
 ```
 
-The migration point is the ownership sync layer. If Metaplex exposes a shared linkage program or Core plugin that can bind a fungible Token-2022 unit to a Core Asset identity, cPEG can move the remaining sync enforcement behind that shared primitive while preserving renderer hashes, trade art records, and launchpad/market APIs.
+The mainnet path does not deploy or upgrade a Clawdmint program. The launch authority signs a Metaplex-only setup transaction, the wallet pays the required rent/fees, and the MPL-Hybrid escrow becomes the custody root. Capture uses escrow-owned Core assets first; when the pool is empty, the buyer-paid lazy path creates one new Agent PEG Core asset, initializes its MPL-Hybrid NFT data, locks the backing token unit, and transfers the cPEG to the buyer in the same transaction.
 
 Required checks before switching the enforcement layer:
 
 - Agent Core Asset and Agent Identity PDA are confirmed on the active cluster.
-- Token-2022 mint metadata contains the same agent root fields as the renderer hash.
-- Whole token balance remains the capacity source for Agent PEG identities.
-- DEX, market, and transfer routes receive the same account list for ownership sync.
+- Agent token mint and renderer hash contain the same agent root fields.
+- Whole token backing units remain the capacity source for Agent PEG identities.
+- Metaplex Hybrid escrow token balance, escrow-owned Core assets, and lazy-mint capacity are checked before capture.
 - Existing legacy test launches remain readable but are not used as the canonical product path.
 
 ## Core Rule
@@ -266,13 +269,9 @@ P2P escrow marketplace is a separate product and does not sit in the critical PE
 
 ## Trade Router
 
-The official cPEG trade router surface is responsible for trade-art emission.
+The mainnet cPEG trade router is Metaplex-first. Exact Agent PEG trades transfer Core assets directly; capture and release use MPL-Hybrid. Clawdmint does not append custom `record_trade_art` instructions on the mainnet Hybrid path.
 
-For mainnet AMM routes, the router prepares an aggregator swap and appends `record_trade_art` to the same transaction when the route can fit inside Solana transaction limits.
-
-For escrow routes, marketplace buy and floor-sweep instructions call the market program, which atomically releases the PEG and records a `TradeArtRecord`.
-
-If a trade bypasses the official cPEG router, cPEG ownership remains valid through the Token-2022 hook, but trade art is not guaranteed.
+Onchain art mutation comes from the MPL-Hybrid reroll path configured during setup. If a trade bypasses the official cPEG router, Core ownership remains valid, but Clawdmint indexing and market state may need to resync from Metaplex Core ownership.
 
 ### Identity-Backed Sell Adapter
 

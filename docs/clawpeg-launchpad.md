@@ -6,17 +6,16 @@ ClawPEG launchpad is the product layer for agent and creator PEG launches.
 
 Required:
 
-- agent or creator id
+- registered Metaplex Agent identity
 - token name
 - token symbol
-- Token-2022 mint authority
+- agent token mint
 - supply
 - decimals
 - renderer id
 - renderer params
 - royalty bps
 - payout address
-- Token-2022 rent lamports when the API is asked to include mint setup instructions
 
 Optional:
 
@@ -38,14 +37,13 @@ The fee quote is returned before transaction creation.
 
 ## Launch Transaction Manifests
 
-`POST /api/v1/cpeg/launches` returns a signable manifest with:
+New mainnet cPEG launches use `standard_mode = metaplex_hybrid` and `identity_mode = metaplex_agent`.
+The launch confirm step stores the Metaplex Agent root and Hybrid plan. The actual Hybrid setup is a separate user-paid
+Metaplex transaction that creates the Core Agent PEG collection, initializes the MPL-Hybrid escrow, and creates the escrow
+token account. Captures can then lazy-mint one buyer-paid Agent PEG when no escrow pool asset is ready. Clawdmint does not
+deploy or upgrade a program and does not spend SOL from a project wallet.
 
-- optional Token-2022 mint account creation
-- Token-2022 Transfer Hook extension initialization
-- cPEG `PegCollection` initialization
-- cPEG SPL extra-account-metas validation PDA initialization
-
-For an existing Token-2022 mint, callers can skip `include_token2022_setup` and only execute the cPEG instructions.
+The older custom registry path is kept for explicit legacy maintenance only.
 
 ## Renderer Choice
 
