@@ -30,7 +30,7 @@ function getBaseUrl(request: NextRequest) {
 }
 
 export async function GET(request: NextRequest, { params }: RouteContext) {
-  const pegId = Number(params.pegId);
+  const pegId = Number((params.pegId || "").replace(/\.json$/i, ""));
   if (!Number.isInteger(pegId) || pegId < 1) {
     return NextResponse.json({ success: false, error: "Invalid peg id" }, { status: 400 });
   }

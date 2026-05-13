@@ -195,6 +195,7 @@ export function createInitNftDataV1Instruction(input: InitNftDataV1InstructionIn
 
 export interface CaptureOrReleaseV1InstructionInput {
   owner: PublicKeyInput;
+  payer?: PublicKeyInput;
   authority?: PublicKeyInput;
   escrow: PublicKeyInput;
   asset: PublicKeyInput;
@@ -214,13 +215,16 @@ function createCaptureOrReleaseInstruction(
   input: CaptureOrReleaseV1InstructionInput
 ) {
   const owner = toPublicKey(input.owner, "owner");
-  const authority = input.authority ? toPublicKey(input.authority, "authority") : owner;
-  const authorityIsExplicitSigner = Boolean(input.authority);
+  const payer = input.payer
+    ? toPublicKey(input.payer, "payer")
+    : input.authority
+      ? toPublicKey(input.authority, "authority")
+      : owner;
   return new TransactionInstruction({
     programId: toPublicKey(input.programId || MPL_HYBRID_PROGRAM_ID, "mpl_hybrid_program_id"),
     keys: [
       { pubkey: owner, isSigner: true, isWritable: true },
-      { pubkey: authority, isSigner: authorityIsExplicitSigner || authority.equals(owner), isWritable: true },
+      { pubkey: payer, isSigner: true, isWritable: true },
       { pubkey: toPublicKey(input.escrow, "escrow"), isSigner: false, isWritable: true },
       { pubkey: toPublicKey(input.asset, "asset"), isSigner: false, isWritable: true },
       { pubkey: toPublicKey(input.collection, "collection"), isSigner: false, isWritable: true },

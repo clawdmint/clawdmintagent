@@ -8,14 +8,13 @@ import {
   CPEG_HYBRID_STATUS_CONFIGURED,
   CpegHybridEngineError,
   buildHybridStateSummary,
-  confirmCaptureMint,
+  fetchHybridCoreAssetOwner,
   getMplHybridCustodyTarget,
 } from "@/lib/cpeg-hybrid-engine";
 import { CPEG_STANDARD_MODE_METAPLEX_HYBRID } from "@/lib/cpeg-metaplex-hybrid";
 import {
   loadHybridAssetCounts,
   loadHybridLaunchAndAgent,
-  listHybridAssetPegIds,
 } from "@/lib/cpeg-hybrid-loader";
 import { getClawPegRpcUrl } from "@/lib/env";
 
@@ -155,6 +154,14 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
         if (row.status !== CPEG_HYBRID_ASSET_STATUS_POOL && row.ownerAddress !== parsed.data.wallet) {
           throw new CpegHybridEngineError(409, `cPEG #${row.pegId} is no longer available for capture`);
         }
+        const onChainOwner = await fetchHybridCoreAssetOwner(row.assetAddress).catch(() => null);
+        if (onChainOwner !== parsed.data.wallet) {
+          throw new CpegHybridEngineError(409, `Metaplex Core asset #${row.pegId} was not transferred to the buyer`, {
+            asset: row.assetAddress,
+            expected_owner: parsed.data.wallet,
+            on_chain_owner: onChainOwner,
+          });
+        }
         await prisma.clawPegHybridAsset.update({
           where: { assetAddress: row.assetAddress },
           data: {
@@ -181,75 +188,16 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
       });
     }
 
-    const taken = await listHybridAssetPegIds(data.launch.id);
-    if (parsed.data.count > capacitySummary.availableCapacity) {
-      throw new CpegHybridEngineError(409, "Not enough cPEG capacity remains for this capture", {
-        requested: parsed.data.count,
+    throw new CpegHybridEngineError(
+      400,
+      "Capture confirmation must include the Metaplex Agent PEG asset addresses prepared by the Hybrid route. Server-side Core minting is disabled on mainnet.",
+      {
         available_capacity: capacitySummary.availableCapacity,
         effective_max_pegs: capacitySummary.effectiveMaxPegs,
         peg_unit_raw: capacitySummary.pegUnitRaw,
         token_supply_raw: capacitySummary.tokenSupplyRaw,
-      });
-    }
-    const minted: Array<{ asset_address: string; peg_id: number; mint_tx: string | null }> = [];
-    for (let captureIndex = 0; captureIndex < parsed.data.count; captureIndex += 1) {
-      const result = await confirmCaptureMint(
-        data.agent,
-        {
-          id: data.launch.id,
-          name: data.launch.name,
-          symbol: data.launch.symbol,
-          cluster: data.launch.cluster,
-          tokenMint: data.launch.tokenMint,
-          agentTokenMint: data.launch.agentTokenMint,
-          hybridCoreCollectionAddress: data.launch.hybridCoreCollectionAddress,
-          hybridEscrowAddress: data.launch.hybridEscrowAddress,
-          hybridProgramId: data.launch.hybridProgramId,
-          hybridStatus: data.launch.hybridStatus,
-          feeVaultAddress: data.launch.feeVaultAddress,
-          pegUnitRaw: data.launch.pegUnitRaw,
-          maxPegs: capacitySummary.effectiveMaxPegs,
-          rendererId: data.launch.rendererId,
-          rendererVersion: data.launch.rendererVersion,
-          collectionSeed: data.launch.collectionSeed,
-        },
-        parsed.data.wallet,
-        taken
-      );
-      taken.add(result.pegId);
-      await prisma.clawPegHybridAsset.create({
-        data: {
-          launchId: data.launch.id,
-          tokenMint: data.launch.tokenMint,
-          collectionAddress: data.launch.hybridCoreCollectionAddress || "",
-          assetAddress: result.assetAddress,
-          pegId: result.pegId,
-          ownerAddress: parsed.data.wallet,
-          status: CPEG_HYBRID_ASSET_STATUS_OWNED,
-          captureTxHash: parsed.data.signature,
-          capturedAt: new Date(),
-        },
-      });
-      minted.push({
-        asset_address: result.assetAddress,
-        peg_id: result.pegId,
-        mint_tx: result.mintTxSignature,
-      });
-    }
-
-    const counts = await loadHybridAssetCounts(data.launch.id);
-    return NextResponse.json({
-      success: true,
-      already_processed: false,
-      capture_signature: parsed.data.signature,
-      assets: minted.map((entry) => ({
-        asset_address: entry.asset_address,
-        peg_id: entry.peg_id,
-        status: CPEG_HYBRID_ASSET_STATUS_OWNED,
-        mint_tx: entry.mint_tx,
-      })),
-      counts,
-    });
+      }
+    );
   } catch (error) {
     if (error instanceof CpegHybridEngineError) {
       return NextResponse.json({ success: false, error: error.message, details: error.details }, { status: error.status });

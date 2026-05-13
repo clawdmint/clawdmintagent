@@ -212,6 +212,7 @@ export function CpegHybridPanel({ tokenMint, initialAuthorityAddress, compact }:
   const [error, setError] = useState("");
   const [lastTx, setLastTx] = useState("");
   const [captureCount, setCaptureCount] = useState("1");
+  const [fundCount, setFundCount] = useState("1");
 
   const connectedAddress = solanaAddress || "";
   const isAuthority = useMemo(() => {
@@ -264,10 +265,63 @@ export function CpegHybridPanel({ tokenMint, initialAuthorityAddress, compact }:
         body: JSON.stringify({ authority_address: connectedAddress }),
       });
       const body = (await response.json().catch(() => null)) as
-        | { success?: boolean; error?: string; details?: HybridErrorDetails }
+        | {
+            success?: boolean;
+            error?: string;
+            details?: HybridErrorDetails;
+            requires_signature?: boolean;
+            serialized_transaction_base64?: string;
+            setup?: {
+              cluster?: string;
+              collection_address?: string;
+              hybrid_escrow_address?: string;
+            };
+          }
         | null;
       if (!response.ok || !body?.success) {
         throw new Error(formatHybridError(body?.error || "Failed to enable cPEG.", body?.details));
+      }
+      if (body.requires_signature && body.serialized_transaction_base64 && body.setup) {
+        const provider = getPhantomProvider();
+        if (!provider?.signTransaction) throw new Error("Phantom signing is unavailable.");
+        const cluster = body.setup.cluster || state?.cluster || "mainnet-beta";
+        const connection = new Connection(getClientRpcUrl(cluster), "confirmed");
+        const transaction = Transaction.from(base64ToBytes(body.serialized_transaction_base64));
+        setStatus("Opening Phantom for Metaplex setup approval...");
+        const signed = (await provider.signTransaction(transaction as SolanaWeb3Transaction)) as SolanaWeb3Transaction;
+        const raw = signed instanceof VersionedTransaction
+          ? signed.serialize()
+          : signed.serialize({ requireAllSignatures: true, verifySignatures: false });
+        setStatus("Broadcasting Metaplex setup transaction...");
+        let setupSignature = "";
+        try {
+          setupSignature = await connection.sendRawTransaction(raw, {
+            skipPreflight: false,
+            maxRetries: 5,
+            preflightCommitment: "confirmed",
+          });
+        } catch (sendError) {
+          throw new Error(await formatBroadcastError(sendError, connection, "Metaplex setup was rejected on-chain."));
+        }
+        await connection.confirmTransaction(setupSignature, "confirmed");
+        setLastTx(setupSignature);
+        setStatus("Confirming Metaplex setup...");
+        const confirmResponse = await fetch(`/api/cpeg/${tokenMint}/hybrid/setup`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            authority_address: connectedAddress,
+            setup_signature: setupSignature,
+            collection_address: body.setup.collection_address,
+            hybrid_escrow_address: body.setup.hybrid_escrow_address,
+          }),
+        });
+        const confirmBody = (await confirmResponse.json().catch(() => null)) as
+          | { success?: boolean; error?: string; details?: HybridErrorDetails }
+          | null;
+        if (!confirmResponse.ok || !confirmBody?.success) {
+          throw new Error(formatHybridError(confirmBody?.error || "Metaplex setup confirmed, but cPEG indexing failed.", confirmBody?.details));
+        }
       }
       await refreshState();
       setStatus(alreadyConfigured ? "Metaplex Hybrid escrow is active." : "cPEG is enabled.");
@@ -279,7 +333,90 @@ export function CpegHybridPanel({ tokenMint, initialAuthorityAddress, compact }:
     } finally {
       setSetupBusy(false);
     }
-  }, [connectedAddress, isConnected, login, refreshState, state?.hybrid_status, tokenMint]);
+  }, [connectedAddress, isConnected, login, refreshState, state?.cluster, state?.hybrid_status, tokenMint]);
+
+  const handleFundPool = useCallback(async () => {
+    setError("");
+    setStatus("");
+    setLastTx("");
+    if (!isConnected || !connectedAddress) {
+      login();
+      return;
+    }
+    if (!state) return;
+    const count = Math.max(1, Math.min(3, Number.parseInt(fundCount, 10) || 1));
+    setActionBusy("fund-pool");
+    try {
+      setStatus(`Preparing ${count} Agent PEG pool asset${count > 1 ? "s" : ""}...`);
+      const prepareResponse = await fetch(`/api/cpeg/${tokenMint}/hybrid/pool/prepare`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ authority_address: connectedAddress, count }),
+      });
+      const prepareBody = (await prepareResponse.json().catch(() => null)) as
+        | {
+            success?: boolean;
+            error?: string;
+            serialized_transaction_base64?: string;
+            pool?: {
+              cluster?: string;
+              assets?: Array<{ asset_address: string; peg_id: number; nft_data_address?: string }>;
+            };
+          }
+        | null;
+      if (!prepareResponse.ok || !prepareBody?.success || !prepareBody.serialized_transaction_base64 || !prepareBody.pool) {
+        throw new Error(prepareBody?.error || "Failed to prepare Agent PEG pool funding.");
+      }
+
+      const provider = getPhantomProvider();
+      if (!provider?.signTransaction) throw new Error("Phantom signing is unavailable.");
+      const cluster = prepareBody.pool.cluster || state.cluster || "mainnet-beta";
+      const connection = new Connection(getClientRpcUrl(cluster), "confirmed");
+      const transaction = Transaction.from(base64ToBytes(prepareBody.serialized_transaction_base64));
+      setStatus("Opening Phantom for Agent PEG pool funding...");
+      const signed = (await provider.signTransaction(transaction as SolanaWeb3Transaction)) as SolanaWeb3Transaction;
+      const raw = signed instanceof VersionedTransaction
+        ? signed.serialize()
+        : signed.serialize({ requireAllSignatures: true, verifySignatures: false });
+      setStatus("Broadcasting Agent PEG pool funding...");
+      let signature = "";
+      try {
+        signature = await connection.sendRawTransaction(raw, {
+          skipPreflight: false,
+          maxRetries: 5,
+          preflightCommitment: "confirmed",
+        });
+      } catch (sendError) {
+        throw new Error(await formatBroadcastError(sendError, connection, "Agent PEG pool funding was rejected on-chain."));
+      }
+      await connection.confirmTransaction(signature, "confirmed");
+      setLastTx(signature);
+
+      setStatus("Indexing funded Agent PEGs...");
+      const confirmResponse = await fetch(`/api/cpeg/${tokenMint}/hybrid/pool/confirm`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          authority_address: connectedAddress,
+          signature,
+          assets: prepareBody.pool.assets || [],
+        }),
+      });
+      const confirmBody = (await confirmResponse.json().catch(() => null)) as
+        | { success?: boolean; error?: string; details?: HybridErrorDetails }
+        | null;
+      if (!confirmResponse.ok || !confirmBody?.success) {
+        throw new Error(formatHybridError(confirmBody?.error || "Pool funding confirmed, but indexing failed.", confirmBody?.details));
+      }
+      await refreshState();
+      setStatus(`Funded ${count} Agent PEG pool asset${count > 1 ? "s" : ""}.`);
+    } catch (fundError) {
+      const message = fundError instanceof Error ? fundError.message : "";
+      setError(message && message.length > 0 ? (message.length > 220 ? `${message.slice(0, 220)}...` : message) : describeError(fundError, "Failed to fund Agent PEG pool."));
+    } finally {
+      setActionBusy(null);
+    }
+  }, [connectedAddress, fundCount, isConnected, login, refreshState, state, tokenMint]);
 
   const handleCapture = useCallback(async () => {
     setError("");
@@ -290,7 +427,11 @@ export function CpegHybridPanel({ tokenMint, initialAuthorityAddress, compact }:
       return;
     }
     if (!state) return;
-    const count = Math.max(1, Math.min(8, Number.parseInt(captureCount, 10) || 1));
+    const maxCapturePerTransaction = Math.max(
+      1,
+      Math.min(8, state.pool_assets + (state.available_capacity > state.pool_assets ? 1 : 0))
+    );
+    const count = Math.max(1, Math.min(maxCapturePerTransaction, Number.parseInt(captureCount, 10) || 1));
     setActionBusy("capture");
     try {
       setStatus(`Preparing capture of ${count} cPEG...`);
@@ -379,7 +520,7 @@ export function CpegHybridPanel({ tokenMint, initialAuthorityAddress, compact }:
       }
       setLastTx(signature);
 
-      setStatus("Minting your Metaplex Core PEG identities...");
+      setStatus("Indexing your Metaplex Agent PEG identities...");
       const confirmResponse = await fetch(`/api/cpeg/${tokenMint}/hybrid/capture/confirm`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -567,7 +708,12 @@ export function CpegHybridPanel({ tokenMint, initialAuthorityAddress, compact }:
     state.mpl_hybrid_escrow_address &&
     (state.mpl_hybrid_escrow_account_initialized === false ||
       state.mpl_hybrid_escrow_token_account_initialized === false);
-  const captureCountNumber = Math.max(1, Math.min(8, Number.parseInt(captureCount, 10) || 1));
+  const maxCapturePerTransaction = Math.max(
+    1,
+    Math.min(8, state.pool_assets + (state.available_capacity > state.pool_assets ? 1 : 0))
+  );
+  const captureCountNumber = Math.max(1, Math.min(maxCapturePerTransaction, Number.parseInt(captureCount, 10) || 1));
+  const fundCountNumber = Math.max(1, Math.min(3, Number.parseInt(fundCount, 10) || 1));
   const requiredRaw = (() => {
     try {
       return BigInt(state.peg_unit_raw || "0") * BigInt(captureCountNumber);
@@ -628,7 +774,7 @@ export function CpegHybridPanel({ tokenMint, initialAuthorityAddress, compact }:
             {state.symbol} cPEG route
           </p>
           <p className="mt-2 max-w-2xl text-sm leading-6 text-white/60">
-            Buy the agent token, convert the fixed backing amount into a deterministic Core cPEG,
+            Buy the agent token, convert the fixed backing amount into a Metaplex Agent PEG,
             release it back to tokens, or trade exact cPEG identities on the market.
           </p>
         </div>
@@ -729,6 +875,40 @@ export function CpegHybridPanel({ tokenMint, initialAuthorityAddress, compact }:
             <Stat icon={PackageOpen} label="Token supply" value={supplyLabel} />
           </div>
 
+          {isAuthority && !mainnetEscrowBlocked ? (
+            <div className="mt-5 border border-[#f7b85c]/35 bg-[#f7b85c]/10 p-4">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div>
+                  <p className="font-mono text-[10px] uppercase tracking-[0.22em] text-[#ffe2a8]">
+                    Optional Agent PEG pool
+                  </p>
+                  <p className="mt-2 text-sm leading-6 text-white/70">
+                    Preload Metaplex Core Agent PEGs for batch captures. Lazy capture works without
+                    preloaded assets.
+                  </p>
+                </div>
+                <div className="flex flex-wrap items-center gap-3">
+                  <input
+                    value={fundCount}
+                    inputMode="numeric"
+                    aria-label="Agent PEG pool funding amount"
+                    onChange={(event) => setFundCount(event.target.value)}
+                    className="w-20 border border-white/15 bg-black/30 px-3 py-2 font-mono text-xs text-white outline-none transition focus:border-[#f7b85c]"
+                  />
+                  <button
+                    type="button"
+                    onClick={isConnected ? handleFundPool : login}
+                    disabled={Boolean(actionBusy) || setupBusy}
+                    className="inline-flex items-center gap-2 border border-[#f7f2df] bg-[#f7f2df] px-4 py-2 text-xs font-black uppercase tracking-wide text-black transition hover:bg-[#f7b85c] disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    {actionBusy === "fund-pool" ? <Loader2 className="h-3 w-3 animate-spin" /> : <Rocket className="h-3 w-3" />}
+                    Fund {fundCountNumber}
+                  </button>
+                </div>
+              </div>
+            </div>
+          ) : null}
+
           <div className="mt-5 grid gap-5 lg:grid-cols-[1fr_1fr]">
             <div className="border border-[#53c7ff]/30 bg-[#53c7ff]/10 p-4">
               <div className="flex items-center gap-2">
@@ -736,8 +916,9 @@ export function CpegHybridPanel({ tokenMint, initialAuthorityAddress, compact }:
                 <p className="font-mono text-[10px] uppercase tracking-[0.22em] text-[#9fe2ff]">Get cPEG</p>
               </div>
               <p className="mt-2 text-sm text-white/70">
-                Convert your {state.symbol} tokens into cPEG identities. Each cPEG is backed by{" "}
-                <span className="font-bold text-white">{backingUnitLabel}</span>.
+                Convert your {state.symbol} tokens into Metaplex Agent PEG identities. Each cPEG is backed by{" "}
+                <span className="font-bold text-white">{backingUnitLabel}</span>. Empty pools mint one new Agent PEG
+                inside the capture transaction.
               </p>
               <div className="mt-3 border border-white/10 bg-black/30 px-3 py-2 font-mono text-[10px] uppercase tracking-[0.18em] text-white/60">
                 Required now <span className="float-right text-[#53c7ff]">{requiredLabel}</span>
@@ -750,6 +931,7 @@ export function CpegHybridPanel({ tokenMint, initialAuthorityAddress, compact }:
                 <input
                   value={captureCount}
                   inputMode="numeric"
+                  max={maxCapturePerTransaction}
                   aria-label="cPEG amount"
                   onChange={(event) => setCaptureCount(event.target.value)}
                   className="w-24 border border-white/15 bg-white/5 px-3 py-2 font-mono text-xs text-white outline-none transition focus:border-[#53c7ff]"
@@ -766,6 +948,9 @@ export function CpegHybridPanel({ tokenMint, initialAuthorityAddress, compact }:
               </div>
               {state.available_capacity < captureCountNumber ? (
                 <p className="mt-3 text-xs text-[#f7b85c]">Not enough cPEG capacity remains.</p>
+              ) : null}
+              {maxCapturePerTransaction === 1 && state.available_capacity > 1 ? (
+                <p className="mt-3 text-xs text-white/45">Lazy mint captures are one cPEG per transaction.</p>
               ) : null}
             </div>
 

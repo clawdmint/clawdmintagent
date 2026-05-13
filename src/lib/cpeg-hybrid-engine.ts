@@ -74,6 +74,7 @@ export const CPEG_HYBRID_STATUS_CONFIGURED = "HYBRID_CONFIGURED";
 export const CPEG_HYBRID_ASSET_STATUS_OWNED = "OWNED";
 export const CPEG_HYBRID_ASSET_STATUS_POOL = "POOL";
 export const CPEG_HYBRID_ASSET_STATUS_LISTED = "LISTED";
+export const CPEG_HYBRID_ASSET_STATUS_PENDING_CAPTURE = "PENDING_CAPTURE";
 
 const MIN_AGENT_WALLET_LAMPORTS_FOR_SETUP = BigInt(20_000_000);
 const MIN_AGENT_WALLET_LAMPORTS_FOR_CAPTURE = BigInt(8_000_000);
@@ -313,23 +314,11 @@ function buildAssetMetadata(launch: HybridLaunchSnapshot, pegId: number) {
   };
 }
 
-function findNextPegId(
-  taken: Set<number>,
-  maxPegs: number,
-  rendererSeed: string,
-  ownerAddress: string
-): number {
+function findNextPegId(taken: Set<number>, maxPegs: number): number {
   const cap = Math.max(1, Math.min(10_000, maxPegs || 1000));
-  const seedSource = `${rendererSeed || ""}|${ownerAddress}|${Date.now()}`;
-  let hash = 0;
-  for (let index = 0; index < seedSource.length; index += 1) {
-    hash = (hash * 131 + seedSource.charCodeAt(index)) >>> 0;
-  }
-  for (let attempt = 0; attempt < cap; attempt += 1) {
-    const candidate = ((hash + attempt) % cap) + 1;
-    if (!taken.has(candidate)) return candidate;
-  }
-  // Fallback: deterministic linear walk if hashing exhausted (shouldn't happen at scale used).
+  // Hybrid cPEG IDs are chronological provenance, not randomness. The first
+  // available ID is always assigned first, so lower IDs represent earlier
+  // origin within a launch and can be reconstructed from launch state alone.
   for (let id = 1; id <= cap; id += 1) {
     if (!taken.has(id)) return id;
   }
@@ -394,6 +383,9 @@ export async function buildHybridStateSummary(
     // ignore; balance and supply are best effort
   }
   const effectiveMax = effectiveHybridCapacity(launch.maxPegs, tokenSupplyRaw, pegUnitRaw);
+  // Captures consume initialized pool assets first, then fall back to user-paid
+  // lazy Core creation in the same transaction. The project authority only
+  // signs the Metaplex authority accounts; the user remains the fee payer.
   const unmintedCapacity = Math.max(0, effectiveMax - assetCounts.total);
   const availableCapacity = Math.max(0, assetCounts.pool + unmintedCapacity);
   return {
@@ -428,6 +420,12 @@ export async function setupHybridLaunch(
   agent: HybridAgentRecord,
   launch: HybridLaunchSnapshot
 ): Promise<HybridSetupResult> {
+  if (isMainnetCluster(launch.cluster)) {
+    throw new CpegHybridEngineError(
+      409,
+      "Server-funded Metaplex Hybrid setup is disabled on mainnet. Use the user-paid Metaplex setup transaction instead."
+    );
+  }
   const ctx = await loadHybridContext(agent, launch);
   const balance = await getAgentWalletBalance(ctx.signer.publicKey.toBase58());
   if (balance.lamports < MIN_AGENT_WALLET_LAMPORTS_FOR_SETUP) {
@@ -663,6 +661,12 @@ export async function ensureHybridPoolAssetOwnership(
   launch: HybridLaunchSnapshot,
   assetAddress: string
 ): Promise<{ owner: string; transferred: boolean; txSignature: string | null }> {
+  if (isMainnetCluster(launch.cluster)) {
+    throw new CpegHybridEngineError(
+      409,
+      "Server-side cPEG pool asset migration is disabled on mainnet. Fund the Metaplex Hybrid escrow directly."
+    );
+  }
   const ctx = await loadHybridContext(agent, launch);
   const custody = getMplHybridCustodyTarget(launch, ctx.tokenProgramId.toBase58());
   if (!custody.isNativeReady || !custody.escrowAddress) {
@@ -718,6 +722,12 @@ export async function ensureHybridPoolAssetData(
   assetAddress: string,
   pegId: number
 ): Promise<{ nftDataAddress: string; initialized: boolean; txSignature: string | null }> {
+  if (isMainnetCluster(launch.cluster)) {
+    throw new CpegHybridEngineError(
+      409,
+      "Server-side cPEG NFT-data initialization is disabled on mainnet. Initialize Metaplex Hybrid NFT data through a user-paid Metaplex transaction."
+    );
+  }
   const ctx = await loadHybridContext(agent, launch);
   const custody = getMplHybridCustodyTarget(launch, ctx.tokenProgramId.toBase58());
   if (!custody.isNativeReady) {
@@ -775,7 +785,9 @@ export async function buildCaptureTransferInstructions(
   launch: HybridLaunchSnapshot,
   userWallet: string,
   capturesToCommit: number,
-  captureAssets: string[] = []
+  captureAssets: string[] = [],
+  prefixInstructions: InstanceType<typeof TransactionInstruction>[] = [],
+  additionalSigners: InstanceType<typeof Keypair>[] = []
 ): Promise<{
   instructions: Array<{ programId: string; accounts: Array<{ pubkey: string; isSigner: boolean; isWritable: boolean }>; dataBase64: string }>;
   vaultAta: string;
@@ -944,7 +956,7 @@ export async function buildCaptureTransferInstructions(
       ixs.push(
         createCaptureV1Instruction({
           owner: userPubkey,
-          authority: ctx.signer.publicKey,
+          payer: userPubkey,
           escrow: custody.escrowAddress!,
           asset: assetAddress,
           collection: launch.hybridCoreCollectionAddress,
@@ -995,11 +1007,18 @@ export async function buildCaptureTransferInstructions(
     );
   }
   const denom = ctx.pegUnitRaw === BigInt(0) ? BigInt(1) : ctx.pegUnitRaw;
+  const allInstructions = [...prefixInstructions, ...ixs];
   const serializedTransactionBase64 = nativeEscrowReady
-    ? await buildPartiallySignedUserTransaction(ctx.connection, userPubkey, ctx.signer, ixs)
+    ? await buildPartiallySignedUserTransaction(
+        ctx.connection,
+        userPubkey,
+        ctx.signer,
+        allInstructions,
+        additionalSigners
+      )
     : undefined;
   return {
-    instructions: ixs.map((ix) => serializeInstruction(ix)),
+    instructions: allInstructions.map((ix) => serializeInstruction(ix)),
     vaultAta: vaultAta.toBase58(),
     userAta: userAta.toBase58(),
     vaultOwner: vaultOwnerKey.toBase58(),
@@ -1047,7 +1066,7 @@ export async function confirmCaptureMint(
   if (!collectionAccount) {
     throw new CpegHybridEngineError(409, "Core PEG collection account is not present on chain");
   }
-  const pegId = findNextPegId(takenPegIds, launch.maxPegs, launch.collectionSeed, userWallet);
+  const pegId = findNextPegId(takenPegIds, launch.maxPegs);
   const metadata = buildAssetMetadata(launch, pegId);
   const assetSigner = generateSigner(umi);
   let mintTxSignature: string | null = null;
@@ -1078,6 +1097,12 @@ export async function mintHybridPoolAsset(
   launch: HybridLaunchSnapshot,
   takenPegIds: Set<number>
 ): Promise<{ assetAddress: string; pegId: number; mintTxSignature: string | null; poolOwner: string }> {
+  if (isMainnetCluster(launch.cluster)) {
+    throw new CpegHybridEngineError(
+      409,
+      "Server-side Core PEG minting is disabled on mainnet. The Metaplex Hybrid escrow must be funded with user-paid Agent PEG assets."
+    );
+  }
   const ctx = await loadHybridContext(agent, launch);
   const custody = getMplHybridCustodyTarget(launch, ctx.tokenProgramId.toBase58());
   if (!custody.isNativeReady || !custody.escrowAddress) {
@@ -1102,7 +1127,7 @@ export async function mintHybridPoolAsset(
   if (!collectionAccount) {
     throw new CpegHybridEngineError(409, "Core PEG collection account is not present on chain");
   }
-  const pegId = findNextPegId(takenPegIds, launch.maxPegs, launch.collectionSeed, custody.escrowAddress);
+  const pegId = findNextPegId(takenPegIds, launch.maxPegs);
   const metadata = buildAssetMetadata(launch, pegId);
   const assetSigner = generateSigner(umi);
   let mintTxSignature: string | null = null;
@@ -1322,7 +1347,7 @@ export async function buildReleaseTransferInstructions(
     ixs.push(
       createReleaseV1Instruction({
         owner: userPubkey,
-        authority: ctx.signer.publicKey,
+        payer: userPubkey,
         escrow: custody.escrowAddress!,
         asset: assetAddress,
         collection: launch.hybridCoreCollectionAddress,
@@ -1508,14 +1533,26 @@ async function buildPartiallySignedUserTransaction(
   connection: InstanceType<typeof Connection>,
   feePayer: InstanceType<typeof PublicKey>,
   agentSigner: InstanceType<typeof Keypair>,
-  instructions: InstanceType<typeof TransactionInstruction>[]
+  instructions: InstanceType<typeof TransactionInstruction>[],
+  additionalSigners: InstanceType<typeof Keypair>[] = []
 ): Promise<string> {
   const transaction = new Transaction();
   for (const ix of instructions) transaction.add(ix);
   const latest = await connection.getLatestBlockhash("confirmed");
   transaction.feePayer = feePayer;
   transaction.recentBlockhash = latest.blockhash;
-  transaction.partialSign(agentSigner);
+  if (additionalSigners.length > 0) {
+    transaction.partialSign(...additionalSigners);
+  }
+  const requiresAgentSignature = instructions.some((ix) =>
+    ix.keys.some((key: AccountMetaLike) => key.isSigner && key.pubkey.equals(agentSigner.publicKey))
+  );
+  const alreadySignedByAdditionalSigner = additionalSigners.some((signer) =>
+    signer.publicKey.equals(agentSigner.publicKey)
+  );
+  if (requiresAgentSignature && !alreadySignedByAdditionalSigner) {
+    transaction.partialSign(agentSigner);
+  }
   return transaction
     .serialize({ requireAllSignatures: false, verifySignatures: false })
     .toString("base64");

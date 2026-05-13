@@ -10,6 +10,7 @@ import {
   loadHybridLaunchAndAgent,
   loadHybridAssetCounts,
 } from "@/lib/cpeg-hybrid-loader";
+import { syncMetaplexHybridPoolAssets } from "@/lib/cpeg-hybrid-inventory";
 import { describeCpegProtocolFees } from "@/lib/platform-fees";
 import { MPL_HYBRID_PROTOCOL_SOL_FEE_LAMPORTS } from "@/lib/mpl-hybrid-native";
 
@@ -25,9 +26,24 @@ export async function GET(request: NextRequest, { params }: RouteContext) {
   if (!data) {
     return NextResponse.json({ success: false, error: "cPEG hybrid launch not found" }, { status: 404 });
   }
-  const counts = await loadHybridAssetCounts(data.launch.id);
-  const summary = await buildHybridStateSummary(data.agent, data.launch, counts);
+  let counts = await loadHybridAssetCounts(data.launch.id);
+  let summary = await buildHybridStateSummary(data.agent, data.launch, counts);
   const custody = getMplHybridCustodyTarget(data.launch, summary.tokenProgramId);
+  let poolSyncWarning: string | null = null;
+  if (data.launch.cluster === "mainnet-beta" && custody.isNativeReady && custody.escrowAddress) {
+    await syncMetaplexHybridPoolAssets({
+      launchId: data.launch.id,
+      tokenMint: data.launch.tokenMint,
+      collectionAddress: data.launch.hybridCoreCollectionAddress,
+      configuredEscrowAddress: custody.escrowAddress,
+      hybridProgramId: data.launch.hybridProgramId,
+      maxPegs: summary.effectiveMaxPegs,
+    }).catch((error) => {
+      poolSyncWarning = error instanceof Error ? error.message : "Metaplex pool sync failed";
+    });
+    counts = await loadHybridAssetCounts(data.launch.id);
+    summary = await buildHybridStateSummary(data.agent, data.launch, counts);
+  }
   const nativeEscrowReady =
     custody.isNativeReady &&
     summary.hybridEscrowAccountInitialized &&
@@ -130,6 +146,7 @@ export async function GET(request: NextRequest, { params }: RouteContext) {
       mpl_hybrid_escrow_token_account_initialized: summary.vaultTokenAccountInitialized,
       mpl_hybrid_native_ready: nativeEscrowReady,
       custody_warning: custodyWarning,
+      pool_sync_warning: poolSyncWarning,
       vault_token_account: summary.vaultTokenAccount,
       vault_owner: summary.vaultOwner,
       token_program_id: summary.tokenProgramId,
