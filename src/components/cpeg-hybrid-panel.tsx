@@ -138,6 +138,16 @@ function formatSimulationError(action: "capture" | "release", err: unknown, logs
 }
 
 async function formatBroadcastError(error: unknown, connection: InstanceType<typeof Connection>, fallback: string) {
+  const rawMsg = error instanceof Error ? error.message : typeof error === "string" ? error : "";
+  if (
+    rawMsg &&
+    (/Instruction\s+\d+:/i.test(rawMsg) ||
+      /custom program error:\s*0x[0-9a-f]+/i.test(rawMsg) ||
+      /insufficient lamports|insufficient funds|Transfer checked failed/i.test(rawMsg))
+  ) {
+    const line = rawMsg.split("\n")[0]?.trim() || rawMsg;
+    return `${fallback} ${line.length > 320 ? `${line.slice(0, 320)}...` : line}`;
+  }
   const maybeLogs =
     error && typeof error === "object" && "getLogs" in error && typeof (error as { getLogs?: unknown }).getLogs === "function"
       ? await (error as { getLogs: (connection: InstanceType<typeof Connection>) => Promise<string[] | null> })
@@ -551,8 +561,8 @@ export function CpegHybridPanel({ tokenMint, initialAuthorityAddress, compact }:
       // do not already have a useful sentence to show.
       if (message.startsWith("[capture-sim]")) {
         setError(message.replace("[capture-sim]", "").trim());
-      } else if (message && message.length > 0 && !/program error/i.test(message)) {
-        setError(message.length > 220 ? `${message.slice(0, 220)}...` : message);
+      } else if (message && message.length > 0) {
+        setError(message.length > 280 ? `${message.slice(0, 280)}...` : message);
       } else {
         setError(describeError(captureError, "Failed to capture cPEG."));
       }

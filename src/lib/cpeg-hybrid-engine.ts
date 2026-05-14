@@ -883,29 +883,8 @@ export async function buildCaptureTransferInstructions(
   const clawdmintRecipient = getCpegProtocolFeeRecipient();
   const clawdmintFeePerCapture = getCpegCaptureFeeLamports();
   const clawdmintFeeTotal = clawdmintRecipient ? clawdmintFeePerCapture * BigInt(capCount) : BigInt(0);
-  const requiredLamports =
-    MPL_HYBRID_PROTOCOL_SOL_FEE_LAMPORTS * BigInt(capCount) +
-    MPL_HYBRID_TX_OVERHEAD_LAMPORTS +
-    clawdmintFeeTotal;
-  if (nativeEscrowReady) {
-    const userLamports = BigInt(await ctx.connection.getBalance(userPubkey, "confirmed"));
-    if (userLamports < requiredLamports) {
-      throw new CpegHybridEngineError(
-        402,
-        `Insufficient SOL for the Metaplex Hybrid protocol fee: you have ${(Number(userLamports) / 1e9).toFixed(6)} SOL but need at least ${(Number(requiredLamports) / 1e9).toFixed(6)} SOL.`,
-        {
-          wallet: userPubkey.toBase58(),
-          balance_lamports: userLamports.toString(),
-          required_lamports: requiredLamports.toString(),
-          protocol_fee_per_capture_lamports: MPL_HYBRID_PROTOCOL_SOL_FEE_LAMPORTS.toString(),
-          clawdmint_fee_per_capture_lamports: clawdmintFeePerCapture.toString(),
-          tx_overhead_lamports: MPL_HYBRID_TX_OVERHEAD_LAMPORTS.toString(),
-          captures: capCount,
-        }
-      );
-    }
-  }
   const ixs: InstanceType<typeof TransactionInstruction>[] = [];
+  let userMustFundFeeAta = false;
   const vaultAtaInfo = await ctx.connection.getAccountInfo(vaultAta, "confirmed");
   if (!vaultAtaInfo) {
     if (nativeEscrowReady && isMainnetCluster(launch.cluster)) {
@@ -947,6 +926,7 @@ export async function buildCaptureTransferInstructions(
     );
     const feeAtaInfo = await ctx.connection.getAccountInfo(feeAta, "confirmed");
     if (!feeAtaInfo) {
+      userMustFundFeeAta = true;
       ixs.push(
         createAssociatedTokenAccountInstruction(
           userPubkey,
@@ -1016,6 +996,37 @@ export async function buildCaptureTransferInstructions(
         ctx.tokenProgramId
       )
     );
+  }
+  if (nativeEscrowReady) {
+    const splTokenAccountLen = 165;
+    const tokenAtaRentLamports = BigInt(await ctx.connection.getMinimumBalanceForRentExemption(splTokenAccountLen));
+    // Lazy capture prefix mints a Core asset with the user as payer — budget one medium account’s rent in addition to SPL ATA creates.
+    const lazyCaptureRentBufferLamports = BigInt(await ctx.connection.getMinimumBalanceForRentExemption(3072));
+    let requiredLamports =
+      MPL_HYBRID_PROTOCOL_SOL_FEE_LAMPORTS * BigInt(capCount) +
+      MPL_HYBRID_TX_OVERHEAD_LAMPORTS +
+      clawdmintFeeTotal;
+    if (userMustFundFeeAta) requiredLamports += tokenAtaRentLamports;
+    if (prefixInstructions.length > 0) requiredLamports += lazyCaptureRentBufferLamports;
+    const userLamports = BigInt(await ctx.connection.getBalance(userPubkey, "confirmed"));
+    if (userLamports < requiredLamports) {
+      throw new CpegHybridEngineError(
+        402,
+        `Insufficient SOL for Metaplex Hybrid fees and account rent: you have ${(Number(userLamports) / 1e9).toFixed(6)} SOL but need at least ${(Number(requiredLamports) / 1e9).toFixed(6)} SOL.`,
+        {
+          wallet: userPubkey.toBase58(),
+          balance_lamports: userLamports.toString(),
+          required_lamports: requiredLamports.toString(),
+          protocol_fee_per_capture_lamports: MPL_HYBRID_PROTOCOL_SOL_FEE_LAMPORTS.toString(),
+          clawdmint_fee_per_capture_lamports: clawdmintFeePerCapture.toString(),
+          tx_overhead_lamports: MPL_HYBRID_TX_OVERHEAD_LAMPORTS.toString(),
+          fee_ata_rent_lamports: userMustFundFeeAta ? tokenAtaRentLamports.toString() : "0",
+          lazy_capture_rent_buffer_lamports:
+            prefixInstructions.length > 0 ? lazyCaptureRentBufferLamports.toString() : "0",
+          captures: capCount,
+        }
+      );
+    }
   }
   const denom = ctx.pegUnitRaw === BigInt(0) ? BigInt(1) : ctx.pegUnitRaw;
   const allInstructions = [...prefixInstructions, ...ixs];
