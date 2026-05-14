@@ -93,10 +93,14 @@ const FRIENDLY_ERROR_PATTERNS: Array<[RegExp, string]> = [
 export function describeError(error: unknown, fallback = "Something went wrong."): string {
   const raw = error instanceof Error ? error.message : typeof error === "string" ? error : "";
   if (!raw) return fallback;
-  // Keep Anchor / BPF detail so product owners can diagnose rejects instead of a generic line.
+  // Keep Anchor / BPF detail (full RPC message is often line 2+, not "Simulation failed.")
   if (/Instruction\s+\d+/i.test(raw) || /custom program error:\s*0x[0-9a-f]+/i.test(raw)) {
-    const oneLine = raw.split("\n")[0]?.trim() || fallback;
-    return oneLine.length > 220 ? `${oneLine.slice(0, 220)}...` : oneLine;
+    const lines = raw.split("\n").map((l) => l.trim()).filter(Boolean);
+    const detailLine =
+      lines.find((l) => /Instruction\s+\d+|custom program error|Error processing|Transaction simulation failed:/i.test(l)) ||
+      lines.slice(0, 4).join(" ");
+    const compact = detailLine.length > 280 ? `${detailLine.slice(0, 280)}…` : detailLine;
+    return compact || fallback;
   }
   for (const [pattern, friendly] of FRIENDLY_ERROR_PATTERNS) {
     if (pattern.test(raw)) return friendly;

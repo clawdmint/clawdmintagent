@@ -137,16 +137,50 @@ function formatSimulationError(action: "capture" | "release", err: unknown, logs
   return `[${action}-sim]${action === "capture" ? "Capture" : "Release"} would be rejected on-chain: ${message}${detail}`;
 }
 
+type SendTransactionErrorLike = {
+  transactionMessage?: string;
+  transactionLogs?: string[];
+  logs?: string[];
+};
+
+function pickRpcSimulationDetail(rawMsg: string, rpcLogs: string[]): string {
+  const lines = rawMsg.split("\n").map((l) => l.trim()).filter(Boolean);
+  const messageLine = lines.find((l) => /^Message:/i.test(l));
+  const instructionHint = lines.find((l) => /Instruction\s+\d+|custom program error|Error processing/i.test(l)) || messageLine;
+  const usefulFromRpc = rpcLogs.filter((line) =>
+    /Program log: Error|custom program error|AnchorError|Invalid|insufficient|owner|authority|mint|account|GetAccountDataSize|Constraint|failed/i.test(
+      line
+    )
+  );
+  const tailLogs = usefulFromRpc.length ? usefulFromRpc.slice(-4).map((l) => l.replace(/^Program log: /, "")).join(" | ") : "";
+  const head = instructionHint || lines.slice(0, 3).join(" ");
+  const merged = [head.replace(/^Message:\s*/i, "").trim(), tailLogs].filter(Boolean).join(" | ");
+  return merged.length > 450 ? `${merged.slice(0, 450)}...` : merged;
+}
+
 async function formatBroadcastError(error: unknown, connection: InstanceType<typeof Connection>, fallback: string) {
   const rawMsg = error instanceof Error ? error.message : typeof error === "string" ? error : "";
+  const rpc = error && typeof error === "object" ? (error as SendTransactionErrorLike) : null;
+  const embeddedLogs = Array.isArray(rpc?.transactionLogs)
+    ? rpc!.transactionLogs!
+    : Array.isArray(rpc?.logs)
+      ? rpc!.logs!
+      : [];
+
+  const txMsg = typeof rpc?.transactionMessage === "string" ? rpc.transactionMessage.trim() : "";
+  if (txMsg || embeddedLogs.length) {
+    const chunk = pickRpcSimulationDetail(txMsg || rawMsg, embeddedLogs);
+    if (chunk) return `${fallback} ${chunk}`;
+  }
+
   if (
     rawMsg &&
     (/Instruction\s+\d+:/i.test(rawMsg) ||
       /custom program error:\s*0x[0-9a-f]+/i.test(rawMsg) ||
       /insufficient lamports|insufficient funds|Transfer checked failed/i.test(rawMsg))
   ) {
-    const line = rawMsg.split("\n")[0]?.trim() || rawMsg;
-    return `${fallback} ${line.length > 320 ? `${line.slice(0, 320)}...` : line}`;
+    const chunk = pickRpcSimulationDetail(rawMsg, embeddedLogs);
+    return `${fallback} ${chunk || rawMsg.replace(/\s+/g, " ").trim().slice(0, 450)}`;
   }
   const maybeLogs =
     error && typeof error === "object" && "getLogs" in error && typeof (error as { getLogs?: unknown }).getLogs === "function"
@@ -154,7 +188,7 @@ async function formatBroadcastError(error: unknown, connection: InstanceType<typ
           .getLogs(connection)
           .catch(() => null)
       : null;
-  const logs = maybeLogs || [];
+  const logs = maybeLogs || embeddedLogs || [];
   const usefulLogs = logs.filter((line) =>
     /Program log: Error|custom program error|Invalid|insufficient|owner|authority|mint|account|GetAccountDataSize|failed/i.test(line)
   );
@@ -505,8 +539,14 @@ export function CpegHybridPanel({ tokenMint, initialAuthorityAddress, compact }:
         if (simError instanceof Error && simError.message.startsWith("[capture-sim]")) {
           throw simError;
         }
-        // Network-level simulation failure should not block; keep going and let
-        // sendRawTransaction surface its own error.
+        if (simError instanceof Error && /simulation failed|Transaction simulation failed/i.test(simError.message)) {
+          const rpc = simError as SendTransactionErrorLike;
+          const chunk =
+            rpc.transactionMessage?.trim() ||
+            pickRpcSimulationDetail(simError.message, Array.isArray(rpc.transactionLogs) ? rpc.transactionLogs : []);
+          throw new Error(`[capture-sim] ${chunk || simError.message.replace(/\s+/g, " ").trim().slice(0, 400)}`);
+        }
+        // Other client/RPC errors: continue; preflight on send will retry simulation.
       }
 
       setStatus("Broadcasting capture transfer...");
@@ -562,7 +602,7 @@ export function CpegHybridPanel({ tokenMint, initialAuthorityAddress, compact }:
       if (message.startsWith("[capture-sim]")) {
         setError(message.replace("[capture-sim]", "").trim());
       } else if (message && message.length > 0) {
-        setError(message.length > 280 ? `${message.slice(0, 280)}...` : message);
+        setError(message.length > 900 ? `${message.slice(0, 900)}…` : message);
       } else {
         setError(describeError(captureError, "Failed to capture cPEG."));
       }
