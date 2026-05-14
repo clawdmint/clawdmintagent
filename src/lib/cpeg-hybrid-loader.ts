@@ -3,6 +3,7 @@ import {
   CPEG_HYBRID_ASSET_STATUS_OWNED,
   CPEG_HYBRID_ASSET_STATUS_POOL,
   CPEG_HYBRID_ASSET_STATUS_LISTED,
+  CPEG_HYBRID_ASSET_STATUS_PENDING_CAPTURE,
   type HybridAgentRecord,
   type HybridLaunchSnapshot,
 } from "@/lib/cpeg-hybrid-engine";
@@ -129,6 +130,13 @@ export async function loadHybridAssetCounts(launchId: string) {
   let pool = 0;
   for (const row of grouped) {
     const count = row._count._all;
+    if (row.status === CPEG_HYBRID_ASSET_STATUS_PENDING_CAPTURE) {
+      // Pending captures hold a deterministic peg id reservation but are not
+      // yet committed on-chain. They MUST NOT reduce the public-facing
+      // capacity, otherwise a failed/abandoned capture would shrink
+      // "Available cPEGs" until the row's TTL clears.
+      continue;
+    }
     total += count;
     if (row.status === CPEG_HYBRID_ASSET_STATUS_OWNED) owned += count;
     else if (row.status === CPEG_HYBRID_ASSET_STATUS_POOL || row.status === CPEG_HYBRID_ASSET_STATUS_LISTED) pool += count;

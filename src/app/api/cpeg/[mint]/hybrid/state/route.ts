@@ -3,9 +3,15 @@ import { prisma } from "@/lib/db";
 import {
   CPEG_HYBRID_ASSET_STATUS_LISTED,
   CPEG_HYBRID_ASSET_STATUS_OWNED,
+  CPEG_HYBRID_ASSET_STATUS_PENDING_CAPTURE,
   buildHybridStateSummary,
   getMplHybridCustodyTarget,
 } from "@/lib/cpeg-hybrid-engine";
+
+// Aggressive cleanup window for state reads: abandoned capture attempts free
+// their reserved peg id after this many milliseconds. Capture prepare/confirm
+// still use a longer window (20 min) so an in-flight signature can land.
+const STATE_STALE_PENDING_TTL_MS = 5 * 60 * 1000;
 import {
   loadHybridLaunchAndAgent,
   loadHybridAssetCounts,
@@ -26,6 +32,19 @@ export async function GET(request: NextRequest, { params }: RouteContext) {
   if (!data) {
     return NextResponse.json({ success: false, error: "cPEG hybrid launch not found" }, { status: 404 });
   }
+  // Recycle peg-id reservations from abandoned capture attempts so the launch
+  // does not "lose" supply across failed signs / broadcasts. We only purge
+  // rows that never produced a capture signature.
+  await prisma.clawPegHybridAsset
+    .deleteMany({
+      where: {
+        launchId: data.launch.id,
+        status: CPEG_HYBRID_ASSET_STATUS_PENDING_CAPTURE,
+        captureTxHash: null,
+        createdAt: { lt: new Date(Date.now() - STATE_STALE_PENDING_TTL_MS) },
+      },
+    })
+    .catch(() => null);
   let counts = await loadHybridAssetCounts(data.launch.id);
   let summary = await buildHybridStateSummary(data.agent, data.launch, counts);
   const custody = getMplHybridCustodyTarget(data.launch, summary.tokenProgramId);

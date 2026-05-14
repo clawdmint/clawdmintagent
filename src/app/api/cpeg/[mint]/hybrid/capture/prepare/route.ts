@@ -32,6 +32,8 @@ import { syncMetaplexHybridPoolAssets } from "@/lib/cpeg-hybrid-inventory";
 import {
   MPL_HYBRID_PATH_NO_REROLL_METADATA,
   createInitNftDataV1Instruction,
+  createUpdateEscrowV1Instruction,
+  decodeMplHybridEscrowAccount,
   deriveMplHybridNftDataPda,
 } from "@/lib/mpl-hybrid-native";
 import { getMetaplexCoreConnection } from "@/lib/synapse-sap";
@@ -403,6 +405,56 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
     const prefixInstructions: InstanceType<typeof TransactionInstruction>[] = [];
     const additionalSigners: InstanceType<typeof Keypair>[] = [];
     if (custody.isNativeReady && custody.escrowAddress) {
+      // Auto-migrate the on-chain escrow path if it was initialized in legacy
+      // "reroll metadata on capture" mode. That mode forces mpl-core update_v1
+      // with the collection authority as a co-signer; user wallets cannot
+      // satisfy this and the program rejects capture_v1 with
+      // InvalidUpdateAuthority (0x177c). The agent operational keypair already
+      // partial-signs the prepared transaction whenever an instruction lists
+      // it as a signer, so prepending update_escrow keeps the user signing
+      // exactly one transaction.
+      const escrowMetaConnection = getMetaplexCoreConnection({ commitment: "confirmed" });
+      const escrowPubkey = new PublicKey(custody.escrowAddress);
+      const escrowInfo = await escrowMetaConnection.getAccountInfo(escrowPubkey, "confirmed").catch(() => null);
+      if (escrowInfo) {
+        const decoded = decodeMplHybridEscrowAccount(escrowInfo.data);
+        const needsMigration = Boolean(decoded) && (decoded!.path & MPL_HYBRID_PATH_NO_REROLL_METADATA) === 0;
+        if (needsMigration) {
+          const agentAuthority = getAgentOperationalKeypair(data.agent);
+          if (decoded!.authority !== agentAuthority.publicKey.toBase58()) {
+            throw new CpegHybridEngineError(
+              409,
+              "Metaplex Hybrid escrow was initialized with a different authority and cannot be auto-migrated. Recreate the launch's escrow with the current Clawdmint Metaplex authority.",
+              {
+                escrow_address: custody.escrowAddress,
+                expected_authority: agentAuthority.publicKey.toBase58(),
+                escrow_authority: decoded!.authority,
+              }
+            );
+          }
+          if (decoded!.count > BigInt(1)) {
+            throw new CpegHybridEngineError(
+              409,
+              "Metaplex Hybrid escrow is in legacy reroll-metadata mode but the program no longer allows auto-migration after swaps have started. Recreate the launch's escrow.",
+              {
+                escrow_address: custody.escrowAddress,
+                escrow_swap_count: decoded!.count.toString(),
+              }
+            );
+          }
+          prefixInstructions.push(
+            createUpdateEscrowV1Instruction({
+              escrow: escrowPubkey,
+              authority: agentAuthority.publicKey,
+              collection: decoded!.collection,
+              token: decoded!.token,
+              feeLocation: decoded!.feeLocation,
+              path: MPL_HYBRID_PATH_NO_REROLL_METADATA,
+              programId: data.launch.hybridProgramId || undefined,
+            })
+          );
+        }
+      }
       const poolRows = await prisma.clawPegHybridAsset.findMany({
         where: { launchId: data.launch.id, status: CPEG_HYBRID_ASSET_STATUS_POOL },
         orderBy: { pegId: "asc" },
