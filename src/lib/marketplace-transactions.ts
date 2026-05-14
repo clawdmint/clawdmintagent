@@ -297,16 +297,15 @@ export async function buildMarketplaceFillTransaction(input: {
     })
   );
 
-  builder = builder.add(
-    approvePluginAuthority(umi, {
-      asset: asset.publicKey,
-      collection: collection?.publicKey,
-      payer: buyerSigner,
-      authority: delegateAuthoritySigner,
-      plugin: { type: "TransferDelegate" },
-      newAuthority: { type: "Owner" },
-    })
-  );
+  // mpl-core's transfer processor already resets the TransferDelegate
+  // plugin's authority to `Owner` (the new owner = buyer) as part of the
+  // transfer itself. A subsequent ApprovePluginAuthority signed by the
+  // marketplace delegate would hit
+  // `transfer_delegate.rs:validate_approve_plugin_authority` with the
+  // delegate as the signer instead of the new owner, which mpl-core
+  // rejects with `InvalidAuthority` (custom error 26). The buyer therefore
+  // ends up with a clean asset whose TransferDelegate plugin is bound to
+  // themselves; they can revoke it whenever they want.
 
   const builtTransaction = await builder.useLegacyVersion().buildWithLatestBlockhash(umi);
   const web3Transaction = toWeb3JsLegacyTransaction(builtTransaction);
