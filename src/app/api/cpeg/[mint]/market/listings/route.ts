@@ -3,6 +3,7 @@ import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { splitClawPegMarketPayment } from "@/lib/clawpeg";
 import { CPEG_STANDARD_MODE_METAPLEX_HYBRID } from "@/lib/cpeg-metaplex-hybrid";
+import { syncMetaplexHybridPoolAssets } from "@/lib/cpeg-hybrid-inventory";
 
 export const dynamic = "force-dynamic";
 
@@ -48,7 +49,10 @@ export async function GET(request: NextRequest, { params }: RouteContext) {
       feeVaultAddress: true,
       maxPegs: true,
       standardMode: true,
+      cluster: true,
       hybridCoreCollectionAddress: true,
+      hybridEscrowAddress: true,
+      hybridProgramId: true,
     },
   });
   if (!launch) {
@@ -59,6 +63,27 @@ export async function GET(request: NextRequest, { params }: RouteContext) {
       { success: false, error: "Legacy custom cPEG market listings are disabled. This market only supports Metaplex Hybrid cPEGs." },
       { status: 410 }
     );
+  }
+
+  // Reconcile on-chain ownership with the local marketplace state so the
+  // listings the user sees are accurate. This catches buys whose
+  // /market/buy/confirm call did not land (RPC lag, network blip, tab
+  // close) and flips the affected listings from ACTIVE -> FILLED in the
+  // database before we render them as still purchasable.
+  if (
+    launch.cluster === "mainnet-beta" &&
+    launch.hybridCoreCollectionAddress &&
+    launch.hybridEscrowAddress
+  ) {
+    await syncMetaplexHybridPoolAssets({
+      launchId: launch.id,
+      tokenMint: launch.tokenMint,
+      collectionAddress: launch.hybridCoreCollectionAddress,
+      configuredEscrowAddress: launch.hybridEscrowAddress,
+      hybridProgramId: launch.hybridProgramId,
+      maxPegs: launch.maxPegs,
+      requireNftData: false,
+    }).catch(() => null);
   }
 
   const conditions: Prisma.Sql[] = [

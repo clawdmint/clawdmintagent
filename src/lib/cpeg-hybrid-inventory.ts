@@ -215,11 +215,44 @@ export async function syncMetaplexHybridPoolAssets(
     if (!ownerAddress) continue;
     const existingRow = existingByAddress.get(snapshot.publicKey);
     if (existingRow) {
-      // Marketplace listings have their own lifecycle (LISTED -> ACTIVE row
-      // in ClawPegMarketListing). Do not flip a LISTED row here just
-      // because the asset still happens to live in the seller's wallet;
-      // the marketplace cancel / fill flows are authoritative for that.
       if (existingRow.status === CPEG_HYBRID_ASSET_STATUS_LISTED) {
+        // Listed assets only move on-chain when the marketplace delegate
+        // executes a fill or a cancel. If the on-chain owner is still the
+        // seller, leave the LISTED row alone so the marketplace lifecycle
+        // remains authoritative. If the on-chain owner is a different
+        // wallet, the marketplace fill actually succeeded but our
+        // /market/buy/confirm call did not land (RPC lag, network blip,
+        // tab close). Self-heal: mark the matching ACTIVE listing FILLED
+        // and flip the hybrid row to OWNED with the new on-chain owner so
+        // the buyer's profile and the marketplace surface real state.
+        if (existingRow.ownerAddress === ownerAddress) {
+          continue;
+        }
+        await prisma.clawPegMarketListing
+          .updateMany({
+            where: {
+              launchId: input.launchId,
+              listingAddress: snapshot.publicKey,
+              status: "ACTIVE",
+            },
+            data: {
+              status: "FILLED",
+              buyerAddress: ownerAddress,
+              soldAt: new Date(),
+            },
+          })
+          .catch(() => null);
+        await prisma.clawPegHybridAsset
+          .update({
+            where: { assetAddress: snapshot.publicKey },
+            data: {
+              ownerAddress,
+              status: CPEG_HYBRID_ASSET_STATUS_OWNED,
+              capturedAt: new Date(),
+            },
+          })
+          .catch(() => null);
+        updated += 1;
         continue;
       }
       const needsUpdate =

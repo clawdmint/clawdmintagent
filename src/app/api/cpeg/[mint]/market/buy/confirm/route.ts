@@ -46,13 +46,51 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
     orderBy: { createdAt: "desc" },
   });
   if (!listing) {
+    // Idempotency: if a previous confirm already settled this peg, surface
+    // the existing FILLED row instead of returning 404 so the client can
+    // still render the success state on retry.
+    const filled = await prisma.clawPegMarketListing.findFirst({
+      where: {
+        tokenMint: launch.tokenMint,
+        pegId: parsed.data.peg_id,
+        status: "FILLED",
+        buyerAddress: parsed.data.buyer,
+      },
+      orderBy: { soldAt: "desc" },
+    });
+    if (filled) {
+      return NextResponse.json({
+        success: true,
+        already_processed: true,
+        listing: { id: filled.id },
+        core_transfer_signature: filled.buyTxHash || parsed.data.signature,
+        trade_art: {
+          peg_id: parsed.data.peg_id,
+          address: filled.listingAddress,
+          image_url: `/api/cpeg/${launch.tokenMint}/pegs/${parsed.data.peg_id}/svg`,
+          kind: "hybrid_core_transfer",
+        },
+      });
+    }
     return NextResponse.json({ success: false, error: "Listing not active" }, { status: 404 });
   }
 
-  const ownerAddress = await fetchMarketplaceCoreAssetOwner(listing.listingAddress);
+  // mpl-core ownership reads can lag a few seconds behind a freshly-confirmed
+  // transfer. Poll briefly before declaring the buy unfinished so we do not
+  // leave the DB out of sync after a successful broadcast.
+  let ownerAddress: string | null = null;
+  for (let attempt = 0; attempt < 6; attempt += 1) {
+    ownerAddress = await fetchMarketplaceCoreAssetOwner(listing.listingAddress).catch(() => null);
+    if (ownerAddress === parsed.data.buyer) break;
+    await new Promise((resolve) => setTimeout(resolve, 1500));
+  }
   if (ownerAddress !== parsed.data.buyer) {
     return NextResponse.json(
-      { success: false, error: "Purchase transaction has not transferred the Core cPEG to the buyer yet" },
+      {
+        success: false,
+        error: "Purchase transaction has not transferred the Core cPEG to the buyer yet",
+        details: { on_chain_owner: ownerAddress, expected_owner: parsed.data.buyer },
+      },
       { status: 409 }
     );
   }

@@ -907,24 +907,40 @@ export function CpegMarketClient() {
         const signature = body.listing?.serialized_transaction_base64
           ? await sendSerializedTransaction(body.listing.serialized_transaction_base64, selectedLaunch.cluster)
           : await sendPreparedTransaction(body.instructions, selectedLaunch.cluster, setup);
-        const confirmRes = await fetch(`/api/cpeg/${selectedLaunch.token_mint}/market/buy/confirm`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            signature,
-            buyer: connectedAddress,
-            peg_id: listing.peg_id,
-            trade_index: body.trade_art?.kind === "hybrid_core_transfer" ? undefined : body.trade_art?.trade_index,
-          }),
-        }).catch(() => null);
-        if (confirmRes?.ok) {
-          const confirmBody = await confirmRes.json().catch(() => null);
-          if (confirmBody?.trade_art) {
-            setLastTradeArt([{ peg_id: listing.peg_id, ...confirmBody.trade_art }]);
+        setLastTx(signature);
+        setStatus("Indexing your purchase...");
+        let confirmedOk = false;
+        for (let attempt = 0; attempt < 3 && !confirmedOk; attempt += 1) {
+          if (attempt > 0) {
+            await new Promise((resolve) => setTimeout(resolve, 2000));
+          }
+          const confirmRes = await fetch(`/api/cpeg/${selectedLaunch.token_mint}/market/buy/confirm`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              signature,
+              buyer: connectedAddress,
+              peg_id: listing.peg_id,
+              trade_index: body.trade_art?.kind === "hybrid_core_transfer" ? undefined : body.trade_art?.trade_index,
+            }),
+          }).catch(() => null);
+          if (confirmRes?.ok) {
+            confirmedOk = true;
+            const confirmBody = await confirmRes.json().catch(() => null);
+            if (confirmBody?.trade_art) {
+              setLastTradeArt([{ peg_id: listing.peg_id, ...confirmBody.trade_art }]);
+            }
+          } else if (confirmRes && confirmRes.status !== 409) {
+            break;
           }
         }
-        setLastTx(signature);
-        setStatus(`Bought ${selectedLaunch.symbol} #${listing.peg_id}.`);
+        if (confirmedOk) {
+          setStatus(`Bought ${selectedLaunch.symbol} #${listing.peg_id}.`);
+        } else {
+          setStatus(
+            `On-chain transfer confirmed but indexing is still catching up. Refresh in a few seconds to see ${selectedLaunch.symbol} #${listing.peg_id} in your profile.`
+          );
+        }
         await refreshListings(selectedLaunch.token_mint);
         await refreshActivity(selectedLaunch.token_mint);
       } catch (buyError) {
