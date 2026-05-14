@@ -26,8 +26,11 @@ import {
 } from "@/lib/cpeg-metaplex-hybrid";
 import { syncMetaplexHybridPoolAssets } from "@/lib/cpeg-hybrid-inventory";
 import {
+  MPL_HYBRID_PATH_NO_REROLL_METADATA,
   MPL_HYBRID_PROGRAM_ID,
   createInitEscrowV1Instruction,
+  createUpdateEscrowV1Instruction,
+  decodeMplHybridEscrowAccount,
   deriveMplHybridEscrowTokenAccount,
 } from "@/lib/mpl-hybrid-native";
 import { prisma } from "@/lib/db";
@@ -290,6 +293,56 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
       const vaultInfo = await connection.getAccountInfo(new PublicKey(existingEscrowTokenAccount), "confirmed");
       const expectedHybridProgramId = new PublicKey(data.launch.hybridProgramId || MPL_HYBRID_PROGRAM_ID.toBase58());
       if (escrowInfo?.owner.equals(expectedHybridProgramId) && vaultInfo?.owner.equals(new PublicKey(tokenProgramId))) {
+        const decodedEscrow = decodeMplHybridEscrowAccount(escrowInfo.data);
+        const needsPathMigration =
+          decodedEscrow !== null && (decodedEscrow.path & MPL_HYBRID_PATH_NO_REROLL_METADATA) === 0;
+        const migrationAllowed =
+          decodedEscrow !== null &&
+          decodedEscrow.authority === agentAuthority.publicKey.toBase58() &&
+          decodedEscrow.count <= BigInt(1);
+        if (needsPathMigration && migrationAllowed) {
+          const migrateIx = createUpdateEscrowV1Instruction({
+            escrow: new PublicKey(requestedEscrow),
+            authority: agentAuthority.publicKey,
+            collection: new PublicKey(decodedEscrow.collection),
+            token: new PublicKey(decodedEscrow.token),
+            feeLocation: new PublicKey(decodedEscrow.feeLocation),
+            path: MPL_HYBRID_PATH_NO_REROLL_METADATA,
+            programId: data.launch.hybridProgramId || undefined,
+          });
+          const migrationTx = new Transaction();
+          migrationTx.add(migrateIx);
+          const latestMigration = await connection.getLatestBlockhash("confirmed");
+          migrationTx.feePayer = authority;
+          migrationTx.recentBlockhash = latestMigration.blockhash;
+          migrationTx.partialSign(agentAuthority);
+          return NextResponse.json({
+            success: true,
+            requires_signature: true,
+            requires_escrow_path_migration: true,
+            setup: {
+              cluster: data.launch.cluster,
+              collection_address: requestedCollection,
+              hybrid_escrow_address: requestedEscrow,
+            },
+            serialized_transaction_base64: migrationTx
+              .serialize({ requireAllSignatures: false, verifySignatures: false })
+              .toString("base64"),
+            message:
+              "Sign once to disable mpl-hybrid metadata reroll on capture. Required so user wallets can complete GET cPEG without the collection authority co-signing each swap.",
+          });
+        }
+        if (needsPathMigration && !migrationAllowed) {
+          return NextResponse.json(
+            {
+              success: false,
+              error:
+                "This Metaplex Hybrid escrow was created in legacy “reroll metadata on capture” mode and can no longer be auto-migrated (swap counter is too high). Use a fresh Agent PEG collection or contact support.",
+              details: { escrow_swap_count: decodedEscrow?.count?.toString() ?? null },
+            },
+            { status: 409 }
+          );
+        }
         const { updated, sync } = await verifyAndPersistReadySetup({
           launchId: data.launch.id,
           tokenMint: data.launch.tokenMint,
@@ -399,7 +452,7 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
         amount: BigInt(summary.pegUnitRaw || data.launch.pegUnitRaw || "1"),
         feeAmount: 0,
         solFeeAmount: 0,
-        path: 0,
+        path: MPL_HYBRID_PATH_NO_REROLL_METADATA,
         tokenProgramId: tokenProgram,
         programId: data.launch.hybridProgramId || undefined,
       })
@@ -437,7 +490,7 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
         hybrid_escrow_token_account: escrowTokenAccount.toBase58(),
         token_program_id: tokenProgramId,
         custody_model: "metaplex_hybrid_escrow_pda",
-        reroll_on_capture: true,
+        reroll_on_capture: false,
       },
       instructions: setupInstructions.map(serializeInstruction),
       serialized_transaction_base64: transaction

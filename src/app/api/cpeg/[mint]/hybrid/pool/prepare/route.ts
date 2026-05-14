@@ -14,6 +14,7 @@ import {
 import { loadHybridAssetCounts, loadHybridLaunchAndAgent, listHybridAssetPegIds } from "@/lib/cpeg-hybrid-loader";
 import { CPEG_STANDARD_MODE_METAPLEX_HYBRID } from "@/lib/cpeg-metaplex-hybrid";
 import {
+  MPL_HYBRID_PATH_NO_REROLL_METADATA,
   createInitNftDataV1Instruction,
   deriveMplHybridNftDataPda,
 } from "@/lib/mpl-hybrid-native";
@@ -230,7 +231,7 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
           amount: BigInt(summary.pegUnitRaw || data.launch.pegUnitRaw || "1"),
           feeAmount: 0,
           solFeeAmount: 0,
-          path: 0,
+          path: MPL_HYBRID_PATH_NO_REROLL_METADATA,
           programId: data.launch.hybridProgramId || undefined,
         })
       );
