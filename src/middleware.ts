@@ -104,13 +104,25 @@ function handleCpegSubdomain(request: NextRequest) {
     return NextResponse.rewrite(internal, { request: { headers: requestHeaders } });
   }
 
-  const top = pathname.split("/").filter(Boolean)[0];
-  if (top && isLikelyMintPathSegment(top) && pathname.split("/").filter(Boolean).length === 1) {
-    const internal = new URL(`/cpeg/${top}`, request.url);
-    internal.search = request.nextUrl.search;
-    const requestHeaders = new Headers(request.headers);
-    requestHeaders.set(CPEG_SITE_HEADER, "1");
-    return NextResponse.rewrite(internal, { request: { headers: requestHeaders } });
+  const segments = pathname.split("/").filter(Boolean);
+  const top = segments[0];
+  if (top && isLikelyMintPathSegment(top)) {
+    // Support both the bare collection page (/<mint>) and dedicated sub-pages
+    // such as the peg detail at /<mint>/peg/<pegId>.
+    if (segments.length === 1) {
+      const internal = new URL(`/cpeg/${top}`, request.url);
+      internal.search = request.nextUrl.search;
+      const requestHeaders = new Headers(request.headers);
+      requestHeaders.set(CPEG_SITE_HEADER, "1");
+      return NextResponse.rewrite(internal, { request: { headers: requestHeaders } });
+    }
+    if (segments.length === 3 && segments[1] === "peg") {
+      const internal = new URL(`/cpeg/${top}/peg/${segments[2]}`, request.url);
+      internal.search = request.nextUrl.search;
+      const requestHeaders = new Headers(request.headers);
+      requestHeaders.set(CPEG_SITE_HEADER, "1");
+      return NextResponse.rewrite(internal, { request: { headers: requestHeaders } });
+    }
   }
 
   return redirectMain(request, pathname === "" ? "/" : pathname);

@@ -18,6 +18,13 @@ function cpegCollectionPublicUrl(mint: string) {
   return base && (base.startsWith("http://") || base.startsWith("https://")) ? `${base}/${mint}` : `/cpeg/${mint}`;
 }
 
+function cpegPegDetailUrl(mint: string, pegId: number) {
+  const base = (process.env.NEXT_PUBLIC_CPEG_APP_URL || "").trim().replace(/\/$/, "");
+  return base && (base.startsWith("http://") || base.startsWith("https://"))
+    ? `${base}/${mint}/peg/${pegId}`
+    : `/cpeg/${mint}/peg/${pegId}`;
+}
+
 export async function GET(_request: Request, { params }: RouteContext) {
   const address = params.address;
   if (!address || address.length < 32) {
@@ -129,6 +136,7 @@ export async function GET(_request: Request, { params }: RouteContext) {
       name: row.name,
       image: `/api/cpeg/${row.tokenMint}/pegs/${row.pegId}/svg`,
       collection_url: cpegCollectionPublicUrl(row.tokenMint),
+      detail_url: cpegPegDetailUrl(row.tokenMint, row.pegId),
     }));
 
   return NextResponse.json({
@@ -142,11 +150,13 @@ export async function GET(_request: Request, { params }: RouteContext) {
       asset_address: row.assetAddress,
       token_mint: row.tokenMint,
       peg_id: row.pegId,
+      status: row.status,
       symbol: row.launch.symbol,
       name: row.launch.name,
       cluster: row.launch.cluster,
       image: `/api/cpeg/${row.tokenMint}/pegs/${row.pegId}/svg`,
       collection_url: cpegCollectionPublicUrl(row.tokenMint),
+      detail_url: cpegPegDetailUrl(row.tokenMint, row.pegId),
       market_url: `${cpegCollectionPublicUrl(row.tokenMint).replace(/\/[^/]+$/, "")}/market?mint=${row.tokenMint}`,
       captured_at: row.capturedAt?.toISOString() || row.createdAt.toISOString(),
     })),

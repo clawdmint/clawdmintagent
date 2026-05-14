@@ -344,6 +344,8 @@ export function CpegMarketClient() {
   const [detailListing, setDetailListing] = useState<CpegListing | null>(null);
   const [detailTab, setDetailTab] = useState<ListingDetailTab>("info");
   const [detailPeg, setDetailPeg] = useState<CpegPegDetail | null>(null);
+  const [detailPegStatus, setDetailPegStatus] = useState<"idle" | "loading" | "error">("idle");
+  const [detailPegError, setDetailPegError] = useState("");
 
   const [collectionMenuOpen, setCollectionMenuOpen] = useState(false);
   const collectionMenuRef = useRef<HTMLDivElement | null>(null);
@@ -624,15 +626,36 @@ export function CpegMarketClient() {
   useEffect(() => {
     if (!detailListing || !selectedLaunch) {
       setDetailPeg(null);
+      setDetailPegStatus("idle");
+      setDetailPegError("");
       return;
     }
     setDetailTab("info");
+    setDetailPegStatus("loading");
+    setDetailPegError("");
+    setDetailPeg(null);
     let cancelled = false;
     void (async () => {
-      const response = await fetch(`/api/cpeg/${selectedLaunch.token_mint}/pegs/${detailListing.peg_id}?format=cpeg`);
-      const body = await response.json().catch(() => null);
-      if (!cancelled && response.ok && body?.success) {
-        setDetailPeg(body.peg || null);
+      try {
+        const response = await fetch(
+          `/api/cpeg/${selectedLaunch.token_mint}/pegs/${detailListing.peg_id}?format=cpeg`,
+          { cache: "no-store" }
+        );
+        const body = (await response.json().catch(() => null)) as
+          | { success?: boolean; peg?: CpegPegDetail; error?: string }
+          | null;
+        if (cancelled) return;
+        if (!response.ok || !body?.success || !body.peg) {
+          setDetailPegStatus("error");
+          setDetailPegError(body?.error || "Failed to load PEG details.");
+          return;
+        }
+        setDetailPeg(body.peg);
+        setDetailPegStatus("idle");
+      } catch (loadError) {
+        if (cancelled) return;
+        setDetailPegStatus("error");
+        setDetailPegError(loadError instanceof Error ? loadError.message : "Failed to load PEG details.");
       }
     })();
     return () => {
@@ -2084,9 +2107,17 @@ export function CpegMarketClient() {
                           </div>
                         ))}
                       </div>
+                    ) : detailPegStatus === "loading" ? (
+                      <p className="flex items-center gap-2 font-mono text-xs uppercase tracking-[0.18em] text-white/35">
+                        <Loader2 className="h-3.5 w-3.5 animate-spin" /> Loading traits
+                      </p>
+                    ) : detailPegStatus === "error" ? (
+                      <p className="font-mono text-xs uppercase tracking-[0.18em] text-rose-300/80">
+                        Could not load traits {detailPegError ? `(${detailPegError})` : ""}
+                      </p>
                     ) : (
                       <p className="font-mono text-xs uppercase tracking-[0.18em] text-white/35">
-                        Loading traits
+                        No traits available for this peg
                       </p>
                     )
                   ) : null}

@@ -80,6 +80,23 @@ interface CpegEntry {
   name: string;
   image: string;
   collection_url: string;
+  detail_url?: string;
+}
+
+interface CpegOwnedEntry {
+  id: string;
+  asset_address: string;
+  token_mint: string;
+  peg_id: number;
+  status: string;
+  symbol: string;
+  name: string;
+  cluster: string;
+  image: string;
+  collection_url: string;
+  detail_url: string;
+  market_url: string;
+  captured_at: string;
 }
 
 interface CpegLaunchEntry {
@@ -98,6 +115,7 @@ interface CpegActivityPayload {
   listed: CpegEntry[];
   sold: CpegEntry[];
   bought: CpegEntry[];
+  owned: CpegOwnedEntry[];
   launches: CpegLaunchEntry[];
 }
 
@@ -347,6 +365,7 @@ export default function ProfilePage() {
       (cpegActivity.listed.length ||
         cpegActivity.bought.length ||
         cpegActivity.sold.length ||
+        cpegActivity.owned?.length ||
         cpegActivity.launches.length) ? (
         <div className="mb-6">
           <div
@@ -409,6 +428,78 @@ export default function ProfilePage() {
             </div>
           ) : null}
 
+          {cpegActivity.owned && cpegActivity.owned.length > 0 ? (
+            <div
+              className={clsx(
+                "rounded-2xl border p-4 mb-3",
+                theme === "dark"
+                  ? "bg-white/[0.02] border-white/[0.06]"
+                  : "bg-white border-gray-200"
+              )}
+            >
+              <div
+                className={clsx(
+                  "font-mono text-[10px] uppercase tracking-[0.22em] mb-3 flex items-center justify-between",
+                  theme === "dark" ? "text-cyan-400" : "text-cyan-600"
+                )}
+              >
+                <span>Owned cPEGs</span>
+                <span className={clsx("font-normal text-[10px]", theme === "dark" ? "text-gray-600" : "text-gray-400")}>
+                  {cpegActivity.owned.length} item{cpegActivity.owned.length === 1 ? "" : "s"}
+                </span>
+              </div>
+              <div className="grid grid-cols-3 gap-2 sm:grid-cols-6">
+                {cpegActivity.owned.map((entry) => (
+                  <Link
+                    key={entry.id}
+                    href={entry.detail_url}
+                    title={`${entry.symbol} #${entry.peg_id} / ${entry.status}`}
+                    className={clsx(
+                      "group block rounded-lg border p-1 transition-colors",
+                      theme === "dark"
+                        ? "border-white/[0.05] hover:border-cyan-500/40"
+                        : "border-gray-200 hover:border-cyan-300"
+                    )}
+                  >
+                    <div
+                      className={clsx(
+                        "relative aspect-square overflow-hidden rounded",
+                        theme === "dark" ? "bg-black/40" : "bg-gray-100"
+                      )}
+                    >
+                      <img
+                        src={entry.image}
+                        alt={`${entry.symbol} #${entry.peg_id}`}
+                        className="h-full w-full object-cover [image-rendering:pixelated]"
+                      />
+                      {entry.status === "LISTED" ? (
+                        <span className="absolute left-1 top-1 rounded-full bg-cyan-500/85 px-1.5 py-[1px] font-mono text-[8px] uppercase tracking-[0.16em] text-black">
+                          Listed
+                        </span>
+                      ) : null}
+                    </div>
+                    <div
+                      className={clsx(
+                        "mt-1 font-mono text-[9px] uppercase tracking-[0.16em]",
+                        theme === "dark" ? "text-gray-400" : "text-gray-500"
+                      )}
+                    >
+                      {entry.symbol} #{entry.peg_id}
+                    </div>
+                    <div
+                      className={clsx(
+                        "font-mono text-[10px] uppercase tracking-[0.16em] truncate",
+                        theme === "dark" ? "text-gray-600" : "text-gray-400"
+                      )}
+                    >
+                      {entry.name}
+                    </div>
+                  </Link>
+                ))}
+              </div>
+            </div>
+          ) : null}
+
           {[
             { key: "listed" as const, label: "Listed (active)" },
             { key: "bought" as const, label: "Bought" },
@@ -438,7 +529,7 @@ export default function ProfilePage() {
                   {items.slice(0, 12).map((entry) => (
                     <Link
                       key={entry.id}
-                      href={entry.collection_url}
+                      href={entry.detail_url || entry.collection_url}
                       className={clsx(
                         "block rounded-lg border p-1 transition-colors",
                         theme === "dark"

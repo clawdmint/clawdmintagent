@@ -72,6 +72,9 @@ export function cpegPublicPaths(isCpegSubdomain: boolean) {
     collection: (mint: string) => (isCpegSubdomain ? `/${mint}` : `/cpeg/${mint}`),
     collectionWithHash: (mint: string, hash: string) =>
       `${isCpegSubdomain ? `/${mint}` : `/cpeg/${mint}`}${hash.startsWith("#") ? hash : `#${hash}`}`,
+    /** Dedicated peg detail page that works for both listed and unlisted assets. */
+    peg: (mint: string, pegId: number | string) =>
+      isCpegSubdomain ? `/${mint}/peg/${pegId}` : `/cpeg/${mint}/peg/${pegId}`,
   };
 }
 

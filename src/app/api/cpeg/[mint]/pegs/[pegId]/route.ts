@@ -44,14 +44,26 @@ export async function GET(request: NextRequest, { params }: RouteContext) {
     return NextResponse.json({ success: false, error: "cPEG collection not found" }, { status: 404 });
   }
 
-  const traits = getClawPegTraits({
-    rendererId: launch.rendererId,
-    rendererVersion: launch.rendererVersion,
-    collectionSeed: launch.collectionSeed,
-    tokenMint: launch.tokenMint,
-    pegId,
-    params: (launch.rendererParams as Record<string, unknown> | null) || {},
-  });
+  let traits: Record<string, string | number | boolean | null>;
+  try {
+    traits = getClawPegTraits({
+      rendererId: launch.rendererId,
+      rendererVersion: launch.rendererVersion,
+      collectionSeed: launch.collectionSeed,
+      tokenMint: launch.tokenMint,
+      pegId,
+      params: (launch.rendererParams as Record<string, unknown> | null) || {},
+    }) as Record<string, string | number | boolean | null>;
+  } catch (traitError) {
+    // A renderer mismatch or stale params should not 500 the whole endpoint.
+    // Surface an empty trait set so the UI can show "No traits available"
+    // instead of an indefinite "loading" state, and keep the rest of the
+    // metadata response intact.
+    traits = {
+      renderer: `${launch.rendererId}@${launch.rendererVersion}`,
+      renderer_error: traitError instanceof Error ? traitError.message : "renderer failed",
+    };
+  }
   const pegRecordAddress = launch.collectionAddress
     ? findPegRecordAddress(launch.collectionAddress, pegId)
     : null;
