@@ -452,7 +452,13 @@ export default function ProfilePage() {
                 {cpegActivity.owned.map((entry) => (
                   <Link
                     key={entry.id}
-                    href={entry.detail_url}
+                    href={
+                      entry.detail_url ||
+                      (CPEG_PUBLIC_BASE &&
+                      (CPEG_PUBLIC_BASE.startsWith("http://") || CPEG_PUBLIC_BASE.startsWith("https://"))
+                        ? `${CPEG_PUBLIC_BASE}/${entry.token_mint}/peg/${entry.peg_id}`
+                        : `/cpeg/${entry.token_mint}/peg/${entry.peg_id}`)
+                    }
                     title={`${entry.symbol} #${entry.peg_id} / ${entry.status}`}
                     className={clsx(
                       "group block rounded-lg border p-1 transition-colors",

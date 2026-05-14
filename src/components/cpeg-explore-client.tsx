@@ -400,10 +400,20 @@ export function CpegExploreClient({ initialPayload }: { initialPayload: ExploreP
                       className="h-full w-full object-cover transition duration-300 group-hover:scale-[1.04] [image-rendering:pixelated]"
                       loading="lazy"
                     />
-                    {peg.minted ? (
+                    {peg.status === "OWNED" ? (
                       <span className="absolute left-2 top-2 inline-flex items-center gap-1 bg-black/75 px-1.5 py-0.5 font-mono text-[9px] uppercase tracking-[0.18em] text-emerald-300 backdrop-blur-sm">
                         <span className="inline-block h-1.5 w-1.5 rounded-full bg-emerald-400 shadow-[0_0_6px_rgba(52,211,153,0.85)]" />
-                        Minted
+                        Owned
+                      </span>
+                    ) : peg.status === "LISTED" ? (
+                      <span className="absolute left-2 top-2 inline-flex items-center gap-1 bg-black/75 px-1.5 py-0.5 font-mono text-[9px] uppercase tracking-[0.18em] text-cyan-300 backdrop-blur-sm">
+                        <span className="inline-block h-1.5 w-1.5 rounded-full bg-cyan-400 shadow-[0_0_6px_rgba(56,189,248,0.85)]" />
+                        Listed
+                      </span>
+                    ) : peg.minted ? (
+                      <span className="absolute left-2 top-2 inline-flex items-center gap-1 bg-black/75 px-1.5 py-0.5 font-mono text-[9px] uppercase tracking-[0.18em] text-amber-300 backdrop-blur-sm">
+                        <span className="inline-block h-1.5 w-1.5 rounded-full bg-amber-400 shadow-[0_0_6px_rgba(251,191,36,0.85)]" />
+                        Released
                       </span>
                     ) : (
                       <span className="absolute left-2 top-2 inline-flex items-center gap-1 bg-black/75 px-1.5 py-0.5 font-mono text-[9px] uppercase tracking-[0.18em] text-white/75 backdrop-blur-sm">

@@ -12,11 +12,13 @@ interface OwnedPeg {
   asset_address: string;
   token_mint: string;
   peg_id: number;
+  status?: string;
   symbol: string;
   name: string;
   image: string;
   collection_url: string;
   market_url: string;
+  detail_url?: string;
 }
 
 interface ProfilePayload {
@@ -108,22 +110,55 @@ export default function CpegProfilePage() {
             </div>
             {(payload?.owned || []).length ? (
               <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-                {(payload?.owned || []).map((peg) => (
-                  <article key={peg.asset_address} className="border border-white/10 bg-white/[0.03] p-3">
-                    <div className="aspect-square overflow-hidden border border-white/10 bg-black">
-                      <Image src={peg.image} alt={`${peg.symbol} #${peg.peg_id}`} width={512} height={512} className="h-full w-full object-cover [image-rendering:pixelated]" />
-                    </div>
-                    <div className="mt-3 flex items-center justify-between gap-3">
-                      <div>
-                        <p className="text-sm font-black uppercase">{peg.symbol} #{peg.peg_id}</p>
-                        <p className="mt-1 font-mono text-[10px] uppercase tracking-[0.18em] text-white/35">{truncateAddress(peg.asset_address, 5, 5)}</p>
-                      </div>
-                      <Link href={`${peg.market_url}#list`} className="inline-flex items-center gap-1 border border-[#53c7ff]/40 px-3 py-2 font-mono text-[10px] uppercase tracking-[0.16em] text-[#53c7ff]">
-                        <Tag className="h-3 w-3" /> List
+                {(payload?.owned || []).map((peg) => {
+                  const detailHref = peg.detail_url || `/${peg.token_mint}/peg/${peg.peg_id}`;
+                  const isListed = peg.status === "LISTED";
+                  return (
+                    <article
+                      key={peg.asset_address}
+                      className="group border border-white/10 bg-white/[0.03] p-3 transition hover:border-[#53c7ff]/50 hover:bg-white/[0.05]"
+                    >
+                      <Link href={detailHref} className="block">
+                        <div className="relative aspect-square overflow-hidden border border-white/10 bg-black">
+                          <Image
+                            src={peg.image}
+                            alt={`${peg.symbol} #${peg.peg_id}`}
+                            width={512}
+                            height={512}
+                            className="h-full w-full object-cover [image-rendering:pixelated] transition duration-300 group-hover:scale-[1.02]"
+                          />
+                          {isListed ? (
+                            <span className="absolute left-2 top-2 inline-flex items-center gap-1 rounded-full bg-cyan-500/85 px-2 py-[2px] font-mono text-[9px] uppercase tracking-[0.18em] text-black">
+                              <span className="inline-block h-1.5 w-1.5 rounded-full bg-black/60" />
+                              Listed
+                            </span>
+                          ) : (
+                            <span className="absolute left-2 top-2 inline-flex items-center gap-1 rounded-full bg-black/65 px-2 py-[2px] font-mono text-[9px] uppercase tracking-[0.18em] text-emerald-300">
+                              <span className="inline-block h-1.5 w-1.5 rounded-full bg-emerald-400 shadow-[0_0_6px_rgba(52,211,153,0.85)]" />
+                              Owned
+                            </span>
+                          )}
+                        </div>
                       </Link>
-                    </div>
-                  </article>
-                ))}
+                      <div className="mt-3 flex items-center justify-between gap-3">
+                        <Link href={detailHref} className="min-w-0">
+                          <p className="truncate text-sm font-black uppercase transition group-hover:text-[#53c7ff]">
+                            {peg.symbol} #{peg.peg_id}
+                          </p>
+                          <p className="mt-1 font-mono text-[10px] uppercase tracking-[0.18em] text-white/35">
+                            {truncateAddress(peg.asset_address, 5, 5)}
+                          </p>
+                        </Link>
+                        <Link
+                          href={`${peg.market_url}#list`}
+                          className="inline-flex shrink-0 items-center gap-1 border border-[#53c7ff]/40 px-3 py-2 font-mono text-[10px] uppercase tracking-[0.16em] text-[#53c7ff] transition hover:border-[#53c7ff] hover:bg-[#53c7ff]/10"
+                        >
+                          <Tag className="h-3 w-3" /> {isListed ? "View" : "List"}
+                        </Link>
+                      </div>
+                    </article>
+                  );
+                })}
               </div>
             ) : (
               <div className="border border-dashed border-white/12 py-16 text-center text-sm text-white/45">

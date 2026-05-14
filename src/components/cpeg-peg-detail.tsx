@@ -241,8 +241,20 @@ export function CpegPegDetail({
             </p>
 
             {activeListing ? (
-              <p className="mt-4 inline-flex w-fit items-center gap-2 border border-emerald-400/30 bg-emerald-500/10 px-3 py-1.5 font-mono text-xs uppercase tracking-[0.18em] text-emerald-200">
+              <p className="mt-4 inline-flex w-fit items-center gap-2 border border-cyan-400/30 bg-cyan-500/10 px-3 py-1.5 font-mono text-xs uppercase tracking-[0.18em] text-cyan-200">
                 Listed for {activeListing.price_sol} SOL
+              </p>
+            ) : peg?.status === "POOL" ? (
+              <p className="mt-4 inline-flex w-fit items-center gap-2 border border-amber-400/30 bg-amber-500/10 px-3 py-1.5 font-mono text-xs uppercase tracking-[0.18em] text-amber-200">
+                Released to pool / Available again
+              </p>
+            ) : peg?.status === "OWNED" ? (
+              <p className="mt-4 inline-flex w-fit items-center gap-2 border border-emerald-400/30 bg-emerald-500/10 px-3 py-1.5 font-mono text-xs uppercase tracking-[0.18em] text-emerald-200">
+                Owned
+              </p>
+            ) : peg?.status === "PENDING_CAPTURE" ? (
+              <p className="mt-4 inline-flex w-fit items-center gap-2 border border-yellow-400/30 bg-yellow-500/10 px-3 py-1.5 font-mono text-xs uppercase tracking-[0.18em] text-yellow-200">
+                Capture pending
               </p>
             ) : (
               <p className="mt-4 inline-flex w-fit items-center gap-2 border border-white/15 bg-white/[0.04] px-3 py-1.5 font-mono text-xs uppercase tracking-[0.18em] text-white/55">

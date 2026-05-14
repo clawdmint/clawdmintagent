@@ -5,6 +5,9 @@ const nextConfig = {
   experimental: {
     useWasmBinary: true,
     optimizePackageImports: ["lucide-react", "@tanstack/react-query"],
+    // @resvg/resvg-js ships native `.node` binaries that must stay external
+    // to the Next.js bundler so the Vercel runtime can `require()` them.
+    serverComponentsExternalPackages: ["@resvg/resvg-js"],
   },
   compiler: {
     removeConsole: process.env["NODE_ENV"] === "production" ? { exclude: ["error", "warn"] } : false,
