@@ -814,41 +814,75 @@ export function CpegHybridPanel({ tokenMint, initialAuthorityAddress, compact }:
     }
   })();
 
+  const statusTone = setupComplete && !mainnetEscrowBlocked ? "ok" : "warn";
+  const statusLabel = setupComplete
+    ? mainnetEscrowBlocked
+      ? "Finalize setup"
+      : "Configured"
+    : "Awaiting setup";
+
   return (
     <section
-      className={`border border-[#53c7ff]/30 bg-[#0c1722] p-5 ${
-        compact ? "" : "md:p-7"
+      className={`relative overflow-hidden border border-[#53c7ff]/25 bg-gradient-to-br from-[#0a1825] via-[#0a1320] to-[#070d18] p-5 shadow-[0_0_60px_-30px_#53c7ff60] ${
+        compact ? "" : "md:p-8"
       }`}
     >
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <p className="font-mono text-[10px] uppercase tracking-[0.22em] text-[#9fe2ff]">
-            Token backed cPEG
+      <div
+        className="pointer-events-none absolute -top-1/2 right-0 h-[140%] w-1/2 opacity-25 blur-3xl"
+        style={{ background: "radial-gradient(circle at right top, #53c7ff, transparent 65%)" }}
+      />
+      <div
+        className="pointer-events-none absolute -bottom-1/3 -left-1/4 h-[100%] w-1/2 opacity-15 blur-3xl"
+        style={{ background: "radial-gradient(circle at left bottom, #ec5cff, transparent 70%)" }}
+      />
+
+      <div className="relative flex flex-wrap items-start justify-between gap-4">
+        <div className="max-w-2xl">
+          <p className="font-mono text-[10px] uppercase tracking-[0.32em] text-[#9fe2ff]">
+            Token-backed cPEG | Metaplex Hybrid
           </p>
-          <p className="mt-2 text-lg font-black uppercase tracking-tight text-white">
-            {state.symbol} cPEG route
+          <p className="mt-3 text-2xl font-black uppercase tracking-tight text-white md:text-3xl">
+            {state.symbol} <span className="text-[#53c7ff]">cPEG route</span>
           </p>
-          <p className="mt-2 max-w-2xl text-sm leading-6 text-white/60">
+          <p className="mt-3 text-sm leading-7 text-white/60">
             Buy the agent token, convert the fixed backing amount into a Metaplex Agent PEG,
             release it back to tokens, or trade exact cPEG identities on the market.
           </p>
         </div>
-        <div className="flex flex-wrap items-center gap-2 font-mono text-[10px] uppercase tracking-[0.18em] text-white/55">
+        <div className="flex flex-col items-end gap-2 font-mono text-[10px] uppercase tracking-[0.22em] text-white/55">
           {isAuthority ? (
             <a
               href={`${urls.launch}?mint=${encodeURIComponent(tokenMint)}`}
-              className="inline-flex items-center gap-1 border border-[#ec5cff]/35 bg-[#ec5cff]/10 px-2 py-1 text-[#f6c4ff] transition hover:bg-[#ec5cff]/20"
+              className="inline-flex items-center gap-1.5 border border-[#ec5cff]/35 bg-[#ec5cff]/10 px-3 py-1.5 text-[#f6c4ff] transition hover:bg-[#ec5cff]/20"
             >
               Manage launch <ExternalLink className="h-3 w-3" />
             </a>
           ) : null}
-          <span className={setupComplete && !mainnetEscrowBlocked ? "text-[#53c7ff]" : "text-[#f7b85c]"}>
-            {setupComplete ? (mainnetEscrowBlocked ? "Finalize setup" : "Configured") : "Awaiting setup"}
-          </span>
-          <span>|</span>
-          <span>{state.owned_assets} captured</span>
-          <span>|</span>
-          <span>{state.available_capacity} available</span>
+          <div
+            className={`inline-flex items-center gap-2 border px-3 py-1.5 ${
+              statusTone === "ok"
+                ? "border-[#53c7ff]/40 bg-[#53c7ff]/10 text-[#9fe2ff]"
+                : "border-[#f7b85c]/40 bg-[#f7b85c]/10 text-[#ffe2a8]"
+            }`}
+          >
+            <span
+              className={`inline-flex h-1.5 w-1.5 rounded-full ${
+                statusTone === "ok" ? "bg-[#53ffac] shadow-[0_0_6px_#53ffac]" : "bg-[#f7b85c]"
+              }`}
+            />
+            {statusLabel}
+          </div>
+          <div className="flex items-center gap-2 text-white/55">
+            <span>
+              <span className="text-white/35">captured</span>{" "}
+              <span className="text-white">{state.owned_assets}</span>
+            </span>
+            <span className="text-white/20">|</span>
+            <span>
+              <span className="text-white/35">available</span>{" "}
+              <span className="text-white">{state.available_capacity}</span>
+            </span>
+          </div>
         </div>
       </div>
 
@@ -918,10 +952,15 @@ export function CpegHybridPanel({ tokenMint, initialAuthorityAddress, compact }:
               ) : null}
             </div>
           ) : null}
-          <div className="mt-5 grid gap-px border border-white/10 bg-white/10 sm:grid-cols-3">
-            <Stat icon={ShieldCheck} label="Backing per cPEG" value={backingUnitLabel} />
-            <Stat icon={Layers} label="Available cPEGs" value={`${state.available_capacity} / ${state.effective_max_pegs}`} />
-            <Stat icon={PackageOpen} label="Token supply" value={supplyLabel} />
+          <div className="relative mt-6 grid gap-px border border-white/10 bg-white/[0.04] sm:grid-cols-3">
+            <Stat icon={ShieldCheck} label="Backing per cPEG" value={backingUnitLabel} accent="#53c7ff" />
+            <Stat
+              icon={Layers}
+              label="Available cPEGs"
+              value={`${state.available_capacity} / ${state.effective_max_pegs}`}
+              accent="#9fe2ff"
+            />
+            <Stat icon={PackageOpen} label="Token supply" value={supplyLabel} accent="#f7f2df" />
           </div>
 
           {isAuthority && !mainnetEscrowBlocked ? (
@@ -958,40 +997,51 @@ export function CpegHybridPanel({ tokenMint, initialAuthorityAddress, compact }:
             </div>
           ) : null}
 
-          <div className="mt-5 grid gap-5 lg:grid-cols-[1fr_1fr]">
-            <div className="border border-[#53c7ff]/30 bg-[#53c7ff]/10 p-4">
-              <div className="flex items-center gap-2">
-                <ArrowDownUp className="h-3 w-3 text-[#53c7ff]" />
-                <p className="font-mono text-[10px] uppercase tracking-[0.22em] text-[#9fe2ff]">Get cPEG</p>
+          <div className="relative mt-6 grid gap-5 lg:grid-cols-[1fr_1fr]">
+            <div className="relative overflow-hidden border border-[#53c7ff]/35 bg-gradient-to-br from-[#0d1f2c] via-[#0a1825] to-[#070d18] p-5">
+              <div
+                className="pointer-events-none absolute -right-10 -top-10 h-40 w-40 opacity-25 blur-3xl"
+                style={{ background: "radial-gradient(circle, #53c7ff, transparent 70%)" }}
+              />
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2">
+                  <span className="inline-flex h-7 w-7 items-center justify-center border border-[#53c7ff]/40 bg-[#53c7ff]/10 text-[#9fe2ff]">
+                    <PackageOpen className="h-3.5 w-3.5" />
+                  </span>
+                  <p className="font-mono text-[10px] uppercase tracking-[0.28em] text-[#9fe2ff]">Get cPEG</p>
+                </div>
+                <span className="font-mono text-[9px] uppercase tracking-[0.22em] text-white/40">
+                  capture
+                </span>
               </div>
-              <p className="mt-2 text-sm text-white/70">
+              <p className="mt-3 text-sm leading-6 text-white/70">
                 Convert your {backingTokenSymbol} tokens into Metaplex Agent PEG identities. Each cPEG is backed by{" "}
                 <span className="font-bold text-white">{backingUnitLabel}</span>. Empty pools mint one new Agent PEG
                 inside the capture transaction.
               </p>
-              <div className="mt-3 border border-white/10 bg-black/30 px-3 py-2 font-mono text-[10px] uppercase tracking-[0.18em] text-white/60">
-                Required now <span className="float-right text-[#53c7ff]">{requiredLabel}</span>
+              <div className="mt-4 border border-white/10 bg-black/40 px-3 py-2.5 font-mono text-[10px] uppercase tracking-[0.18em] text-white/55">
+                Required now <span className="float-right font-black text-[#53c7ff]">{requiredLabel}</span>
               </div>
-              <div className="mt-2 border border-white/10 bg-black/30 px-3 py-2 font-mono text-[10px] uppercase tracking-[0.18em] text-white/60">
+              <div className="mt-2 border border-white/10 bg-black/40 px-3 py-2.5 font-mono text-[10px] uppercase tracking-[0.18em] text-white/55">
                 Network + protocol fee
                 <span className="float-right text-white/85">~{captureFeeTotalSol} SOL</span>
               </div>
-              <div className="mt-3 flex flex-wrap items-center gap-3">
+              <div className="mt-4 flex flex-wrap items-center gap-3">
                 <input
                   value={captureCount}
                   inputMode="numeric"
                   max={maxCapturePerTransaction}
                   aria-label="cPEG amount"
                   onChange={(event) => setCaptureCount(event.target.value)}
-                  className="w-24 border border-white/15 bg-white/5 px-3 py-2 font-mono text-xs text-white outline-none transition focus:border-[#53c7ff]"
+                  className="w-24 border border-white/15 bg-black/40 px-3 py-2.5 font-mono text-sm text-white outline-none transition focus:border-[#53c7ff] focus:bg-black/55"
                 />
                 <button
                   type="button"
                   onClick={isConnected ? handleCapture : login}
                   disabled={Boolean(actionBusy) || state.available_capacity < captureCountNumber || mainnetEscrowBlocked}
-                  className="inline-flex items-center gap-2 border border-[#f7f2df] bg-[#f7f2df] px-4 py-2 text-xs font-black uppercase tracking-wide text-black transition hover:bg-[#53c7ff] disabled:cursor-not-allowed disabled:opacity-50"
+                  className="inline-flex flex-1 items-center justify-center gap-2 border border-[#f7f2df] bg-[#f7f2df] px-5 py-2.5 text-xs font-black uppercase tracking-wide text-black transition hover:bg-[#53c7ff] hover:text-black disabled:cursor-not-allowed disabled:opacity-50"
                 >
-                  {actionBusy === "capture" ? <Loader2 className="h-3 w-3 animate-spin" /> : <PackageOpen className="h-3 w-3" />}
+                  {actionBusy === "capture" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <PackageOpen className="h-3.5 w-3.5" />}
                   {isConnected ? `Get ${captureCountNumber} cPEG` : "Connect Phantom"}
                 </button>
               </div>
@@ -999,23 +1049,39 @@ export function CpegHybridPanel({ tokenMint, initialAuthorityAddress, compact }:
                 <p className="mt-3 text-xs text-[#f7b85c]">Not enough cPEG capacity remains.</p>
               ) : null}
               {maxCapturePerTransaction === 1 && state.available_capacity > 1 ? (
-                <p className="mt-3 text-xs text-white/45">Lazy mint captures are one cPEG per transaction.</p>
+                <p className="mt-3 font-mono text-[10px] uppercase tracking-[0.18em] text-white/40">
+                  Lazy mint captures are one cPEG per transaction.
+                </p>
               ) : null}
             </div>
 
-            <div id="release" className="border border-white/10 bg-black/40 p-4">
-              <div className="flex items-center gap-2">
-                <ArrowDownUp className="h-3 w-3 text-[#ec5cff]" />
-                <p className="font-mono text-[10px] uppercase tracking-[0.22em] text-[#f6c4ff]">Release</p>
+            <div
+              id="release"
+              className="relative overflow-hidden border border-[#ec5cff]/25 bg-gradient-to-br from-[#1a0d22] via-[#120a18] to-[#070512] p-5"
+            >
+              <div
+                className="pointer-events-none absolute -left-10 -bottom-10 h-40 w-40 opacity-25 blur-3xl"
+                style={{ background: "radial-gradient(circle, #ec5cff, transparent 70%)" }}
+              />
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2">
+                  <span className="inline-flex h-7 w-7 items-center justify-center border border-[#ec5cff]/40 bg-[#ec5cff]/10 text-[#f6c4ff]">
+                    <ArrowDownUp className="h-3.5 w-3.5" />
+                  </span>
+                  <p className="font-mono text-[10px] uppercase tracking-[0.28em] text-[#f6c4ff]">Release</p>
+                </div>
+                <span className="font-mono text-[9px] uppercase tracking-[0.22em] text-white/40">
+                  redeem
+                </span>
               </div>
-              <p className="mt-2 text-sm text-white/70">
+              <p className="mt-3 text-sm leading-6 text-white/70">
                 Return a cPEG identity and reclaim its backing unit. Released identities go back
                 to the pool and can be captured again.
               </p>
-              <div className="mt-3 border border-white/10 bg-black/30 px-3 py-2 font-mono text-[10px] uppercase tracking-[0.18em] text-white/60">
-                Redeem value <span className="float-right text-[#ec5cff]">{backingUnitLabel}</span>
+              <div className="mt-4 border border-white/10 bg-black/40 px-3 py-2.5 font-mono text-[10px] uppercase tracking-[0.18em] text-white/55">
+                Redeem value <span className="float-right font-black text-[#ec5cff]">{backingUnitLabel}</span>
               </div>
-              <div className="mt-2 border border-white/10 bg-black/30 px-3 py-2 font-mono text-[10px] uppercase tracking-[0.18em] text-white/60">
+              <div className="mt-2 border border-white/10 bg-black/40 px-3 py-2.5 font-mono text-[10px] uppercase tracking-[0.18em] text-white/55">
                 Network + protocol fee
                 <span className="float-right text-white/85">~{releaseFeeTotalSol} SOL</span>
               </div>
@@ -1086,16 +1152,23 @@ interface StatProps {
   icon: LucideIcon;
   label: string;
   value: string;
+  accent?: string;
 }
 
-function Stat({ icon: Icon, label, value }: StatProps) {
+function Stat({ icon: Icon, label, value, accent = "#ffffff" }: StatProps) {
   return (
-    <div className="bg-black/45 px-4 py-3">
-      <div className="flex items-center gap-2 text-white/45">
-        <Icon className="h-3 w-3" />
-        <p className="font-mono text-[10px] uppercase tracking-[0.22em]">{label}</p>
+    <div className="relative overflow-hidden bg-black/55 px-5 py-4">
+      <div
+        className="pointer-events-none absolute -right-8 -top-8 h-24 w-24 opacity-10 blur-2xl"
+        style={{ background: `radial-gradient(circle, ${accent}, transparent 70%)` }}
+      />
+      <div className="flex items-center gap-2 text-white/55">
+        <Icon className="h-3.5 w-3.5" style={{ color: accent }} />
+        <p className="font-mono text-[10px] uppercase tracking-[0.24em]">{label}</p>
       </div>
-      <p className="mt-1 text-sm font-black tracking-tight text-white">{value || "--"}</p>
+      <p className="mt-2 text-lg font-black tracking-tight text-white md:text-xl">
+        {value || "--"}
+      </p>
     </div>
   );
 }
