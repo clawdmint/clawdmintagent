@@ -151,6 +151,8 @@ export async function GET(request: NextRequest, { params }: RouteContext) {
       id: data.launch.id,
       token_mint: data.launch.tokenMint,
       symbol: data.launch.symbol,
+      agent_token_symbol: summary.agentTokenSymbol,
+      agent_token_name: summary.agentTokenName,
       name: data.launch.name,
       cluster: data.launch.cluster,
       standard_mode: data.launch.standardMode,

@@ -43,6 +43,8 @@ interface HybridLaunchState {
   id: string;
   token_mint: string;
   symbol: string;
+  agent_token_symbol?: string | null;
+  agent_token_name?: string | null;
   name: string;
   cluster: string;
   hybrid_status: string;
@@ -770,9 +772,15 @@ export function CpegHybridPanel({ tokenMint, initialAuthorityAddress, compact }:
       return BigInt(0);
     }
   })();
-  const backingUnitLabel = formatRawTokenAmount(state.peg_unit_raw, state.decimals, state.symbol);
-  const requiredLabel = formatRawTokenAmount(requiredRaw, state.decimals, state.symbol);
-  const supplyLabel = formatRawTokenAmount(state.token_supply_raw, state.decimals, state.symbol);
+  // launch.symbol is the cPEG collection symbol (e.g. "TRKPEG"). The real
+  // backing token has its own SPL/Token-2022 metadata symbol (e.g. "TRK").
+  // Prefer the on-chain symbol for everything that describes the backing
+  // token amount – "Backing per cPEG", "Token supply", and the "Required now"
+  // figure are all denominated in the backing token, not the cPEG identity.
+  const backingTokenSymbol = (state.agent_token_symbol || "").trim() || state.symbol;
+  const backingUnitLabel = formatRawTokenAmount(state.peg_unit_raw, state.decimals, backingTokenSymbol);
+  const requiredLabel = formatRawTokenAmount(requiredRaw, state.decimals, backingTokenSymbol);
+  const supplyLabel = formatRawTokenAmount(state.token_supply_raw, state.decimals, backingTokenSymbol);
 
   const formatSolFromLamports = (raw: string | undefined | null) => {
     if (!raw) return "0";
@@ -957,7 +965,7 @@ export function CpegHybridPanel({ tokenMint, initialAuthorityAddress, compact }:
                 <p className="font-mono text-[10px] uppercase tracking-[0.22em] text-[#9fe2ff]">Get cPEG</p>
               </div>
               <p className="mt-2 text-sm text-white/70">
-                Convert your {state.symbol} tokens into Metaplex Agent PEG identities. Each cPEG is backed by{" "}
+                Convert your {backingTokenSymbol} tokens into Metaplex Agent PEG identities. Each cPEG is backed by{" "}
                 <span className="font-bold text-white">{backingUnitLabel}</span>. Empty pools mint one new Agent PEG
                 inside the capture transaction.
               </p>

@@ -25,6 +25,7 @@ import {
   createTransferCheckedInstruction,
   getAssociatedTokenAddressSync,
   getMint,
+  getTokenMetadata,
 } from "@solana/spl-token";
 import {
   create as createCoreAsset,
@@ -131,6 +132,8 @@ export interface HybridStateSummary {
   poolAssets: number;
   vaultTokenBalanceRaw: string;
   vaultTokenBalanceWhole: number;
+  agentTokenSymbol: string | null;
+  agentTokenName: string | null;
 }
 
 interface HybridLaunchSnapshot {
@@ -362,12 +365,32 @@ export async function buildHybridStateSummary(
   let pegUnitRaw = BigInt(0);
   let vaultRaw = BigInt(0);
   let vaultWhole = 0;
+  let agentTokenSymbol: string | null = null;
+  let agentTokenName: string | null = null;
   try {
     const ctx = await loadHybridTokenContext(launch);
     tokenProgramId = ctx.tokenProgramId.toBase58();
     decimals = ctx.decimals;
     tokenSupplyRaw = ctx.tokenSupplyRaw;
     pegUnitRaw = ctx.pegUnitRaw;
+    // The launch row's `symbol` is the cPEG collection symbol (e.g. "TRKPEG"),
+    // which is fine for cPEG identity strings but misleading for the backing
+    // token displays. Read the actual SPL/Token-2022 metadata so the panel can
+    // show "TRK" (or whatever the agent token is) for backing and supply.
+    try {
+      const metadata = await getTokenMetadata(
+        ctx.connection,
+        ctx.tokenMint,
+        "confirmed",
+        ctx.tokenProgramId
+      );
+      if (metadata?.symbol) agentTokenSymbol = metadata.symbol.replace(/\u0000+$/g, "").trim() || null;
+      if (metadata?.name) agentTokenName = metadata.name.replace(/\u0000+$/g, "").trim() || null;
+    } catch {
+      // Token-2022 metadata extension is optional and SPL legacy tokens use a
+      // separate Metaplex Token Metadata PDA. If we cannot resolve a symbol we
+      // fall back to the launch record's `symbol` in the response builder.
+    }
     const custody = getMplHybridCustodyTarget(launch, tokenProgramId);
     if (custody.isNativeReady && custody.escrowAddress && custody.escrowTokenAccount) {
       const escrowInfo = await ctx.connection.getAccountInfo(new PublicKey(custody.escrowAddress), "confirmed").catch(() => null);
@@ -419,6 +442,8 @@ export async function buildHybridStateSummary(
     poolAssets: assetCounts.pool,
     vaultTokenBalanceRaw: vaultRaw.toString(),
     vaultTokenBalanceWhole: vaultWhole,
+    agentTokenSymbol,
+    agentTokenName,
   };
 }
 
