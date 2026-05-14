@@ -94,10 +94,26 @@ function umiItemToWeb3Instruction(item: UmiInstructionItem) {
   });
 }
 
-function findNextPegId(used: Set<number>, maxPegs: number) {
+function findRandomPegId(used: Set<number>, maxPegs: number) {
   const cap = Math.max(1, Math.min(10_000, maxPegs || 1));
-  for (let pegId = 1; pegId <= cap; pegId += 1) {
-    if (!used.has(pegId)) return pegId;
+  // Sparse case: pegId space is much larger than the used set, so a few random
+  // draws almost always find a free slot without scanning the entire range.
+  if (used.size < cap) {
+    const maxAttempts = Math.min(64, cap);
+    for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
+      const candidate = 1 + Math.floor(Math.random() * cap);
+      if (!used.has(candidate)) return candidate;
+    }
+    // Dense case (or unlucky draws): materialize the free list and pick one
+    // uniformly at random. Bounded by maxPegs <= 10,000 so the cost is fine.
+    const free: number[] = [];
+    for (let pegId = 1; pegId <= cap; pegId += 1) {
+      if (!used.has(pegId)) free.push(pegId);
+    }
+    if (free.length > 0) {
+      const index = Math.floor(Math.random() * free.length);
+      return free[index];
+    }
   }
   throw new CpegHybridEngineError(409, "All cPEG IDs are already reserved or captured for this launch");
 }
@@ -139,7 +155,7 @@ async function reserveLazyCaptureAssets(input: {
       });
       const used = new Set(existing.map((row) => row.pegId));
       for (const row of reservations) used.add(row.peg_id);
-      const pegId = findNextPegId(used, input.maxPegs);
+      const pegId = findRandomPegId(used, input.maxPegs);
       const assetKeypair = Keypair.generate();
       const assetAddress = assetKeypair.publicKey.toBase58();
       try {

@@ -1,6 +1,10 @@
 import "server-only";
 
 import { PublicKey } from "@solana/web3.js";
+import { createUmi } from "@metaplex-foundation/umi-bundle-defaults";
+import { mplCore, safeFetchAssetV1 } from "@metaplex-foundation/mpl-core";
+import { publicKey as umiPublicKey } from "@metaplex-foundation/umi";
+import { toWeb3JsPublicKey } from "@metaplex-foundation/umi-web3js-adapters";
 import { prisma } from "@/lib/db";
 import {
   CPEG_HYBRID_ASSET_STATUS_OWNED,
@@ -14,6 +18,8 @@ import {
   type GpaV2AssetSnapshot,
 } from "@/lib/marketplace-assets-gpa-v2";
 import { getMetaplexCoreConnection } from "@/lib/synapse-sap";
+
+const STALE_REVERT_GRACE_MS = 10 * 60 * 1000;
 
 export interface SyncMetaplexHybridPoolInput {
   launchId: string;
@@ -108,7 +114,13 @@ export async function syncMetaplexHybridPoolAssets(
     : await fetchInitializedNftDataSet(candidates, input.hybridProgramId);
   const existing = await prisma.clawPegHybridAsset.findMany({
     where: { launchId: input.launchId },
-    select: { assetAddress: true, pegId: true, ownerAddress: true, status: true },
+    select: {
+      assetAddress: true,
+      pegId: true,
+      ownerAddress: true,
+      status: true,
+      releasedAt: true,
+    },
   });
   const existingByAddress = new Map(existing.map((row) => [row.assetAddress, row]));
   const taken = new Set(existing.map((row) => row.pegId));
@@ -187,21 +199,48 @@ export async function syncMetaplexHybridPoolAssets(
       });
   }
 
+  // Sync direction: pool rows that no longer appear in the on-chain candidates
+  // listing _might_ have been transferred out, but GPA snapshots commonly lag
+  // several seconds behind a fresh release transaction. To avoid flipping a
+  // freshly-released asset back to OWNED while the indexer catches up, we:
+  //   1) Skip rows whose releasedAt is within the recent grace window.
+  //   2) For every remaining suspicious row, hit the Core asset directly via
+  //      Umi and only flip to OWNED when the on-chain owner is no longer the
+  //      hybrid escrow.
   const currentPoolAddresses = new Set(candidates.map((snapshot) => snapshot.publicKey));
-  const stalePoolRows = existing.filter(
-    (row) =>
-      row.status === CPEG_HYBRID_ASSET_STATUS_POOL &&
-      !currentPoolAddresses.has(row.assetAddress)
-  );
-  if (stalePoolRows.length > 0) {
-    await prisma.clawPegHybridAsset.updateMany({
-      where: {
-        launchId: input.launchId,
-        assetAddress: { in: stalePoolRows.map((row) => row.assetAddress) },
-      },
-      data: { status: CPEG_HYBRID_ASSET_STATUS_OWNED },
-    });
-    updated += stalePoolRows.length;
+  const graceCutoff = Date.now() - STALE_REVERT_GRACE_MS;
+  const suspectStalePoolRows = existing.filter((row) => {
+    if (row.status !== CPEG_HYBRID_ASSET_STATUS_POOL) return false;
+    if (currentPoolAddresses.has(row.assetAddress)) return false;
+    if (row.releasedAt && row.releasedAt.getTime() >= graceCutoff) return false;
+    return true;
+  });
+
+  if (suspectStalePoolRows.length > 0) {
+    const umi = createUmi(getMetaplexCoreConnection().rpcEndpoint);
+    umi.use(mplCore());
+    const confirmedStaleRows: { assetAddress: string; newOwner: string }[] = [];
+    for (const row of suspectStalePoolRows) {
+      try {
+        const asset = await safeFetchAssetV1(umi, umiPublicKey(row.assetAddress));
+        if (!asset) continue;
+        const ownerOnChain = toWeb3JsPublicKey(asset.owner).toBase58();
+        if (ownerOnChain === escrowAddress) continue;
+        confirmedStaleRows.push({ assetAddress: row.assetAddress, newOwner: ownerOnChain });
+      } catch {
+        // ignore – conservative default keeps the row as POOL until next sync.
+      }
+    }
+    for (const stale of confirmedStaleRows) {
+      await prisma.clawPegHybridAsset.update({
+        where: { assetAddress: stale.assetAddress },
+        data: {
+          status: CPEG_HYBRID_ASSET_STATUS_OWNED,
+          ownerAddress: stale.newOwner,
+        },
+      });
+      updated += 1;
+    }
   }
 
   return { synced, updated, skipped, escrowAddress };

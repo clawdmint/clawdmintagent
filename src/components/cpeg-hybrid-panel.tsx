@@ -11,7 +11,6 @@ import {
   PackageOpen,
   Rocket,
   ShieldCheck,
-  Tag,
 } from "lucide-react";
 import {
   clusterApiUrl,
@@ -774,8 +773,6 @@ export function CpegHybridPanel({ tokenMint, initialAuthorityAddress, compact }:
   const backingUnitLabel = formatRawTokenAmount(state.peg_unit_raw, state.decimals, state.symbol);
   const requiredLabel = formatRawTokenAmount(requiredRaw, state.decimals, state.symbol);
   const supplyLabel = formatRawTokenAmount(state.token_supply_raw, state.decimals, state.symbol);
-  const collectionHref = urls.collection(tokenMint);
-  const marketHref = urls.market({ mint: tokenMint });
 
   const formatSolFromLamports = (raw: string | undefined | null) => {
     if (!raw) return "0";
@@ -845,12 +842,6 @@ export function CpegHybridPanel({ tokenMint, initialAuthorityAddress, compact }:
           <span>|</span>
           <span>{state.available_capacity} available</span>
         </div>
-      </div>
-
-      <div className="mt-5 grid gap-2 sm:grid-cols-3">
-        <ActionLink href={collectionHref} icon={PackageOpen} label="Get cPEG" />
-        <ActionLink href="#release" icon={ArrowDownUp} label="Release" />
-        <ActionLink href={marketHref} icon={Tag} label="List / Buy cPEG" />
       </div>
 
       {!setupComplete ? (
@@ -1101,20 +1092,3 @@ function Stat({ icon: Icon, label, value }: StatProps) {
   );
 }
 
-interface ActionLinkProps {
-  href: string;
-  icon: LucideIcon;
-  label: string;
-}
-
-function ActionLink({ href, icon: Icon, label }: ActionLinkProps) {
-  return (
-    <a
-      href={href}
-      className="flex items-center justify-center gap-2 border border-white/10 bg-black/30 px-3 py-3 text-center text-[10px] font-black uppercase tracking-[0.16em] text-white/70 transition hover:border-[#53c7ff]/60 hover:bg-[#53c7ff]/10 hover:text-[#53c7ff]"
-    >
-      <Icon className="h-3.5 w-3.5" />
-      {label}
-    </a>
-  );
-}
