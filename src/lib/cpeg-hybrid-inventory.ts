@@ -7,6 +7,7 @@ import { publicKey as umiPublicKey } from "@metaplex-foundation/umi";
 import { toWeb3JsPublicKey } from "@metaplex-foundation/umi-web3js-adapters";
 import { prisma } from "@/lib/db";
 import {
+  CPEG_HYBRID_ASSET_STATUS_LISTED,
   CPEG_HYBRID_ASSET_STATUS_OWNED,
   CPEG_HYBRID_ASSET_STATUS_POOL,
   CpegHybridEngineError,
@@ -195,6 +196,94 @@ export async function syncMetaplexHybridPoolAssets(
           },
         });
         if (ownerChanged.count > 0) updated += ownerChanged.count;
+        else skipped += 1;
+      });
+  }
+
+  // Reconcile non-escrow on-chain owners with the database. This is the
+  // "rescue" path: if a capture transaction succeeded on-chain but the
+  // /capture/confirm DB write was missed (network blip, page refresh between
+  // sign and confirm, aggressive PENDING TTL purge, etc.), the user still
+  // owns the Metaplex Core asset. Without this loop the site would never
+  // surface that NFT to its real owner, so we walk every collection snapshot
+  // owned by a non-escrow wallet and either heal the existing row or insert
+  // a fresh OWNED row.
+  const userCandidates = snapshots.filter((snapshot) => snapshot.ownerAddress !== escrowAddress);
+  const launchCap = Math.max(1, Math.min(10_000, input.maxPegs || 1));
+  for (const snapshot of userCandidates) {
+    const ownerAddress = snapshot.ownerAddress;
+    if (!ownerAddress) continue;
+    const existingRow = existingByAddress.get(snapshot.publicKey);
+    if (existingRow) {
+      // Marketplace listings have their own lifecycle (LISTED -> ACTIVE row
+      // in ClawPegMarketListing). Do not flip a LISTED row here just
+      // because the asset still happens to live in the seller's wallet;
+      // the marketplace cancel / fill flows are authoritative for that.
+      if (existingRow.status === CPEG_HYBRID_ASSET_STATUS_LISTED) {
+        continue;
+      }
+      const needsUpdate =
+        existingRow.ownerAddress !== ownerAddress ||
+        existingRow.status !== CPEG_HYBRID_ASSET_STATUS_OWNED;
+      if (needsUpdate) {
+        await prisma.clawPegHybridAsset
+          .update({
+            where: { assetAddress: snapshot.publicKey },
+            data: {
+              ownerAddress,
+              status: CPEG_HYBRID_ASSET_STATUS_OWNED,
+              capturedAt: existingRow.releasedAt ? existingRow.releasedAt : new Date(),
+            },
+          })
+          .catch(() => null);
+        updated += 1;
+      }
+      continue;
+    }
+
+    // No DB row yet. Try to recover the peg id from the asset metadata so
+    // the rescued row keeps the same identity that mpl-hybrid minted on
+    // chain. Fall back to the next free id when the on-chain name is
+    // unparseable, so the asset still surfaces to its owner.
+    const parsedPegId = parseSnapshotPegId(snapshot);
+    const pegId =
+      parsedPegId && parsedPegId >= 1 && parsedPegId <= launchCap && !taken.has(parsedPegId)
+        ? parsedPegId
+        : findNextAvailablePegId(taken, input.maxPegs);
+    if (!pegId) {
+      skipped += 1;
+      continue;
+    }
+    taken.add(pegId);
+    await prisma.clawPegHybridAsset
+      .create({
+        data: {
+          launchId: input.launchId,
+          tokenMint: input.tokenMint,
+          collectionAddress: input.collectionAddress,
+          assetAddress: snapshot.publicKey,
+          pegId,
+          ownerAddress,
+          status: CPEG_HYBRID_ASSET_STATUS_OWNED,
+          capturedAt: new Date(),
+        },
+      })
+      .then(() => {
+        synced += 1;
+      })
+      .catch(async () => {
+        // Race-loser: another sync just wrote this row. Make sure ownership
+        // / status reflect on-chain truth and move on.
+        const flipped = await prisma.clawPegHybridAsset
+          .updateMany({
+            where: { launchId: input.launchId, assetAddress: snapshot.publicKey },
+            data: {
+              ownerAddress,
+              status: CPEG_HYBRID_ASSET_STATUS_OWNED,
+            },
+          })
+          .catch(() => null);
+        if (flipped && flipped.count > 0) updated += flipped.count;
         else skipped += 1;
       });
   }

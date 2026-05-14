@@ -10,8 +10,12 @@ import {
 
 // Aggressive cleanup window for state reads: abandoned capture attempts free
 // their reserved peg id after this many milliseconds. Capture prepare/confirm
-// still use a longer window (20 min) so an in-flight signature can land.
-const STATE_STALE_PENDING_TTL_MS = 5 * 60 * 1000;
+// still use a longer window (20 min) so an in-flight signature can land. The
+// window must be long enough to comfortably exceed Phantom signing latency +
+// confirmed commitment + GPA index lag, otherwise a legit capture can have
+// its PENDING row deleted out from under it before the on-chain reconciler
+// upgrades the row to OWNED.
+const STATE_STALE_PENDING_TTL_MS = 15 * 60 * 1000;
 import {
   loadHybridLaunchAndAgent,
   loadHybridAssetCounts,
@@ -32,23 +36,15 @@ export async function GET(request: NextRequest, { params }: RouteContext) {
   if (!data) {
     return NextResponse.json({ success: false, error: "cPEG hybrid launch not found" }, { status: 404 });
   }
-  // Recycle peg-id reservations from abandoned capture attempts so the launch
-  // does not "lose" supply across failed signs / broadcasts. We only purge
-  // rows that never produced a capture signature.
-  await prisma.clawPegHybridAsset
-    .deleteMany({
-      where: {
-        launchId: data.launch.id,
-        status: CPEG_HYBRID_ASSET_STATUS_PENDING_CAPTURE,
-        captureTxHash: null,
-        createdAt: { lt: new Date(Date.now() - STATE_STALE_PENDING_TTL_MS) },
-      },
-    })
-    .catch(() => null);
   let counts = await loadHybridAssetCounts(data.launch.id);
   let summary = await buildHybridStateSummary(data.agent, data.launch, counts);
   const custody = getMplHybridCustodyTarget(data.launch, summary.tokenProgramId);
   let poolSyncWarning: string | null = null;
+  // Run the on-chain reconciler BEFORE the PENDING purge so any capture that
+  // actually settled on-chain can be promoted from PENDING_CAPTURE → OWNED
+  // before its row gets garbage collected by the TTL sweep below. This is the
+  // self-healing path that recovers from any /capture/confirm call that
+  // failed (network, tab close, race with the purge, etc.).
   if (data.launch.cluster === "mainnet-beta" && custody.isNativeReady && custody.escrowAddress) {
     await syncMetaplexHybridPoolAssets({
       launchId: data.launch.id,
@@ -60,9 +56,25 @@ export async function GET(request: NextRequest, { params }: RouteContext) {
     }).catch((error) => {
       poolSyncWarning = error instanceof Error ? error.message : "Metaplex pool sync failed";
     });
-    counts = await loadHybridAssetCounts(data.launch.id);
-    summary = await buildHybridStateSummary(data.agent, data.launch, counts);
   }
+  // Recycle peg-id reservations from abandoned capture attempts so the launch
+  // does not "lose" supply across failed signs / broadcasts. We only purge
+  // rows that never produced a capture signature AND that the on-chain
+  // reconciler did not just promote to OWNED.
+  await prisma.clawPegHybridAsset
+    .deleteMany({
+      where: {
+        launchId: data.launch.id,
+        status: CPEG_HYBRID_ASSET_STATUS_PENDING_CAPTURE,
+        captureTxHash: null,
+        createdAt: { lt: new Date(Date.now() - STATE_STALE_PENDING_TTL_MS) },
+      },
+    })
+    .catch(() => null);
+  // Final recount picks up everything the sync + purge changed in this
+  // request so the response reflects a consistent post-reconciliation view.
+  counts = await loadHybridAssetCounts(data.launch.id);
+  summary = await buildHybridStateSummary(data.agent, data.launch, counts);
   const nativeEscrowReady =
     custody.isNativeReady &&
     summary.hybridEscrowAccountInitialized &&

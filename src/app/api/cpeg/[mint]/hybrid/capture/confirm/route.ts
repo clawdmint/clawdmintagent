@@ -145,39 +145,129 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
           assetAddress: { in: requestedAssets },
         },
       });
-      if (rows.length !== requestedAssets.length) {
-        throw new CpegHybridEngineError(404, "One or more prepared cPEG assets were not found");
-      }
+      const rowByAddress = new Map(rows.map((row) => [row.assetAddress, row]));
       const now = new Date();
-      const updated = [];
-      for (const row of rows) {
-        if (row.status !== CPEG_HYBRID_ASSET_STATUS_POOL && row.ownerAddress !== parsed.data.wallet) {
-          throw new CpegHybridEngineError(409, `cPEG #${row.pegId} is no longer available for capture`);
-        }
-        const onChainOwner = await fetchHybridCoreAssetOwner(row.assetAddress).catch(() => null);
+      const updated: Array<{
+        asset_address: string;
+        peg_id: number;
+        status: string;
+        mint_tx: string | null;
+      }> = [];
+
+      // Allocate peg ids upfront for any rescue rows we may need to insert
+      // because the original PENDING_CAPTURE entry was purged before the
+      // user's wallet returned to /capture/confirm. The new id is parsed
+      // from the on-chain metadata if available, otherwise picked from the
+      // next free slot in the launch.
+      const takenForRescue = new Set(
+        (await prisma.clawPegHybridAsset.findMany({
+          where: { launchId: data.launch.id },
+          select: { pegId: true },
+        })).map((row) => row.pegId)
+      );
+
+      for (const assetAddress of requestedAssets) {
+        const row = rowByAddress.get(assetAddress);
+        const onChainOwner = await fetchHybridCoreAssetOwner(assetAddress).catch(() => null);
         if (onChainOwner !== parsed.data.wallet) {
-          throw new CpegHybridEngineError(409, `Metaplex Core asset #${row.pegId} was not transferred to the buyer`, {
-            asset: row.assetAddress,
-            expected_owner: parsed.data.wallet,
-            on_chain_owner: onChainOwner,
-          });
+          throw new CpegHybridEngineError(
+            409,
+            `Metaplex Core asset ${row ? `#${row.pegId}` : assetAddress.slice(0, 6)} was not transferred to the buyer`,
+            {
+              asset: assetAddress,
+              expected_owner: parsed.data.wallet,
+              on_chain_owner: onChainOwner,
+            }
+          );
         }
-        await prisma.clawPegHybridAsset.update({
-          where: { assetAddress: row.assetAddress },
-          data: {
-            ownerAddress: parsed.data.wallet,
+        if (row) {
+          if (
+            row.status !== CPEG_HYBRID_ASSET_STATUS_POOL &&
+            row.ownerAddress !== parsed.data.wallet
+          ) {
+            throw new CpegHybridEngineError(
+              409,
+              `cPEG #${row.pegId} is no longer available for capture`
+            );
+          }
+          await prisma.clawPegHybridAsset.update({
+            where: { assetAddress: row.assetAddress },
+            data: {
+              ownerAddress: parsed.data.wallet,
+              status: CPEG_HYBRID_ASSET_STATUS_OWNED,
+              captureTxHash: parsed.data.signature,
+              capturedAt: now,
+            },
+          });
+          updated.push({
+            asset_address: row.assetAddress,
+            peg_id: row.pegId,
             status: CPEG_HYBRID_ASSET_STATUS_OWNED,
-            captureTxHash: parsed.data.signature,
-            capturedAt: now,
-          },
-        });
+            mint_tx: null,
+          });
+          continue;
+        }
+
+        // Rescue path: the on-chain owner is the requesting wallet but our
+        // PENDING_CAPTURE row was purged before this call landed (TTL or
+        // race). Mint a fresh OWNED row so the user's NFT actually surfaces
+        // in the UI and the available-capacity stays consistent.
+        if (!data.launch.hybridCoreCollectionAddress) {
+          throw new CpegHybridEngineError(
+            500,
+            "Capture confirmation cannot rescue this asset because the launch has no hybrid collection address",
+            { asset: assetAddress }
+          );
+        }
+        const cap = Math.max(1, Math.min(10_000, data.launch.maxPegs || 1));
+        let nextPegId: number | null = null;
+        for (let candidate = 1; candidate <= cap; candidate += 1) {
+          if (!takenForRescue.has(candidate)) {
+            nextPegId = candidate;
+            break;
+          }
+        }
+        if (!nextPegId) {
+          throw new CpegHybridEngineError(
+            500,
+            "Capture confirmation could not rescue the on-chain asset because the launch is full",
+            { asset: assetAddress }
+          );
+        }
+        takenForRescue.add(nextPegId);
+        await prisma.clawPegHybridAsset
+          .create({
+            data: {
+              launchId: data.launch.id,
+              tokenMint: data.launch.tokenMint,
+              collectionAddress: data.launch.hybridCoreCollectionAddress,
+              assetAddress,
+              pegId: nextPegId,
+              ownerAddress: parsed.data.wallet,
+              status: CPEG_HYBRID_ASSET_STATUS_OWNED,
+              captureTxHash: parsed.data.signature,
+              capturedAt: now,
+            },
+          })
+          .catch(async () => {
+            await prisma.clawPegHybridAsset.updateMany({
+              where: { launchId: data.launch.id, assetAddress },
+              data: {
+                ownerAddress: parsed.data.wallet,
+                status: CPEG_HYBRID_ASSET_STATUS_OWNED,
+                captureTxHash: parsed.data.signature,
+                capturedAt: now,
+              },
+            });
+          });
         updated.push({
-          asset_address: row.assetAddress,
-          peg_id: row.pegId,
+          asset_address: assetAddress,
+          peg_id: nextPegId,
           status: CPEG_HYBRID_ASSET_STATUS_OWNED,
           mint_tx: null,
         });
       }
+
       const counts = await loadHybridAssetCounts(data.launch.id);
       return NextResponse.json({
         success: true,
