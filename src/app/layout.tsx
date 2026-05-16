@@ -10,6 +10,7 @@ import { CpegSiteHeader } from "@/components/cpeg-site-header";
 import { Footer } from "@/components/footer";
 import { MiniAppInit } from "@/components/miniapp-init";
 import { ReferralWidget } from "@/components/referral-widget";
+import { SolPriceTicker } from "@/components/sol-price-ticker";
 import { CPEG_SITE_HEADER } from "@/lib/cpeg-site-paths";
 
 // Decorative layer only: defer to after first paint, skip SSR work for 10+ animated nodes
@@ -107,6 +108,7 @@ export default function RootLayout({
             </main>
             {!isCpegSite ? <ReferralWidget /> : null}
             {isCpegSite ? <CpegSiteFooter /> : <Footer />}
+            <SolPriceTicker />
           </div>
         </Providers>
       </body>

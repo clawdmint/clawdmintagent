@@ -252,6 +252,24 @@
   50% { background-position: 100% 50%; }
 }
 
+@keyframes partner-marquee {
+  from { transform: translateX(0); }
+  to { transform: translateX(-25%); }
+}
+
+@keyframes role-copy-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+    filter: blur(3px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+    filter: blur(0);
+  }
+}
+
 .animate-float { animation: float 6s ease-in-out infinite; }
 .animate-float-reverse { animation: float-reverse 7s ease-in-out infinite; }
 .animate-float-delayed { animation: float 6s ease-in-out infinite; animation-delay: -3s; }
@@ -276,8 +294,33 @@
 .animate-gradient { background-size: 200% 200%; animation: gradient-shift 8s ease infinite; }
 .animate-referral-widget-in { animation: referral-widget-in 0.7s cubic-bezier(0.16, 1, 0.3, 1) both; }
 
+.role-copy-transition {
+  animation: role-copy-in 0.32s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.partner-marquee {
+  -webkit-mask-image: linear-gradient(90deg, transparent, #000 12%, #000 88%, transparent);
+  mask-image: linear-gradient(90deg, transparent, #000 12%, #000 88%, transparent);
+}
+
+.partner-marquee-track {
+  animation: partner-marquee 34s linear infinite;
+}
+
+.partner-marquee:hover .partner-marquee-track {
+  animation-play-state: paused;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .animate-referral-widget-in {
+    animation: none;
+  }
+
+  .partner-marquee-track {
+    animation: none;
+  }
+
+  .role-copy-transition {
     animation: none;
   }
 }

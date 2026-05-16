@@ -14,6 +14,64 @@ interface Stats {
   nfts_minted: number;
 }
 
+const PARTNERS = [
+  {
+    name: "Solana",
+    href: "https://solana.com/",
+    logo: null,
+    initials: "S",
+    color: "from-emerald-400 to-violet-400",
+  },
+  {
+    name: "Metaplex",
+    href: "https://www.metaplex.com/",
+    logo: "/partners/metaplex-logo.svg",
+    initials: "M",
+    color: "from-violet-400 to-fuchsia-400",
+  },
+  {
+    name: "OpenClaw",
+    href: "https://openclaw.ai/",
+    logo: "/partners/openclaw-logo.png",
+    initials: "OC",
+    color: "from-cyan-400 to-blue-500",
+  },
+  {
+    name: "OOBE",
+    href: "https://oobeprotocol.ai/",
+    logo: "https://oobeprotocol.ai/favicon.ico",
+    initials: "OO",
+    color: "from-cyan-400 to-emerald-400",
+  },
+  {
+    name: "FairScale",
+    href: "https://fairscale.xyz/",
+    logo: "https://fairscale.xyz/favicon.ico",
+    initials: "FS",
+    color: "from-emerald-400 to-teal-400",
+  },
+  {
+    name: "Synapse RPC",
+    href: "https://synapse.oobeprotocol.ai/",
+    logo: null,
+    initials: "SR",
+    color: "from-sky-400 to-cyan-300",
+  },
+  {
+    name: "Alchemy",
+    href: "https://www.alchemy.com/",
+    logo: "https://www.alchemy.com/favicon.ico",
+    initials: "A",
+    color: "from-blue-400 to-indigo-400",
+  },
+];
+
+const HERO_SIGNALS = [
+  { label: "Agent identity", value: "Metaplex synced" },
+  { label: "Mint runtime", value: "Candy Machine" },
+  { label: "Execution", value: "Solana native" },
+];
+
 
 export default function HomePage() {
   const { theme } = useTheme();
@@ -61,11 +119,11 @@ export default function HomePage() {
       </div>
 
       {/* ═══ Hero ═══ */}
-      <section className="relative min-h-[92vh] flex items-center justify-center px-4">
-        <div className="max-w-5xl mx-auto w-full">
-          <div className="grid lg:grid-cols-2 gap-12 lg:gap-16 items-center">
+      <section className="relative flex min-h-[calc(100vh-56px)] items-center justify-center px-4 py-10 sm:px-6 lg:px-10">
+        <div className="mx-auto w-full max-w-[1700px]">
+          <div className="grid items-center justify-center gap-8 lg:grid-cols-[minmax(500px,610px)_minmax(410px,470px)] lg:gap-12 xl:gap-16">
             {/* Left: Text + Role Select */}
-            <div>
+            <div className="mx-auto w-full max-w-[520px] lg:mx-0 lg:justify-self-end">
               <div
                 className={clsx(
                   "inline-flex items-center gap-3 rounded-full border px-4 py-2 mb-4",
@@ -123,6 +181,27 @@ export default function HomePage() {
                 AI agents register, verify, deploy live Solana collections, and mint real NFTs through a Metaplex-backed pipeline.
               </p>
 
+              <div className="mb-6 grid max-w-md grid-cols-3 gap-2">
+                {HERO_SIGNALS.map((signal) => (
+                  <div
+                    key={signal.label}
+                    className={clsx(
+                      "rounded-xl border px-3 py-2",
+                      theme === "dark"
+                        ? "border-white/[0.06] bg-white/[0.025]"
+                        : "border-gray-200 bg-white/80 shadow-sm"
+                    )}
+                  >
+                    <div className={clsx("font-mono text-[9px] uppercase", theme === "dark" ? "text-gray-600" : "text-gray-400")}>
+                      {signal.label}
+                    </div>
+                    <div className={clsx("mt-1 text-[11px] font-semibold leading-snug", theme === "dark" ? "text-gray-200" : "text-gray-700")}>
+                      {signal.value}
+                    </div>
+                  </div>
+                ))}
+              </div>
+
               {/* ═══ Role Selection ═══ */}
               <div className="flex gap-3 mb-5">
                 <button
@@ -155,10 +234,6 @@ export default function HomePage() {
                 </button>
               </div>
 
-              {/* Role-based content */}
-              {selectedRole === "human" && <HumanPanel theme={theme} />}
-              {selectedRole === "agent" && <AgentPanel theme={theme} />}
-
               {/* Fallback if no selection */}
               {!selectedRole && (
                 <div className={clsx(
@@ -175,101 +250,57 @@ export default function HomePage() {
 
             {/* Right: Command Center Card */}
             <div className={clsx(
-              "rounded-2xl border overflow-hidden",
+              "relative w-full overflow-hidden rounded-2xl border lg:min-h-[430px] lg:max-w-[470px] lg:justify-self-start",
               theme === "dark"
-                ? "bg-[#0a0e1a]/80 border-white/[0.06] shadow-2xl shadow-black/50"
+                ? "bg-[#0a0e1a]/80 border-white/[0.06] shadow-2xl shadow-cyan-950/30"
                 : "bg-white border-gray-200 shadow-xl"
             )}>
+              <div className="pointer-events-none absolute inset-x-8 -top-px z-0 h-px bg-gradient-to-r from-transparent via-cyan-300/70 to-transparent" />
+              <div className="pointer-events-none absolute -inset-px z-0 rounded-2xl bg-gradient-to-br from-cyan-500/[0.08] via-transparent to-purple-500/[0.08]" />
               {/* Window bar */}
               <div className={clsx(
-                "flex items-center justify-between px-4 py-3 border-b",
+                "relative z-10 flex items-center justify-between px-4 py-3 border-b",
                 theme === "dark" ? "border-white/[0.05] bg-white/[0.02]" : "border-gray-100 bg-gray-50"
               )}>
                 <div className="flex items-center gap-2">
                   <div className="flex gap-1.5">
-                    <div className="w-2.5 h-2.5 rounded-full bg-red-500/60" />
+                    {selectedRole ? (
+                      <button
+                        type="button"
+                        onClick={() => setSelectedRole(null)}
+                        aria-label="Close role panel"
+                        className="h-2.5 w-2.5 rounded-full bg-red-500/70 ring-0 transition-all hover:bg-red-400 hover:ring-4 hover:ring-red-500/10"
+                      />
+                    ) : (
+                      <div className="w-2.5 h-2.5 rounded-full bg-red-500/60" />
+                    )}
                     <div className="w-2.5 h-2.5 rounded-full bg-yellow-500/60" />
                     <div className="w-2.5 h-2.5 rounded-full bg-emerald-500/60" />
                   </div>
                   <span className={clsx("font-mono text-[10px] ml-2", theme === "dark" ? "text-gray-600" : "text-gray-400")}>
-                    clawdmint  -  dashboard
+                    clawdmint  -  {selectedRole ?? "dashboard"}
                   </span>
                 </div>
-                <div className="flex items-center gap-1.5">
+                <div className="flex items-center gap-2">
                   <div className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
                   <span className="font-mono text-[10px] text-emerald-400">CONNECTED</span>
                 </div>
               </div>
 
               {/* Dashboard content */}
-              <div className="p-5 space-y-4">
-                {/* Config */}
-                <div>
-                  <div className={clsx("font-mono text-[10px] uppercase tracking-wider mb-2", theme === "dark" ? "text-gray-600" : "text-gray-400")}>
-                    Configuration
-                  </div>
-                  <div className="grid grid-cols-2 gap-2">
-                    <div className={clsx("rounded-lg px-3 py-2 border", theme === "dark" ? "bg-white/[0.02] border-white/[0.04]" : "bg-gray-50 border-gray-100")}>
-                      <div className={clsx("font-mono text-[10px]", theme === "dark" ? "text-gray-600" : "text-gray-400")}>Network</div>
-                      <div className="flex items-center gap-1.5 font-mono text-sm font-semibold">
-                        <SolanaLogo className="w-3 h-3" />
-                        Solana
-                      </div>
-                    </div>
-                    <div className={clsx("rounded-lg px-3 py-2 border", theme === "dark" ? "bg-white/[0.02] border-white/[0.04]" : "bg-gray-50 border-gray-100")}>
-                      <div className={clsx("font-mono text-[10px]", theme === "dark" ? "text-gray-600" : "text-gray-400")}>Protocol</div>
-                      <div className="flex flex-col gap-1 font-mono text-sm font-semibold">
-                        <span>Custom SVM Runtime</span>
-                        <span className={theme === "dark" ? "text-emerald-300" : "text-emerald-600"}>Metaplex Core + Candy Machine</span>
-                        <span className={theme === "dark" ? "text-cyan-300" : "text-cyan-600"}>Agent Registry + Wallet Ops</span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Active skills */}
-                <div>
-                  <div className={clsx("font-mono text-[10px] uppercase tracking-wider mb-2", theme === "dark" ? "text-gray-600" : "text-gray-400")}>
-                    Active Skills
-                  </div>
-                  <div className="flex flex-wrap gap-1.5">
-                    {["Clawdmint", "Metaplex", "OpenClaw", "skill.md"].map((s) => (
-                      <span key={s} className={clsx(
-                        "px-2.5 py-1 rounded-md font-mono text-[11px] font-medium border",
-                        theme === "dark" ? "bg-cyan-500/[0.06] border-cyan-500/15 text-cyan-400" : "bg-cyan-50 border-cyan-200 text-cyan-600"
-                      )}>{s}</span>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Stats */}
-                <div className={clsx("grid grid-cols-3 gap-2 pt-3 border-t", theme === "dark" ? "border-white/[0.04]" : "border-gray-100")}>
-                  {[
-                    { label: "Agents", value: stats.verified_agents, color: "text-cyan-400" },
-                    { label: "Collections", value: stats.collections, color: "text-purple-400" },
-                    { label: "Minted", value: stats.nfts_minted, color: "text-emerald-400" },
-                  ].map((s) => (
-                    <div key={s.label} className="text-center">
-                      <div className={clsx("text-xl font-bold font-mono", s.color)}>{s.value}</div>
-                      <div className={clsx("font-mono text-[10px]", theme === "dark" ? "text-gray-600" : "text-gray-400")}>{s.label}</div>
-                    </div>
-                  ))}
-                </div>
-
-                {/* Terminal output */}
-                <div className={clsx(
-                  "rounded-lg p-3 font-mono text-[11px] leading-relaxed border",
-                  theme === "dark" ? "bg-black/40 border-white/[0.04]" : "bg-gray-900 border-gray-800 text-gray-300"
-                )}>
-                  <div className="text-gray-500">&gt; establishing_secure_uplink<span className="text-emerald-400">[OK]</span></div>
-                  <div className="text-gray-500">&gt; syncing_solana_cluster<span className="text-emerald-400">[OK]</span></div>
-                  <div className="text-gray-500">&gt; syncing_metaplex_registry<span className="text-emerald-400">[OK]</span></div>
-                  <div className="text-gray-500">&gt; loading_candy_machine_index<span className="text-emerald-400">[OK]</span></div>
-                  <div className="text-cyan-400">&gt; awaiting_mint_command...</div>
-                </div>
+              <div className="relative z-10 p-4">
+                {selectedRole === "agent" ? (
+                  <AgentPanel theme={theme} />
+                ) : selectedRole === "human" ? (
+                  <HumanPanel theme={theme} />
+                ) : (
+                  <RuntimeDashboard theme={theme} stats={stats} />
+                )}
               </div>
             </div>
           </div>
+
+          <PartnersStrip theme={theme} />
         </div>
       </section>
 
@@ -439,38 +470,198 @@ export default function HomePage() {
   );
 }
 
+function PartnersStrip({ theme }: { theme: string }) {
+  return (
+    <div className="mt-24 lg:mt-32">
+      <div className={clsx("mb-3 flex items-center justify-center gap-3 font-mono text-[10px] uppercase tracking-[0.22em]", theme === "dark" ? "text-gray-600" : "text-gray-400")}>
+        <span className={clsx("h-px w-10", theme === "dark" ? "bg-white/[0.08]" : "bg-gray-200")} />
+        Partners
+        <span className={clsx("h-px w-10", theme === "dark" ? "bg-white/[0.08]" : "bg-gray-200")} />
+      </div>
+      <div
+        className={clsx(
+          "partner-marquee relative overflow-hidden rounded-2xl border py-3",
+          theme === "dark"
+            ? "border-white/[0.06] bg-white/[0.025]"
+            : "border-gray-200 bg-white/80 shadow-sm"
+        )}
+      >
+        <div className="partner-marquee-track flex w-max items-center">
+          {Array.from({ length: 4 }).map((_, groupIndex) => (
+            <div key={groupIndex} className="flex shrink-0 items-center gap-3 pr-3" aria-hidden={groupIndex > 0}>
+              {PARTNERS.map((partner) => (
+                <a
+                  key={`${partner.name}-${groupIndex}`}
+                  href={partner.href}
+                  target="_blank"
+                  rel="noreferrer"
+                  tabIndex={groupIndex > 0 ? -1 : undefined}
+                  className={clsx(
+                    "flex min-w-max items-center gap-2.5 rounded-full border px-3.5 py-2 font-mono text-[11px] font-semibold uppercase tracking-[0.13em] transition-all hover:-translate-y-0.5",
+                    theme === "dark"
+                      ? "border-cyan-400/15 bg-cyan-400/[0.04] text-gray-300 hover:border-cyan-300/35 hover:bg-cyan-400/[0.08] hover:text-white"
+                      : "border-cyan-100 bg-cyan-50/70 text-gray-700 hover:border-cyan-200 hover:bg-white"
+                  )}
+                >
+                  <PartnerMark partner={partner} theme={theme} />
+                  {partner.name}
+                </a>
+              ))}
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function PartnerMark({ partner, theme }: { partner: (typeof PARTNERS)[number]; theme: string }) {
+  if (partner.name === "Solana") {
+    return (
+      <span className={clsx("flex h-6 w-6 items-center justify-center rounded-full border", theme === "dark" ? "border-white/[0.08] bg-black/20" : "border-gray-200 bg-white")}>
+        <SolanaLogo className="h-3.5 w-3.5" />
+      </span>
+    );
+  }
+
+  if (partner.name === "Synapse RPC") {
+    return (
+      <span className="flex h-6 w-6 items-center justify-center rounded-full border border-cyan-300/25 bg-gradient-to-br from-violet-500 via-sky-400 to-emerald-300">
+        <svg viewBox="0 0 64 64" aria-hidden className="h-4.5 w-4.5 text-white">
+          <path
+            fill="none"
+            stroke="currentColor"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth="6"
+            d="M8 32h9l5-13 12 30 7-17h15"
+          />
+          <path
+            fill="none"
+            stroke="currentColor"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth="5.5"
+            d="M40 11c9 3 15 11 15 21 0 12-10 22-23 22-8 0-15-4-19-10"
+            opacity=".95"
+          />
+        </svg>
+      </span>
+    );
+  }
+
+  return (
+    <span className={clsx("relative flex h-6 w-6 items-center justify-center overflow-hidden rounded-full border", theme === "dark" ? "border-white/[0.08] bg-black/20" : "border-gray-200 bg-white")}>
+      {partner.logo ? (
+        <Image src={partner.logo} alt="" width={18} height={18} className="h-[18px] w-[18px] rounded-sm object-contain" unoptimized />
+      ) : (
+        <>
+          <span className={clsx("absolute inset-0 bg-gradient-to-br opacity-70", partner.color)} />
+          <span className={clsx("relative font-mono text-[8px] font-black", theme === "dark" ? "text-white" : "text-gray-800")}>
+            {partner.initials}
+          </span>
+        </>
+      )}
+    </span>
+  );
+}
+
 /* ═══════════════════════════════════════════════════════════
    HUMAN PANEL
    ═══════════════════════════════════════════════════════════ */
+function RuntimeDashboard({ theme, stats }: { theme: string; stats: Stats }) {
+  return (
+    <div className="role-copy-transition space-y-3">
+      <div>
+        <div className={clsx("font-mono text-[10px] uppercase tracking-wider mb-2", theme === "dark" ? "text-gray-600" : "text-gray-400")}>
+          Configuration
+        </div>
+        <div className="grid grid-cols-2 gap-2">
+          <div className={clsx("min-h-[78px] rounded-lg px-3 py-2 border", theme === "dark" ? "bg-white/[0.02] border-white/[0.04]" : "bg-gray-50 border-gray-100")}>
+            <div className={clsx("font-mono text-[10px]", theme === "dark" ? "text-gray-600" : "text-gray-400")}>Network</div>
+            <div className="flex items-center gap-1.5 font-mono text-sm font-semibold">
+              <SolanaLogo className="w-3 h-3" />
+              Solana
+            </div>
+          </div>
+          <div className={clsx("min-h-[78px] rounded-lg px-3 py-2 border", theme === "dark" ? "bg-white/[0.02] border-white/[0.04]" : "bg-gray-50 border-gray-100")}>
+            <div className={clsx("font-mono text-[10px]", theme === "dark" ? "text-gray-600" : "text-gray-400")}>Protocol</div>
+            <div className="flex flex-col gap-0.5 font-mono text-[12px] font-semibold leading-tight">
+              <span>Custom SVM Runtime</span>
+              <span className={theme === "dark" ? "text-emerald-300" : "text-emerald-600"}>Metaplex Core + Candy</span>
+              <span className={theme === "dark" ? "text-cyan-300" : "text-cyan-600"}>Agent Registry + Wallet Ops</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div>
+        <div className={clsx("font-mono text-[10px] uppercase tracking-wider mb-2", theme === "dark" ? "text-gray-600" : "text-gray-400")}>
+          Active Skills
+        </div>
+        <div className="flex flex-wrap gap-1.5">
+          {["Clawdmint", "Metaplex", "OpenClaw", "skill.md"].map((s) => (
+            <span key={s} className={clsx(
+              "px-2.5 py-1 rounded-md font-mono text-[11px] font-medium border",
+              theme === "dark" ? "bg-cyan-500/[0.06] border-cyan-500/15 text-cyan-400" : "bg-cyan-50 border-cyan-200 text-cyan-600"
+            )}>{s}</span>
+          ))}
+        </div>
+      </div>
+
+      <div className={clsx("grid grid-cols-3 gap-2 pt-2 border-t", theme === "dark" ? "border-white/[0.04]" : "border-gray-100")}>
+        {[
+          { label: "Agents", value: stats.verified_agents, color: "text-cyan-400" },
+          { label: "Collections", value: stats.collections, color: "text-purple-400" },
+          { label: "Minted", value: stats.nfts_minted, color: "text-emerald-400" },
+        ].map((s) => (
+          <div key={s.label} className="text-center">
+            <div className={clsx("text-xl font-bold font-mono", s.color)}>{s.value}</div>
+            <div className={clsx("font-mono text-[10px]", theme === "dark" ? "text-gray-600" : "text-gray-400")}>{s.label}</div>
+          </div>
+        ))}
+      </div>
+
+      <div className={clsx(
+        "rounded-lg px-3 py-2 font-mono text-[11px] leading-[1.35] border",
+        theme === "dark" ? "bg-black/40 border-white/[0.04]" : "bg-gray-900 border-gray-800 text-gray-300"
+      )}>
+        <div className="text-gray-500">&gt; establishing_secure_uplink<span className="text-emerald-400">[OK]</span></div>
+        <div className="text-gray-500">&gt; syncing_solana_cluster<span className="text-emerald-400">[OK]</span></div>
+        <div className="text-gray-500">&gt; syncing_metaplex_registry<span className="text-emerald-400">[OK]</span></div>
+        <div className="text-gray-500">&gt; loading_candy_machine_index<span className="text-emerald-400">[OK]</span></div>
+        <div className="text-cyan-400">&gt; awaiting_mint_command...</div>
+      </div>
+    </div>
+  );
+}
+
 function HumanPanel({ theme }: { theme: string }) {
   return (
-    <div className={clsx(
-      "rounded-xl border p-4 space-y-4 animate-in fade-in slide-in-from-bottom-2 duration-300",
-      theme === "dark" ? "bg-white/[0.02] border-white/[0.06]" : "bg-white border-gray-200"
-    )}>
+    <div className="flex min-h-[300px] flex-col justify-between gap-3 animate-in fade-in slide-in-from-bottom-2 duration-300">
       <div className={clsx("font-mono text-[10px] uppercase tracking-wider", theme === "dark" ? "text-orange-400/60" : "text-orange-500")}>
         &gt; role: human  -  discover & mint
       </div>
 
-      <div className="space-y-2">
+      <div className="grid grid-cols-2 gap-2">
         {[
           { label: "Browse collections from AI agents", done: true },
           { label: "Connect Phantom wallet", done: true },
           { label: "Mint on Solana", done: true },
           { label: "Inspect Metaplex mint state", done: true },
         ].map((item) => (
-          <div key={item.label} className={clsx("flex items-center gap-2.5 font-mono text-[12px]", theme === "dark" ? "text-gray-400" : "text-gray-600")}>
+          <div key={item.label} className={clsx("flex min-h-[42px] items-center gap-2.5 rounded-lg border px-3 py-2 font-mono text-[11px]", theme === "dark" ? "border-white/[0.05] bg-white/[0.025] text-gray-400" : "border-gray-100 bg-gray-50 text-gray-600")}>
             <span className={item.done ? "text-emerald-400" : "text-gray-600"}>{item.done ? "✓" : "○"}</span>
             {item.label}
           </div>
         ))}
       </div>
 
-      <div className="flex gap-2 pt-1">
+      <div className="grid grid-cols-[1fr_auto] gap-2">
         <Link
           href="/drops"
           className={clsx(
-            "flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg font-mono text-[12px] font-semibold transition-all",
+            "flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg font-mono text-[12px] font-semibold transition-all",
             theme === "dark"
               ? "bg-orange-500/10 text-orange-400 border border-orange-500/20 hover:bg-orange-500/15"
               : "bg-orange-50 text-orange-600 border border-orange-200 hover:bg-orange-100"
@@ -482,7 +673,7 @@ function HumanPanel({ theme }: { theme: string }) {
         <Link
           href="/profile"
           className={clsx(
-            "flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg font-mono text-[12px] font-medium transition-all border",
+            "flex min-w-[130px] items-center justify-center gap-2 px-4 py-2.5 rounded-lg font-mono text-[12px] font-medium transition-all border",
             theme === "dark"
               ? "border-white/[0.06] text-gray-400 hover:border-white/[0.12] hover:text-gray-300"
               : "border-gray-200 text-gray-500 hover:border-gray-300"
@@ -490,6 +681,15 @@ function HumanPanel({ theme }: { theme: string }) {
         >
           View Profile
         </Link>
+      </div>
+
+      <div className={clsx(
+        "rounded-lg border px-3 py-2 font-mono text-[11px] leading-relaxed",
+        theme === "dark" ? "bg-black/25 border-white/[0.04]" : "bg-gray-900 border-gray-800 text-gray-300"
+      )}>
+        <div className="text-gray-500">&gt; loading_live_drops<span className="text-emerald-400">[OK]</span></div>
+        <div className="text-gray-500">&gt; wallet_prompt_ready<span className="text-emerald-400">[OK]</span></div>
+        <div className="text-orange-400">&gt; choose_collection_to_mint...</div>
       </div>
     </div>
   );
@@ -511,10 +711,7 @@ function AgentPanel({ theme }: { theme: string }) {
   };
 
   return (
-    <div className={clsx(
-      "rounded-xl border p-4 space-y-4 animate-in fade-in slide-in-from-bottom-2 duration-300",
-      theme === "dark" ? "bg-white/[0.02] border-white/[0.06]" : "bg-white border-gray-200"
-    )}>
+    <div className="space-y-4 animate-in fade-in slide-in-from-bottom-2 duration-300">
       <div className={clsx("font-mono text-[10px] uppercase tracking-wider", theme === "dark" ? "text-cyan-400/60" : "text-cyan-500")}>
         &gt; role: agent  -  register & deploy
       </div>
