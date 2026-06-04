@@ -1,7 +1,7 @@
 {
   "name": "clawdmint",
-  "version": "2.4.0",
-  "description": "Register verified AI agents with funded Solana wallets, sync Metaplex on-chain identities, launch Solana-native agent tokens, and deploy Solana mainnet Metaplex NFT collections with real wallet minting.",
+  "version": "2.5.0",
+  "description": "Register verified AI agents with funded Solana wallets, sync Metaplex on-chain identities, launch Solana-native agent tokens, deploy Solana mainnet Metaplex NFT collections, and let any Solana wallet agent mint, buy, list, and cancel Clawdmint NFTs.",
   "homepage": "https://clawdmint.xyz",
   "repository": "https://github.com/clawdmint/clawdmint-plugin",
   "author": "Clawdmint",
@@ -19,6 +19,7 @@
     "api_base": "https://clawdmint.xyz/api/v1",
     "docs_url": "https://clawdmint.xyz/skill.md",
     "tools_url": "https://clawdmint.xyz/api/tools/openclaw.json",
+    "agent_marketplace_openapi_url": "https://clawdmint.xyz/api/agent-marketplace/openapi.json",
     "x402_pricing_url": "https://clawdmint.xyz/api/x402/pricing",
     "x402_openapi_url": "https://clawdmint.xyz/api/x402/openapi.json",
     "x402": {
@@ -47,6 +48,12 @@
     "real_nft_minting",
     "manage_collections",
     "query_public_collections",
+    "agent_marketplace_openapi_discovery",
+    "public_wallet_mint",
+    "public_wallet_buy_nft",
+    "public_wallet_list_nft",
+    "public_wallet_cancel_listing",
+    "wallet_inventory",
     "track_mints",
     "a2a_agent_card",
     "mcp_tools",
@@ -63,7 +70,9 @@
     "Use the x402 agent-token endpoint only when the caller explicitly wants the paid third-party wrapper.",
     "Collection deploy is automatic from the funded agent wallet.",
     "New collections use Metaplex Core and Candy Machine so collectors can mint real NFTs.",
-    "Collections deployed before the Metaplex rollout remain legacy until redeployed."
+    "Collections deployed before the Metaplex rollout remain legacy until redeployed.",
+    "Unregistered Solana wallet agents can mint, buy, list, and cancel NFTs through public wallet-signed marketplace endpoints without bearer authentication.",
+    "Never send an unregistered marketplace agent private key to Clawdmint. Sign prepared transactions locally."
   ],
   "workflows": {
     "agent_registration": [
@@ -84,6 +93,16 @@
       "Do not call /api/x402/agent-token for direct owner-agent token deploys",
       "Do not ask for supply when launch_type is bondingCurve",
       "Read token.launch_url, token.mint_address, token.tx_hash, and token.explorer_url"
+    ],
+    "public_agent_marketplace": [
+      "GET /api/agent-marketplace/openapi.json",
+      "GET /api/collections/public?status=ACTIVE",
+      "POST /api/collections/{address}/mint/prepare",
+      "Sign returned mint.transaction_base64 locally with wallet_address",
+      "POST /api/collections/{address}/mint/broadcast",
+      "POST /api/collections/{address}/mint/confirm",
+      "GET /api/marketplace/assets?owner={wallet}",
+      "Use marketplace prepare endpoints, sign locally, then call confirm endpoints for list, buy, or cancel"
     ]
   },
   "endpoints": {
@@ -98,11 +117,23 @@
     "x402_register": "POST /api/x402/register",
     "x402_deploy": "POST /api/x402/deploy",
     "x402_agent_token": "POST /api/x402/agent-token",
+    "agent_marketplace_openapi": "GET /api/agent-marketplace/openapi.json",
     "deploy_agent_token": "POST /api/v1/agent-tokens",
     "list_agent_tokens": "GET /api/v1/agent-tokens",
     "list_collections": "GET /api/v1/collections",
     "public_collections": "GET /api/v1/collections/public",
     "collection_detail": "GET /api/collections/{address}",
+    "public_mint_prepare": "POST /api/collections/{address}/mint/prepare",
+    "public_mint_broadcast": "POST /api/collections/{address}/mint/broadcast",
+    "public_mint_confirm": "POST /api/collections/{address}/mint/confirm",
+    "marketplace_assets": "GET /api/marketplace/assets",
+    "wallet_inventory": "GET /api/marketplace/assets?owner={wallet}",
+    "marketplace_listing_prepare": "POST /api/marketplace/listings/prepare",
+    "marketplace_listing_confirm": "POST /api/marketplace/listings/confirm",
+    "marketplace_cancel_prepare": "POST /api/marketplace/listings/cancel/prepare",
+    "marketplace_cancel_confirm": "POST /api/marketplace/listings/cancel",
+    "marketplace_buy_prepare": "POST /api/marketplace/buy/prepare",
+    "marketplace_buy_confirm": "POST /api/marketplace/buy/confirm",
     "notifications": "POST /api/v1/agents/notifications"
   },
   "authentication": {

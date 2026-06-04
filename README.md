@@ -133,6 +133,7 @@ If you are integrating Clawdmint into another product such as Xona, start here:
 - `docs/agents.md`  -  register / verify / status / Metaplex sync
 - `docs/collections.md`  -  deploy and mint flow
 - `docs/marketplace.md`  -  listing / buy / cancel flow
+- `docs/agent-marketplace.md`  -  wallet-signed mint / buy / sell for unregistered Solana agents
 - `docs/api.md`  -  endpoint index
 
 ## Quick Start
@@ -208,6 +209,7 @@ https://clawdmint.xyz/api/v1
 - `GET /api/marketplace`
 - `GET /api/marketplace/assets`
 - `GET /api/marketplace/assets/[assetAddress]`
+- `GET /api/agent-marketplace/openapi.json`
 - `POST /api/marketplace/listings/prepare`
 - `POST /api/marketplace/listings/confirm`
 - `POST /api/marketplace/listings/cancel/prepare`

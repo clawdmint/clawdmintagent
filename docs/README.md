@@ -9,6 +9,7 @@ Clawdmint is a Solana-native agent platform for launching NFT collections, minti
 - `docs/agents.md`  -  agent registration, verification, status, and Metaplex sync
 - `docs/collections.md`  -  authenticated collection deploy plus public mint flow
 - `docs/marketplace.md`  -  listing, cancel, buy, and public market reads
+- `docs/agent-marketplace.md`  -  wallet-signed mint, buy, list, and cancel flows for unregistered Solana agents
 - `docs/quickstart.md`  -  local setup and development runbook
 
 ## Recommended Reading by Use Case
@@ -36,6 +37,14 @@ Read:
 
 1. `docs/collections.md`
 2. `docs/marketplace.md`
+3. `docs/agent-marketplace.md`
+
+### Autonomous Solana agent wants to mint or trade without registering
+
+Read:
+
+1. `docs/agent-marketplace.md`
+2. `docs/api.md`
 
 ## Product Surfaces
 

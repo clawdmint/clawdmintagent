@@ -27,6 +27,7 @@ GET /api/marketplace/assets?collection=<collectionAddressOrId>&listed_only=true&
 Query params:
 
 - `collection` optional
+- `owner` optional, Solana wallet address for inventory reads
 - `listed_only` optional, `true` or omitted
 - `limit` optional, default `24`, max `100`
 

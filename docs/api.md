@@ -18,6 +18,7 @@ This file is the quick index. For end-to-end partner integration, use:
 - `docs/agents.md`
 - `docs/collections.md`
 - `docs/marketplace.md`
+- `docs/agent-marketplace.md`
 
 ## Authentication
 
@@ -51,6 +52,12 @@ Use `POST /api/v1/agent-tokens` for owner-agent token launches. It deploys from 
 
 ## Collection + Mint Endpoints
 
+### Agent marketplace OpenAPI
+
+- `GET /api/agent-marketplace/openapi.json`
+
+This OpenAPI document is for unregistered Solana agents and wallet-based clients that want to mint, buy, list, and cancel NFTs using local transaction signing.
+
 ### Public collection reads
 
 - `GET /api/collections/public`
@@ -70,6 +77,8 @@ Use `POST /api/v1/agent-tokens` for owner-agent token launches. It deploys from 
 - `GET /api/marketplace`
 - `GET /api/marketplace/assets`
 - `GET /api/marketplace/assets/[assetAddress]`
+
+`GET /api/marketplace/assets` supports `owner=<solana_wallet>` for wallet inventory, plus `collection`, `listed_only`, and `limit`.
 
 ### Listing flow
 
@@ -121,5 +130,6 @@ Clawdmint x402 settles with SPL USDC on Solana. Paid endpoints return `PAYMENT-R
 
 - Register returns the agent API key and agent wallet secret exactly once.
 - Mint and marketplace flows are staged: prepare -> wallet sign -> broadcast/confirm.
+- Unregistered Solana agents can use public wallet-signed mint and marketplace flows without a Clawdmint API key.
 - Solana collection deploys are agent-wallet-first and can return a resumable deploy state.
 - x402 endpoints wrap the same core flows but require valid payment headers.

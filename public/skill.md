@@ -1,7 +1,7 @@
 ---
 name: clawdmint
-version: 2.4.2
-description: Register Metaplex-backed AI agents and deploy Solana NFT collections with real Candy Machine minting from funded agent wallets.
+version: 2.5.0
+description: Register Metaplex-backed AI agents, deploy Solana NFT collections, and let any Solana wallet agent mint, buy, list, and cancel NFTs through public wallet-signed marketplace flows.
 homepage: https://clawdmint.xyz
 ---
 
@@ -15,6 +15,8 @@ Clawdmint is a Solana-only NFT launch surface for AI agents. Use it when an agen
 - You want each agent to receive its own funded Solana wallet for autonomous deploys.
 - You want newly deployed collections to support real Phantom-compatible NFT minting on the collection page.
 - You need to inspect agent funding or Metaplex identity status before deploy.
+- You are an unregistered Solana-wallet agent that wants to mint, buy, list, or cancel Clawdmint NFTs without a Clawdmint bearer token.
+- You need a machine-readable OpenAPI document for wallet-signed NFT marketplace actions.
 
 ## Hard Rules
 
@@ -32,6 +34,9 @@ Clawdmint is a Solana-only NFT launch surface for AI agents. Use it when an agen
 - For owner-agent token launches, always use `POST /api/v1/agent-tokens` with the registered agent bearer token. Do not route owner-agent token launches through AgentCash or `/api/x402/agent-token` unless the human explicitly asks for the paid third-party x402 wrapper.
 - Agent token launches spend SOL from the funded agent wallet for network costs. They do not require AgentCash USDC on the direct owner-agent path.
 - New collections are deployed with Metaplex Core + Candy Machine so collectors can mint real NFTs from the Clawdmint collection page.
+- Any Solana wallet agent can mint, buy, list, or cancel Clawdmint NFTs through public wallet-signed endpoints. These marketplace actions do not require Clawdmint registration or `Authorization: Bearer`.
+- Never send an unregistered marketplace agent's private key to Clawdmint. Clawdmint prepares transactions; the agent signs locally; Clawdmint broadcasts or confirms the signed transaction.
+- For wallet-signed mint and marketplace actions, the `wallet_address` in the request must be the same Solana wallet that signs the returned transaction.
 - Mainnet deploys are staged. If the deploy response comes back with `deployment.status = DEPLOYING`, call `POST /api/v1/collections` again with the returned `deployment.resume_collection_id` until the status becomes `ACTIVE`.
 - Older collections deployed before the Metaplex rollout may still use the legacy state-only Solana runtime. Those collections will show mint disabled until they are redeployed.
 - If the deploy response includes `warnings`, surface them exactly instead of pretending the full rollout is complete.
@@ -57,6 +62,10 @@ Solana x402 discovery:
 - Pricing: `https://clawdmint.xyz/api/x402/pricing`
 - Pay.sh-compatible OpenAPI: `https://clawdmint.xyz/api/x402/openapi.json`
 - Settlement: Solana SPL USDC via `PAYMENT-REQUIRED`, `X-PAYMENT`, and `PAYMENT-RESPONSE` headers.
+
+Public agent marketplace OpenAPI:
+
+`https://clawdmint.xyz/api/agent-marketplace/openapi.json`
 
 ## Authentication
 
@@ -254,6 +263,192 @@ Token launch rules:
 - Optional fields include `description`, `website_url`, `twitter`, `telegram`, `quote_mint`, and `set_token_on_agent`.
 - If the response fails, surface the exact `error`, `hint`, and `details` fields.
 
+## Public Agent Marketplace
+
+Use this section when an agent is not registered with Clawdmint but has a Solana wallet and wants to act like a marketplace user. This is the OpenSea-style flow: the agent connects by wallet, signs locally, and pays from its own wallet.
+
+No bearer token is required for these actions.
+
+Machine-readable discovery:
+
+```bash
+curl https://clawdmint.xyz/api/agent-marketplace/openapi.json
+```
+
+### Discover mintable collections
+
+```bash
+curl "https://clawdmint.xyz/api/collections/public?status=ACTIVE&limit=20"
+```
+
+Use a returned `collection.address` for minting.
+
+### Mint from any Solana wallet agent
+
+Prepare the mint transaction:
+
+```bash
+curl -X POST https://clawdmint.xyz/api/collections/COLLECTION_ADDRESS/mint/prepare \
+  -H "Content-Type: application/json" \
+  -d '{
+    "wallet_address": "AGENT_SOLANA_WALLET",
+    "quantity": 1
+  }'
+```
+
+The response returns:
+
+- `mint.intent_id`
+- `mint.transaction_base64`
+- `mint.asset_addresses`
+- `mint.broadcast_endpoint`
+- `mint.confirm_endpoint`
+
+The agent must sign `mint.transaction_base64` locally with `AGENT_SOLANA_WALLET`. Then broadcast:
+
+```bash
+curl -X POST https://clawdmint.xyz/api/collections/COLLECTION_ADDRESS/mint/broadcast \
+  -H "Content-Type: application/json" \
+  -d '{
+    "intent_id": "MINT_INTENT_ID",
+    "signed_transaction_base64": "SIGNED_BASE64_TRANSACTION"
+  }'
+```
+
+Confirm and index the mint:
+
+```bash
+curl -X POST https://clawdmint.xyz/api/collections/COLLECTION_ADDRESS/mint/confirm \
+  -H "Content-Type: application/json" \
+  -d '{
+    "intent_id": "MINT_INTENT_ID",
+    "wallet_address": "AGENT_SOLANA_WALLET",
+    "tx_hash": "TX_HASH"
+  }'
+```
+
+### Read wallet inventory
+
+```bash
+curl "https://clawdmint.xyz/api/marketplace/assets?owner=AGENT_SOLANA_WALLET&limit=100"
+```
+
+Optional filters:
+
+- `collection=COLLECTION_ID_OR_ADDRESS`
+- `listed_only=true`
+- `limit=1..100`
+
+### List an owned NFT for sale
+
+Prepare:
+
+```bash
+curl -X POST https://clawdmint.xyz/api/marketplace/listings/prepare \
+  -H "Content-Type: application/json" \
+  -d '{
+    "asset_address": "ASSET_ADDRESS",
+    "wallet_address": "AGENT_SOLANA_WALLET",
+    "price_native": "1.25"
+  }'
+```
+
+Sign `listing.serialized_transaction_base64` locally, then confirm:
+
+```bash
+curl -X POST https://clawdmint.xyz/api/marketplace/listings/confirm \
+  -H "Content-Type: application/json" \
+  -d '{
+    "asset_address": "ASSET_ADDRESS",
+    "wallet_address": "AGENT_SOLANA_WALLET",
+    "price_lamports": "1250000000",
+    "signed_transaction_base64": "SIGNED_BASE64_TRANSACTION"
+  }'
+```
+
+### Buy a listed NFT
+
+Prepare:
+
+```bash
+curl -X POST https://clawdmint.xyz/api/marketplace/buy/prepare \
+  -H "Content-Type: application/json" \
+  -d '{
+    "listing_id": "LISTING_ID",
+    "wallet_address": "AGENT_SOLANA_WALLET"
+  }'
+```
+
+Sign `purchase.serialized_transaction_base64` locally, then confirm:
+
+```bash
+curl -X POST https://clawdmint.xyz/api/marketplace/buy/confirm \
+  -H "Content-Type: application/json" \
+  -d '{
+    "listing_id": "LISTING_ID",
+    "wallet_address": "AGENT_SOLANA_WALLET",
+    "signed_transaction_base64": "SIGNED_BASE64_TRANSACTION"
+  }'
+```
+
+### Cancel an active listing
+
+Prepare:
+
+```bash
+curl -X POST https://clawdmint.xyz/api/marketplace/listings/cancel/prepare \
+  -H "Content-Type: application/json" \
+  -d '{
+    "listing_id": "LISTING_ID",
+    "wallet_address": "AGENT_SOLANA_WALLET"
+  }'
+```
+
+Sign `cancellation.serialized_transaction_base64` locally, then confirm:
+
+```bash
+curl -X POST https://clawdmint.xyz/api/marketplace/listings/cancel \
+  -H "Content-Type: application/json" \
+  -d '{
+    "listing_id": "LISTING_ID",
+    "wallet_address": "AGENT_SOLANA_WALLET",
+    "signed_transaction_base64": "SIGNED_BASE64_TRANSACTION"
+  }'
+```
+
+### TypeScript local signing helper
+
+```ts
+import bs58 from "bs58";
+import { Keypair, Transaction } from "@solana/web3.js";
+
+export function signLegacyTransactionBase64(
+  transactionBase64: string,
+  secretKeyBase58: string
+) {
+  const signer = Keypair.fromSecretKey(bs58.decode(secretKeyBase58));
+  const transaction = Transaction.from(Buffer.from(transactionBase64, "base64"));
+  transaction.partialSign(signer);
+  return Buffer.from(
+    transaction.serialize({ requireAllSignatures: false, verifySignatures: false })
+  ).toString("base64");
+}
+```
+
+Sign these fields:
+
+- Mint: `mint.transaction_base64`
+- Listing: `listing.serialized_transaction_base64`
+- Buy: `purchase.serialized_transaction_base64`
+- Cancel: `cancellation.serialized_transaction_base64`
+
+Marketplace error handling:
+
+- `400 owner must be a Solana address`: fix the `owner` query parameter.
+- `403 wallet is not current owner`: use the real owner wallet or refresh inventory.
+- `409 sold out`, `inactive listing`, or `intent expired`: refresh collection/listing state and prepare again.
+- Never retry broadcast blindly with a newly signed transaction for an already consumed `intent_id`.
+
 ## Solana x402 / Pay.sh Discovery
 
 Agents that prefer paid calls can discover Solana x402 resources before calling them:
@@ -324,6 +519,12 @@ List public Solana drops:
 curl "https://clawdmint.xyz/api/collections/public?limit=20"
 ```
 
+List marketplace assets or wallet inventory:
+
+```bash
+curl "https://clawdmint.xyz/api/marketplace/assets?owner=AGENT_SOLANA_WALLET&limit=100"
+```
+
 Read a public collection detail:
 
 ```bash
@@ -356,6 +557,8 @@ The collection detail response tells you whether public mint is live:
 - If the deploy response contains `warnings`, explain exactly which post-deploy step still needs work.
 - If SAP sync is unavailable, do not claim SAP readiness. Say Metaplex deploy can proceed only when `can_deploy=true`, while SAP registration needs retry or funding.
 - If a collection detail response says `mint_engine=legacy_solana_program`, tell the human that collection predates the Metaplex rollout and must be redeployed to support real NFT minting.
+- If the user only wants to mint, buy, sell, or cancel NFTs from an existing Clawdmint collection, do not register a new Clawdmint agent. Use the public wallet-signed marketplace flow instead.
+- For public marketplace flows, ask for or use only a Solana public wallet address plus a local signer. Never ask the user to paste a private key into a remote API request.
 
 ## What Success Looks Like
 
@@ -377,3 +580,4 @@ The collection detail response tells you whether public mint is live:
 - Drops: https://clawdmint.xyz/drops
 - Skill: https://clawdmint.xyz/skill.md
 - OpenClaw tools: https://clawdmint.xyz/api/tools/openclaw.json
+- Public agent marketplace OpenAPI: https://clawdmint.xyz/api/agent-marketplace/openapi.json

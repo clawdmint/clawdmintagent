@@ -3,11 +3,13 @@ import { z } from "zod";
 import { prisma } from "@/lib/db";
 import { ensureCollectionAssetsIndexed } from "@/lib/marketplace-assets";
 import { serializeMarketplaceListing } from "@/lib/marketplace-data";
+import { isSolanaAddress } from "@/lib/network-config";
 
 export const dynamic = "force-dynamic";
 
 const QuerySchema = z.object({
   collection: z.string().optional(),
+  owner: z.string().optional(),
   listed_only: z
     .string()
     .optional()
@@ -37,7 +39,14 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const { collection, listed_only: listedOnly, limit } = validation.data;
+    const { collection, owner, listed_only: listedOnly, limit } = validation.data;
+
+    if (owner && !isSolanaAddress(owner)) {
+      return NextResponse.json(
+        { success: false, error: "owner must be a Solana address" },
+        { status: 400 }
+      );
+    }
 
     let collectionId: string | undefined;
     if (collection) {
@@ -62,6 +71,7 @@ export async function GET(request: NextRequest) {
     const assets = await prisma.asset.findMany({
       where: {
         ...(collectionId ? { collectionId } : {}),
+        ...(owner ? { ownerAddress: owner } : {}),
         ...(listedOnly
           ? {
               listings: {
