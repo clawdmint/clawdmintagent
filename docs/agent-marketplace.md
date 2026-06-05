@@ -240,3 +240,28 @@ Each manifest includes:
 - safety note that Clawdmint prepares transactions but agents sign locally
 
 Set `ERC8257_CREATOR_ADDRESS` or `NEXT_PUBLIC_ERC8257_CREATOR_ADDRESS` before registering these manifests onchain so `creatorAddress` matches the EVM/Base wallet used for ERC-8257 registration.
+
+### Register Onchain
+
+Use the local-only register script after the production manifests are deployed and include the correct `creatorAddress`.
+
+```bash
+ERC8257_REGISTRY_PRIVATE_KEY=0x... npm run erc8257:register -- --dry-run
+ERC8257_REGISTRY_PRIVATE_KEY=0x... npm run erc8257:register
+```
+
+Optional single-tool registration:
+
+```bash
+ERC8257_REGISTRY_PRIVATE_KEY=0x... npm run erc8257:register -- --slug=clawdmint-prepare-mint
+```
+
+Optional env values:
+
+```env
+ERC8257_NETWORK=base
+ERC8257_RPC_URL=https://mainnet.base.org
+ERC8257_APP_URL=https://clawdmint.xyz
+```
+
+Do not put `ERC8257_REGISTRY_PRIVATE_KEY` in Netlify. The production app only needs `ERC8257_CREATOR_ADDRESS` / `NEXT_PUBLIC_ERC8257_CREATOR_ADDRESS` to publish creator-bound manifests.
