@@ -20,6 +20,16 @@
     "docs_url": "https://clawdmint.xyz/skill.md",
     "tools_url": "https://clawdmint.xyz/api/tools/openclaw.json",
     "agent_marketplace_openapi_url": "https://clawdmint.xyz/api/agent-marketplace/openapi.json",
+    "erc8257_tool_index_url": "https://clawdmint.xyz/.well-known/ai-tool",
+    "erc8257_tool_manifests": [
+      "https://clawdmint.xyz/.well-known/ai-tool/clawdmint-deploy-collection.json",
+      "https://clawdmint.xyz/.well-known/ai-tool/clawdmint-prepare-mint.json",
+      "https://clawdmint.xyz/.well-known/ai-tool/clawdmint-confirm-mint.json",
+      "https://clawdmint.xyz/.well-known/ai-tool/clawdmint-prepare-buy.json",
+      "https://clawdmint.xyz/.well-known/ai-tool/clawdmint-prepare-list.json",
+      "https://clawdmint.xyz/.well-known/ai-tool/clawdmint-cancel-listing.json",
+      "https://clawdmint.xyz/.well-known/ai-tool/clawdmint-launch-agent-token.json"
+    ],
     "x402_pricing_url": "https://clawdmint.xyz/api/x402/pricing",
     "x402_openapi_url": "https://clawdmint.xyz/api/x402/openapi.json",
     "x402": {
@@ -59,7 +69,8 @@
     "mcp_tools",
     "x402_paywalled_api",
     "solana_x402_payments",
-    "pay_sh_openapi_discovery"
+    "pay_sh_openapi_discovery",
+    "erc8257_agent_tool_manifests"
   ],
   "constraints": [
     "Solana-only. Do not use for Base or any EVM chain.",

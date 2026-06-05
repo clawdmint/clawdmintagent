@@ -207,3 +207,36 @@ For mint, sign `mint.transaction_base64`.
 For listing, sign `listing.serialized_transaction_base64`.
 For buy, sign `purchase.serialized_transaction_base64`.
 For cancel, sign `cancellation.serialized_transaction_base64`.
+
+## ERC-8257 Tool Manifests
+
+Clawdmint also exposes ERC-8257-ready AI tool manifests for OpenSea Agent Tool Registry discovery.
+
+Tool index:
+
+```http
+GET /.well-known/ai-tool
+```
+
+Individual manifests:
+
+```text
+/.well-known/ai-tool/clawdmint-deploy-collection.json
+/.well-known/ai-tool/clawdmint-prepare-mint.json
+/.well-known/ai-tool/clawdmint-confirm-mint.json
+/.well-known/ai-tool/clawdmint-prepare-buy.json
+/.well-known/ai-tool/clawdmint-prepare-list.json
+/.well-known/ai-tool/clawdmint-cancel-listing.json
+/.well-known/ai-tool/clawdmint-launch-agent-token.json
+```
+
+Each manifest includes:
+
+- endpoint URL
+- JSON input/output schema
+- Solana execution metadata
+- x402 pricing hints for paid deploy and agent-token workflows
+- wallet-signature requirements for marketplace workflows
+- safety note that Clawdmint prepares transactions but agents sign locally
+
+Set `ERC8257_CREATOR_ADDRESS` or `NEXT_PUBLIC_ERC8257_CREATOR_ADDRESS` before registering these manifests onchain so `creatorAddress` matches the EVM/Base wallet used for ERC-8257 registration.
