@@ -24,12 +24,17 @@ import {
   toWeb3JsLegacyTransaction,
 } from "@metaplex-foundation/umi-web3js-adapters";
 import {
+  Connection,
   Keypair,
   PublicKey as Web3PublicKey,
   SystemProgram,
   Transaction,
 } from "@solana/web3.js";
-import { getSolanaConnection, getSolanaRpcUrl } from "./solana-collections";
+import {
+  getGpaCapableSolanaRpcUrlsByPriority,
+  getMetaplexCoreRpcUrl,
+  type GpaRpcCandidate,
+} from "./env";
 
 export const MARKETPLACE_LISTING_TTL_MS = 1000 * 60 * 60 * 24 * 30;
 
@@ -59,18 +64,52 @@ export function getMarketplaceDelegateAddress() {
   return getMarketplaceDelegateKeypair().publicKey.toBase58();
 }
 
-function createClientSigningUmi(walletAddress: string) {
-  const umi = createUmi(getSolanaRpcUrl());
+function getMarketplaceRpcCandidates(): GpaRpcCandidate[] {
+  const candidates: GpaRpcCandidate[] = [];
+  const seen = new Set<string>();
+
+  const add = (candidate: GpaRpcCandidate) => {
+    const url = candidate.url.trim();
+    if (!url || seen.has(url)) {
+      return;
+    }
+    seen.add(url);
+    candidates.push({ ...candidate, url });
+  };
+
+  add({ label: "metaplex-core", url: getMetaplexCoreRpcUrl() });
+  for (const candidate of getGpaCapableSolanaRpcUrlsByPriority()) {
+    add(candidate);
+  }
+
+  return candidates;
+}
+
+function createClientSigningUmi(walletAddress: string, rpcUrl: string) {
+  const umi = createUmi(rpcUrl);
   umi.use(mplCore());
   umi.use(signerIdentity(createNoopSigner(publicKey(walletAddress))));
   return umi;
 }
 
 export async function fetchMarketplaceCoreAssetOwner(assetAddress: string) {
-  const umi = createUmi(getSolanaRpcUrl());
-  umi.use(mplCore());
-  const asset = await fetchAsset(umi, publicKey(assetAddress));
-  return asset.owner.toString();
+  let lastError: Error | null = null;
+
+  for (const candidate of getMarketplaceRpcCandidates()) {
+    try {
+      const umi = createUmi(candidate.url);
+      umi.use(mplCore());
+      const asset = await fetchAsset(umi, publicKey(assetAddress));
+      return asset.owner.toString();
+    } catch (error) {
+      lastError = error instanceof Error ? error : new Error(String(error));
+      console.warn(
+        `[Marketplace] Owner fetch via ${candidate.label} failed for ${assetAddress}: ${lastError.message}`
+      );
+    }
+  }
+
+  throw lastError ?? new Error("Marketplace owner fetch failed: no RPC endpoints configured");
 }
 
 async function serializeBuilder(
@@ -108,6 +147,7 @@ function serializeSignedMarketplaceTransaction(
 }
 
 type MarketChainContext = {
+  umi: ReturnType<typeof createClientSigningUmi>;
   asset: Awaited<ReturnType<typeof fetchAsset>>;
   collection: Awaited<ReturnType<typeof fetchCollection>> | null;
 };
@@ -117,11 +157,23 @@ async function fetchMarketChainContext(input: {
   assetAddress: string;
   collectionAddress: string;
 }): Promise<MarketChainContext> {
-  const umi = createClientSigningUmi(input.walletAddress);
-  const asset = await fetchAsset(umi, publicKey(input.assetAddress));
-  const collection = await fetchCollection(umi, publicKey(input.collectionAddress)).catch(() => null);
+  let lastError: Error | null = null;
 
-  return { asset, collection };
+  for (const candidate of getMarketplaceRpcCandidates()) {
+    try {
+      const umi = createClientSigningUmi(input.walletAddress, candidate.url);
+      const asset = await fetchAsset(umi, publicKey(input.assetAddress));
+      const collection = await fetchCollection(umi, publicKey(input.collectionAddress)).catch(() => null);
+      return { umi, asset, collection };
+    } catch (error) {
+      lastError = error instanceof Error ? error : new Error(String(error));
+      console.warn(
+        `[Marketplace] Chain context via ${candidate.label} failed for ${input.assetAddress}: ${lastError.message}`
+      );
+    }
+  }
+
+  throw lastError ?? new Error("Marketplace chain context failed: no RPC endpoints configured");
 }
 
 function hasMarketplaceTransferDelegate(
@@ -146,14 +198,13 @@ export async function buildMarketplaceListingDelegateTransaction(input: {
   collectionAddress: string;
   platformFee?: { recipient: string; lamports: bigint } | null;
 }) {
-  const umi = createClientSigningUmi(input.walletAddress);
-  const walletSigner = createNoopSigner(publicKey(input.walletAddress));
   const delegateAddress = getMarketplaceDelegateAddress();
   const delegateAuthority = {
     type: "Address" as const,
     address: publicKey(delegateAddress),
   };
-  const { asset, collection } = await fetchMarketChainContext(input);
+  const { umi, asset, collection } = await fetchMarketChainContext(input);
+  const walletSigner = createNoopSigner(publicKey(input.walletAddress));
 
   let builder = hasTransferDelegatePlugin(asset)
     ? approvePluginAuthority(umi, {
@@ -203,11 +254,10 @@ export async function buildMarketplaceCancelListingTransaction(input: {
   assetAddress: string;
   collectionAddress: string;
 }) {
-  const umi = createClientSigningUmi(input.walletAddress);
-  const walletSigner = createNoopSigner(publicKey(input.walletAddress));
   const delegateSigner = getMarketplaceDelegateKeypair();
+  const { umi, asset, collection } = await fetchMarketChainContext(input);
+  const walletSigner = createNoopSigner(publicKey(input.walletAddress));
   const delegateAuthoritySigner = createSignerFromKeypair(umi, fromWeb3JsKeypair(delegateSigner));
-  const { asset, collection } = await fetchMarketChainContext(input);
 
   const builder = revokePluginAuthority(umi, {
     asset: asset.publicKey,
@@ -237,16 +287,15 @@ export async function buildMarketplaceFillTransaction(input: {
   creatorRoyaltyLamports?: string;
   protocolFeeLamports?: string;
 }) {
-  const umi = createClientSigningUmi(input.buyerAddress);
-  const buyerSigner = createNoopSigner(publicKey(input.buyerAddress));
   const delegateSigner = getMarketplaceDelegateKeypair();
   const delegateAddress = delegateSigner.publicKey.toBase58();
-  const delegateAuthoritySigner = createSignerFromKeypair(umi, fromWeb3JsKeypair(delegateSigner));
-  const { asset, collection } = await fetchMarketChainContext({
+  const { umi, asset, collection } = await fetchMarketChainContext({
     walletAddress: input.buyerAddress,
     assetAddress: input.assetAddress,
     collectionAddress: input.collectionAddress,
   });
+  const buyerSigner = createNoopSigner(publicKey(input.buyerAddress));
+  const delegateAuthoritySigner = createSignerFromKeypair(umi, fromWeb3JsKeypair(delegateSigner));
 
   const currentOwner = asset.owner.toString();
   if (currentOwner !== input.sellerAddress) {
@@ -326,7 +375,7 @@ export async function broadcastMarketplaceTransaction(input: {
     transaction.partialSign(...input.additionalSigners);
   }
 
-  const connection = getSolanaConnection();
+  const connection = new Connection(getMetaplexCoreRpcUrl(), "confirmed");
   const signature = await connection.sendRawTransaction(transaction.serialize(), {
     skipPreflight: false,
     maxRetries: 3,

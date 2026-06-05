@@ -4,7 +4,11 @@ import { fetchAsset, mplCore } from "@metaplex-foundation/mpl-core";
 import { createUmi } from "@metaplex-foundation/umi-bundle-defaults";
 import { publicKey } from "@metaplex-foundation/umi";
 import { prisma } from "@/lib/db";
-import { getSolanaRpcUrl } from "@/lib/solana-collections";
+import {
+  getGpaCapableSolanaRpcUrlsByPriority,
+  getMetaplexCoreRpcUrl,
+  type GpaRpcCandidate,
+} from "@/lib/env";
 import { ipfsToHttp } from "@/lib/ipfs";
 import { fetchCollectionAssetSnapshotsViaGpaV2 } from "@/lib/marketplace-assets-gpa-v2";
 
@@ -44,6 +48,14 @@ type ChainAssetSnapshot = {
   imageUrl: string | null;
 };
 
+type CoreAssetUpdateAuthority =
+  | {
+      type?: string;
+      address?: { toString(): string } | string | null;
+    }
+  | null
+  | undefined;
+
 type MintAssetLookupRecord = {
   mintId: string;
   mintedAt: Date;
@@ -64,10 +76,52 @@ type AssetSyncState = {
 const CHAIN_SYNC_TTL_MS = 60_000;
 const assetSyncState = new Map<string, AssetSyncState>();
 
-function createMarketplaceUmi() {
-  const umi = createUmi(getSolanaRpcUrl());
+function createMarketplaceUmi(rpcUrl: string) {
+  const umi = createUmi(rpcUrl);
   umi.use(mplCore());
   return umi;
+}
+
+function getAssetFetchRpcCandidates(): GpaRpcCandidate[] {
+  const candidates: GpaRpcCandidate[] = [];
+  const seen = new Set<string>();
+
+  const add = (candidate: GpaRpcCandidate) => {
+    const url = candidate.url.trim();
+    if (!url || seen.has(url)) {
+      return;
+    }
+    seen.add(url);
+    candidates.push({ ...candidate, url });
+  };
+
+  add({ label: "metaplex-core", url: getMetaplexCoreRpcUrl() });
+  for (const candidate of getGpaCapableSolanaRpcUrlsByPriority()) {
+    add(candidate);
+  }
+
+  return candidates;
+}
+
+async function fetchCoreAssetAccount(assetAddress: string) {
+  let lastError: Error | null = null;
+
+  for (const candidate of getAssetFetchRpcCandidates()) {
+    try {
+      const asset = await fetchAsset(createMarketplaceUmi(candidate.url), publicKey(assetAddress));
+      if (candidate.label !== "metaplex-core") {
+        console.info(`[Marketplace] Core asset fetch hit via ${candidate.label}: ${assetAddress}`);
+      }
+      return asset;
+    } catch (error) {
+      lastError = error instanceof Error ? error : new Error(String(error));
+      console.warn(
+        `[Marketplace] Core asset fetch via ${candidate.label} failed for ${assetAddress}: ${lastError.message}`
+      );
+    }
+  }
+
+  throw lastError ?? new Error("Core asset fetch failed: no RPC endpoints configured");
 }
 
 function ensureTrailingSlash(value: string) {
@@ -126,7 +180,7 @@ async function fetchMetadataImage(metadataUri: string | null): Promise<string | 
 
 async function fetchAssetMetadata(assetAddress: string): Promise<AssetMetadata | null> {
   try {
-    const asset = await fetchAsset(createMarketplaceUmi(), publicKey(assetAddress));
+    const asset = await fetchCoreAssetAccount(assetAddress);
     const ownerAddress = asset.owner.toString();
     const metadataUri = asset.uri || null;
     const name = asset.name || assetAddress;
@@ -140,6 +194,30 @@ async function fetchAssetMetadata(assetAddress: string): Promise<AssetMetadata |
     };
   } catch (error) {
     console.warn("[Marketplace] Failed to fetch asset metadata:", assetAddress, error);
+    return null;
+  }
+}
+
+async function fetchCoreAssetSnapshot(assetAddress: string): Promise<(ChainAssetSnapshot & { collectionAddress: string | null }) | null> {
+  try {
+    const asset = await fetchCoreAssetAccount(assetAddress);
+    const updateAuthority = (asset as { updateAuthority?: CoreAssetUpdateAuthority }).updateAuthority;
+    const collectionAddress =
+      updateAuthority?.type === "Collection" && updateAuthority.address
+        ? updateAuthority.address.toString()
+        : null;
+    const metadataUri = asset.uri || null;
+
+    return {
+      assetAddress: asset.publicKey.toString(),
+      ownerAddress: asset.owner.toString(),
+      name: asset.name || assetAddress,
+      metadataUri,
+      imageUrl: await fetchMetadataImage(metadataUri),
+      collectionAddress,
+    };
+  } catch (error) {
+    console.warn("[Marketplace] Failed to fetch Core asset snapshot:", assetAddress, error);
     return null;
   }
 }
@@ -604,6 +682,78 @@ export async function ensureCollectionAssetsIndexed(collectionId: string, option
   }
 
   return Array.from(new Set(synced));
+}
+
+export async function ensureAssetIndexedFromChain(assetAddress: string) {
+  const snapshot = await fetchCoreAssetSnapshot(assetAddress);
+  if (!snapshot?.collectionAddress) {
+    return null;
+  }
+
+  const collection = await prisma.collection.findFirst({
+    where: {
+      OR: [{ address: snapshot.collectionAddress }, { address: snapshot.collectionAddress.toLowerCase() }],
+    },
+    select: {
+      id: true,
+      address: true,
+      name: true,
+      imageUrl: true,
+      baseUri: true,
+      createdAt: true,
+      deployedAt: true,
+      totalMinted: true,
+    },
+  });
+
+  if (!collection) {
+    return null;
+  }
+
+  const existingByAddress = await prisma.asset.findUnique({
+    where: { assetAddress: snapshot.assetAddress },
+    select: {
+      id: true,
+      tokenId: true,
+      imageUrl: true,
+      metadataUri: true,
+      mintedAt: true,
+      mintId: true,
+    },
+  });
+  const preferredTokenId =
+    existingByAddress?.tokenId ??
+    parseTokenIdCandidate(snapshot.name, snapshot.metadataUri) ??
+    Math.max(collection.totalMinted, 1);
+  const tokenId = await resolveUniqueTokenId(collection.id, preferredTokenId, snapshot.assetAddress);
+  const imageUrl = snapshot.imageUrl ?? existingByAddress?.imageUrl ?? collection.imageUrl;
+  const mintedAt = existingByAddress?.mintedAt ?? collection.deployedAt ?? collection.createdAt;
+
+  await prisma.asset.upsert({
+    where: { assetAddress: snapshot.assetAddress },
+    update: {
+      collectionId: collection.id,
+      tokenId,
+      ownerAddress: snapshot.ownerAddress,
+      name: snapshot.name || `${collection.name} #${tokenId}`,
+      metadataUri: snapshot.metadataUri ?? existingByAddress?.metadataUri,
+      imageUrl,
+      mintedAt,
+    },
+    create: {
+      collectionId: collection.id,
+      mintId: null,
+      assetAddress: snapshot.assetAddress,
+      tokenId,
+      ownerAddress: snapshot.ownerAddress,
+      name: snapshot.name || `${collection.name} #${tokenId}`,
+      metadataUri: snapshot.metadataUri,
+      imageUrl,
+      mintedAt,
+    },
+  });
+
+  return prisma.asset.findUnique({ where: { assetAddress: snapshot.assetAddress } });
 }
 
 export async function refreshAssetOwner(assetAddress: string) {

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/db";
-import { refreshAssetOwner, syncMintAssets } from "@/lib/marketplace-assets";
+import { ensureAssetIndexedFromChain, refreshAssetOwner, syncMintAssets } from "@/lib/marketplace-assets";
 import { buildMarketplaceListingDelegateTransaction } from "@/lib/marketplace-transactions";
 
 export const dynamic = "force-dynamic";
@@ -70,6 +70,22 @@ export async function POST(request: NextRequest) {
 
       if (mint) {
         await syncMintAssets(mint.id);
+        asset = await prisma.asset.findUnique({
+          where: { assetAddress },
+          include: {
+            collection: {
+              select: {
+                address: true,
+                name: true,
+                symbol: true,
+              },
+            },
+          },
+        });
+      }
+
+      if (!asset) {
+        await ensureAssetIndexedFromChain(assetAddress);
         asset = await prisma.asset.findUnique({
           where: { assetAddress },
           include: {

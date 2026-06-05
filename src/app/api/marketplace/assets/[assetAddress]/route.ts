@@ -1,6 +1,6 @@
 ﻿import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import { refreshAssetOwner, syncMintAssets } from "@/lib/marketplace-assets";
+import { ensureAssetIndexedFromChain, refreshAssetOwner, syncMintAssets } from "@/lib/marketplace-assets";
 import { serializeMarketplaceListing } from "@/lib/marketplace-data";
 import { formatLamportsToSol } from "@/lib/platform-fees";
 
@@ -72,6 +72,56 @@ export async function GET(
 
       if (mint) {
         await syncMintAssets(mint.id);
+        asset = await prisma.asset.findUnique({
+          where: { assetAddress },
+          include: {
+            collection: {
+              select: {
+                id: true,
+                address: true,
+                name: true,
+                symbol: true,
+                imageUrl: true,
+                description: true,
+                totalMinted: true,
+                maxSupply: true,
+                mintPrice: true,
+                chain: true,
+                agent: {
+                  select: {
+                    id: true,
+                    name: true,
+                    avatarUrl: true,
+                  },
+                },
+              },
+            },
+            listings: {
+              where: { status: "ACTIVE" },
+              orderBy: { createdAt: "desc" },
+              take: 1,
+              include: {
+                asset: {
+                  include: {
+                    collection: {
+                      select: {
+                        id: true,
+                        address: true,
+                        name: true,
+                        symbol: true,
+                        imageUrl: true,
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        });
+      }
+
+      if (!asset) {
+        await ensureAssetIndexedFromChain(assetAddress);
         asset = await prisma.asset.findUnique({
           where: { assetAddress },
           include: {

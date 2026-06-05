@@ -4,6 +4,7 @@ import { prisma } from "@/lib/db";
 import { isSolanaAddress } from "@/lib/network-config";
 import {
   ensureMetaplexOnchainPlatformFeeGuard,
+  fetchMetaplexCandyGuardFeatures,
   fetchMetaplexCandyMachineState,
   MAX_METAPLEX_MINT_QUANTITY,
   METAPLEX_MINT_ENGINE,
@@ -106,12 +107,15 @@ export async function POST(
     const platformFeeBps = platformFeeRecipient ? getPlatformFeeBps() : 0;
 
     if (platformFeeRecipient) {
-      const authoritySigner = getAgentOperationalKeypair(collection.agent);
-      await ensureMetaplexOnchainPlatformFeeGuard(authoritySigner, {
-        candyMachineAddress: collection.mintAddress,
-        payoutAddress: collection.payoutAddress,
-        mintPriceLamports: BigInt(collection.mintPrice),
-      });
+      const guardFeatures = await fetchMetaplexCandyGuardFeatures(collection.mintAddress);
+      if (!guardFeatures.hasSolFixedFee) {
+        const authoritySigner = getAgentOperationalKeypair(collection.agent);
+        await ensureMetaplexOnchainPlatformFeeGuard(authoritySigner, {
+          candyMachineAddress: collection.mintAddress,
+          payoutAddress: collection.payoutAddress,
+          mintPriceLamports: BigInt(collection.mintPrice),
+        });
+      }
     }
 
     const prepared = await prepareMetaplexMintTransaction({
