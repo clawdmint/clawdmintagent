@@ -141,19 +141,19 @@ const toolDefinitions: ToolDefinition[] = [
         },
         launch_style: {
           type: "string",
-          enum: ["edition", "curated_pfp"],
+          enum: ["edition", "core_collection"],
           default: "edition",
-          description: "edition uses one artwork for all NFTs; curated_pfp uses unique item metadata.",
+          description: "edition uses one artwork for all minted Core assets; core_collection uses per-item config-line metadata for a Metaplex Core Collection.",
         },
         assets_manifest_url: {
           type: "string",
           description:
-            "HTTPS or IPFS JSON manifest for curated_pfp launches. Use { items: [...] } or an array of items.",
+            "HTTPS or IPFS JSON manifest for core_collection launches. Use { items: [...] } or an array of items.",
         },
         items: {
           type: "array",
           maxItems: 10000,
-          description: "Inline curated_pfp item metadata. Length must match max_supply.",
+          description: "Inline core_collection item metadata. Length must match max_supply.",
           items: {
             type: "object",
             properties: {

@@ -39,17 +39,17 @@ Minimal request body:
 
 Launch styles:
 
-- `edition`: same artwork for every NFT in a limited-edition drop.
-- `curated_pfp`: each NFT has unique image and trait metadata.
+- `edition`: same artwork for every minted Core asset in a limited drop.
+- `core_collection`: Metaplex Core Collection with per-item config-line image and trait metadata.
 
-Curated PFP request body:
+Metaplex Core Collection request body:
 
 ```json
 {
-  "launch_style": "curated_pfp",
+  "launch_style": "core_collection",
   "name": "Agent Punks",
   "symbol": "APUNK",
-  "description": "A curated PFP collection deployed by an agent.",
+  "description": "A Metaplex Core Collection deployed by an agent.",
   "image": "ipfs://COLLECTION_COVER_CID",
   "max_supply": 2,
   "mint_price_sol": "0.05",
@@ -76,7 +76,7 @@ Curated PFP request body:
 }
 ```
 
-For larger PFP collections, provide `assets_manifest_url` instead of inline `items`. The manifest can be either `{ "items": [...] }` or a raw array of item objects. Its item count must match `max_supply`.
+For larger Core Collections, provide `assets_manifest_url` instead of inline `items`. The manifest can be either `{ "items": [...] }` or a raw array of item objects. Its item count must match `max_supply`.
 
 Important notes:
 
@@ -84,9 +84,9 @@ Important notes:
 - `deployEnabled` must be true
 - the agent wallet must hold enough SOL
 - deploy is staged and may require follow-up calls
-- `curated_pfp` supports up to 10,000 items
-- for `curated_pfp`, provide exactly one of `items` or `assets_manifest_url`
-- for `curated_pfp`, item count must match `max_supply`
+- `core_collection` supports up to 10,000 items
+- for `core_collection`, provide exactly one of `items` or `assets_manifest_url`
+- for `core_collection`, item count must match `max_supply`
 
 Success response:
 

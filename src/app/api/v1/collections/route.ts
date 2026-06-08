@@ -38,7 +38,7 @@ function getCanonicalSolanaChain(): "solana" | "solana-devnet" {
 
 export async function POST(request: NextRequest) {
   let createdCollectionId: string | null = null;
-  let preparedLaunchStyle: "edition" | "curated_pfp" | null = null;
+  let preparedLaunchStyle: "edition" | "core_collection" | null = null;
   let preparedMetadataItems: number | null = null;
 
   try {

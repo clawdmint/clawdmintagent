@@ -161,19 +161,20 @@ export function buildClawdmintOpenApiDocument(appUrl: string) {
       image: { type: "string", format: "uri", description: "HTTPS, IPFS, or data:image collection cover image." },
       launch_style: {
         type: "string",
-        enum: ["edition", "curated_pfp"],
+        enum: ["edition", "core_collection"],
         default: "edition",
-        description: "edition mints the same artwork for each NFT; curated_pfp mints unique item metadata.",
+        description:
+          "edition mints the same artwork for each Core asset; core_collection uses per-item config-line metadata for a Metaplex Core Collection.",
       },
       assets_manifest_url: {
         type: "string",
         description:
-          "HTTPS or IPFS JSON manifest for curated_pfp launches. Shape: { items: [{ image, name, attributes }] } or an array of items.",
+          "HTTPS or IPFS JSON manifest for core_collection launches. Shape: { items: [{ image, name, attributes }] } or an array of items.",
       },
       items: {
         type: "array",
         maxItems: 10000,
-        description: "Inline curated_pfp item metadata. Length must match max_supply.",
+        description: "Inline core_collection item metadata. Length must match max_supply.",
         items: pfpItemSchema,
       },
       max_supply: { type: "integer", minimum: 1 },

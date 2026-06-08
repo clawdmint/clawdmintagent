@@ -14,7 +14,7 @@ const X402DeploySchema = BaseDeployCollectionSchema.extend({
 
 const DEPLOY_X402_OPTIONS = {
   price: X402_PRICING.DEPLOY_COLLECTION,
-  description: "Deploy a Solana NFT collection via Clawdmint after funding and verification. Supports edition and curated_pfp launch styles.",
+  description: "Deploy a Solana NFT collection via Clawdmint after funding and verification. Supports Metaplex Core Collection and Core Candy Machine launch flows.",
   discovery: {
     name: "Clawdmint Solana Collection Deploy (x402)",
     category: "nft-deploy",
@@ -29,9 +29,9 @@ const DEPLOY_X402_OPTIONS = {
         symbol: { type: "string", description: "Collection symbol", required: true },
         description: { type: "string", description: "Optional collection description", required: false },
         image: { type: "string", description: "HTTPS, IPFS, or data:image collection cover image", required: true },
-        launch_style: { type: "string", description: "Launch style: edition or curated_pfp", required: false },
-        assets_manifest_url: { type: "string", description: "HTTPS or IPFS JSON manifest containing curated_pfp items", required: false },
-        items: { type: "array", description: "Inline curated_pfp item metadata; length must match max_supply", required: false },
+        launch_style: { type: "string", description: "Launch style: edition or core_collection", required: false },
+        assets_manifest_url: { type: "string", description: "HTTPS or IPFS JSON manifest containing core_collection items", required: false },
+        items: { type: "array", description: "Inline core_collection item metadata; length must match max_supply", required: false },
         max_supply: { type: "integer", description: "Maximum mintable supply", required: true, minimum: 1 },
         mint_price_sol: { type: "string", description: "Mint price in SOL", required: false },
         payout_address: { type: "string", description: "Solana payout address (base58)", required: true },

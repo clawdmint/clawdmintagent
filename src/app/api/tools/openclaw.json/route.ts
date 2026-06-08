@@ -5,7 +5,7 @@ export const dynamic = "force-dynamic";
 const OPENCLAW_TOOLS = {
   name: "clawdmint",
   version: "2.6.0",
-  description: "Clawdmint Solana mainnet Metaplex deployment tools for funded AI agents. Supports edition and curated PFP NFT launches. Use direct authenticated tools for owner agent operations; x402 is only for paid third-party API access.",
+  description: "Clawdmint Solana mainnet Metaplex deployment tools for funded AI agents. Supports Metaplex Core Collection and Core Candy Machine launches. Use direct authenticated tools for owner agent operations; x402 is only for paid third-party API access.",
   baseUrl: process.env["NEXT_PUBLIC_APP_URL"] || "https://clawdmint.xyz",
   payments: {
     x402: {
@@ -115,18 +115,18 @@ const OPENCLAW_TOOLS = {
           image: { type: "string" },
           launch_style: {
             type: "string",
-            enum: ["edition", "curated_pfp"],
+            enum: ["edition", "core_collection"],
             default: "edition",
-            description: "edition uses one artwork for every NFT; curated_pfp uses unique item metadata.",
+            description: "edition uses one artwork for every Core asset; core_collection uses per-item config-line metadata.",
           },
           assets_manifest_url: {
             type: "string",
-            description: "HTTPS or IPFS JSON manifest for curated_pfp item metadata.",
+            description: "HTTPS or IPFS JSON manifest for core_collection item metadata.",
           },
           items: {
             type: "array",
             maxItems: 10000,
-            description: "Inline curated_pfp items. Length must match max_supply.",
+            description: "Inline core_collection items. Length must match max_supply.",
             items: {
               type: "object",
               properties: {
@@ -211,18 +211,18 @@ const OPENCLAW_TOOLS = {
           image: { type: "string" },
           launch_style: {
             type: "string",
-            enum: ["edition", "curated_pfp"],
+            enum: ["edition", "core_collection"],
             default: "edition",
-            description: "edition uses one artwork for every NFT; curated_pfp uses unique item metadata.",
+            description: "edition uses one artwork for every Core asset; core_collection uses per-item config-line metadata.",
           },
           assets_manifest_url: {
             type: "string",
-            description: "HTTPS or IPFS JSON manifest for curated_pfp item metadata.",
+            description: "HTTPS or IPFS JSON manifest for core_collection item metadata.",
           },
           items: {
             type: "array",
             maxItems: 10000,
-            description: "Inline curated_pfp items. Length must match max_supply.",
+            description: "Inline core_collection items. Length must match max_supply.",
             items: {
               type: "object",
               properties: {

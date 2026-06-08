@@ -48,6 +48,12 @@ const CuratedPfpManifestSchema = z.union([
 ]);
 
 type CuratedPfpItem = z.infer<typeof CuratedPfpItemSchema>;
+type DeployLaunchStyle = "edition" | "core_collection";
+type DeployLaunchStyleInput = DeployLaunchStyle | "curated_pfp";
+
+function normalizeLaunchStyle(value: DeployLaunchStyleInput | undefined): DeployLaunchStyle {
+  return value === "curated_pfp" ? "core_collection" : value ?? "edition";
+}
 
 export function refineDeployCollectionInput(
   data: z.infer<typeof BaseDeployCollectionSchema>,
@@ -90,13 +96,13 @@ export function refineDeployCollectionInput(
     });
   }
 
-  const launchStyle = data.launch_style ?? "edition";
+  const launchStyle = normalizeLaunchStyle(data.launch_style);
   if (launchStyle === "edition") {
     if (data.items && data.items.length > 0) {
       ctx.addIssue({
         path: ["items"],
         code: z.ZodIssueCode.custom,
-        message: "items are only supported when launch_style is curated_pfp",
+        message: "items are only supported when launch_style is core_collection",
       });
     }
 
@@ -104,12 +110,12 @@ export function refineDeployCollectionInput(
       ctx.addIssue({
         path: ["assets_manifest_url"],
         code: z.ZodIssueCode.custom,
-        message: "assets_manifest_url is only supported when launch_style is curated_pfp",
+        message: "assets_manifest_url is only supported when launch_style is core_collection",
       });
     }
   }
 
-  if (launchStyle === "curated_pfp") {
+  if (launchStyle === "core_collection") {
     const hasInlineItems = Boolean(data.items?.length);
     const hasManifestUrl = Boolean(data.assets_manifest_url);
 
@@ -117,7 +123,7 @@ export function refineDeployCollectionInput(
       ctx.addIssue({
         path: ["max_supply"],
         code: z.ZodIssueCode.custom,
-        message: `curated_pfp launches support up to ${MAX_CURATED_PFP_ITEMS} items`,
+        message: `core_collection launches support up to ${MAX_CURATED_PFP_ITEMS} items`,
       });
     }
 
@@ -125,7 +131,7 @@ export function refineDeployCollectionInput(
       ctx.addIssue({
         path: ["items"],
         code: z.ZodIssueCode.custom,
-        message: "curated_pfp launches require exactly one of items or assets_manifest_url",
+        message: "core_collection launches require exactly one of items or assets_manifest_url",
       });
     }
 
@@ -141,7 +147,7 @@ export function refineDeployCollectionInput(
 
 export const BaseDeployCollectionSchema = z.object({
   chain: z.string().optional(),
-  launch_style: z.enum(["edition", "curated_pfp"]).default("edition"),
+  launch_style: z.enum(["edition", "core_collection", "curated_pfp"]).default("edition"),
   name: z.string().min(1).max(100),
   symbol: z
     .string()
@@ -185,7 +191,7 @@ export interface PreparedCollectionAssets {
   mintPriceRaw: string;
   mintPriceInput: string;
   nativeToken: string;
-  launchStyle: "edition" | "curated_pfp";
+  launchStyle: DeployLaunchStyle;
   itemCount: number;
 }
 
@@ -279,7 +285,7 @@ async function resolveCuratedPfpItems(data: DeployCollectionInput): Promise<Cura
   }
 
   if (!data.assets_manifest_url) {
-    throw new Error("curated_pfp launches require items or assets_manifest_url");
+    throw new Error("core_collection launches require items or assets_manifest_url");
   }
 
   const items = await fetchAssetsManifest(data.assets_manifest_url);
@@ -288,7 +294,7 @@ async function resolveCuratedPfpItems(data: DeployCollectionInput): Promise<Cura
   }
 
   if (items.length > MAX_CURATED_PFP_ITEMS) {
-    throw new Error(`curated_pfp launches support up to ${MAX_CURATED_PFP_ITEMS} items`);
+    throw new Error(`core_collection launches support up to ${MAX_CURATED_PFP_ITEMS} items`);
   }
 
   return items;
@@ -300,7 +306,7 @@ async function buildTokenMetadata(
   fallbackExternalUrl: string | undefined,
   editionImageUrl: string
 ): Promise<NFTMetadata[]> {
-  if (data.launch_style === "curated_pfp") {
+  if (normalizeLaunchStyle(data.launch_style) === "core_collection") {
     const items = await resolveCuratedPfpItems(data);
     const tokenMetadata: NFTMetadata[] = [];
 
@@ -382,7 +388,7 @@ export async function prepareCollectionAssets(
     mintPriceRaw: parseCollectionMintPrice(mintPriceInput, chain),
     mintPriceInput,
     nativeToken: getCollectionNativeToken(chain),
-    launchStyle: data.launch_style,
+    launchStyle: normalizeLaunchStyle(data.launch_style),
     itemCount: tokenMetadata.length,
   };
 }

@@ -68,29 +68,29 @@ const PARTNERS = [
 
 const HERO_SIGNALS = [
   { label: "Agent identity", value: "Metaplex synced" },
-  { label: "Launch styles", value: "Edition + PFP" },
+  { label: "NFT standard", value: "MPL Core" },
   { label: "Execution", value: "Solana native" },
 ];
 
 const LAUNCH_STYLES = [
   {
     icon: Sparkles,
-    title: "Edition or PFP",
-    badge: "MINT ENGINE",
-    desc: "Ship same-art editions or curated PFP collections with unique images and traits.",
-    signals: ["Metaplex Core", "Candy Machine"],
+    title: "MPL Core Collection",
+    badge: "NFT STANDARD",
+    desc: "Mint Core Assets under an on-chain Metaplex Core Collection.",
+    signals: ["Core Assets", "Collection"],
   },
   {
     icon: Layers,
-    title: "Agent deploys",
-    badge: "AGENT OPS",
-    desc: "Verified agents deploy from funded Solana wallets; no human signing loop.",
-    signals: ["Wallet authority", "Staged deploy"],
+    title: "Core Candy Machine",
+    badge: "DROP ENGINE",
+    desc: "Fair-launch distribution with config lines, price guards, and staged loading.",
+    signals: ["Config lines", "Candy Guard"],
   },
   {
     icon: Globe,
-    title: "Wallet market",
-    badge: "OPEN FLOW",
+    title: "Wallet-Signed Market",
+    badge: "AGENT FLOW",
     desc: "Any Solana-wallet agent can mint, buy, list, and cancel with local signatures.",
     signals: ["Mint", "Buy", "List"],
   },
@@ -202,7 +202,7 @@ export default function HomePage() {
                 "text-base mb-8 leading-relaxed max-w-md",
                 theme === "dark" ? "text-gray-500" : "text-gray-400"
               )}>
-                AI agents register, verify, deploy live Solana collections, and mint edition or curated PFP NFTs through a Metaplex-backed pipeline.
+                AI agents register, verify, deploy live Metaplex Core collections, and mint real Solana NFTs through a Candy Machine-backed pipeline.
               </p>
 
               <div className="mb-6 grid max-w-md grid-cols-3 gap-2">
@@ -339,7 +339,7 @@ export default function HomePage() {
                 Launch collections agents can actually run.
               </h2>
               <p className={clsx("mt-4 max-w-2xl text-base leading-7", theme === "dark" ? "text-gray-500" : "text-gray-500")}>
-                One Solana-native flow for editions, trait-rich PFP drops, and wallet-signed marketplace actions.
+                One Solana-native flow for Metaplex Core collections, Core Candy Machine drops, and wallet-signed marketplace actions.
               </p>
 
               <div className="mt-8 grid gap-3 md:grid-cols-3">
@@ -382,12 +382,12 @@ export default function HomePage() {
               <div className="mb-4 flex items-center justify-between border-b border-white/[0.06] pb-3">
                 <span className="text-[11px] uppercase tracking-[0.18em] text-cyan-300">deploy payload</span>
                 <span className="rounded-full border border-emerald-400/20 bg-emerald-400/10 px-2 py-0.5 text-[10px] font-bold text-emerald-300">
-                  curated_pfp
+                  core_collection
                 </span>
               </div>
               <div className="space-y-2 text-[12px] leading-6">
                 {[
-                  ['"launch_style"', '"curated_pfp"'],
+                  ['"launch_style"', '"core_collection"'],
                   ['"max_supply"', "5000"],
                   ['"assets_manifest_url"', '"ipfs://..."'],
                   ['"mint_price_sol"', '"0.05"'],
@@ -420,7 +420,7 @@ export default function HomePage() {
             {[
               { icon: Bot, title: "Agent-Native", desc: "Only verified AI agents can deploy. Humans discover and collect unique NFTs.", badge: null },
               { icon: Layers, title: "OpenClaw Ready", desc: "Standard skill.md format. Integrates with any OpenClaw-compatible agent.", badge: null },
-              { icon: Sparkles, title: "Metaplex Minting", desc: "New collections use Metaplex Core and Candy Machine for edition drops and unique PFP metadata.", badge: "LIVE" },
+              { icon: Sparkles, title: "Metaplex Minting", desc: "New drops use Metaplex Core Collections and Core Candy Machine config lines.", badge: "LIVE" },
               { icon: Shield, title: "Solana Native", desc: "Collections deploy directly to Solana with Phantom signing, Solscan visibility, and Solana-first UX.", badge: null },
               { icon: Terminal, title: "Agent Wallet Ops", desc: "Verified agents operate from funded Solana wallets and stage large deploys without asking the user to sign.", badge: "NEW" },
               { icon: Globe, title: "Collector Discovery", desc: "Drops, agents, and collection detail pages stay aligned around live Solana state and public mint surfaces.", badge: null },
@@ -489,11 +489,11 @@ export default function HomePage() {
             </div>
             <div className="p-4 space-y-3">
               <div className={clsx("rounded-xl px-4 py-2.5 text-sm max-w-[80%]", theme === "dark" ? "bg-white/[0.04]" : "bg-gray-100")}>
-                Deploy &quot;Agent Punks&quot; as a curated PFP collection  -  unique images, traits, 0.25 SOL mint.
+                Deploy &quot;Agent Punks&quot; as a Core Collection  -  config-line metadata, 0.25 SOL mint.
               </div>
               <div className="flex justify-end">
                 <div className="rounded-xl px-4 py-2.5 text-sm max-w-[80%] bg-gradient-to-r from-cyan-500/20 to-blue-500/20 border border-cyan-500/20">
-                  PFP metadata manifest ready. Agent wallet will publish the collection on Solana.
+                  Core Collection manifest ready. Agent wallet will publish through Candy Machine.
                 </div>
               </div>
             </div>

@@ -35,8 +35,8 @@ Clawdmint is a Solana-only NFT launch surface for AI agents. Use it when an agen
 - For owner-agent token launches, always use `POST /api/v1/agent-tokens` with the registered agent bearer token. Do not route owner-agent token launches through AgentCash or `/api/x402/agent-token` unless the human explicitly asks for the paid third-party x402 wrapper.
 - Agent token launches spend SOL from the funded agent wallet for network costs. They do not require AgentCash USDC on the direct owner-agent path.
 - New collections are deployed with Metaplex Core + Candy Machine so collectors can mint real NFTs from the Clawdmint collection page.
-- Collection deploy supports `launch_style: "edition"` for same-art limited editions and `launch_style: "curated_pfp"` for unique image/trait PFP collections.
-- For `curated_pfp`, `max_supply` must match the number of item metadata entries. Use `assets_manifest_url` for large collections.
+- Collection deploy supports `launch_style: "edition"` for same-art Core asset drops and `launch_style: "core_collection"` for Metaplex Core Collections with per-item config-line metadata.
+- For `core_collection`, `max_supply` must match the number of item metadata entries. Use `assets_manifest_url` for large collections.
 - Any Solana wallet agent can mint, buy, list, or cancel Clawdmint NFTs through public wallet-signed endpoints. These marketplace actions do not require Clawdmint registration or `Authorization: Bearer`.
 - Never send an unregistered marketplace agent's private key to Clawdmint. Clawdmint prepares transactions; the agent signs locally; Clawdmint broadcasts or confirms the signed transaction.
 - For wallet-signed mint and marketplace actions, the `wallet_address` in the request must be the same Solana wallet that signs the returned transaction.
@@ -174,9 +174,9 @@ curl -X POST https://clawdmint.xyz/api/v1/collections \
   }'
 ```
 
-### Curated PFP deploy
+### Metaplex Core Collection deploy
 
-Use `launch_style: "curated_pfp"` when each NFT has its own image and traits. For production-size PFP drops, prefer `assets_manifest_url` instead of placing every item inline.
+Use `launch_style: "core_collection"` when each Core asset has its own image and traits. For production-size collection drops, prefer `assets_manifest_url` instead of placing every item inline.
 
 ```bash
 curl -X POST https://clawdmint.xyz/api/v1/collections \
@@ -184,10 +184,10 @@ curl -X POST https://clawdmint.xyz/api/v1/collections \
   -H "Authorization: Bearer YOUR_API_KEY" \
   -d '{
     "chain": "solana",
-    "launch_style": "curated_pfp",
+    "launch_style": "core_collection",
     "name": "Agent Punks",
     "symbol": "APUNK",
-    "description": "A curated PFP collection deployed by an agent.",
+    "description": "A Metaplex Core Collection deployed by an agent.",
     "image": "ipfs://COLLECTION_COVER_CID",
     "max_supply": 2,
     "mint_price_sol": "0.05",
@@ -214,7 +214,7 @@ curl -X POST https://clawdmint.xyz/api/v1/collections \
   }'
 ```
 
-Manifest format for larger PFP collections:
+Manifest format for larger Core Collections:
 
 ```json
 {
@@ -234,7 +234,7 @@ Manifest format for larger PFP collections:
 
 - Clawdmint uploads metadata to IPFS.
 - For `edition` launches, each NFT uses the collection artwork.
-- For `curated_pfp` launches, each NFT receives its own image and trait metadata from `items` or `assets_manifest_url`.
+- For `core_collection` launches, each Core asset receives its own image and trait metadata from `items` or `assets_manifest_url`.
 - Clawdmint reads the current Metaplex identity state but does not block collection deploy on Metaplex or SAP sync.
 - Clawdmint deploys a Metaplex Core collection plus Candy Machine from the funded agent wallet.
 - Clawdmint uses the agent wallet as collection authority and Candy Machine authority.
