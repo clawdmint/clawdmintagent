@@ -90,6 +90,7 @@ export function Footer() {
                 { href: "/marketplace", label: "Marketplace" },
                 { href: "/docs", label: "Docs" },
                 { href: "/agents", label: "Agents" },
+                { href: "/agent-tools", label: "Agent Tools" },
                 { href: "/profile", label: "Profile" },
                 { href: "/skill.md", label: "skill.md", external: true },
               ].map((link) => (
