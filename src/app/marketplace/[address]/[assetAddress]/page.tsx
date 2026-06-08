@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { clsx } from "clsx";
-import { ArrowLeft, ArrowUpRight, Check, Copy, ExternalLink, Loader2, Tag, Wallet } from "lucide-react";
+import { ArrowLeft, Check, Copy, ExternalLink, Tag } from "lucide-react";
 import { Transaction, VersionedTransaction } from "@solana/web3.js";
 import { CollectionViewTabs } from "@/components/collection-view-tabs";
 import { CollectionCountdown } from "@/components/collection-countdown";
@@ -40,6 +40,19 @@ interface AssetListing {
   created_at: string;
 }
 
+interface AssetTrait {
+  trait_type: string;
+  value: string | number;
+  display_type?: string;
+  max_value?: number;
+}
+
+interface AssetRarity {
+  rank?: number | null;
+  score?: number | null;
+  tier?: string | null;
+}
+
 interface AssetDetail {
   id: string;
   asset_address: string;
@@ -48,6 +61,11 @@ interface AssetDetail {
   name: string;
   image_url: string | null;
   metadata_uri: string | null;
+  description: string | null;
+  traits: AssetTrait[];
+  rarity: AssetRarity | null;
+  animation_url: string | null;
+  properties: Record<string, unknown> | null;
   minted_at: string;
   active_listing: AssetListing | null;
   collection: AssetCollection;
@@ -114,6 +132,10 @@ function getDisplayAssetLabel(asset: Pick<AssetDetail, "name" | "token_id"> | Pi
   const explicitName = asset.name?.trim();
   if (explicitName) return explicitName;
   return `${collectionName} #${asset.token_id + 1}`;
+}
+
+function formatTraitValue(value: string | number) {
+  return typeof value === "number" ? value.toLocaleString("en-US") : value;
 }
 
 function base64ToBytes(value: string): Uint8Array {
@@ -204,6 +226,8 @@ export default function MarketplaceAssetPage() {
   const isOwner = !!asset && !!connectedAddress && asset.owner_address === connectedAddress;
   const isListed = !!asset?.active_listing;
   const displayLabel = asset && collection ? getDisplayAssetLabel(asset, collection.name) : "";
+  const visibleTraits = asset?.traits?.slice(0, 16) ?? [];
+  const hasRarity = Boolean(asset?.rarity?.rank || asset?.rarity?.score || asset?.rarity?.tier);
 
   const handleCreateListing = useCallback(async () => {
     if (!asset || !connectedAddress) return;
@@ -379,35 +403,27 @@ export default function MarketplaceAssetPage() {
 
           <CollectionCountdown address={collection.address} variant="banner" />
 
-          <div className="flex gap-3 overflow-x-auto pb-2">
-            {relatedAssets.map((related) => {
-              const relatedLabel = getDisplayAssetLabel(related, collection.name);
-              const isActive = related.asset_address === asset.asset_address;
-              return (
-                <Link
-                  key={related.id}
-                  href={`/marketplace/${collection.address}/${related.asset_address}`}
-                  className={clsx(
-                    "min-w-[76px] overflow-hidden rounded-2xl border p-1 transition-colors",
-                    isActive
-                      ? "border-cyan-400/40 bg-cyan-400/10"
-                      : theme === "dark"
-                        ? "border-white/[0.08] bg-white/[0.03] hover:bg-white/[0.06]"
-                        : "border-gray-200 bg-white hover:bg-gray-50"
-                  )}
-                >
-                  <div className="aspect-square overflow-hidden rounded-[14px] bg-black/20">
-                    {related.image_url ? <img src={related.image_url} alt={relatedLabel} className="h-full w-full object-cover" /> : null}
-                  </div>
-                </Link>
-              );
-            })}
-          </div>
-
-          <section className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_420px]">
+          <section className="mx-auto grid max-w-6xl gap-6 xl:grid-cols-[minmax(0,720px)_400px] xl:items-start">
             <div className={clsx("overflow-hidden rounded-[30px] border", theme === "dark" ? "border-white/[0.08] bg-[#07111d]/88" : "border-gray-200 bg-white") }>
-              <div className="aspect-[1.02] overflow-hidden bg-black/20">
-                {asset.image_url ? <img src={asset.image_url} alt={displayLabel} className="h-full w-full object-contain" /> : <div className="flex h-full items-center justify-center text-sm text-gray-500">No preview</div>}
+              <div className="aspect-square max-h-[720px] overflow-hidden bg-black/20">
+                {asset.image_url ? <img src={asset.image_url} alt={displayLabel} className="h-full w-full object-cover" /> : <div className="flex h-full items-center justify-center text-sm text-gray-500">No preview</div>}
+              </div>
+              {asset.description ? (
+                <div className={clsx("border-t px-5 py-4 text-sm leading-relaxed", theme === "dark" ? "border-white/[0.08] text-gray-400" : "border-gray-200 text-gray-600")}>
+                  {asset.description}
+                </div>
+              ) : null}
+              <div className={clsx("grid grid-cols-3 border-t", theme === "dark" ? "border-white/[0.08]" : "border-gray-200")}>
+                {[
+                  { label: "Token", value: `#${asset.token_id + 1}` },
+                  { label: "Owner", value: truncateAddress(asset.owner_address) },
+                  { label: "Status", value: isListed ? "Listed" : "Unlisted" },
+                ].map((item) => (
+                  <div key={item.label} className={clsx("px-5 py-4", theme === "dark" ? "border-white/[0.08]" : "border-gray-200")}>
+                    <p className={clsx("font-mono text-[10px] uppercase tracking-[0.18em]", theme === "dark" ? "text-gray-500" : "text-gray-400")}>{item.label}</p>
+                    <p className="mt-1 text-sm font-semibold">{item.value}</p>
+                  </div>
+                ))}
               </div>
             </div>
 
@@ -438,7 +454,7 @@ export default function MarketplaceAssetPage() {
 
                 <div className={clsx("rounded-[24px] border p-5", theme === "dark" ? "border-white/[0.08] bg-white/[0.03]" : "border-gray-200 bg-gray-50") }>
                   <p className={clsx("font-mono text-[10px] uppercase tracking-[0.22em]", theme === "dark" ? "text-gray-500" : "text-gray-400")}>Total price</p>
-                  <p className="mt-3 text-[3rem] font-semibold tracking-tight leading-none">{asset.active_listing ? `${asset.active_listing.price_native} SOL` : "Not listed"}</p>
+                  <p className="mt-3 text-4xl font-semibold tracking-tight leading-tight">{asset.active_listing ? `${asset.active_listing.price_native} SOL` : "Not listed"}</p>
                   <div className="mt-5 grid gap-3 sm:grid-cols-2">
                     <div className={clsx("rounded-[20px] border px-4 py-3", theme === "dark" ? "border-white/[0.08] bg-[#08111d]" : "border-gray-200 bg-white") }>
                       <p className={clsx("font-mono text-[10px] uppercase tracking-[0.18em]", theme === "dark" ? "text-gray-500" : "text-gray-400")}>Floor price</p>
@@ -450,6 +466,44 @@ export default function MarketplaceAssetPage() {
                     </div>
                   </div>
                 </div>
+
+                {hasRarity || visibleTraits.length > 0 ? (
+                  <div className={clsx("rounded-[24px] border p-5", theme === "dark" ? "border-white/[0.08] bg-white/[0.03]" : "border-gray-200 bg-gray-50") }>
+                    <div className="flex items-center justify-between gap-3">
+                      <div>
+                        <p className="font-mono text-[10px] uppercase tracking-[0.22em] text-cyan-300">NFT metadata</p>
+                        <h2 className="mt-2 text-lg font-semibold tracking-tight">Traits and rarity</h2>
+                      </div>
+                      {asset.rarity?.rank ? (
+                        <span className="rounded-full border border-emerald-400/20 bg-emerald-400/10 px-3 py-1 font-mono text-[10px] uppercase tracking-[0.16em] text-emerald-200">
+                          Rank #{asset.rarity.rank}
+                        </span>
+                      ) : null}
+                    </div>
+
+                    {hasRarity ? (
+                      <div className="mt-4 grid gap-2 sm:grid-cols-3">
+                        {asset.rarity?.tier ? <MetadataMetric label="Tier" value={asset.rarity.tier} theme={theme} /> : null}
+                        {asset.rarity?.rank ? <MetadataMetric label="Rank" value={`#${asset.rarity.rank}`} theme={theme} /> : null}
+                        {asset.rarity?.score ? <MetadataMetric label="Score" value={asset.rarity.score.toLocaleString("en-US", { maximumFractionDigits: 2 })} theme={theme} /> : null}
+                      </div>
+                    ) : null}
+
+                    {visibleTraits.length > 0 ? (
+                      <div className="mt-4 grid grid-cols-2 gap-2">
+                        {visibleTraits.map((trait, index) => (
+                          <div
+                            key={`${trait.trait_type}-${index}`}
+                            className={clsx("min-w-0 rounded-[18px] border px-3 py-3", theme === "dark" ? "border-cyan-400/10 bg-cyan-400/[0.04]" : "border-cyan-100 bg-cyan-50")}
+                          >
+                            <p className="truncate font-mono text-[9px] uppercase tracking-[0.16em] text-cyan-300">{trait.trait_type}</p>
+                            <p className="mt-1 truncate text-sm font-semibold">{formatTraitValue(trait.value)}</p>
+                          </div>
+                        ))}
+                      </div>
+                    ) : null}
+                  </div>
+                ) : null}
 
                 <div className={clsx("rounded-[24px] border p-5", theme === "dark" ? "border-white/[0.08] bg-white/[0.03]" : "border-gray-200 bg-gray-50") }>
                   <div className="flex items-center gap-2">
@@ -514,6 +568,42 @@ export default function MarketplaceAssetPage() {
             </aside>
           </section>
 
+          {relatedAssets.length > 1 ? (
+            <section className={clsx("mx-auto max-w-6xl rounded-[30px] border p-5", theme === "dark" ? "border-white/[0.08] bg-[#07111d]/88" : "border-gray-200 bg-white")}>
+              <div className="flex items-center justify-between gap-4">
+                <div>
+                  <p className="font-mono text-[10px] uppercase tracking-[0.24em] text-cyan-300">Collection assets</p>
+                  <h2 className="mt-2 text-xl font-semibold tracking-tight">More from {collection.name}</h2>
+                </div>
+              </div>
+              <div className="mt-5 grid grid-cols-3 gap-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-9">
+                {relatedAssets
+                  .filter((related) => related.asset_address !== asset.asset_address)
+                  .slice(0, 9)
+                  .map((related) => {
+                    const relatedLabel = getDisplayAssetLabel(related, collection.name);
+                    return (
+                      <Link
+                        key={related.id}
+                        href={`/marketplace/${collection.address}/${related.asset_address}`}
+                        className={clsx(
+                          "group overflow-hidden rounded-[20px] border p-1 transition-colors",
+                          theme === "dark"
+                            ? "border-white/[0.08] bg-white/[0.03] hover:bg-white/[0.06]"
+                            : "border-gray-200 bg-gray-50 hover:bg-gray-100"
+                        )}
+                      >
+                        <div className="aspect-square overflow-hidden rounded-[15px] bg-black/20">
+                          {related.image_url ? <img src={related.image_url} alt={relatedLabel} className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105" /> : null}
+                        </div>
+                        <p className="truncate px-2 py-2 text-xs font-semibold">{relatedLabel}</p>
+                      </Link>
+                    );
+                  })}
+              </div>
+            </section>
+          ) : null}
+
           <section className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_360px]">
             <div className={clsx("rounded-[30px] border p-6", theme === "dark" ? "border-white/[0.08] bg-[#07111d]/88" : "border-gray-200 bg-white") }>
               <div className="flex items-center justify-between gap-4">
@@ -558,6 +648,30 @@ export default function MarketplaceAssetPage() {
           </section>
         </div>
       </div>
+    </div>
+  );
+}
+
+function MetadataMetric({
+  label,
+  value,
+  theme,
+}: {
+  label: string;
+  value: string;
+  theme: string;
+}) {
+  return (
+    <div
+      className={clsx(
+        "min-w-0 rounded-[18px] border px-3 py-3",
+        theme === "dark" ? "border-white/[0.08] bg-[#08111d]" : "border-gray-200 bg-white"
+      )}
+    >
+      <p className={clsx("font-mono text-[9px] uppercase tracking-[0.16em]", theme === "dark" ? "text-gray-500" : "text-gray-400")}>
+        {label}
+      </p>
+      <p className="mt-1 truncate text-sm font-semibold">{value}</p>
     </div>
   );
 }

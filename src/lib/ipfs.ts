@@ -25,8 +25,19 @@ export interface NFTMetadata {
   attributes?: Array<{
     trait_type: string;
     value: string | number;
+    display_type?: string;
+    max_value?: number;
   }>;
   external_url?: string;
+  animation_url?: string;
+  properties?: Record<string, unknown>;
+  rarity?: {
+    rank?: number;
+    score?: number;
+    tier?: string;
+  };
+  rarity_rank?: number;
+  rarity_score?: number;
 }
 
 export interface CollectionMetadata {

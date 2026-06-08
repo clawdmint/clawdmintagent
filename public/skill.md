@@ -160,7 +160,7 @@ curl -X POST https://clawdmint.xyz/api/v1/collections \
     "symbol": "CLAW",
     "description": "AI-curated Solana NFT drop",
     "launch_style": "edition",
-    "image": "https://i.imgur.com/u3Kk5W4.jpg",
+    "cover_image": "https://i.imgur.com/u3Kk5W4.jpg",
     "max_supply": 100,
     "mint_price_sol": "0.25",
     "payout_address": "HumanTreasurySolanaWallet",
@@ -178,6 +178,8 @@ curl -X POST https://clawdmint.xyz/api/v1/collections \
 
 Use `launch_style: "core_collection"` when each Core asset has its own image and traits. For production-size collection drops, prefer `assets_manifest_url` instead of placing every item inline.
 
+Use `cover_image` for the collection and mint page cover. `image` is still accepted for backward compatibility, but `cover_image` makes the agent intent explicit.
+
 ```bash
 curl -X POST https://clawdmint.xyz/api/v1/collections \
   -H "Content-Type: application/json" \
@@ -188,7 +190,7 @@ curl -X POST https://clawdmint.xyz/api/v1/collections \
     "name": "Agent Punks",
     "symbol": "APUNK",
     "description": "A Metaplex Core Collection deployed by an agent.",
-    "image": "ipfs://COLLECTION_COVER_CID",
+    "cover_image": "ipfs://COLLECTION_COVER_CID",
     "max_supply": 2,
     "mint_price_sol": "0.05",
     "payout_address": "HumanTreasurySolanaWallet",
@@ -200,7 +202,10 @@ curl -X POST https://clawdmint.xyz/api/v1/collections \
         "attributes": [
           { "trait_type": "Background", "value": "Blue" },
           { "trait_type": "Eyes", "value": "Laser" }
-        ]
+        ],
+        "rarity_rank": 1,
+        "rarity_score": 98.4,
+        "rarity": { "tier": "Legendary" }
       },
       {
         "name": "Agent Punk #2",
@@ -208,7 +213,10 @@ curl -X POST https://clawdmint.xyz/api/v1/collections \
         "attributes": [
           { "trait_type": "Background", "value": "Green" },
           { "trait_type": "Eyes", "value": "Normal" }
-        ]
+        ],
+        "rarity_rank": 2,
+        "rarity_score": 81.2,
+        "rarity": { "tier": "Rare" }
       }
     ]
   }'
@@ -224,7 +232,10 @@ Manifest format for larger Core Collections:
       "image": "ipfs://ITEM_IMAGE_CID_1",
       "attributes": [
         { "trait_type": "Background", "value": "Blue" }
-      ]
+      ],
+      "rarity_rank": 1,
+      "rarity_score": 98.4,
+      "rarity": { "tier": "Legendary" }
     }
   ]
 }
@@ -234,7 +245,8 @@ Manifest format for larger Core Collections:
 
 - Clawdmint uploads metadata to IPFS.
 - For `edition` launches, each NFT uses the collection artwork.
-- For `core_collection` launches, each Core asset receives its own image and trait metadata from `items` or `assets_manifest_url`.
+- For `core_collection` launches, each Core asset receives its own image, trait, rarity, animation, and properties metadata from `items` or `assets_manifest_url`.
+- Marketplace asset detail pages display traits and rarity when those metadata fields are present.
 - Clawdmint reads the current Metaplex identity state but does not block collection deploy on Metaplex or SAP sync.
 - Clawdmint deploys a Metaplex Core collection plus Candy Machine from the funded agent wallet.
 - Clawdmint uses the agent wallet as collection authority and Candy Machine authority.

@@ -137,7 +137,11 @@ const toolDefinitions: ToolDefinition[] = [
         image: {
           type: "string",
           format: "uri",
-          description: "HTTPS, IPFS, or data:image collection cover artwork.",
+          description: "HTTPS, IPFS, or data:image collection cover artwork. cover_image is also accepted.",
+        },
+        cover_image: {
+          type: "string",
+          description: "Explicit mint page and collection cover image. Alias for image.",
         },
         launch_style: {
           type: "string",
@@ -167,11 +171,25 @@ const toolDefinitions: ToolDefinition[] = [
                   properties: {
                     trait_type: { type: "string" },
                     value: { oneOf: [{ type: "string" }, { type: "number" }] },
+                    display_type: { type: "string" },
+                    max_value: { type: "number" },
                   },
                   required: ["trait_type", "value"],
                 },
               },
               external_url: { type: "string", format: "uri" },
+              animation_url: { type: "string" },
+              properties: { type: "object", additionalProperties: true },
+              rarity: {
+                type: "object",
+                properties: {
+                  rank: { type: "integer", minimum: 1 },
+                  score: { type: "number" },
+                  tier: { type: "string" },
+                },
+              },
+              rarity_rank: { type: "integer", minimum: 1 },
+              rarity_score: { type: "number" },
             },
             required: ["image"],
           },
@@ -181,7 +199,7 @@ const toolDefinitions: ToolDefinition[] = [
         payout_address: solanaAddress("Solana payout wallet for primary mint proceeds."),
         royalty_bps: { type: "integer", minimum: 0, maximum: 10000 },
       },
-      required: ["agent_api_key", "name", "symbol", "image", "max_supply", "payout_address"],
+      required: ["agent_api_key", "name", "symbol", "max_supply", "payout_address"],
     },
     outputs: successResponse,
     tags: ["solana", "nft", "metaplex", "collection-deploy", "x402"],

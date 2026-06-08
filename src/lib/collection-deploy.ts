@@ -30,6 +30,14 @@ const ASSETS_MANIFEST_TIMEOUT_MS = 20_000;
 const MetadataAttributeSchema = z.object({
   trait_type: z.string().min(1).max(80),
   value: z.union([z.string().max(200), z.number()]),
+  display_type: z.string().max(80).optional(),
+  max_value: z.number().optional(),
+});
+
+const RaritySchema = z.object({
+  rank: z.number().int().positive().optional(),
+  score: z.number().optional(),
+  tier: z.string().max(80).optional(),
 });
 
 const CuratedPfpItemSchema = z.object({
@@ -38,6 +46,11 @@ const CuratedPfpItemSchema = z.object({
   image: z.string().min(1),
   attributes: z.array(MetadataAttributeSchema).max(50).optional(),
   external_url: z.string().url().optional(),
+  animation_url: z.string().optional(),
+  properties: z.record(z.unknown()).optional(),
+  rarity: RaritySchema.optional(),
+  rarity_rank: z.number().int().positive().optional(),
+  rarity_score: z.number().optional(),
 });
 
 const CuratedPfpManifestSchema = z.union([
@@ -93,6 +106,14 @@ export function refineDeployCollectionInput(
       path: ["authority_address"],
       code: z.ZodIssueCode.custom,
       message: `Invalid ${getCollectionNativeToken(chain)} authority address`,
+    });
+  }
+
+  if (!data.image && !data.cover_image) {
+    ctx.addIssue({
+      path: ["image"],
+      code: z.ZodIssueCode.custom,
+      message: "Collection cover image is required. Provide image or cover_image.",
     });
   }
 
@@ -155,7 +176,8 @@ export const BaseDeployCollectionSchema = z.object({
     .max(10)
     .regex(/^[A-Z0-9]+$/, "Symbol must be uppercase alphanumeric"),
   description: z.string().max(1000).optional(),
-  image: z.string(),
+  image: z.string().optional(),
+  cover_image: z.string().optional(),
   assets_manifest_url: z.string().optional(),
   items: z.array(CuratedPfpItemSchema).max(MAX_CURATED_PFP_ITEMS).optional(),
   max_supply: z.number().int().min(1).max(100000),
@@ -173,6 +195,11 @@ export const BaseDeployCollectionSchema = z.object({
           MetadataAttributeSchema
         )
         .optional(),
+      animation_url: z.string().optional(),
+      properties: z.record(z.unknown()).optional(),
+      rarity: RaritySchema.optional(),
+      rarity_rank: z.number().int().positive().optional(),
+      rarity_score: z.number().optional(),
     })
     .optional(),
 });
@@ -324,6 +351,15 @@ async function buildTokenMetadata(
         image: uploadedImageToIpfsUrl(imageUpload),
         attributes: item.attributes || [],
         external_url: item.external_url || fallbackExternalUrl,
+        animation_url: item.animation_url,
+        properties: item.properties,
+        rarity: item.rarity || (
+          item.rarity_rank || item.rarity_score
+            ? { rank: item.rarity_rank, score: item.rarity_score }
+            : undefined
+        ),
+        rarity_rank: item.rarity_rank ?? item.rarity?.rank,
+        rarity_score: item.rarity_score ?? item.rarity?.score,
       });
     }
 
@@ -336,6 +372,15 @@ async function buildTokenMetadata(
     image: editionImageUrl,
     attributes: data.metadata?.attributes || [],
     external_url: fallbackExternalUrl,
+    animation_url: data.metadata?.animation_url,
+    properties: data.metadata?.properties,
+    rarity: data.metadata?.rarity || (
+      data.metadata?.rarity_rank || data.metadata?.rarity_score
+        ? { rank: data.metadata?.rarity_rank, score: data.metadata?.rarity_score }
+        : undefined
+    ),
+    rarity_rank: data.metadata?.rarity_rank ?? data.metadata?.rarity?.rank,
+    rarity_score: data.metadata?.rarity_score ?? data.metadata?.rarity?.score,
   }));
 }
 
@@ -350,7 +395,12 @@ export async function prepareCollectionAssets(
     throw new Error("Mint price is required");
   }
 
-  const imageUpload = await uploadImage(data.image, `${data.symbol}-cover`);
+  const coverImageSource = data.cover_image || data.image;
+  if (!coverImageSource) {
+    throw new Error("Collection cover image is required");
+  }
+
+  const imageUpload = await uploadImage(coverImageSource, `${data.symbol}-cover`);
   if (!imageUpload.success) {
     throw new Error(`Image upload failed: ${imageUpload.error}`);
   }

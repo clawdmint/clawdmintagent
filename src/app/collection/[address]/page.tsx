@@ -64,6 +64,7 @@ interface Collection {
   symbol: string;
   description: string;
   image_url: string;
+  cover_image_url?: string;
   base_uri: string;
   max_supply: number;
   total_minted: number;
@@ -615,6 +616,7 @@ export default function CollectionPage() {
   const availableItems = Number(collection.onchain?.items_available || collection.max_supply);
   const configProgress = availableItems > 0 ? (loadedItems / availableItems) * 100 : 0;
   const collectionDescription = collection.description?.trim() || "";
+  const collectionCoverImage = collection.cover_image_url || collection.image_url;
   const hasLongDescription = collectionDescription.length > 170;
   const displayedDescription =
     showFullDescription || !hasLongDescription
@@ -755,9 +757,9 @@ export default function CollectionPage() {
                   : "border-gray-200 bg-white shadow-[0_24px_70px_rgba(15,23,42,0.08)]"
               )}>
                 <div className="relative aspect-[4/3.2] overflow-hidden group/img">
-                  {collection.image_url && !imageFailed ? (
-                    <img
-                      src={collection.image_url}
+                  {collectionCoverImage && !imageFailed ? (
+                    <img 
+                      src={collectionCoverImage}
                       alt={collection.name}
                       className="w-full h-full object-cover transition-transform duration-700 group-hover/img:scale-105"
                       onError={() => setImageFailed(true)}

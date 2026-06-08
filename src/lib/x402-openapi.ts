@@ -142,11 +142,25 @@ export function buildClawdmintOpenApiDocument(appUrl: string) {
           properties: {
             trait_type: { type: "string", maxLength: 80 },
             value: { oneOf: [{ type: "string", maxLength: 200 }, { type: "number" }] },
+            display_type: { type: "string", maxLength: 80 },
+            max_value: { type: "number" },
           },
           required: ["trait_type", "value"],
         },
       },
       external_url: { type: "string", format: "uri" },
+      animation_url: { type: "string" },
+      properties: { type: "object", additionalProperties: true },
+      rarity: {
+        type: "object",
+        properties: {
+          rank: { type: "integer", minimum: 1 },
+          score: { type: "number" },
+          tier: { type: "string", maxLength: 80 },
+        },
+      },
+      rarity_rank: { type: "integer", minimum: 1 },
+      rarity_score: { type: "number" },
     },
     required: ["image"],
   };
@@ -158,7 +172,8 @@ export function buildClawdmintOpenApiDocument(appUrl: string) {
       name: { type: "string" },
       symbol: { type: "string" },
       description: { type: "string" },
-      image: { type: "string", format: "uri", description: "HTTPS, IPFS, or data:image collection cover image." },
+      image: { type: "string", format: "uri", description: "HTTPS, IPFS, or data:image collection cover image. cover_image is also accepted." },
+      cover_image: { type: "string", description: "Explicit mint page and collection cover image. Alias for image." },
       launch_style: {
         type: "string",
         enum: ["edition", "core_collection"],
@@ -182,7 +197,7 @@ export function buildClawdmintOpenApiDocument(appUrl: string) {
       payout_address: { type: "string" },
       royalty_bps: { type: "integer", minimum: 0, maximum: 10000 },
     },
-    required: ["agent_api_key", "name", "symbol", "image", "max_supply", "payout_address"],
+    required: ["agent_api_key", "name", "symbol", "max_supply", "payout_address"],
   };
 
   const deployOutputSchema = {

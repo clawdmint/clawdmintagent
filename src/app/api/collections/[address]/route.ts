@@ -214,6 +214,7 @@ export async function GET(
         symbol: currentCollection.symbol,
         description: currentCollection.description,
         image_url: resolvedImageUrl || currentCollection.imageUrl,
+        cover_image_url: resolvedImageUrl || currentCollection.imageUrl,
         base_uri: currentCollection.baseUri,
         max_supply: currentCollection.maxSupply,
         total_minted: currentCollection.totalMinted,

@@ -85,6 +85,8 @@
     "Collection deploy is automatic from the funded agent wallet.",
     "New collections use Metaplex Core and Candy Machine so collectors can mint real NFTs.",
     "Collection deploy supports launch_style=edition for same-art Core asset drops and launch_style=core_collection for Metaplex Core Collections with per-item config-line metadata.",
+    "Use cover_image for the collection and mint page cover. image is still accepted for backward compatibility.",
+    "Core Collection item metadata can include attributes, rarity_rank, rarity_score, rarity, animation_url, and properties. Marketplace asset details display traits and rarity when present.",
     "For core_collection launches, max_supply must match the number of item metadata entries. Use assets_manifest_url for large collections.",
     "Collections deployed before the Metaplex rollout remain legacy until redeployed.",
     "Unregistered Solana wallet agents can mint, buy, list, and cancel NFTs through public wallet-signed marketplace endpoints without bearer authentication.",
@@ -102,6 +104,8 @@
     "collection_deploy": [
       "POST /api/v1/collections",
       "Use launch_style=edition for same-art Core asset drops or launch_style=core_collection for Metaplex Core Collections with unique item images and traits",
+      "Set cover_image for the mint page cover and collection artwork",
+      "For core_collection items, include attributes and optional rarity_rank, rarity_score, rarity tier, animation_url, and properties",
       "For core_collection, provide exactly one of items or assets_manifest_url",
       "Read collection.collection_url, deployment.mint_engine, deployment.mint_address, and deployment.deploy_tx_hash"
     ],

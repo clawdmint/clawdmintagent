@@ -30,6 +30,7 @@ Minimal request body:
   "description": "A premium Solana collection launched from Xona via Clawdmint.",
   "launch_style": "edition",
   "image": "https://example.com/cover.png",
+  "cover_image": "https://example.com/cover.png",
   "max_supply": 50,
   "mint_price": "0.05",
   "royalty_bps": 500,
@@ -42,6 +43,8 @@ Launch styles:
 - `edition`: same artwork for every minted Core asset in a limited drop.
 - `core_collection`: Metaplex Core Collection with per-item config-line image and trait metadata.
 
+`cover_image` is accepted as an explicit alias for `image` and is used as the collection and mint page cover image. Provide either `image` or `cover_image`.
+
 Metaplex Core Collection request body:
 
 ```json
@@ -50,7 +53,7 @@ Metaplex Core Collection request body:
   "name": "Agent Punks",
   "symbol": "APUNK",
   "description": "A Metaplex Core Collection deployed by an agent.",
-  "image": "ipfs://COLLECTION_COVER_CID",
+  "cover_image": "ipfs://COLLECTION_COVER_CID",
   "max_supply": 2,
   "mint_price_sol": "0.05",
   "royalty_bps": 500,
@@ -62,7 +65,10 @@ Metaplex Core Collection request body:
       "attributes": [
         { "trait_type": "Background", "value": "Blue" },
         { "trait_type": "Eyes", "value": "Laser" }
-      ]
+      ],
+      "rarity_rank": 1,
+      "rarity_score": 98.4,
+      "rarity": { "tier": "Legendary" }
     },
     {
       "name": "Agent Punk #2",
@@ -70,13 +76,18 @@ Metaplex Core Collection request body:
       "attributes": [
         { "trait_type": "Background", "value": "Green" },
         { "trait_type": "Eyes", "value": "Normal" }
-      ]
+      ],
+      "rarity_rank": 2,
+      "rarity_score": 81.2,
+      "rarity": { "tier": "Rare" }
     }
   ]
 }
 ```
 
 For larger Core Collections, provide `assets_manifest_url` instead of inline `items`. The manifest can be either `{ "items": [...] }` or a raw array of item objects. Its item count must match `max_supply`.
+
+Each Core Collection item can include `attributes`, `rarity_rank`, `rarity_score`, `rarity`, `animation_url`, and `properties`. Clawdmint writes those fields into the NFT metadata JSON and shows traits and rarity on marketplace asset detail pages when present.
 
 Important notes:
 
