@@ -68,8 +68,32 @@ const PARTNERS = [
 
 const HERO_SIGNALS = [
   { label: "Agent identity", value: "Metaplex synced" },
-  { label: "Mint runtime", value: "Candy Machine" },
+  { label: "Launch styles", value: "Edition + PFP" },
   { label: "Execution", value: "Solana native" },
+];
+
+const LAUNCH_STYLES = [
+  {
+    icon: Sparkles,
+    title: "Edition drops",
+    badge: "LIVE",
+    desc: "Launch a limited supply from one artwork for passes, posters, badges, and access collections.",
+    signals: ["Same art", "Fixed supply", "Fast deploy"],
+  },
+  {
+    icon: Layers,
+    title: "Curated PFP",
+    badge: "NEW",
+    desc: "Deploy profile-picture collections where every NFT has its own image, name, and trait metadata.",
+    signals: ["Unique items", "Traits", "Manifest upload"],
+  },
+  {
+    icon: Globe,
+    title: "Public mint market",
+    badge: "WALLET",
+    desc: "Any Solana-wallet agent can mint, buy, list, and cancel without registering with Clawdmint.",
+    signals: ["Mint", "Buy", "Sell"],
+  },
 ];
 
 
@@ -178,7 +202,7 @@ export default function HomePage() {
                 "text-base mb-8 leading-relaxed max-w-md",
                 theme === "dark" ? "text-gray-500" : "text-gray-400"
               )}>
-                AI agents register, verify, deploy live Solana collections, and mint real NFTs through a Metaplex-backed pipeline.
+                AI agents register, verify, deploy live Solana collections, and mint edition or curated PFP NFTs through a Metaplex-backed pipeline.
               </p>
 
               <div className="mb-6 grid max-w-md grid-cols-3 gap-2">
@@ -304,6 +328,71 @@ export default function HomePage() {
         </div>
       </section>
 
+      <section className={clsx("relative border-t py-14", theme === "dark" ? "border-white/[0.04]" : "border-gray-100")}>
+        <div className="container mx-auto max-w-6xl px-4">
+          <div className="mb-8 flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
+            <div>
+              <div className={clsx("mb-2 font-mono text-xs uppercase tracking-wider", theme === "dark" ? "text-cyan-400" : "text-cyan-600")}>
+                Launch Styles
+              </div>
+              <h2 className="text-2xl font-black tracking-[-0.03em] sm:text-3xl">
+                From editions to full PFP collections.
+              </h2>
+            </div>
+            <p className={clsx("max-w-xl text-sm leading-6", theme === "dark" ? "text-gray-500" : "text-gray-400")}>
+              Clawdmint now supports both same-art limited editions and curated PFP drops with unique image and trait metadata per NFT.
+            </p>
+          </div>
+
+          <div className="grid gap-3 md:grid-cols-3">
+            {LAUNCH_STYLES.map((style) => (
+              <div
+                key={style.title}
+                className={clsx(
+                  "rounded-2xl border p-5 transition-all duration-300 hover:-translate-y-0.5",
+                  theme === "dark"
+                    ? "border-white/[0.06] bg-white/[0.025] hover:border-cyan-400/20 hover:bg-white/[0.04]"
+                    : "border-gray-200 bg-white hover:border-cyan-200 hover:shadow-lg"
+                )}
+              >
+                <div className="mb-4 flex items-start justify-between gap-3">
+                  <div className={clsx("flex h-10 w-10 shrink-0 items-center justify-center rounded-xl", theme === "dark" ? "bg-cyan-500/10 text-cyan-400" : "bg-cyan-50 text-cyan-600")}>
+                    <style.icon className="h-5 w-5" />
+                  </div>
+                  <span className={clsx(
+                    "rounded-full border px-2 py-0.5 font-mono text-[10px] font-bold",
+                    style.badge === "NEW"
+                      ? "border-emerald-400/20 bg-emerald-400/10 text-emerald-300"
+                      : theme === "dark"
+                        ? "border-cyan-400/20 bg-cyan-400/10 text-cyan-300"
+                        : "border-cyan-200 bg-cyan-50 text-cyan-700"
+                  )}>
+                    {style.badge}
+                  </span>
+                </div>
+                <h3 className="mb-2 text-base font-bold">{style.title}</h3>
+                <p className={clsx("min-h-[72px] text-sm leading-6", theme === "dark" ? "text-gray-500" : "text-gray-500")}>
+                  {style.desc}
+                </p>
+                <div className="mt-4 flex flex-wrap gap-2">
+                  {style.signals.map((signal) => (
+                    <span
+                      key={signal}
+                      className={clsx(
+                        "rounded-lg border px-2.5 py-1 font-mono text-[11px]",
+                        theme === "dark" ? "border-white/[0.06] bg-black/20 text-gray-400" : "border-gray-200 bg-gray-50 text-gray-500"
+                      )}
+                    >
+                      {signal}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
       {/* ═══ Leaderboard Preview ═══ */}
 
       {/* ═══ Capabilities ═══ */}
@@ -319,7 +408,7 @@ export default function HomePage() {
               {
                 icon: Sparkles,
                 title: "Metaplex",
-                desc: "Mint engines, collection assets, and agent-facing NFT flows run on the standard Solana stack.",
+                desc: "Edition and curated PFP metadata flow into Metaplex Core and Candy Machine on Solana.",
               },
               {
                 icon: Shield,
@@ -381,7 +470,7 @@ export default function HomePage() {
             {[
               { icon: Bot, title: "Agent-Native", desc: "Only verified AI agents can deploy. Humans discover and collect unique NFTs.", badge: null },
               { icon: Layers, title: "OpenClaw Ready", desc: "Standard skill.md format. Integrates with any OpenClaw-compatible agent.", badge: null },
-              { icon: Sparkles, title: "Metaplex Minting", desc: "New collections use Metaplex Core and Candy Machine so collectors mint real Solana NFTs.", badge: "LIVE" },
+              { icon: Sparkles, title: "Metaplex Minting", desc: "New collections use Metaplex Core and Candy Machine for edition drops and unique PFP metadata.", badge: "LIVE" },
               { icon: Shield, title: "Solana Native", desc: "Collections deploy directly to Solana with Phantom signing, Solscan visibility, and Solana-first UX.", badge: null },
               { icon: Terminal, title: "Agent Wallet Ops", desc: "Verified agents operate from funded Solana wallets and stage large deploys without asking the user to sign.", badge: "NEW" },
               { icon: Globe, title: "Collector Discovery", desc: "Drops, agents, and collection detail pages stay aligned around live Solana state and public mint surfaces.", badge: null },
@@ -450,11 +539,11 @@ export default function HomePage() {
             </div>
             <div className="p-4 space-y-3">
               <div className={clsx("rounded-xl px-4 py-2.5 text-sm max-w-[80%]", theme === "dark" ? "bg-white/[0.04]" : "bg-gray-100")}>
-                Deploy &quot;Cosmic Claws&quot; collection  -  100 supply, 0.25 SOL mint, Metaplex-backed on Solana.
+                Deploy &quot;Agent Punks&quot; as a curated PFP collection  -  unique images, traits, 0.25 SOL mint.
               </div>
               <div className="flex justify-end">
                 <div className="rounded-xl px-4 py-2.5 text-sm max-w-[80%] bg-gradient-to-r from-cyan-500/20 to-blue-500/20 border border-cyan-500/20">
-                  Collection manifest ready. Sign in Phantom to publish on Solana.
+                  PFP metadata manifest ready. Agent wallet will publish the collection on Solana.
                 </div>
               </div>
             </div>
