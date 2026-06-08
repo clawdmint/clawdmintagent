@@ -328,46 +328,53 @@ export default function HomePage() {
         </div>
       </section>
 
-      <section className={clsx("relative border-t py-16", theme === "dark" ? "border-white/[0.04]" : "border-gray-100")}>
+      <section className={clsx("relative border-t py-14", theme === "dark" ? "border-white/[0.04]" : "border-gray-100")}>
         <div className="container mx-auto max-w-6xl px-4">
-          <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_390px] lg:items-start">
-            <div>
+          <div className={clsx(
+            "grid gap-6 rounded-3xl border p-5 sm:p-6 lg:grid-cols-[minmax(0,1fr)_380px] lg:items-stretch",
+            theme === "dark" ? "border-white/[0.06] bg-white/[0.018]" : "border-gray-200 bg-white"
+          )}>
+            <div className="flex min-w-0 flex-col justify-between gap-7">
+              <div>
               <div className={clsx("mb-3 font-mono text-xs uppercase tracking-wider", theme === "dark" ? "text-cyan-400" : "text-cyan-600")}>
                 Agent NFT Stack
               </div>
-              <h2 className="max-w-2xl text-3xl font-black leading-tight tracking-[-0.03em] sm:text-4xl">
+              <h2 className="max-w-2xl text-3xl font-black leading-tight tracking-[-0.03em] sm:text-4xl lg:text-[40px]">
                 Launch collections agents can actually run.
               </h2>
               <p className={clsx("mt-4 max-w-2xl text-base leading-7", theme === "dark" ? "text-gray-500" : "text-gray-500")}>
                 One Solana-native flow for Metaplex Core collections, Core Candy Machine drops, and wallet-signed marketplace actions.
               </p>
+              </div>
 
-              <div className="mt-8 grid gap-3 md:grid-cols-3">
+              <div className="grid gap-3">
                 {LAUNCH_STYLES.map((style) => (
                   <div
                     key={style.title}
                     className={clsx(
-                      "rounded-2xl border p-4",
-                      theme === "dark" ? "border-white/[0.06] bg-white/[0.025]" : "border-gray-200 bg-white"
+                      "grid gap-3 rounded-2xl border p-4 sm:grid-cols-[42px_minmax(0,1fr)_auto] sm:items-center",
+                      theme === "dark" ? "border-white/[0.05] bg-black/15" : "border-gray-200 bg-gray-50"
                     )}
                   >
-                    <div className="mb-4 flex items-center justify-between gap-3">
-                      <div className={clsx("flex h-9 w-9 shrink-0 items-center justify-center rounded-xl", theme === "dark" ? "bg-cyan-500/10 text-cyan-400" : "bg-cyan-50 text-cyan-600")}>
-                        <style.icon className="h-4.5 w-4.5" />
-                      </div>
-                      <span className={clsx("rounded-full border px-2 py-0.5 font-mono text-[9px] font-bold", theme === "dark" ? "border-cyan-400/20 bg-cyan-400/10 text-cyan-300" : "border-cyan-200 bg-cyan-50 text-cyan-700")}>
-                        {style.badge}
-                      </span>
+                    <div className={clsx("flex h-10 w-10 shrink-0 items-center justify-center rounded-xl", theme === "dark" ? "bg-cyan-500/10 text-cyan-400" : "bg-cyan-50 text-cyan-600")}>
+                      <style.icon className="h-5 w-5" />
                     </div>
-                    <h3 className="mb-2 text-sm font-bold">{style.title}</h3>
-                    <p className={clsx("text-sm leading-6", theme === "dark" ? "text-gray-500" : "text-gray-500")}>
-                      {style.desc}
-                    </p>
-                    <div className="mt-4 flex flex-wrap gap-2">
+                    <div className="min-w-0">
+                      <div className="mb-1 flex flex-wrap items-center gap-2">
+                        <h3 className="text-sm font-bold">{style.title}</h3>
+                        <span className={clsx("rounded-full border px-2 py-0.5 font-mono text-[9px] font-bold", theme === "dark" ? "border-cyan-400/20 bg-cyan-400/10 text-cyan-300" : "border-cyan-200 bg-cyan-50 text-cyan-700")}>
+                          {style.badge}
+                        </span>
+                      </div>
+                      <p className={clsx("text-sm leading-6", theme === "dark" ? "text-gray-500" : "text-gray-500")}>
+                        {style.desc}
+                      </p>
+                    </div>
+                    <div className="flex flex-wrap gap-2 sm:justify-end">
                       {style.signals.map((signal) => (
                         <span
                           key={signal}
-                          className={clsx("rounded-lg border px-2 py-1 font-mono text-[10px]", theme === "dark" ? "border-white/[0.06] bg-black/20 text-gray-400" : "border-gray-200 bg-gray-50 text-gray-500")}
+                          className={clsx("rounded-lg border px-2 py-1 font-mono text-[10px]", theme === "dark" ? "border-white/[0.06] bg-black/20 text-gray-400" : "border-gray-200 bg-white text-gray-500")}
                         >
                           {signal}
                         </span>
@@ -378,28 +385,29 @@ export default function HomePage() {
               </div>
             </div>
 
-            <div className={clsx("rounded-2xl border p-4 font-mono", theme === "dark" ? "border-white/[0.06] bg-[#07101b]/80" : "border-gray-200 bg-gray-950 text-white")}>
-              <div className="mb-4 flex items-center justify-between border-b border-white/[0.06] pb-3">
+            <div className={clsx("flex min-h-[360px] flex-col justify-between rounded-2xl border p-4 font-mono", theme === "dark" ? "border-white/[0.06] bg-[#07101b]/85" : "border-gray-200 bg-gray-950 text-white")}>
+              <div className="flex items-center justify-between border-b border-white/[0.06] pb-3">
                 <span className="text-[11px] uppercase tracking-[0.18em] text-cyan-300">deploy payload</span>
                 <span className="rounded-full border border-emerald-400/20 bg-emerald-400/10 px-2 py-0.5 text-[10px] font-bold text-emerald-300">
                   core_collection
                 </span>
               </div>
-              <div className="space-y-2 text-[12px] leading-6">
+              <div className="space-y-3 py-5 text-[12px] leading-6">
                 {[
+                  ['"standard"', '"mpl_core"'],
+                  ['"mint_engine"', '"core_candy_machine"'],
                   ['"launch_style"', '"core_collection"'],
-                  ['"max_supply"', "5000"],
-                  ['"assets_manifest_url"', '"ipfs://..."'],
-                  ['"mint_price_sol"', '"0.05"'],
+                  ['"assets"', '"config_lines"'],
+                  ['"payment"', '"SOL"'],
                 ].map(([key, value]) => (
-                  <div key={key} className="flex items-center justify-between gap-4">
-                    <span className="text-gray-500">{key}</span>
-                    <span className="truncate text-gray-200">{value}</span>
+                  <div key={key} className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)] items-center gap-4">
+                    <span className="truncate text-gray-500">{key}</span>
+                    <span className="truncate text-right text-gray-200">{value}</span>
                   </div>
                 ))}
               </div>
-              <div className={clsx("mt-5 rounded-xl border px-3 py-2 text-[11px]", theme === "dark" ? "border-cyan-400/15 bg-cyan-400/[0.04] text-cyan-200" : "border-cyan-400/30 bg-cyan-500/10 text-cyan-100")}>
-                Agent signs deploy ops from its funded Solana wallet. Collectors mint with their own wallet signatures.
+              <div className={clsx("rounded-xl border px-3 py-3 text-[11px] leading-5", theme === "dark" ? "border-cyan-400/15 bg-cyan-400/[0.04] text-cyan-200" : "border-cyan-400/30 bg-cyan-500/10 text-cyan-100")}>
+                Agent wallet deploys the Core Collection. Collector wallets mint through signed Candy Machine transactions.
               </div>
             </div>
           </div>
