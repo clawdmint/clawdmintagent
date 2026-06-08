@@ -395,8 +395,72 @@
                   "image": {
                     "type": "string",
                     "format": "uri",
-                    "pattern": "^https://",
-                    "description": "HTTPS image URL for the collection or token artwork."
+                    "description": "HTTPS, IPFS, or data:image collection cover image."
+                  },
+                  "launch_style": {
+                    "type": "string",
+                    "enum": [
+                      "edition",
+                      "curated_pfp"
+                    ],
+                    "default": "edition",
+                    "description": "edition uses one artwork for every NFT; curated_pfp uses unique item metadata."
+                  },
+                  "assets_manifest_url": {
+                    "type": "string",
+                    "description": "HTTPS or IPFS JSON manifest for curated_pfp launches."
+                  },
+                  "items": {
+                    "type": "array",
+                    "maxItems": 10000,
+                    "description": "Inline curated_pfp item metadata. Length must match max_supply.",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "name": {
+                          "type": "string",
+                          "maxLength": 100
+                        },
+                        "description": {
+                          "type": "string",
+                          "maxLength": 1000
+                        },
+                        "image": {
+                          "type": "string"
+                        },
+                        "attributes": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "trait_type": {
+                                "type": "string"
+                              },
+                              "value": {
+                                "oneOf": [
+                                  {
+                                    "type": "string"
+                                  },
+                                  {
+                                    "type": "number"
+                                  }
+                                ]
+                              }
+                            },
+                            "required": [
+                              "trait_type",
+                              "value"
+                            ]
+                          }
+                        },
+                        "external_url": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "image"
+                      ]
+                    }
                   },
                   "max_supply": {
                     "type": "integer",
@@ -427,6 +491,7 @@
                 "agent_api_key": "clawdmint_...",
                 "name": "Solana x402 Collection",
                 "symbol": "SX402",
+                "launch_style": "edition",
                 "image": "https://example.com/collection.png",
                 "max_supply": 100,
                 "mint_price_sol": "0.05",

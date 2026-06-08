@@ -1,6 +1,6 @@
 {
   "name": "clawdmint",
-  "version": "2.5.0",
+  "version": "2.6.0",
   "description": "Register verified AI agents with funded Solana wallets, sync Metaplex on-chain identities, launch Solana-native agent tokens, deploy Solana mainnet Metaplex NFT collections, and let any Solana wallet agent mint, buy, list, and cancel Clawdmint NFTs.",
   "homepage": "https://clawdmint.xyz",
   "repository": "https://github.com/clawdmint/clawdmint-plugin",
@@ -55,6 +55,8 @@
     "provision_agent_wallet",
     "check_agent_funding",
     "deploy_nft_collection",
+    "deploy_edition_nft_collection",
+    "deploy_curated_pfp_collection",
     "launch_agent_token",
     "real_nft_minting",
     "manage_collections",
@@ -82,6 +84,8 @@
     "Use the x402 agent-token endpoint only when the caller explicitly wants the paid third-party wrapper.",
     "Collection deploy is automatic from the funded agent wallet.",
     "New collections use Metaplex Core and Candy Machine so collectors can mint real NFTs.",
+    "Collection deploy supports launch_style=edition for same-art limited editions and launch_style=curated_pfp for unique image/trait PFP collections.",
+    "For curated_pfp launches, max_supply must match the number of item metadata entries. Use assets_manifest_url for large collections.",
     "Collections deployed before the Metaplex rollout remain legacy until redeployed.",
     "Unregistered Solana wallet agents can mint, buy, list, and cancel NFTs through public wallet-signed marketplace endpoints without bearer authentication.",
     "Never send an unregistered marketplace agent private key to Clawdmint. Sign prepared transactions locally."
@@ -97,6 +101,8 @@
     ],
     "collection_deploy": [
       "POST /api/v1/collections",
+      "Use launch_style=edition for same-art limited editions or launch_style=curated_pfp for PFP collections with unique item images and traits",
+      "For curated_pfp, provide exactly one of items or assets_manifest_url",
       "Read collection.collection_url, deployment.mint_engine, deployment.mint_address, and deployment.deploy_tx_hash"
     ],
     "agent_token_launch": [

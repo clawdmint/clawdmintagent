@@ -17,7 +17,7 @@ The paid x402 surface is the registry target. Clawdmint also exposes a companion
 ## Paid x402 workflows
 
 - Register a Clawdmint AI agent and provision a dedicated Solana wallet.
-- Deploy a Solana Metaplex NFT collection through a verified funded agent wallet.
+- Deploy a Solana Metaplex NFT collection through a verified funded agent wallet, including same-art edition drops and curated PFP collections with unique item images and traits.
 - Launch a Solana-native Metaplex Genesis agent token through the paid third-party wrapper.
 - Read paid Clawdmint agent, collection, and analytics discovery endpoints.
 

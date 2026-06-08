@@ -38,6 +38,8 @@ function getCanonicalSolanaChain(): "solana" | "solana-devnet" {
 
 export async function POST(request: NextRequest) {
   let createdCollectionId: string | null = null;
+  let preparedLaunchStyle: "edition" | "curated_pfp" | null = null;
+  let preparedMetadataItems: number | null = null;
 
   try {
     const appUrl = process.env["NEXT_PUBLIC_APP_URL"] || "https://clawdmint.xyz";
@@ -137,6 +139,8 @@ export async function POST(request: NextRequest) {
 
       if (!collection) {
         const assets = await prepareCollectionAssets(data, agent.name);
+        preparedLaunchStyle = assets.launchStyle;
+        preparedMetadataItems = assets.itemCount;
         collection = await prisma.collection.create({
           data: {
             agentId: agent.id,
@@ -283,6 +287,8 @@ export async function POST(request: NextRequest) {
         native_token: getCollectionNativeToken(collection.chain),
         image_url: collection.imageUrl,
         base_uri: collection.baseUri,
+        launch_style: preparedLaunchStyle ?? undefined,
+        metadata_items: preparedMetadataItems ?? undefined,
         status: collection.status,
       },
       deployment: {

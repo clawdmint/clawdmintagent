@@ -4,8 +4,8 @@ export const dynamic = "force-dynamic";
 
 const OPENCLAW_TOOLS = {
   name: "clawdmint",
-  version: "2.4.0",
-  description: "Clawdmint Solana mainnet Metaplex deployment tools for funded AI agents. Use direct authenticated tools for owner agent operations; x402 is only for paid third-party API access.",
+  version: "2.6.0",
+  description: "Clawdmint Solana mainnet Metaplex deployment tools for funded AI agents. Supports edition and curated PFP NFT launches. Use direct authenticated tools for owner agent operations; x402 is only for paid third-party API access.",
   baseUrl: process.env["NEXT_PUBLIC_APP_URL"] || "https://clawdmint.xyz",
   payments: {
     x402: {
@@ -113,6 +113,42 @@ const OPENCLAW_TOOLS = {
           symbol: { type: "string", pattern: "^[A-Z0-9]+$", maxLength: 10 },
           description: { type: "string", maxLength: 1000 },
           image: { type: "string" },
+          launch_style: {
+            type: "string",
+            enum: ["edition", "curated_pfp"],
+            default: "edition",
+            description: "edition uses one artwork for every NFT; curated_pfp uses unique item metadata.",
+          },
+          assets_manifest_url: {
+            type: "string",
+            description: "HTTPS or IPFS JSON manifest for curated_pfp item metadata.",
+          },
+          items: {
+            type: "array",
+            maxItems: 10000,
+            description: "Inline curated_pfp items. Length must match max_supply.",
+            items: {
+              type: "object",
+              properties: {
+                name: { type: "string", maxLength: 100 },
+                description: { type: "string", maxLength: 1000 },
+                image: { type: "string" },
+                attributes: {
+                  type: "array",
+                  items: {
+                    type: "object",
+                    properties: {
+                      trait_type: { type: "string" },
+                      value: { oneOf: [{ type: "string" }, { type: "number" }] },
+                    },
+                    required: ["trait_type", "value"],
+                  },
+                },
+                external_url: { type: "string" },
+              },
+              required: ["image"],
+            },
+          },
           max_supply: { type: "integer", minimum: 1, maximum: 100000 },
           mint_price: { type: "string", pattern: "^\\d+\\.?\\d*$" },
           mint_price_sol: { type: "string", pattern: "^\\d+\\.?\\d*$" },
@@ -173,6 +209,42 @@ const OPENCLAW_TOOLS = {
           symbol: { type: "string", pattern: "^[A-Z0-9]+$", maxLength: 10 },
           description: { type: "string", maxLength: 1000 },
           image: { type: "string" },
+          launch_style: {
+            type: "string",
+            enum: ["edition", "curated_pfp"],
+            default: "edition",
+            description: "edition uses one artwork for every NFT; curated_pfp uses unique item metadata.",
+          },
+          assets_manifest_url: {
+            type: "string",
+            description: "HTTPS or IPFS JSON manifest for curated_pfp item metadata.",
+          },
+          items: {
+            type: "array",
+            maxItems: 10000,
+            description: "Inline curated_pfp items. Length must match max_supply.",
+            items: {
+              type: "object",
+              properties: {
+                name: { type: "string", maxLength: 100 },
+                description: { type: "string", maxLength: 1000 },
+                image: { type: "string" },
+                attributes: {
+                  type: "array",
+                  items: {
+                    type: "object",
+                    properties: {
+                      trait_type: { type: "string" },
+                      value: { oneOf: [{ type: "string" }, { type: "number" }] },
+                    },
+                    required: ["trait_type", "value"],
+                  },
+                },
+                external_url: { type: "string" },
+              },
+              required: ["image"],
+            },
+          },
           max_supply: { type: "integer", minimum: 1, maximum: 100000 },
           mint_price: { type: "string", pattern: "^\\d+\\.?\\d*$" },
           mint_price_sol: { type: "string", pattern: "^\\d+\\.?\\d*$" },

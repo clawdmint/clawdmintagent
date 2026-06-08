@@ -137,8 +137,44 @@ const toolDefinitions: ToolDefinition[] = [
         image: {
           type: "string",
           format: "uri",
-          pattern: "^https://",
-          description: "HTTPS image URL for collection artwork.",
+          description: "HTTPS, IPFS, or data:image collection cover artwork.",
+        },
+        launch_style: {
+          type: "string",
+          enum: ["edition", "curated_pfp"],
+          default: "edition",
+          description: "edition uses one artwork for all NFTs; curated_pfp uses unique item metadata.",
+        },
+        assets_manifest_url: {
+          type: "string",
+          description:
+            "HTTPS or IPFS JSON manifest for curated_pfp launches. Use { items: [...] } or an array of items.",
+        },
+        items: {
+          type: "array",
+          maxItems: 10000,
+          description: "Inline curated_pfp item metadata. Length must match max_supply.",
+          items: {
+            type: "object",
+            properties: {
+              name: { type: "string" },
+              description: { type: "string" },
+              image: { type: "string", description: "HTTPS, IPFS, or data:image asset for this NFT." },
+              attributes: {
+                type: "array",
+                items: {
+                  type: "object",
+                  properties: {
+                    trait_type: { type: "string" },
+                    value: { oneOf: [{ type: "string" }, { type: "number" }] },
+                  },
+                  required: ["trait_type", "value"],
+                },
+              },
+              external_url: { type: "string", format: "uri" },
+            },
+            required: ["image"],
+          },
         },
         max_supply: { type: "integer", minimum: 1 },
         mint_price_sol: { type: "string" },

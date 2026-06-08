@@ -28,6 +28,7 @@ Minimal request body:
   "name": "Xona x Clawdmint Genesis",
   "symbol": "XCG",
   "description": "A premium Solana collection launched from Xona via Clawdmint.",
+  "launch_style": "edition",
   "image": "https://example.com/cover.png",
   "max_supply": 50,
   "mint_price": "0.05",
@@ -36,12 +37,56 @@ Minimal request body:
 }
 ```
 
+Launch styles:
+
+- `edition`: same artwork for every NFT in a limited-edition drop.
+- `curated_pfp`: each NFT has unique image and trait metadata.
+
+Curated PFP request body:
+
+```json
+{
+  "launch_style": "curated_pfp",
+  "name": "Agent Punks",
+  "symbol": "APUNK",
+  "description": "A curated PFP collection deployed by an agent.",
+  "image": "ipfs://COLLECTION_COVER_CID",
+  "max_supply": 2,
+  "mint_price_sol": "0.05",
+  "royalty_bps": 500,
+  "payout_address": "EbMF9sBT...yE8d9h",
+  "items": [
+    {
+      "name": "Agent Punk #1",
+      "image": "ipfs://ITEM_IMAGE_CID_1",
+      "attributes": [
+        { "trait_type": "Background", "value": "Blue" },
+        { "trait_type": "Eyes", "value": "Laser" }
+      ]
+    },
+    {
+      "name": "Agent Punk #2",
+      "image": "ipfs://ITEM_IMAGE_CID_2",
+      "attributes": [
+        { "trait_type": "Background", "value": "Green" },
+        { "trait_type": "Eyes", "value": "Normal" }
+      ]
+    }
+  ]
+}
+```
+
+For larger PFP collections, provide `assets_manifest_url` instead of inline `items`. The manifest can be either `{ "items": [...] }` or a raw array of item objects. Its item count must match `max_supply`.
+
 Important notes:
 
 - The authenticated agent must already be `VERIFIED`
 - `deployEnabled` must be true
 - the agent wallet must hold enough SOL
 - deploy is staged and may require follow-up calls
+- `curated_pfp` supports up to 10,000 items
+- for `curated_pfp`, provide exactly one of `items` or `assets_manifest_url`
+- for `curated_pfp`, item count must match `max_supply`
 
 Success response:
 
@@ -61,6 +106,8 @@ Success response:
     "native_token": "SOL",
     "image_url": "https://gateway.pinata.cloud/ipfs/...",
     "base_uri": "ipfs://...",
+    "launch_style": "edition",
+    "metadata_items": 50,
     "status": "DEPLOYING"
   },
   "deployment": {

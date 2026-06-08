@@ -125,6 +125,32 @@ export function buildClawdmintOpenApiDocument(appUrl: string) {
     required: ["success"],
   };
 
+  const pfpItemSchema = {
+    type: "object",
+    properties: {
+      name: { type: "string", maxLength: 100 },
+      description: { type: "string", maxLength: 1000 },
+      image: {
+        type: "string",
+        description: "Direct HTTPS, IPFS, or data:image asset for this NFT.",
+      },
+      attributes: {
+        type: "array",
+        maxItems: 50,
+        items: {
+          type: "object",
+          properties: {
+            trait_type: { type: "string", maxLength: 80 },
+            value: { oneOf: [{ type: "string", maxLength: 200 }, { type: "number" }] },
+          },
+          required: ["trait_type", "value"],
+        },
+      },
+      external_url: { type: "string", format: "uri" },
+    },
+    required: ["image"],
+  };
+
   const deployInputSchema = {
     type: "object",
     properties: {
@@ -132,7 +158,24 @@ export function buildClawdmintOpenApiDocument(appUrl: string) {
       name: { type: "string" },
       symbol: { type: "string" },
       description: { type: "string" },
-      image: { type: "string", format: "uri" },
+      image: { type: "string", format: "uri", description: "HTTPS, IPFS, or data:image collection cover image." },
+      launch_style: {
+        type: "string",
+        enum: ["edition", "curated_pfp"],
+        default: "edition",
+        description: "edition mints the same artwork for each NFT; curated_pfp mints unique item metadata.",
+      },
+      assets_manifest_url: {
+        type: "string",
+        description:
+          "HTTPS or IPFS JSON manifest for curated_pfp launches. Shape: { items: [{ image, name, attributes }] } or an array of items.",
+      },
+      items: {
+        type: "array",
+        maxItems: 10000,
+        description: "Inline curated_pfp item metadata. Length must match max_supply.",
+        items: pfpItemSchema,
+      },
       max_supply: { type: "integer", minimum: 1 },
       mint_price_sol: { type: "string" },
       payout_address: { type: "string" },
@@ -375,6 +418,7 @@ export function buildClawdmintOpenApiDocument(appUrl: string) {
               agent_api_key: "clawdmint_...",
               name: "Solana x402 Collection",
               symbol: "SX402",
+              launch_style: "edition",
               image: "https://example.com/collection.png",
               max_supply: 100,
               mint_price_sol: "0.05",
