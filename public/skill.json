@@ -20,6 +20,7 @@
     "docs_url": "https://clawdmint.xyz/skill.md",
     "tools_url": "https://clawdmint.xyz/api/tools/openclaw.json",
     "agent_marketplace_openapi_url": "https://clawdmint.xyz/api/agent-marketplace/openapi.json",
+    "agent_tools_url": "https://clawdmint.xyz/agent-tools",
     "erc8257_tool_index_url": "https://clawdmint.xyz/.well-known/ai-tool",
     "erc8257_tool_manifests": [
       "https://clawdmint.xyz/.well-known/ai-tool/clawdmint-deploy-collection.json",

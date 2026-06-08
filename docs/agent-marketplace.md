@@ -212,6 +212,12 @@ For cancel, sign `cancellation.serialized_transaction_base64`.
 
 Clawdmint also exposes ERC-8257-ready AI tool manifests for OpenSea Agent Tool Registry discovery.
 
+Public registry view:
+
+```text
+https://clawdmint.xyz/agent-tools
+```
+
 Tool index:
 
 ```http

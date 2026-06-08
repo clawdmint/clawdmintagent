@@ -1,6 +1,10 @@
 import "server-only";
 
 const MANIFEST_TYPE = "https://ercs.ethereum.org/ERCS/erc-8257#tool-manifest-v1";
+export const ERC8257_REGISTRY_ADDRESS = "0x265BB2DBFC0A8165C9A1941Eb1372F349baD2cf1";
+export const ERC8257_REGISTERED_CREATOR_ADDRESS = "0xC1e76AaBf34d11789Cad3D2006A47749c3217972";
+export const ERC8257_OPEN_ACCESS_PREDICATE = "0x0000000000000000000000000000000000000000";
+export const ERC8257_REGISTRY_CHAIN = "base";
 
 type JsonSchema = Record<string, unknown>;
 
@@ -30,6 +34,42 @@ type ToolDefinition = {
   pricing?: Record<string, unknown>;
   relatedEndpoints?: string[];
   requiresWalletSignature?: boolean;
+};
+
+type ToolRegistration = {
+  toolId: number;
+  txHash: string;
+};
+
+const toolRegistrations: Record<string, ToolRegistration> = {
+  "clawdmint-deploy-collection": {
+    toolId: 97,
+    txHash: "0xcb8aae5f536394dd08026becb9f064e2754c53eb244075d2ad456596391517b7",
+  },
+  "clawdmint-prepare-mint": {
+    toolId: 98,
+    txHash: "0x06ef4d76947b3abf6b5883dd90e7056d3739700ad8f653d890e836288217478e",
+  },
+  "clawdmint-confirm-mint": {
+    toolId: 99,
+    txHash: "0xe8c14dc0be13b2e8b2f4870336c8209f07f84e8c91195d89e4c693330774fde9",
+  },
+  "clawdmint-prepare-buy": {
+    toolId: 100,
+    txHash: "0x1f9d43390c6dd321a755dcc063eb8f841a0dba2c4f9a7f91bb14e2e500460c39",
+  },
+  "clawdmint-prepare-list": {
+    toolId: 101,
+    txHash: "0x6c6a677ef1054dc565ca7083d28215b11b98fe9f2c8c05784a321ebd5ba53fab",
+  },
+  "clawdmint-cancel-listing": {
+    toolId: 102,
+    txHash: "0x9f702280424a9e21d03d3c293d38fa77dca3bd920b5b06168e40489665dc6cbc",
+  },
+  "clawdmint-launch-agent-token": {
+    toolId: 103,
+    txHash: "0xf3fe8591660c09c4e6d6a6a33177fc9c84fac938de6e097134448a03eb3db43a",
+  },
 };
 
 function solanaAddress(description: string): JsonSchema {
@@ -266,6 +306,32 @@ function normalizeSlug(slug: string) {
 
 export function getErc8257ToolDefinitions() {
   return toolDefinitions.map((tool) => ({ ...tool }));
+}
+
+export function getErc8257RegisteredTools(appUrl: string) {
+  return toolDefinitions.map((tool) => {
+    const registration = toolRegistrations[tool.slug];
+
+    return {
+      ...tool,
+      endpoint: `${appUrl}${tool.endpointPath}`,
+      manifest: `${appUrl}/.well-known/ai-tool/${tool.slug}.json`,
+      execution: tool.requiresWalletSignature
+        ? "Wallet-signed Solana transaction"
+        : "x402 paid HTTP execution",
+      registration: registration
+        ? {
+            ...registration,
+            chain: ERC8257_REGISTRY_CHAIN,
+            creatorAddress: ERC8257_REGISTERED_CREATOR_ADDRESS,
+            registryAddress: ERC8257_REGISTRY_ADDRESS,
+            accessPredicate: ERC8257_OPEN_ACCESS_PREDICATE,
+            txUrl: `https://basescan.org/tx/${registration.txHash}`,
+            registryUrl: `https://basescan.org/address/${ERC8257_REGISTRY_ADDRESS}`,
+          }
+        : null,
+    };
+  });
 }
 
 export function getErc8257ToolSlugs() {

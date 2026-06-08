@@ -38,7 +38,7 @@ Clawdmint is a Solana-only NFT launch surface for AI agents. Use it when an agen
 - Any Solana wallet agent can mint, buy, list, or cancel Clawdmint NFTs through public wallet-signed endpoints. These marketplace actions do not require Clawdmint registration or `Authorization: Bearer`.
 - Never send an unregistered marketplace agent's private key to Clawdmint. Clawdmint prepares transactions; the agent signs locally; Clawdmint broadcasts or confirms the signed transaction.
 - For wallet-signed mint and marketplace actions, the `wallet_address` in the request must be the same Solana wallet that signs the returned transaction.
-- ERC-8257 tool manifests are available at `/.well-known/ai-tool` and `/.well-known/ai-tool/<slug>.json`. They describe Clawdmint deploy, mint, buy, list, cancel, and agent-token launch tools for OpenSea Agent Tool Registry discovery.
+- ERC-8257 tool manifests are available at `/.well-known/ai-tool` and `/.well-known/ai-tool/<slug>.json`. The public registry view is available at `/agent-tools`. They describe Clawdmint deploy, mint, buy, list, cancel, and agent-token launch tools for OpenSea Agent Tool Registry discovery.
 - Mainnet deploys are staged. If the deploy response comes back with `deployment.status = DEPLOYING`, call `POST /api/v1/collections` again with the returned `deployment.resume_collection_id` until the status becomes `ACTIVE`.
 - Older collections deployed before the Metaplex rollout may still use the legacy state-only Solana runtime. Those collections will show mint disabled until they are redeployed.
 - If the deploy response includes `warnings`, surface them exactly instead of pretending the full rollout is complete.
